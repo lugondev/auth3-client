@@ -4,13 +4,21 @@ import {useAuth} from '@/contexts/AuthContext'
 import {Button} from '@/components/ui/button'
 
 export function AuthStatus() {
-	const {user, signInWithGoogle, logout} = useAuth()
+	const {user, signInWithGoogle, signInWithFacebook, signInWithApple, logout} = useAuth()
 
 	if (!user) {
 		return (
-			<Button variant='outline' onClick={() => signInWithGoogle()}>
-				Sign in with Google
-			</Button>
+			<div className='flex gap-2'>
+				<Button variant='outline' onClick={() => signInWithGoogle()}>
+					Sign in with Google
+				</Button>
+				<Button variant='outline' onClick={() => signInWithFacebook()}>
+					Sign in with Facebook
+				</Button>
+				<Button variant='outline' onClick={() => signInWithApple()}>
+					Sign in with Apple
+				</Button>
+			</div>
 		)
 	}
 

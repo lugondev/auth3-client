@@ -1,5 +1,5 @@
 import {createContext, useContext, useEffect, useState} from 'react'
-import {User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup} from 'firebase/auth'
+import {User, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup} from 'firebase/auth'
 import {auth} from '@/lib/firebase'
 
 interface AuthContextType {
@@ -9,6 +9,8 @@ interface AuthContextType {
 	signUp: (email: string, password: string) => Promise<void>
 	logout: () => Promise<void>
 	signInWithGoogle: () => Promise<void>
+	signInWithFacebook: () => Promise<void>
+	signInWithApple: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -43,6 +45,16 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		await signOut(auth)
 	}
 
+	const signInWithFacebook = async () => {
+		const provider = new FacebookAuthProvider()
+		await signInWithPopup(auth, provider)
+	}
+
+	const signInWithApple = async () => {
+		const provider = new OAuthProvider('apple.com')
+		await signInWithPopup(auth, provider)
+	}
+
 	const value = {
 		user,
 		loading,
@@ -50,6 +62,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		signUp,
 		logout,
 		signInWithGoogle,
+		signInWithFacebook,
+		signInWithApple,
 	}
 
 	return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>
