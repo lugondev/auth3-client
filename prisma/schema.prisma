@@ -74,20 +74,51 @@ model user_roles {
 }
 
 model users {
-  id             String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  email          String       @unique @db.VarChar(255)
-  password_hash  String       @db.VarChar(255)
-  first_name     String       @db.VarChar(100)
-  last_name      String       @db.VarChar(100)
-  status         String       @default("pending") @db.VarChar(20)
-  email_verified Boolean      @default(false)
-  last_login     DateTime?    @db.Timestamptz(6)
-  created_at     DateTime     @default(now()) @db.Timestamptz(6)
-  updated_at     DateTime     @default(now()) @db.Timestamptz(6)
+  id             String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email          String         @unique @db.VarChar(255)
+  password_hash  String         @db.VarChar(255)
+  first_name     String         @db.VarChar(100)
+  last_name      String         @db.VarChar(100)
+  status         String         @default("pending") @db.VarChar(20)
+  email_verified Boolean        @default(false)
+  last_login     DateTime?      @db.Timestamptz(6)
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+  phone          String?        @db.VarChar(20)
+  avatar         String?        @db.VarChar(255)
+  role           String?        @db.VarChar(50)
+  deleted_at     DateTime?      @db.Timestamptz(6)
   audit_logs     audit_logs[]
   sessions       sessions[]
+  user_profiles  user_profiles?
   user_roles     user_roles[]
 
   @@index([email], map: "idx_users_email")
   @@index([status], map: "idx_users_status")
+  @@index([deleted_at], map: "idx_users_deleted_at")
+  @@index([phone], map: "idx_users_phone")
+  @@index([role], map: "idx_users_role")
+}
+
+model user_profiles {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  user_id       String    @unique @db.Uuid
+  bio           String?
+  date_of_birth DateTime? @db.Date
+  address       String?
+  interests     String[]
+  preferences   Json?     @default("{}")
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime  @default(now()) @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_user_profiles_user")
+
+  @@index([deleted_at], map: "idx_user_profiles_deleted_at")
+  @@index([user_id], map: "idx_user_profiles_user_id")
+}
+
+enum user_status {
+  active
+  inactive
+  suspended
 }

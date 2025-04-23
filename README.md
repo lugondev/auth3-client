@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js Frontend with Firebase Authentication
+
+This is the frontend application built with Next.js and Firebase Authentication.
+
+## Setup Firebase
+
+1. Create a new Firebase project at [Firebase Console](https://console.firebase.google.com)
+2. Enable Authentication in your Firebase project:
+   - Go to Authentication > Get Started
+   - Enable Google Authentication provider
+   - Add any other authentication providers you want to use
+
+3. Get your Firebase configuration:
+   - Go to Project Settings (⚙️)
+   - Scroll down to "Your apps" section
+   - Click the web icon (</>)
+   - Register your app with a nickname
+   - Copy the configuration object
+
+4. Set up environment variables:
+   Create or update your `.env` file with your Firebase configuration:
+
+   ```env
+   NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
+   NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+   ```
 
 ## Getting Started
 
-First, run the development server:
+First, install the dependencies:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+```
+
+Then, run the development server:
+
+```bash
+bun run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Authentication Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Sign in with Google
+- Protected routes (/protected)
+- Authentication status in header
+- Automatic redirection for unauthenticated users
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+- `src/lib/firebase.ts` - Firebase configuration and initialization
+- `src/contexts/AuthContext.tsx` - Authentication context provider
+- `src/components/providers/AuthProvider.tsx` - Client-side Auth provider wrapper
+- `src/components/auth/AuthStatus.tsx` - Authentication status component
+- `src/app/protected/page.tsx` - Example protected route
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Make sure to set up your Firebase configuration in `.env`
+2. Install dependencies with `bun install`
+3. Run the development server with `bun run dev`
+4. Make your changes
+5. Test your changes
+6. Submit a pull request
