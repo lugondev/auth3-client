@@ -333,3 +333,156 @@ model venues {
   @@index([status], map: "idx_venue_status")
   @@index([deleted_at], map: "idx_venues_deleted_at")
 }
+
+model audit_logs {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  user_id       String?   @db.Uuid
+  action_type   String    @db.VarChar(50)
+  resource_type String    @db.VarChar(50)
+  resource_id   String    @db.VarChar(255)
+  description   String?
+  metadata      Json?
+  ip_address    String?   @db.VarChar(45)
+  user_agent    String?
+  users         users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_audit_logs_user")
+
+  @@index([action_type], map: "idx_audit_logs_action_type")
+  @@index([deleted_at], map: "idx_audit_logs_deleted_at")
+  @@index([resource_type], map: "idx_audit_logs_resource_type")
+  @@index([user_id], map: "idx_audit_logs_user_id")
+}
+
+model refresh_tokens {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  user_id    String    @db.Uuid
+  token      String    @unique(map: "uni_refresh_tokens_token")
+  device_id  String?   @db.VarChar(255)
+  user_agent String?
+  ip_address String?   @db.VarChar(45)
+  expires_at DateTime  @db.Timestamptz(6)
+  revoked_at DateTime? @db.Timestamptz(6)
+  users      users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_refresh_tokens_user")
+
+  @@index([deleted_at], map: "idx_refresh_tokens_deleted_at")
+  @@index([device_id], map: "idx_refresh_tokens_device_id")
+  @@index([expires_at], map: "idx_refresh_tokens_expires_at")
+  @@index([token], map: "idx_refresh_tokens_token")
+  @@index([user_id], map: "idx_refresh_tokens_user_id")
+}
+
+model roles {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at  DateTime?    @db.Timestamptz(6)
+  updated_at  DateTime?    @db.Timestamptz(6)
+  deleted_at  DateTime?    @db.Timestamptz(6)
+  name        String       @unique(map: "uni_roles_name") @db.VarChar(100)
+  description String?
+  permissions String[]
+  user_roles  user_roles[]
+
+  @@index([deleted_at], map: "idx_roles_deleted_at")
+  @@index([name], map: "idx_roles_name")
+}
+
+model sessions {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  user_id       String    @db.Uuid
+  access_token  String    @unique(map: "uni_sessions_access_token") @db.VarChar(255)
+  refresh_token String    @unique(map: "uni_sessions_refresh_token") @db.VarChar(255)
+  expires_at    DateTime  @db.Timestamptz(6)
+  users         users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sessions_user")
+
+  @@index([access_token], map: "idx_sessions_access_token")
+  @@index([deleted_at], map: "idx_sessions_deleted_at")
+  @@index([expires_at], map: "idx_sessions_expires_at")
+  @@index([refresh_token], map: "idx_sessions_refresh_token")
+  @@index([user_id], map: "idx_sessions_user_id")
+}
+
+model social_profiles {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  user_id          String    @db.Uuid
+  provider         String    @db.VarChar(50)
+  provider_user_id String    @db.VarChar(255)
+  email            String?   @db.VarChar(255)
+  display_name     String?   @db.VarChar(255)
+  photo_url        String?   @db.VarChar(255)
+  access_token     String?
+  refresh_token    String?
+  token_expires_at DateTime? @db.Timestamptz(6)
+  raw_data         Json?
+  users            users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_social_profiles_user")
+
+  @@index([deleted_at], map: "idx_social_profiles_deleted_at")
+  @@index([provider], map: "idx_social_profiles_provider")
+  @@index([provider_user_id], map: "idx_social_profiles_provider_user_id")
+  @@index([user_id], map: "idx_social_profiles_user_id")
+}
+
+model user_profiles {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at    DateTime? @db.Timestamptz(6)
+  updated_at    DateTime? @db.Timestamptz(6)
+  deleted_at    DateTime? @db.Timestamptz(6)
+  user_id       String    @unique(map: "uni_user_profiles_user_id") @db.Uuid
+  bio           String?
+  date_of_birth DateTime? @db.Date
+  address       String?
+  interests     String[]
+  preferences   Json?
+  users         users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_profile")
+
+  @@index([deleted_at], map: "idx_user_profiles_deleted_at")
+}
+
+model user_roles {
+  role_id String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id String @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roles   roles  @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_roles_role")
+  users   users  @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_roles_user")
+
+  @@id([role_id, user_id])
+}
+
+model users {
+  id                String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at        DateTime?         @db.Timestamptz(6)
+  updated_at        DateTime?         @db.Timestamptz(6)
+  deleted_at        DateTime?         @db.Timestamptz(6)
+  email             String            @unique(map: "uni_users_email") @db.VarChar(255)
+  firebase_uid      String?           @unique(map: "uni_users_firebase_uid") @db.VarChar(128)
+  first_name        String            @db.VarChar(100)
+  last_name         String            @db.VarChar(100)
+  status            String            @default("pending") @db.VarChar(20)
+  email_verified    Boolean           @default(false)
+  email_verified_at DateTime?         @db.Timestamptz(6)
+  last_login        DateTime?         @db.Timestamptz(6)
+  phone             String?           @db.VarChar(20)
+  avatar            String?           @db.VarChar(255)
+  role              String?           @db.VarChar(50)
+  provider          String?           @db.VarChar(50)
+  provider_id       String?           @db.VarChar(255)
+  audit_logs        audit_logs[]
+  refresh_tokens    refresh_tokens[]
+  sessions          sessions[]
+  social_profiles   social_profiles[]
+  user_profiles     user_profiles?
+  user_roles        user_roles[]
+
+  @@index([deleted_at], map: "idx_users_deleted_at")
+  @@index([email], map: "idx_users_email")
+  @@index([firebase_uid], map: "idx_users_firebase_uid")
+  @@index([status], map: "idx_users_status")
+}
