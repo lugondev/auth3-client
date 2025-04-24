@@ -17,7 +17,7 @@ export default function ProtectedPage() {
 
 	if (loading) {
 		return (
-			<div className='container mx-auto p-6'>
+			<div className='p-6'>
 				<Card>
 					<CardContent className='pt-6'>
 						<div className='animate-pulse space-y-4'>
@@ -40,8 +40,8 @@ export default function ProtectedPage() {
 					<CardDescription>This content is only visible to authenticated users</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<p className='text-muted-foreground'>
-						Welcome back, <span className='font-medium text-foreground'>{user.email}</span>! You have successfully accessed the protected content.
+					<p className='text-muted-foreground mb-4'>
+						Welcome back, <span className='font-medium text-foreground'>{user.email}</span>! You can use the sidebar to navigate between different sections.
 					</p>
 				</CardContent>
 			</Card>
