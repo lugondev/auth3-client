@@ -32,17 +32,21 @@ export default function ProtectedPage() {
 
 	if (!user) return null
 
+	// Determine display name
+	const displayName = user.first_name || user.last_name ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : user.email
+
 	return (
 		<div className='container mx-auto p-6'>
 			<Card>
 				<CardHeader>
-					<CardTitle>Protected Page</CardTitle>
-					<CardDescription>This content is only visible to authenticated users</CardDescription>
+					<CardTitle>Dashboard</CardTitle>
+					<CardDescription>Welcome to the Moco Management System.</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<p className='text-muted-foreground mb-4'>
-						Welcome back, <span className='font-medium text-foreground'>{user.email}</span>! You can use the sidebar to navigate between different sections.
+					<p className='text-muted-foreground'>
+						Hello, <span className='font-medium text-foreground'>{displayName}</span>! Use the sidebar to navigate the system.
 					</p>
+					{/* You can add more dashboard components here later, e.g., stats, charts, quick links */}
 				</CardContent>
 			</Card>
 		</div>

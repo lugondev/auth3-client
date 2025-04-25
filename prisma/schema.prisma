@@ -474,6 +474,7 @@ model users {
   role              String?           @db.VarChar(50)
   provider          String?           @db.VarChar(50)
   provider_id       String?           @db.VarChar(255)
+  password          String            @db.VarChar(255)
   audit_logs        audit_logs[]
   refresh_tokens    refresh_tokens[]
   sessions          sessions[]

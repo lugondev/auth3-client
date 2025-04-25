@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation'
 import {useEffect} from 'react'
 import {Sidebar} from '@/components/layout/Sidebar'
 import {MobileHeader} from '@/components/layout/MobileHeader'
+import {Footer} from '@/components/layout/Footer' // Import Footer
 
 export default function ProtectedLayout({children}: {children: React.ReactNode}) {
 	const {user, loading} = useAuth()
@@ -34,9 +35,13 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 			{/* Sidebar */}
 			<Sidebar />
 			{/* Main content */}
-			<div className='flex flex-1 flex-col'>
+			{/* Main content */}
+			<div className='flex flex-1 flex-col overflow-hidden'>
+				{' '}
+				{/* Added overflow-hidden */}
 				<MobileHeader />
-				<div className='flex-1 overflow-y-auto'>{children}</div>
+				<main className='flex-1 overflow-y-auto p-4 md:p-6'>{children}</main> {/* Added padding and main tag */}
+				<Footer /> {/* Add Footer */}
 			</div>
 		</div>
 	)

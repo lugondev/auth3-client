@@ -1,150 +1,242 @@
 import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse, AxiosHeaders } from 'axios';
-import { getAuth } from 'firebase/auth';
-import { app } from './firebase'; // Assuming firebase is initialized here
+import { getTokens, refreshToken, logoutUser } from '@/services/authService'; // Import JWT handling functions
+
+// --- Start: Backend Type Definitions ---
+
+// Based on internal/modules/account/domain/models.go
+export type UserStatus = "active" | "pending" | "blocked" | "inactive";
+
+// Based on internal/modules/account/domain/role.go
+// Assuming Permission is a string for simplicity, adjust if it's more complex
+export type Permission = string;
+
+// Based on internal/modules/account/domain/role_dto.go
+export interface RoleOutput {
+	id: string; // uuid.UUID maps to string
+	name: string;
+	description: string;
+	permissions: Permission[];
+	created_at: string; // time.Time maps to string (ISO 8601)
+	updated_at: string; // time.Time maps to string
+}
+
+// Based on internal/modules/account/domain/user_dto.go and models.go
+export interface UserOutput {
+	id: string; // uuid.UUID
+	email: string;
+	first_name: string;
+	last_name: string;
+	phone?: string;
+	avatar?: string;
+	role?: RoleOutput | null; // Role can be null if not loaded or doesn't exist
+	status: UserStatus;
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+}
+
+export interface UserPreferences {
+	email_notifications: boolean;
+	push_notifications: boolean;
+	language: string;
+	theme: string;
+}
+
+export interface UserProfile {
+	id: string; // uuid.UUID
+	user_id: string; // uuid.UUID
+	bio?: string;
+	date_of_birth?: string | null; // time.Time can be null/zero
+	address?: string;
+	interests?: string[];
+	preferences?: UserPreferences; // Can be optional or have defaults
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+}
+
+// Input DTOs for User operations
+export interface UpdateUserInput {
+	first_name?: string;
+	last_name?: string;
+	phone?: string;
+	status?: UserStatus; // Make optional for partial updates
+}
+
+export interface UpdateProfileInput {
+	bio?: string;
+	date_of_birth?: string | null; // Use string for date input, backend parses
+	address?: string;
+	interests?: string[];
+	preferences?: Partial<UserPreferences>; // Allow partial updates for preferences
+}
+
+export interface UpdatePasswordInput {
+	current_password: string;
+	new_password: string;
+}
+
+// Based on internal/modules/account/domain/auth_dto.go
+export interface AuthResult {
+	access_token: string;
+	refresh_token?: string;
+	expires_in?: number; // Optional: Expiry time if provided
+}
+
+// Combined Login/Register/Refresh/Exchange Output
+// Combining AuthResult and potential user/profile data returned on login/exchange
+export interface AuthResponse {
+	auth: AuthResult;
+	user?: UserOutput; // User might be returned on login/register/refresh
+	profile?: UserProfile; // Profile might be returned on login/register/refresh
+}
+
+// Paginated results for users and roles
+export interface PaginatedUsers {
+	users: UserOutput[];
+	total: number; // Assuming int64 maps to number
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface PaginatedRoles {
+	roles: RoleOutput[];
+	total: number; // Assuming int64 maps to number
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+// Search query parameters
+export interface UserSearchQuery {
+	query?: string;
+	status?: UserStatus;
+	role_id?: string; // uuid.UUID
+	page?: number;
+	page_size?: number;
+}
+
+// --- End: Backend Type Definitions ---
+
 
 const apiClient = axios.create({
-	baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1', // Default to localhost:8080/api/v1
+	baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1',
 	headers: {
 		'Content-Type': 'application/json',
 	},
-	withCredentials: true, // Important for CORS with credentials
+	withCredentials: true,
 });
 
-// Add a request interceptor to include the Firebase auth token
-apiClient.interceptors.request.use(
-	async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
-		const auth = getAuth(app);
-		const user = auth.currentUser;
+let isRefreshing = false;
+type FailedQueueItem = {
+	resolve: (value: unknown) => void;
+	reject: (reason?: AxiosError | null) => void;
+};
+let failedQueue: FailedQueueItem[] = [];
 
-		if (user) {
-			try {
-				const idToken = await user.getIdToken();
-				// Ensure headers object exists and is an instance of AxiosHeaders
-				if (!config.headers) {
-					config.headers = new AxiosHeaders();
-				}
-				// Use the set method for AxiosHeaders
-				config.headers.set('Authorization', `Bearer ${idToken}`);
-			} catch (error) {
-				console.error('Error getting ID token:', error);
-				// Handle token refresh or re-authentication if necessary
-				// Depending on the error, you might want to reject the request or try refreshing the token
-			}
+const processQueue = (error: AxiosError | null, token: string | null = null) => {
+	failedQueue.forEach(prom => {
+		if (error) {
+			prom.reject(error);
+		} else {
+			prom.resolve(token);
 		}
+	});
+	failedQueue = [];
+};
+
+// Request Interceptor: Add JWT to headers
+apiClient.interceptors.request.use(
+	(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
+		const { accessToken } = getTokens();
+
+		const skipAuth = config.headers?.['__skipAuthRefresh'] === 'true';
+		if (accessToken && !skipAuth) {
+			if (!config.headers) {
+				config.headers = new AxiosHeaders();
+			}
+			config.headers.set('Authorization', `Bearer ${accessToken}`);
+		}
+
+		if (skipAuth) {
+			delete config.headers['__skipAuthRefresh'];
+		}
+
 		return config;
 	},
-	(error: AxiosError) => {
-		// Do something with request error
-		return Promise.reject(error);
-	}
+	(error: AxiosError) => Promise.reject(error)
 );
 
-// Add a response interceptor for handling errors globally (optional)
+// Response Interceptor: Handle 401 errors and token refresh
 apiClient.interceptors.response.use(
 	(response: AxiosResponse) => response,
-	(error: AxiosError) => {
-		// Handle specific error statuses or log errors
-		console.error('API call error:', error.response?.data || (error.message as string));
-		// You might want to redirect to login on 401 errors, etc.
+	async (error: AxiosError) => {
+		const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+		// Use status code from response if available, otherwise check error message potentially
+		const statusCode = error.response?.status;
+
+		// Check if it's a 401 error, not a refresh token failure itself, and not already retried
+		// Backend refresh endpoint is /auth/refresh
+		if (statusCode === 401 && originalRequest.url !== '/auth/refresh' && !originalRequest._retry) {
+
+			if (isRefreshing) {
+				return new Promise((resolve, reject) => {
+					failedQueue.push({ resolve, reject });
+				}).then(token => {
+					if (originalRequest.headers) {
+						originalRequest.headers['Authorization'] = `Bearer ${token}`;
+					}
+					// Ensure the retry uses the original method, data, etc.
+					return apiClient(originalRequest);
+				}).catch(err => {
+					return Promise.reject(err); // Propagate refresh error
+				});
+			}
+
+			originalRequest._retry = true;
+			isRefreshing = true;
+
+			try {
+				// Use the updated AuthResponse type here
+				const refreshResponse = await refreshToken();
+				// Check access_token within the nested 'auth' object
+				if (refreshResponse?.auth.access_token) {
+					const newAccessToken = refreshResponse.auth.access_token;
+					console.log('Token refreshed successfully. Retrying original request.');
+					if (originalRequest.headers) {
+						originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+					}
+					processQueue(null, newAccessToken);
+					return apiClient(originalRequest);
+				} else {
+					console.error('Refresh endpoint did not return a new access token.');
+					processQueue(error, null);
+					await logoutUser(); // Logout if refresh fails definitively
+					return Promise.reject(error);
+				}
+			} catch (refreshError) {
+				console.error('Failed to refresh token:', refreshError);
+				processQueue(refreshError as AxiosError, null);
+				// logoutUser is likely called within refreshToken on failure
+				// await logoutUser(); // Consider if double logout is needed
+				return Promise.reject(refreshError);
+			} finally {
+				isRefreshing = false;
+			}
+		}
+
+		// Log details for non-401 or already retried errors
+		console.error('API call error:', error.response?.data || error.message);
+		// Optionally handle specific error types (e.g., 403 Forbidden, 404 Not Found)
+		// if (statusCode === 403) { ... }
+
 		return Promise.reject(error);
 	}
 );
 
 export default apiClient;
 
-// Define interfaces for API responses based on Go handlers (can be expanded)
 
-// User related interfaces (based on user_handler.go and domain/auth)
-export interface UserOutput {
-	id: string;
-	email: string;
-	name?: string;
-	// Add other fields from auth.UserOutput
-}
-
-export interface UserProfileOutput {
-	// TODO: Define fields based on Go's auth.UserProfileOutput
-	// Example:
-	// bio?: string;
-	// location?: string;
-	[key: string]: unknown; // Allow other properties for now
-}
-
-export interface UpdateUserInput {
-	name?: string;
-	// Add other fields from auth.UpdateUserInput
-}
-
-export interface UpdateProfileInput {
-	// TODO: Define fields based on Go's auth.UpdateProfileInput
-	// Example:
-	// bio?: string;
-	// location?: string;
-	[key: string]: unknown; // Allow other properties for now
-}
-
-export interface PaginatedUsers {
-	users: UserOutput[];
-	total_count: number;
-	page: number;
-	limit: number;
-	total_pages: number;
-}
-
-export interface UserSearchQuery {
-	query?: string;
-	status?: string; // Consider using an enum if statuses are fixed
-	role?: string;
-	page?: number;
-	page_size?: number;
-}
-
-
-// Venue related interfaces (based on venue_handler.go and domain/venue)
-export interface Venue {
-	id: string;
-	name: string;
-	description?: string;
-	address?: string;
-	latitude?: number;
-	longitude?: number;
-	// Add other fields from venue.Venue
-}
-
-export interface CreateVenueInput {
-	name: string;
-	description?: string;
-	address?: string;
-	latitude?: number;
-	longitude?: number;
-	// Add other fields from ports.CreateVenueInput
-}
-
-export interface UpdateVenueInput {
-	name?: string;
-	description?: string;
-	address?: string;
-	latitude?: number;
-	longitude?: number;
-	// Add other fields from ports.UpdateVenueInput
-}
-
-export interface PaginatedVenues {
-	venues: Venue[];
-	total_count: number;
-	page: number;
-	limit: number;
-	total_pages: number;
-}
-
-export interface VenueSearchQuery {
-	query?: string;
-	latitude?: number;
-	longitude?: number;
-	radius?: number;
-	category?: string;
-	page?: number;
-	limit?: number;
-}
-
-// Add interfaces for Venue Staff, Settings, Photos, Tables, Events, Products as needed
+// NOTE: Removed redundant interface definitions at the end as they are now defined at the top.
+// Interfaces like Venue, CreateVenueInput, etc., should be moved to a separate file
+// (e.g., src/services/venueService.ts or src/types/venue.ts) if they grow complex.

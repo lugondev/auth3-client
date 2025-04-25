@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import {usePathname} from 'next/navigation'
-import {cn} from '@/lib/utils' // Assuming you have a utility for class names
-import {Home, Users, Building} from 'lucide-react' // Example icons
+import {cn} from '@/lib/utils'
+// Import necessary icons
+import {Home, Users, Building, ShieldCheck, UserCircle} from 'lucide-react'
 
 const sidebarNavItems = [
 	{
@@ -21,7 +22,16 @@ const sidebarNavItems = [
 		href: '/protected/venues',
 		icon: Building,
 	},
-	// Add more navigation items here
+	{
+		title: 'RBAC',
+		href: '/protected/rbac',
+		icon: ShieldCheck,
+	},
+	{
+		title: 'Profile',
+		href: '/protected/profile',
+		icon: UserCircle,
+	},
 ]
 
 export function Sidebar() {
@@ -32,12 +42,13 @@ export function Sidebar() {
 			{' '}
 			{/* Hidden on small screens */}
 			<div className='flex h-full max-h-screen flex-col gap-2'>
+				{/* Use the same branding as the main header */}
 				<div className='flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6'>
 					<Link href='/' className='flex items-center gap-2 font-semibold'>
-						{/* Replace with your logo/app name */}
-						<span className=''>Admin Panel</span>
+						{/* <AppWindow className='h-6 w-6' /> Optional Icon */}
+						<span className='font-bold'>Moco</span>
 					</Link>
-					{/* Optional: Add a button here like a notification bell */}
+					{/* Optional: Notification bell etc. can go here */}
 				</div>
 				<div className='flex-1'>
 					<nav className='grid items-start px-2 text-sm font-medium lg:px-4'>
