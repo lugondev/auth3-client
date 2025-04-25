@@ -2,7 +2,8 @@
 
 import {useEffect, useState} from 'react'
 import {useAuth} from '@/contexts/AuthContext'
-import {getCurrentUser, getCurrentUserProfile} from '@/services/authService'
+// Import user functions from userService now
+import {getCurrentUser, getUserProfile} from '@/services/userService'
 import {UserOutput, UserProfile} from '@/lib/apiClient'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Skeleton} from '@/components/ui/skeleton'
@@ -37,9 +38,11 @@ export default function ProfilePage() {
 					setError(null)
 					// Fetch detailed user data and profile data
 					// Using Promise.all for parallel fetching
+					// Fetch detailed user data and profile data using userService
+					// getUserProfile now requires the user ID
 					const [fetchedUser, fetchedProfile] = await Promise.all([
 						getCurrentUser(), // Gets UserOutput (/users/me)
-						getCurrentUserProfile(), // Gets UserProfile (/users/profile - needs verification)
+						getUserProfile(authUser.id), // Gets UserProfile (/users/profile/:id)
 					])
 					setUserData(fetchedUser)
 					setProfileData(fetchedProfile)

@@ -48,7 +48,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ## Authentication Features
 
 - Sign in with Google
-- Protected routes (/protected)
+- Protected routes (/)
 - Authentication status in header
 - Automatic redirection for unauthenticated users
 
@@ -58,7 +58,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - `src/contexts/AuthContext.tsx` - Authentication context provider
 - `src/components/providers/AuthProvider.tsx` - Client-side Auth provider wrapper
 - `src/components/auth/AuthStatus.tsx` - Authentication status component
-- `src/app/protected/page.tsx` - Example protected route
+- `src/app/(protected)/page.tsx` - Example protected route
 
 ## Contributing
 

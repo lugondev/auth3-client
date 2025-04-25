@@ -9,27 +9,27 @@ import {Home, Users, Building, ShieldCheck, UserCircle} from 'lucide-react'
 const sidebarNavItems = [
 	{
 		title: 'Dashboard',
-		href: '/protected',
+		href: '/',
 		icon: Home,
 	},
 	{
 		title: 'Users',
-		href: '/protected/users',
+		href: '/users',
 		icon: Users,
 	},
 	{
 		title: 'Venues',
-		href: '/protected/venues',
+		href: '/venues',
 		icon: Building,
 	},
 	{
 		title: 'RBAC',
-		href: '/protected/rbac',
+		href: '/rbac',
 		icon: ShieldCheck,
 	},
 	{
 		title: 'Profile',
-		href: '/protected/profile',
+		href: '/profile',
 		icon: UserCircle,
 	},
 ]

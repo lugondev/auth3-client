@@ -8,6 +8,7 @@ import {LoginForm} from '@/components/auth/LoginForm'
 import {Card, CardHeader, CardTitle, CardDescription, CardContent} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
 import {Skeleton} from '@/components/ui/skeleton' // Import Skeleton for loading state
+import Link from 'next/link' // <-- Import Link
 
 export default function Home() {
 	const {isAuthenticated, loading} = useAuth()
@@ -16,7 +17,7 @@ export default function Home() {
 	useEffect(() => {
 		// Redirect if authenticated and not loading
 		if (!loading && isAuthenticated) {
-			router.replace('/protected/profile') // Use replace to avoid adding login page to history
+			router.replace('/profile') // Use replace to avoid adding login page to history
 		}
 	}, [isAuthenticated, loading, router])
 
@@ -55,6 +56,19 @@ export default function Home() {
 						<span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform bg-card px-2 text-xs text-muted-foreground'>OR CONTINUE WITH</span>
 					</div>
 					<LoginForm /> {/* Add LoginForm */}
+					<div className='mt-4 text-center text-sm space-y-1'>
+						<div>
+							<Link href='/forgot-password' className='underline'>
+								Forgot your password?
+							</Link>
+						</div>
+						<div>
+							Don{'\u0027'}t have an account?{' '}
+							<Link href='/register' className='underline'>
+								Register
+							</Link>
+						</div>
+					</div>
 				</CardContent>
 			</Card>
 		</div>

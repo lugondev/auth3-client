@@ -53,7 +53,48 @@ export interface UserProfile {
 	updated_at: string; // time.Time
 }
 
-// Input DTOs for User operations
+// Based on internal/modules/account/domain/auth_dto.go
+export interface RegisterInput {
+	email: string;
+	password: string;
+	first_name?: string; // Optional based on typical registration
+	last_name?: string;  // Optional
+}
+
+export interface LoginInput {
+	email: string;
+	password: string;
+}
+
+export interface SocialTokenExchangeInput {
+	token: string; // The ID token from the social provider (e.g., Firebase)
+	provider: string; // Added provider field, e.g., "firebase", "google"
+}
+
+export interface ForgotPasswordInput {
+	email: string;
+}
+
+export interface ResetPasswordInput {
+	token: string;
+	new_password: string;
+}
+
+export interface EmailVerificationOutput {
+	message: string; // Example: "Email verified successfully"
+}
+
+// Based on internal/modules/account/domain/social_dto.go
+// Assuming SocialLoginInput might be needed if using direct social routes
+export interface SocialLoginInput {
+	provider: string; // e.g., "google", "facebook"
+	code?: string;     // Authorization code from provider redirect
+	id_token?: string; // ID token (if applicable, e.g., Google Sign-In)
+	// Add other fields as needed based on the specific social provider flow
+}
+
+
+// Input DTOs for User operations (Keep existing)
 export interface UpdateUserInput {
 	first_name?: string;
 	last_name?: string;
@@ -113,6 +154,11 @@ export interface UserSearchQuery {
 	role_id?: string; // uuid.UUID
 	page?: number;
 	page_size?: number;
+}
+
+// Type for UpdatePasswordResponse in user_handler.go
+export interface UpdatePasswordResponse {
+	message: string;
 }
 
 // --- End: Backend Type Definitions ---

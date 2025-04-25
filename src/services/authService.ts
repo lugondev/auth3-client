@@ -1,10 +1,13 @@
 import apiClient, {
 	AuthResponse, // Use the new combined response type
-	UserOutput,
-	UserProfile,
-	UpdateUserInput,
-	UpdateProfileInput,
-	UpdatePasswordInput, // Added import
+	// Types specific to auth operations:
+	LoginInput,
+	RegisterInput,
+	ForgotPasswordInput,
+	ResetPasswordInput,
+	SocialTokenExchangeInput,
+	EmailVerificationOutput,
+	AuthResult, // Used by storeTokens
 } from '@/lib/apiClient';
 import { auth } from '@/lib/firebase'; // Import Firebase auth if needed
 import { signOut } from 'firebase/auth';
@@ -15,16 +18,14 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 // Removed old TokenResponse interface
 
 /**
- * Exchanges a Firebase ID token for a custom JWT from the backend.
- * @param firebaseToken The Firebase ID token.
+ * Exchanges a social provider's token (e.g., Firebase ID token) for a custom JWT from the backend.
+ * @param data The social token exchange data (SocialTokenExchangeInput).
  * @returns An AuthResponse containing tokens and potentially user/profile data.
  */
-export const exchangeFirebaseToken = async (firebaseToken: string): Promise<AuthResponse> => {
+export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput): Promise<AuthResponse> => {
 	try {
 		// Expect AuthResponse from the backend endpoint
-		const response = await apiClient.post<AuthResponse>('/auth/social-token-exchange', {
-			token: firebaseToken,
-		});
+		const response = await apiClient.post<AuthResponse>('/auth/social-token-exchange', data);
 		return response.data;
 	} catch (error) {
 		console.error('Error exchanging Firebase token:', error);
@@ -34,17 +35,13 @@ export const exchangeFirebaseToken = async (firebaseToken: string): Promise<Auth
 
 /**
  * Signs in a user using email and password.
- * @param email The user's email.
- * @param password The user's password.
+ * @param data Login credentials (LoginInput).
  * @returns An AuthResponse containing tokens and user data.
  */
-export const signInWithEmail = async (email: string, password: string): Promise<AuthResponse> => {
+export const signInWithEmail = async (data: LoginInput): Promise<AuthResponse> => {
 	try {
 		// Expect AuthResponse from the backend /auth/login endpoint
-		const response = await apiClient.post<AuthResponse>('/auth/login', {
-			email,
-			password,
-		});
+		const response = await apiClient.post<AuthResponse>('/auth/login', data);
 		// No need to store tokens here, AuthContext will handle it
 		return response.data;
 	} catch (error) {
@@ -57,11 +54,79 @@ export const signInWithEmail = async (email: string, password: string): Promise<
  * Logs the user out by clearing tokens and signing out from Firebase.
  * Optionally calls the backend logout endpoint.
  */
+
+/**
+ * Registers a new user.
+ * @param data The registration data (RegisterInput).
+ * @returns An AuthResponse containing tokens and user data.
+ */
+export const register = async (data: RegisterInput): Promise<AuthResponse> => {
+	try {
+		const response = await apiClient.post<AuthResponse>('/auth/register', data);
+		// AuthContext will handle storing tokens and user state
+		return response.data;
+	} catch (error) {
+		console.error('Error registering user:', error);
+		throw error;
+	}
+};
+
+
+/**
+ * Sends a password reset email.
+ * @param data The email address (ForgotPasswordInput).
+ */
+export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> => {
+	try {
+		await apiClient.post('/auth/password/forgot', data);
+		console.log('Forgot password request sent.');
+	} catch (error) {
+		console.error('Error sending forgot password request:', error);
+		throw error;
+	}
+};
+
+/**
+ * Resets the user's password using a token.
+ * @param data The reset token and new password (ResetPasswordInput).
+ */
+export const resetPassword = async (data: ResetPasswordInput): Promise<void> => {
+	try {
+		await apiClient.post('/auth/password/reset', data);
+		console.log('Password reset successful.');
+	} catch (error) {
+		console.error('Error resetting password:', error);
+		throw error;
+	}
+};
+
+/**
+ * Verifies the user's email using a token.
+ * @param token The verification token from the URL/email link.
+ * @returns EmailVerificationOutput (adjust based on backend response).
+ */
+export const verifyEmail = async (token: string): Promise<EmailVerificationOutput> => {
+	try {
+		// Backend expects GET request for email verification
+		const response = await apiClient.get<EmailVerificationOutput>(`/auth/email/verify/${token}`);
+		console.log('Email verification successful.');
+		return response.data;
+	} catch (error) {
+		console.error('Error verifying email:', error);
+		throw error;
+	}
+};
+
+
+// --- Token Management ---
+
 /**
  * Stores the access and refresh tokens from AuthResult.
+ * Note: This function now expects AuthResult directly, not AuthResponse['auth']
+ * as refreshToken returns AuthResponse which contains AuthResult.
  * @param authResult The AuthResult object containing the tokens.
  */
-export const storeTokens = (authResult: AuthResponse['auth']): void => {
+export const storeTokens = (authResult: AuthResult): void => {
 	localStorage.setItem(ACCESS_TOKEN_KEY, authResult.access_token);
 	if (authResult.refresh_token) {
 		localStorage.setItem(REFRESH_TOKEN_KEY, authResult.refresh_token);
@@ -124,14 +189,17 @@ export const refreshToken = async (): Promise<AuthResponse | null> => {
 
 /**
  * Logs the user out by clearing tokens and signing out from Firebase.
- * Optionally calls the backend logout endpoint.
+ * Calls the backend logout endpoint.
  */
 export const logoutUser = async (): Promise<void> => {
 	try {
-		// Optional: Notify backend about logout
-		// await apiClient.post('/auth/logout');
-		console.log('Attempting backend logout notification (if uncommented)...');
+		// Notify backend about logout
+		await apiClient.post('/auth/logout', null, { // Send null body if backend expects it
+			headers: { '__skipAuthRefresh': 'true' } // Don't try to refresh if logout fails with 401
+		});
+		console.log('Backend logout notification sent.');
 	} catch (error) {
+		// Log error but proceed with local logout anyway
 		console.error('Error during backend logout notification:', error);
 	} finally {
 		clearTokens();
@@ -151,106 +219,4 @@ export const logoutUser = async (): Promise<void> => {
 	}
 };
 
-// --- User Profile Management ---
-
-/**
- * Fetches the currently authenticated user's basic information.
- * @returns The UserOutput data.
- */
-export const getCurrentUser = async (): Promise<UserOutput> => {
-	try {
-		const response = await apiClient.get<UserOutput>('/users/me');
-		return response.data;
-	} catch (error) {
-		console.error('Error fetching current user:', error);
-		throw error;
-	}
-};
-
-/**
- * Updates the currently authenticated user's basic information.
- * @param data The data to update (UpdateUserInput).
- * @returns The updated UserOutput data.
- */
-export const updateCurrentUser = async (data: UpdateUserInput): Promise<UserOutput> => {
-	try {
-		const response = await apiClient.patch<UserOutput>('/users/me', data);
-		return response.data;
-	} catch (error) {
-		console.error('Error updating current user:', error);
-		throw error;
-	}
-};
-
-/**
- * Fetches the currently authenticated user's profile information.
- * NOTE: The backend route for this is currently `/users/profile/:id`, which seems wrong for fetching one's *own* profile.
- * Assuming a `/users/me/profile` endpoint should exist or `/users/profile` fetches the logged-in user's profile.
- * Using `/users/profile` for now, adjust if the backend route is different.
- * @returns The UserProfile data.
- */
-export const getCurrentUserProfile = async (): Promise<UserProfile> => {
-	try {
-		// TODO: Verify the correct backend endpoint for fetching the current user's profile
-		const response = await apiClient.get<UserProfile>('/users/profile'); // Adjust endpoint if needed
-		return response.data;
-	} catch (error) {
-		console.error('Error fetching current user profile:', error);
-		throw error;
-	}
-};
-
-/**
- * Updates the currently authenticated user's profile information.
- * Uses the `/users/profile` endpoint based on the backend router.
- * @param data The data to update (UpdateProfileInput).
- * @returns The updated UserProfile data.
- */
-export const updateCurrentUserProfile = async (data: UpdateProfileInput): Promise<UserProfile> => {
-	try {
-		const response = await apiClient.patch<UserProfile>('/users/profile', data);
-		return response.data;
-	} catch (error) {
-		console.error('Error updating current user profile:', error);
-		throw error;
-	}
-};
-
-/**
- * Updates the currently authenticated user's password.
- * Uses the `/users/password` endpoint.
- * @param data The current and new password (UpdatePasswordInput).
- */
-export const updateCurrentUserPassword = async (data: UpdatePasswordInput): Promise<void> => {
-	try {
-		await apiClient.patch('/users/password', data);
-		console.log('Password updated successfully.');
-		// No specific data usually returned on success, maybe just status 200/204
-	} catch (error) {
-		console.error('Error updating password:', error);
-		throw error;
-	}
-};
-
-/**
- * Uploads an avatar for the currently authenticated user.
- * Uses the `/users/avatar` endpoint.
- * @param file The avatar image file.
- * @returns The updated UserOutput with the new avatar URL.
- */
-export const updateUserAvatar = async (file: File): Promise<UserOutput> => {
-	const formData = new FormData();
-	formData.append('avatar', file); // Ensure the backend expects the key 'avatar'
-
-	try {
-		const response = await apiClient.post<UserOutput>('/users/avatar', formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data', // Important for file uploads
-			},
-		});
-		return response.data;
-	} catch (error) {
-		console.error('Error uploading avatar:', error);
-		throw error;
-	}
-};
+// User profile management functions have been moved to userService.ts

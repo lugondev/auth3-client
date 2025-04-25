@@ -16,12 +16,12 @@ import {
 	getTokens,
 	logoutUser as serviceLogout,
 	refreshToken as serviceRefreshToken, // Returns AuthResponse | null
-	signInWithEmail as serviceSignInWithEmail, // Add this import
-	// Potentially import getCurrentUser if profile info is needed immediately after login
+	signInWithEmail as serviceSignInWithEmail,
+	register as serviceRegister, // <-- Add register import
 } from '@/services/authService'
 import {jwtDecode} from 'jwt-decode'
-// Import RoleOutput for better typing (UserOutput is not directly used here)
-import {RoleOutput} from '@/lib/apiClient'
+// Import types needed for service calls and user object
+import {RoleOutput, SocialTokenExchangeInput, LoginInput, RegisterInput} from '@/lib/apiClient' // <-- Add RegisterInput
 // Import react-hot-toast
 import toast from 'react-hot-toast'
 
@@ -46,7 +46,8 @@ interface AuthContextType {
 	signInWithGoogle: () => Promise<void>
 	signInWithFacebook: () => Promise<void>
 	signInWithApple: () => Promise<void>
-	signInWithEmail: (email: string, password: string) => Promise<void> // Add email sign-in
+	signInWithEmail: (data: LoginInput) => Promise<void>
+	register: (data: RegisterInput) => Promise<void> // <-- Add register signature
 	logout: () => Promise<void>
 }
 
@@ -177,8 +178,21 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const firebaseUser: FirebaseUser = result.user
 			const firebaseToken = await firebaseUser.getIdToken()
 
+			// Determine provider string
+			let providerId = 'unknown'
+			if (provider instanceof GoogleAuthProvider) providerId = 'google'
+			else if (provider instanceof FacebookAuthProvider) providerId = 'facebook'
+			else if (provider instanceof OAuthProvider && provider.providerId === 'apple.com') providerId = 'apple'
+			// Add other providers if needed
+
+			// Prepare input for the updated service function
+			const exchangeInput: SocialTokenExchangeInput = {
+				token: firebaseToken,
+				provider: providerId, // Pass the determined provider ID
+			}
+
 			// exchangeFirebaseToken now returns AuthResponse
-			const authResponse = await exchangeFirebaseToken(firebaseToken)
+			const authResponse = await exchangeFirebaseToken(exchangeInput)
 
 			// Store tokens using the nested 'auth' object (AuthResult)
 			storeTokens(authResponse.auth)
@@ -227,12 +241,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		await handleSocialSignIn(new OAuthProvider('apple.com'))
 	}
 
-	// Email/Password Sign-In Handler
-	const signInWithEmail = async (email: string, password: string) => {
+	// Email/Password Sign-In Handler - Updated to accept LoginInput object
+	const signInWithEmail = async (data: LoginInput) => {
 		setLoading(true)
 		try {
 			// Call the service function for email/password login
-			const authResponse = await serviceSignInWithEmail(email, password) // Returns AuthResponse
+			const authResponse = await serviceSignInWithEmail(data) // Pass the object directly
 
 			// Store tokens using the nested 'auth' object (AuthResult)
 			storeTokens(authResponse.auth)
@@ -267,6 +281,41 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}
 
+	// Register Handler
+	const register = async (data: RegisterInput) => {
+		setLoading(true)
+		try {
+			const authResponse = await serviceRegister(data) // Call the service function
+
+			// Store tokens and update user state, similar to login
+			storeTokens(authResponse.auth)
+			const appUser = decodeToken(authResponse.auth.access_token)
+			setUser(appUser)
+			setIsAuthenticated(!!appUser)
+
+			console.log('Registration successful.')
+			toast.success('Successfully registered and signed in!')
+			// Redirect might happen automatically due to isAuthenticated changing,
+			// or you might want an explicit redirect here.
+		} catch (error: unknown) {
+			console.error('Registration error:', error)
+			let errorMessage = 'Registration failed. Please try again.'
+			if (error instanceof Error) {
+				errorMessage = error.message
+			} else if (typeof error === 'string') {
+				errorMessage = error
+			}
+			toast.error(`Registration failed: ${errorMessage}`)
+			// Ensure user state is cleared on registration failure
+			setIsAuthenticated(false)
+			setUser(null)
+			// Re-throw the error so the form can catch it
+			throw error
+		} finally {
+			setLoading(false)
+		}
+	}
+
 	// Logout function using the service
 	const logout = async () => {
 		setLoading(true)
@@ -284,7 +333,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		signInWithGoogle,
 		signInWithFacebook,
 		signInWithApple,
-		signInWithEmail, // Add to context value
+		signInWithEmail,
+		register, // <-- Add register to context value
 		logout,
 	}
 

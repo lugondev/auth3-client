@@ -32,7 +32,8 @@ export function LoginForm() {
 		setError(null)
 		console.log('Attempting email/password sign in with:', values)
 		try {
-			await signInWithEmail(values.email, values.password)
+			// Pass values as an object matching the LoginInput type
+			await signInWithEmail({email: values.email, password: values.password})
 			// AuthContext handles success toast and state update
 			// No explicit redirect needed here, AuthStatus/layout will handle it
 		} catch (err) {
