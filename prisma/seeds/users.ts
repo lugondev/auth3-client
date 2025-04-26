@@ -28,28 +28,43 @@ export async function seedUsers(prisma: PrismaClient) {
 			data: {
 				name: 'admin',
 				description: 'System Administrator',
-				permissions: ['all:read', 'all:write', 'all:delete', 'all:manage'],
+				// Using slugs defined in seed.ts for consistency, assuming admin needs all
+				permissions: [
+					'view_users', 'create_users', 'edit_users', 'delete_users',
+					'view_venues', 'create_venues', 'edit_venues', 'delete_venues',
+					'view_products', 'manage_products',
+					'view_events', 'manage_events',
+					'manage_roles', 'manage_permissions'
+				],
 			},
 		}),
 		prisma.roles.create({
 			data: {
 				name: 'manager',
 				description: 'Venue Manager',
-				permissions: ['venues:read', 'venues:write', 'venues:manage', 'products:read', 'products:write', 'events:read', 'events:write'],
+				// Using slugs defined in seed.ts
+				permissions: [
+					'view_venues', 'create_venues', 'edit_venues', 'delete_venues', // Full Venue Management (implied by Casbin rule)
+					'view_products', 'manage_products',                         // Full Product Management (implied by Casbin rule)
+					'view_events', 'manage_events',                           // Full Event Management (implied by Casbin rule)
+					'view_users', 'edit_users'                                // Specific user permissions
+				],
 			},
 		}),
 		prisma.roles.create({
 			data: {
 				name: 'staff',
 				description: 'Staff Member',
-				permissions: ['venues:read', 'products:read', 'events:read'],
+				// Using slugs defined in seed.ts
+				permissions: ['view_venues', 'view_products', 'view_events'],
 			},
 		}),
 		prisma.roles.create({
 			data: {
 				name: 'customer',
 				description: 'Customer',
-				permissions: ['venues:read', 'products:read', 'events:read'],
+				// Using slugs defined in seed.ts
+				permissions: ['view_venues', 'view_products', 'view_events'],
 			},
 		}),
 	]) as Role[]

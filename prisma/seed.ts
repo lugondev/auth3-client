@@ -15,6 +15,8 @@ async function main() {
 	console.log('Deleting existing data...');
 	// Delete in reverse order of creation due to FK constraints
 	// Keep this comprehensive delete list from original seed.ts
+	await prisma.casbin_rule.deleteMany({}); // Added deletion
+	await prisma.permissions.deleteMany({}); // Added deletion
 	await prisma.event_performers.deleteMany({});
 	await prisma.event_photos.deleteMany({});
 	await prisma.event_tickets.deleteMany({});
@@ -67,6 +69,72 @@ async function main() {
 		// seedEvents uses venues and truncates its own tables (redundant due to global delete)
 		const { events } = await seedEvents(prisma, { venues });
 		console.log(`Seeded ${events.length} events.`);
+
+
+		// --- Seed Permissions ---
+		console.log('Seeding permissions...');
+		const permissionsData = [
+			// User Management
+			{ name: 'View Users', slug: 'view_users', description: 'Allows viewing user details', group: 'User Management' },
+			{ name: 'Create Users', slug: 'create_users', description: 'Allows creating new users', group: 'User Management' },
+			{ name: 'Edit Users', slug: 'edit_users', description: 'Allows editing existing users', group: 'User Management' },
+			{ name: 'Delete Users', slug: 'delete_users', description: 'Allows deleting users', group: 'User Management' },
+			// Venue Management
+			{ name: 'View Venues', slug: 'view_venues', description: 'Allows viewing venue details', group: 'Venue Management' },
+			{ name: 'Create Venues', slug: 'create_venues', description: 'Allows creating new venues', group: 'Venue Management' },
+			{ name: 'Edit Venues', slug: 'edit_venues', description: 'Allows editing existing venues', group: 'Venue Management' },
+			{ name: 'Delete Venues', slug: 'delete_venues', description: 'Allows deleting venues', group: 'Venue Management' },
+			// Product Management
+			{ name: 'View Products', slug: 'view_products', description: 'Allows viewing venue products', group: 'Product Management' }, // Added
+			{ name: 'Manage Products', slug: 'manage_products', description: 'Allows managing venue products', group: 'Product Management' },
+			// Event Management
+			{ name: 'View Events', slug: 'view_events', description: 'Allows viewing venue events', group: 'Event Management' }, // Added
+			{ name: 'Manage Events', slug: 'manage_events', description: 'Allows managing venue events', group: 'Event Management' },
+			// RBAC Management
+			{ name: 'Manage Roles', slug: 'manage_roles', description: 'Allows managing roles and their permissions', group: 'RBAC' },
+			{ name: 'Manage Permissions', slug: 'manage_permissions', description: 'Allows managing permissions', group: 'RBAC' },
+		];
+		await prisma.permissions.createMany({
+			data: permissionsData,
+			skipDuplicates: true, // Avoid errors if re-running seed
+		});
+		console.log(`Seeded ${permissionsData.length} permissions.`);
+
+		// --- Seed Casbin Rules (Basic Role Policies) ---
+		console.log('Seeding Casbin rules...');
+		// Assumes roles like 'admin', 'manager', 'staff' are created by seedUsers
+		// ptype, subject (role), object (resource/group), action
+		const casbinRulesData = [
+			// Admin has full access
+			{ ptype: 'p', v0: 'admin', v1: '*', v2: '*' }, // Grant admin all permissions on all resources
+
+			// Manager permissions
+			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: '*' }, // Full control over venues
+			{ ptype: 'p', v0: 'manager', v1: 'Product Management', v2: '*' }, // Full control over products
+			{ ptype: 'p', v0: 'manager', v1: 'Event Management', v2: '*' }, // Full control over events
+			{ ptype: 'p', v0: 'manager', v1: 'User Management', v2: 'view_users' }, // Can view users
+			{ ptype: 'p', v0: 'manager', v1: 'User Management', v2: 'edit_users' }, // Can edit users (example specific permission)
+
+			// Staff permissions
+			{ ptype: 'p', v0: 'staff', v1: 'Venue Management', v2: 'view_venues' }, // Can view venues
+			{ ptype: 'p', v0: 'staff', v1: 'Product Management', v2: 'view_products' }, // Use the newly added slug
+			{ ptype: 'p', v0: 'staff', v1: 'Event Management', v2: 'view_events' },   // Use the newly added slug
+
+			// Add customer role policy (assuming read-only access like staff)
+			{ ptype: 'p', v0: 'customer', v1: 'Venue Management', v2: 'view_venues' },
+			{ ptype: 'p', v0: 'customer', v1: 'Product Management', v2: 'view_products' },
+			{ ptype: 'p', v0: 'customer', v1: 'Event Management', v2: 'view_events' },
+
+			// Example 'g' rule (if needed, requires user IDs - adapt if necessary)
+			// Assuming 'admin_user_id' is the ID of the first user from seedUsers who should be admin
+			// { ptype: 'g', v0: users[0]?.id, v1: 'admin' },
+		];
+		await prisma.casbin_rule.createMany({
+			data: casbinRulesData,
+			skipDuplicates: true, // Avoid errors if re-running seed
+		});
+		console.log(`Seeded ${casbinRulesData.length} Casbin rules.`);
+
 
 		// --- Seed Venue Staff (Logic kept from original seed.ts as partials don't cover it) ---
 		console.log('Seeding venue staff...');
