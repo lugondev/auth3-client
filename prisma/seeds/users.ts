@@ -10,12 +10,14 @@ interface User {
 	last_name: string
 	status: string
 	avatar: string | null
+	role: string | null // Allow role to be null
 	provider?: string | null
 }
 
 interface Role {
 	id: string
 	name: string
+	permissions: string[] // Added permissions property
 }
 
 export async function seedUsers(prisma: PrismaClient) {
@@ -252,7 +254,10 @@ export async function seedUsers(prisma: PrismaClient) {
 
 		await prisma.audit_logs.create({
 			data: {
-				user_id: user.id,
+				// user_id: user.id, // Replaced with connect syntax
+				users: { // Corrected relation name to 'users'
+					connect: { id: user.id },
+				},
 				action_type: actionType,
 				resource_type: resourceType,
 				resource_id: faker.string.uuid(),

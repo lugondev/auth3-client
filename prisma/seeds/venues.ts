@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client'
 
 interface Venue {
 	id: string
+	name: string // Added name property
 }
 
 interface Table {
@@ -15,8 +16,10 @@ interface TableMap {
 	venue_id: string
 }
 
-export async function seedVenues(prisma: PrismaClient) {
+// Add userId parameter
+export async function seedVenues(prisma: PrismaClient, params: { userId: string }) {
 	console.log('Seeding venues...')
+	const { userId } = params
 
 	// Create venues
 	const venues = await prisma.$transaction([
@@ -34,6 +37,9 @@ export async function seedVenues(prisma: PrismaClient) {
 				timezone: 'Asia/Ho_Chi_Minh',
 				currency: 'VND',
 				is_active: true,
+				users: { // Connect to user
+					connect: { id: userId },
+				},
 			},
 		}),
 		prisma.venues.create({
@@ -50,6 +56,9 @@ export async function seedVenues(prisma: PrismaClient) {
 				timezone: 'Asia/Ho_Chi_Minh',
 				currency: 'VND',
 				is_active: true,
+				users: { // Connect to user
+					connect: { id: userId },
+				},
 			},
 		}),
 	]) as Venue[]

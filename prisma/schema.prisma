@@ -319,6 +319,7 @@ model venues {
   timezone           String?              @default("UTC")
   currency           String?              @default("USD") @db.VarChar(3)
   is_active          Boolean?             @default(true)
+  owner_id           String               @db.Uuid
   events             events[]
   product_categories product_categories[]
   products           products[]
@@ -326,12 +327,14 @@ model venues {
   venue_photos       venue_photos[]
   venue_settings     venue_settings?
   venue_staffs       venue_staffs[]
+  users              users                @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_venues_owner")
 
   @@index([address], map: "idx_venue_address")
   @@index([latitude, longitude], map: "idx_venue_location")
   @@index([name], map: "idx_venue_name")
   @@index([status], map: "idx_venue_status")
   @@index([deleted_at], map: "idx_venues_deleted_at")
+  @@index([owner_id], map: "idx_venue_owner")
 }
 
 model audit_logs {
@@ -481,6 +484,7 @@ model users {
   social_profiles   social_profiles[]
   user_profiles     user_profiles?
   user_roles        user_roles[]
+  venues            venues[]
 
   @@index([deleted_at], map: "idx_users_deleted_at")
   @@index([email], map: "idx_users_email")
