@@ -135,7 +135,7 @@ async function main() {
 		// Policy (p) rules define permissions for roles
 		const policyRules = [
 			// Admin
-			{ ptype: 'p', v0: 'admin', v1: '*', v2: '*' }, // Admin gets all permissions globally
+			{ ptype: 'p', v0: 'admin', v1: '*', v2: '.*' }, // Admin gets all permissions globally
 			// Manager (assuming role name is 'manager')
 			// Manager (permissions apply within the context of their assigned venue - enforced by v2 in 'g' rules)
 			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: 'read' }, // Example: Read venue details
