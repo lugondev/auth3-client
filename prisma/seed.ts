@@ -18,8 +18,7 @@ async function main() {
 	// Delete in reverse order of creation or based on potential dependencies
 	// Keep this section as is, ensuring all relevant tables are truncated or deleted
 	await prisma.casbin_rule.deleteMany({});
-	await prisma.permissions.deleteMany({});
-	await prisma.user_roles.deleteMany({});
+	// Removed deletion for non-existent models: permissions, user_roles
 	await prisma.venue_staffs.deleteMany({});
 	await prisma.table_positions.deleteMany({});
 	await prisma.table_maps.deleteMany({});
@@ -42,43 +41,15 @@ async function main() {
 	await prisma.social_profiles.deleteMany({});
 	await prisma.user_profiles.deleteMany({});
 	await prisma.users.deleteMany({});
-	await prisma.roles.deleteMany({});
+	// Removed deletion for non-existent roles table
 	console.log('Existing data deleted.');
 
 	try {
-		// --- 2. Seed Permissions ---
-		console.log('Seeding permissions...');
-		// Keep this section as is
-		const permissionsData = [
-			// User Management
-			{ name: 'View Users', slug: 'view_users', description: 'Allows viewing user details', group: 'User Management' },
-			{ name: 'Create Users', slug: 'create_users', description: 'Allows creating new users', group: 'User Management' },
-			{ name: 'Edit Users', slug: 'edit_users', description: 'Allows editing existing users', group: 'User Management' },
-			{ name: 'Delete Users', slug: 'delete_users', description: 'Allows deleting users', group: 'User Management' },
-			// Venue Management
-			{ name: 'View Venues', slug: 'view_venues', description: 'Allows viewing venue details', group: 'Venue Management' },
-			{ name: 'Create Venues', slug: 'create_venues', description: 'Allows creating new venues', group: 'Venue Management' },
-			{ name: 'Edit Venues', slug: 'edit_venues', description: 'Allows editing existing venues', group: 'Venue Management' },
-			{ name: 'Delete Venues', slug: 'delete_venues', description: 'Allows deleting venues', group: 'Venue Management' },
-			// Product Management
-			{ name: 'View Products', slug: 'view_products', description: 'Allows viewing venue products', group: 'Product Management' },
-			{ name: 'Manage Products', slug: 'manage_products', description: 'Allows managing venue products', group: 'Product Management' },
-			// Event Management
-			{ name: 'View Events', slug: 'view_events', description: 'Allows viewing venue events', group: 'Event Management' },
-			{ name: 'Manage Events', slug: 'manage_events', description: 'Allows managing venue events', group: 'Event Management' },
-			// RBAC Management
-			{ name: 'Manage Roles', slug: 'manage_roles', description: 'Allows managing roles and their permissions', group: 'RBAC' },
-			{ name: 'Manage Permissions', slug: 'manage_permissions', description: 'Allows managing permissions', group: 'RBAC' },
-		];
-		await prisma.permissions.createMany({
-			data: permissionsData,
-			skipDuplicates: true,
-		});
-		console.log(`Seeded ${permissionsData.length} permissions.`);
 
-		// --- 3. Seed Users & Roles (using imported function) ---
-		const { users: createdUsers, roles: createdRoles } = await seedUsers(prisma);
-		console.log(`Seeded ${createdUsers.length} users and ${createdRoles.length} roles.`);
+		// --- 3. Seed Users (using imported function) ---
+		// Assuming seedUsers assigns roles as strings in the user.roles array
+		const { users: createdUsers } = await seedUsers(prisma);
+		console.log(`Seeded ${createdUsers.length} users.`);
 
 		// --- 4. Seed Venues & Categories (using imported function) ---
 		// Note: seedVenues also creates categories internally
@@ -105,77 +76,120 @@ async function main() {
 
 		// --- 8. Seed Venue Staff ---
 		console.log('Seeding venue staff...');
-		// Use roles returned from seedUsers
-		const staffManagerRoles = createdRoles.filter(r => ['manager', 'staff'].includes(r.name));
-		const nonAdminUsers = createdUsers.filter(u => u.role !== 'admin'); // Assuming user object has 'role' property
+		// Define potential staff roles (these map to Casbin roles)
+		const potentialStaffRoles = ['manager', 'staff'];
+		// Find the admin/owner user (assuming the first created user is admin/owner)
+		const adminUser = createdUsers[0];
+		// Select users who are NOT the admin/owner
+		const potentialStaffUsers = createdUsers.filter(u => u.id !== adminUser?.id);
 
-		if (nonAdminUsers.length === 0) {
+		if (potentialStaffUsers.length === 0) {
 			console.warn("No non-admin users available to assign as venue staff. Skipping.");
-		} else if (staffManagerRoles.length === 0) {
-			console.warn("No 'manager' or 'staff' roles found. Cannot assign venue staff.");
 		} else {
 			for (const venue of createdVenues) {
-				const staffCount = faker.number.int({ min: 1, max: Math.min(3, nonAdminUsers.length) });
-				const staffUsers = faker.helpers.arrayElements(nonAdminUsers, staffCount);
+				// Ensure we don't try to assign more staff than available
+				const maxStaffToAdd = Math.min(3, potentialStaffUsers.length);
+				if (maxStaffToAdd <= 0) continue; // Skip if no potential staff left
 
-				for (const staffUser of staffUsers) {
-					const assignedRole = faker.helpers.arrayElement(staffManagerRoles);
+				const staffCount = faker.number.int({ min: 1, max: maxStaffToAdd });
+				// Select random non-admin users to be staff for this venue
+				const staffUsersForVenue = faker.helpers.arrayElements(potentialStaffUsers, staffCount);
+
+				for (const staffUser of staffUsersForVenue) {
+					// Assign a random staff role
+					const assignedRole = faker.helpers.arrayElement(potentialStaffRoles);
+					// Permissions array seeded as empty. Casbin rules + venue_staffs.role define base permissions.
+					// This field can be used for specific overrides later if needed.
+
 					try {
-						// Check if assignment exists first (simple check)
+						// Check if assignment exists first
 						const existingStaff = await prisma.venue_staffs.findFirst({
-							where: { venue_id: venue.id, user_id: staffUser.id }
+							where: { venue_id: venue.id, user_id: staffUser.id },
 						});
 						if (!existingStaff) {
 							await prisma.venue_staffs.create({
 								data: {
 									venue_id: venue.id,
 									user_id: staffUser.id,
-									role: assignedRole.name,
-									permissions: assignedRole.permissions, // Use permissions from the role object
+									role: assignedRole, // Assign the role string (used by Casbin)
+									permissions: [], // Seed empty array; use for specific overrides if needed
 									status: 'active',
-								}
+								},
 							});
-							console.log(`Assigned user ${staffUser.email} as ${assignedRole.name} to venue ${venue.name}`);
+							console.log(`Assigned user ${staffUser.email} as ${assignedRole} to venue ${venue.name}`);
 						}
 					} catch (staffError) {
-						console.error(`Error assigning staff user ${staffUser.id} to venue ${venue.id}:`, staffError);
+						console.error(`Error assigning staff user ${staffUser.id} (${assignedRole}) to venue ${venue.id}:`, staffError);
 					}
 				}
 			}
 		}
+		// Note: venueStaffAssignments variable removed as it was unused.
+		// We will query venue_staffs directly later to generate 'g' rules.
 		console.log('Finished seeding venue staff.');
 
+
 		// --- 9. Seed Casbin Rules ---
-		console.log('Seeding Casbin rules...');
-		// Adjust rules based on role names returned from seedUsers if necessary
-		const rolesMap = new Map(createdRoles.map(r => [r.name, r]));
-		const casbinRulesData = [
-			// Admin (assuming role name is 'admin')
-			{ ptype: 'p', v0: 'admin', v1: '*', v2: '*' },
+		console.log('Seeding Casbin policy (p) and grouping (g) rules...');
+
+		// Policy (p) rules define permissions for roles
+		const policyRules = [
+			// Admin
+			{ ptype: 'p', v0: 'admin', v1: '*', v2: '*' }, // Admin gets all permissions globally
 			// Manager (assuming role name is 'manager')
-			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: '*' },
-			{ ptype: 'p', v0: 'manager', v1: 'Product Management', v2: '*' },
-			{ ptype: 'p', v0: 'manager', v1: 'Event Management', v2: '*' },
-			{ ptype: 'p', v0: 'manager', v1: 'view_users', v2: 'read' },
-			{ ptype: 'p', v0: 'manager', v1: 'edit_users', v2: 'write' },
-			// Staff (assuming role name is 'staff')
-			{ ptype: 'p', v0: 'staff', v1: 'view_venues', v2: 'read' },
-			{ ptype: 'p', v0: 'staff', v1: 'view_products', v2: 'read' },
-			{ ptype: 'p', v0: 'staff', v1: 'view_events', v2: 'read' },
-			// Customer (assuming role name is 'customer')
-			{ ptype: 'p', v0: 'customer', v1: 'view_venues', v2: 'read' },
-			{ ptype: 'p', v0: 'customer', v1: 'view_products', v2: 'read' },
-			{ ptype: 'p', v0: 'customer', v1: 'view_events', v2: 'read' },
-			// Example 'g' rule - Assign user to role (Casbin adapter needs to support this)
-			// { ptype: 'g', v0: createdUsers[0]?.id, v1: 'admin' }, // Example, adapt if needed
+			// Manager (permissions apply within the context of their assigned venue - enforced by v2 in 'g' rules)
+			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: 'read' }, // Example: Read venue details
+			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: 'update' },// Example: Update venue details
+			{ ptype: 'p', v0: 'manager', v1: 'Product Management', v2: '*' },   // Example: Full product control
+			{ ptype: 'p', v0: 'manager', v1: 'Event Management', v2: '*' },     // Example: Full event control
+			{ ptype: 'p', v0: 'manager', v1: 'Staff Management', v2: '*' },   // Example: Manage staff for the venue
+			// Staff (permissions apply within the context of their assigned venue - enforced by v2 in 'g' rules)
+			{ ptype: 'p', v0: 'staff', v1: 'Venue Management', v2: 'read' },  // Example: Read venue details
+			{ ptype: 'p', v0: 'staff', v1: 'Product Management', v2: 'read' }, // Example: Read products
+			{ ptype: 'p', v0: 'staff', v1: 'Event Management', v2: 'read' },   // Example: Read events
+			// Customer (global permissions)
+			{ ptype: 'p', v0: 'customer', v1: 'Venue Public Info', v2: 'read' }, // Example: View public venue info
+			{ ptype: 'p', v0: 'customer', v1: 'Product Public Info', v2: 'read' },// Example: View public product info
+			{ ptype: 'p', v0: 'customer', v1: 'Event Public Info', v2: 'read' },  // Example: View public event info
 		];
-		// Filter out rules with potentially undefined v0 (role name)
-		const validCasbinRules = casbinRulesData.filter(rule => rolesMap.has(rule.v0));
+
+		// Grouping (g) rules assign roles to users, potentially within a domain/venue (v2)
+		const groupingRules = [];
+
+		// 1. Assign 'admin' role globally to the first user
+		if (adminUser?.id) {
+			console.log(`Assigning admin role to user ${adminUser.email}`);
+			groupingRules.push({ ptype: 'g', v0: adminUser.id, v1: 'admin' });
+		}
+
+		// 2. Assign 'manager'/'staff' roles per venue based on venue_staffs
+		const staffUserIds = new Set<string>();
+		for (const venue of createdVenues) {
+			const staffForVenue = await prisma.venue_staffs.findMany({
+				where: { venue_id: venue.id },
+				select: { user_id: true, role: true },
+			});
+			for (const staff of staffForVenue) {
+				groupingRules.push({ ptype: 'g', v0: staff.user_id, v1: staff.role, v2: venue.id });
+				staffUserIds.add(staff.user_id); // Keep track of users assigned a staff/manager role
+			}
+		}
+
+		// 3. Assign 'customer' role globally to users who are not admin and not staff/manager in any venue
+		const customerUsers = createdUsers.filter(u => u.id !== adminUser?.id && !staffUserIds.has(u.id));
+		for (const customer of customerUsers) {
+			groupingRules.push({ ptype: 'g', v0: customer.id, v1: 'customer' });
+		}
+
+		// Combine policy and grouping rules
+		const allCasbinRules = [...policyRules, ...groupingRules];
+
+		// Seed all rules
 		await prisma.casbin_rule.createMany({
-			data: validCasbinRules,
+			data: allCasbinRules,
 			skipDuplicates: true,
 		});
-		console.log(`Seeded ${validCasbinRules.length} Casbin rules.`);
+		console.log(`Seeded ${allCasbinRules.length} Casbin rules (${policyRules.length} policy, ${groupingRules.length} grouping).`);
 
 		// --- 10. Seed Audit Logs ---
 		console.log('Seeding audit logs...');

@@ -10,69 +10,19 @@ interface User {
 	last_name: string
 	status: string
 	avatar: string | null
-	role: string | null // Allow role to be null
 	provider?: string | null
 }
 
-interface Role {
-	id: string
-	name: string
-	permissions: string[] // Added permissions property
-}
+// Removed Role interface as permissions are managed by Casbin
+// and the type assertion is no longer needed.
 
 export async function seedUsers(prisma: PrismaClient) {
 	console.log('Seeding users and related data...')
 
-	// Create roles
-	// Many-to-many relationship between users and roles through the user_roles table
-	const roles = await prisma.$transaction([
-		prisma.roles.create({
-			data: {
-				name: 'admin',
-				description: 'System Administrator',
-				// Using slugs defined in seed.ts for consistency, assuming admin needs all
-				permissions: [
-					'view_users', 'create_users', 'edit_users', 'delete_users',
-					'view_venues', 'create_venues', 'edit_venues', 'delete_venues',
-					'view_products', 'manage_products',
-					'view_events', 'manage_events',
-					'manage_roles', 'manage_permissions'
-				],
-			},
-		}),
-		prisma.roles.create({
-			data: {
-				name: 'manager',
-				description: 'Venue Manager',
-				// Using slugs defined in seed.ts
-				permissions: [
-					'view_venues', 'create_venues', 'edit_venues', 'delete_venues', // Full Venue Management (implied by Casbin rule)
-					'view_products', 'manage_products',                         // Full Product Management (implied by Casbin rule)
-					'view_events', 'manage_events',                           // Full Event Management (implied by Casbin rule)
-					'view_users', 'edit_users'                                // Specific user permissions
-				],
-			},
-		}),
-		prisma.roles.create({
-			data: {
-				name: 'staff',
-				description: 'Staff Member',
-				// Using slugs defined in seed.ts
-				permissions: ['view_venues', 'view_products', 'view_events'],
-			},
-		}),
-		prisma.roles.create({
-			data: {
-				name: 'customer',
-				description: 'Customer',
-				// Using slugs defined in seed.ts
-				permissions: ['view_venues', 'view_products', 'view_events'],
-			},
-		}),
-	]) as Role[]
+	// Removed role creation section as 'roles' is an array on the User model in schema.prisma
 
 	// Create users
-	const users: User[] = []
+	const users: User[] = [] // Note: User interface might need update if used strictly
 
 	// Create admin user (kept separate for simplicity, original logic)
 	const adminUser = await prisma.users.create({
@@ -86,9 +36,8 @@ export async function seedUsers(prisma: PrismaClient) {
 			last_login: new Date(),
 			phone: '0909123456',
 			avatar: 'https://storage.example.com/avatars/admin.jpg',
-			role: 'admin',
 			provider: 'email',
-			password: bcrypt.hashSync("password123", 10),
+			password: bcrypt.hashSync("password123", 10), // Ensure password is provided
 		},
 	})
 	users.push(adminUser)
@@ -111,13 +60,8 @@ export async function seedUsers(prisma: PrismaClient) {
 		},
 	})
 
-	// Assign admin role to admin user
-	await prisma.user_roles.create({
-		data: {
-			user_id: adminUser.id,
-			role_id: roles[0].id, // admin role
-		},
-	})
+	// Role is assigned directly in the user creation `role: 'admin'`
+	// Removed creation of non-existent user_roles record
 
 	// Create 15 regular users transactionally
 	for (let i = 0; i < 15; i++) {
@@ -139,10 +83,9 @@ export async function seedUsers(prisma: PrismaClient) {
 						last_login: faker.datatype.boolean(0.8) ? faker.date.recent() : null,
 						phone: faker.phone.number(),
 						avatar: faker.datatype.boolean(0.6) ? `https://storage.example.com/avatars/user${i}.jpg` : null,
-						role: faker.helpers.arrayElement(['customer', 'staff', 'manager']),
 						provider: faker.helpers.arrayElement(['email', 'google', 'facebook']),
 						provider_id: faker.string.uuid(),
-						password: faker.internet.password(), // Add password
+						password: bcrypt.hashSync(faker.internet.password(), 10), // Hash password
 					},
 				})
 
@@ -173,14 +116,8 @@ export async function seedUsers(prisma: PrismaClient) {
 
 			// --- Operations dependent on the user existing (kept outside transaction) ---
 
-			// Assign role to user
-			const roleIndex = faker.number.int({ min: 1, max: roles.length - 1 }) // Don't assign admin role
-			await prisma.user_roles.create({
-				data: {
-					user_id: user.id,
-					role_id: roles[roleIndex].id,
-				},
-			})
+			// Role is assigned directly in the user creation `role: faker.helpers.arrayElement(...)`
+			// Removed creation of non-existent user_roles record
 
 			// Create social profile for some users
 			if (user.provider !== 'email') {
@@ -274,5 +211,6 @@ export async function seedUsers(prisma: PrismaClient) {
 	}
 
 	console.log('Finished seeding users and related data.')
-	return { users, roles }
+	// Return only users as roles are not created as a separate entity
+	return { users }
 }

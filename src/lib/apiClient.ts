@@ -161,7 +161,435 @@ export interface UpdatePasswordResponse {
 	message: string;
 }
 
-// --- End: Backend Type Definitions ---
+// --- Start: Venue Module Type Definitions ---
+
+// Based on internal/modules/venue/domain/venue.go
+export type ApprovalStatus = "pending" | "active" | "inactive" | "rejected";
+
+export interface VenuePhoto {
+	id: string; // uuid.UUID
+	venue_id: string; // uuid.UUID
+	url: string;
+	caption: string;
+	is_primary: boolean;
+	created_at: string; // time.Time
+}
+
+export interface Venue {
+	id: string; // uuid.UUID
+	name: string;
+	description: string;
+	address: string;
+	city: string;
+	country: string;
+	postal_code: string;
+	latitude: number; // float64
+	longitude: number; // float64
+	phone_number: string;
+	email: string;
+	website: string;
+	capacity: number; // int
+	status: ApprovalStatus; // string -> ApprovalStatus
+	category_id?: string | null; // *uuid.UUID
+	owner_id: string; // uuid.UUID
+	photos: VenuePhoto[];
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+	deleted_at?: string | null; // *time.Time
+}
+
+export interface CreateVenueInput {
+	name: string;
+	description: string;
+	address: string;
+	city: string;
+	country: string;
+	postal_code: string;
+	latitude: number;
+	longitude: number;
+	phone_number: string;
+	email: string;
+	website: string;
+	capacity: number;
+	category_id?: string | null; // Optional category ID
+	// owner_id is usually set server-side based on the authenticated user
+}
+
+export interface UpdateVenueInput extends Partial<Omit<CreateVenueInput, 'owner_id'>> {
+	// All fields are optional for PATCH
+	status?: ApprovalStatus; // Allow updating status
+}
+
+export interface TransferVenueOwnershipInput {
+	new_owner_id: string; // uuid.UUID
+}
+
+// Based on internal/modules/venue/domain/venue_staff.go
+export type StaffRole = "owner" | "manager" | "staff" | "hostess" | "waiter" | "bartender";
+export type StaffStatus = "active" | "inactive" | "pending";
+// Assuming Venue Permission is a string for simplicity, map from Go constants
+export type VenuePermission =
+	| "manage_venue"
+	| "manage_staff"
+	| "manage_settings"
+	| "manage_tables"
+	| "manage_events"
+	| "manage_products"
+	| "manage_reservation"
+	| "manage_orders"
+	| "manage_promotions"
+	| "view_reports";
+
+export interface VenueStaff {
+	id: string; // uuid.UUID
+	venue_id: string; // uuid.UUID
+	user_id: string; // uuid.UUID
+	role: StaffRole;
+	permissions: VenuePermission[];
+	status: StaffStatus;
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+	deleted_at?: string | null; // *time.Time
+}
+
+export interface AddVenueStaffInput {
+	user_id: string;
+	role: StaffRole;
+	permissions?: VenuePermission[]; // Optional, might be based on role
+}
+
+export interface UpdateVenueStaffInput {
+	role?: StaffRole;
+	permissions?: VenuePermission[];
+	status?: StaffStatus;
+}
+
+// Based on internal/modules/venue/domain/venue_settings.go
+export interface BusinessHour {
+	day_of_week: number; // 0-6
+	open_time: string; // Store as HH:mm string for simplicity? or full time.Time string
+	close_time: string; // Store as HH:mm string for simplicity? or full time.Time string
+	is_closed: boolean;
+}
+
+export interface BookingSettings {
+	enable_booking: boolean;
+	max_booking_per_time_slot: number;
+	booking_lead_hours: number;
+	booking_duration_minutes: number;
+	require_approval: boolean;
+}
+
+export interface TierLevel {
+	name: string;
+	points_required: number;
+	discount: number;
+	perks: string;
+}
+
+export interface LoyaltySettings {
+	enable_loyalty: boolean;
+	points_per_purchase: number;
+	points_redemption_rate: number;
+	tier_levels: TierLevel[];
+}
+
+export interface AffiliateSettings {
+	enable_affiliate: boolean;
+	commission_rate: number;
+	cookie_days: number;
+	min_payout: number;
+}
+
+export interface VenueSettings {
+	id: string; // uuid.UUID
+	venue_id: string; // uuid.UUID
+	business_hours: BusinessHour[];
+	time_zone: string;
+	currency: string;
+	booking_settings: BookingSettings;
+	loyalty_settings: LoyaltySettings;
+	affiliate_settings: AffiliateSettings;
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+}
+
+// Input types for updating settings (likely partial updates)
+export interface UpdateVenueSettingsInput {
+	time_zone?: string;
+	currency?: string;
+	business_hours?: BusinessHour[]; // Sending the full array is often simpler for updates
+	booking_settings?: Partial<BookingSettings>;
+	loyalty_settings?: Partial<LoyaltySettings>; // Consider nested partials or full object replacement
+	affiliate_settings?: Partial<AffiliateSettings>;
+}
+
+// Based on internal/modules/venue/domain/event.go
+export type EventCategory = "music" | "sports" | "arts" | "food" | "business" | "conference" | "other";
+export type EventStatus = "draft" | "published" | "cancelled" | "completed";
+
+export interface EventPhoto {
+	id: string; // uuid.UUID
+	event_id: string; // uuid.UUID
+	url: string;
+	caption: string;
+	is_primary: boolean;
+	created_at: string; // time.Time
+}
+
+export interface Event {
+	id: string; // uuid.UUID
+	venue_id: string; // uuid.UUID
+	name: string;
+	description: string;
+	category: EventCategory;
+	start_time: string; // time.Time
+	end_time: string; // time.Time
+	time_zone: string;
+	is_recurring: boolean;
+	recurrence_rule?: string; // iCal format
+	max_capacity: number;
+	ticket_price: number;
+	is_featured: boolean;
+	is_cancelled: boolean;
+	photos: EventPhoto[];
+	status: EventStatus;
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+	deleted_at?: string | null; // *time.Time
+	// Consider adding performers and tickets if they are part of the main Event response
+}
+
+export interface CreateEventInput {
+	name: string;
+	description: string;
+	category: EventCategory;
+	start_time: string; // ISO 8601 string
+	end_time: string; // ISO 8601 string
+	time_zone: string; // e.g., "Asia/Ho_Chi_Minh"
+	max_capacity: number;
+	ticket_price: number;
+	is_recurring?: boolean;
+	recurrence_rule?: string;
+	is_featured?: boolean;
+}
+
+export interface UpdateEventInput extends Partial<CreateEventInput> {
+	status?: EventStatus; // Allow updating status
+	is_cancelled?: boolean;
+}
+
+// Based on internal/modules/venue/domain/product.go
+export type ProductCategory = "appetizer" | "main" | "dessert" | "drink" | "alcohol" | "side" | "special";
+
+export interface ProductPhoto {
+	id: string; // uuid.UUID
+	product_id: string; // uuid.UUID
+	url: string;
+	caption?: string;
+	is_primary: boolean;
+	created_at: string; // time.Time
+}
+
+export interface OptionChoice {
+	id: string; // uuid.UUID
+	option_id: string; // uuid.UUID
+	name: string;
+	description?: string;
+	price_adjustment: number;
+	is_default: boolean;
+}
+
+export interface ProductOption {
+	id: string; // uuid.UUID
+	product_id: string; // uuid.UUID
+	name: string;
+	description?: string;
+	required: boolean;
+	min_select: number;
+	max_select: number;
+	choices: OptionChoice[];
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+}
+
+export interface NutritionalInfo {
+	calories?: number;
+	protein?: number;
+	carbohydrates?: number;
+	fat?: number;
+	sodium?: number;
+	sugar?: number;
+	fiber?: number;
+}
+
+export interface Product {
+	id: string; // uuid.UUID
+	venue_id: string; // uuid.UUID
+	name: string;
+	description: string;
+	category: ProductCategory;
+	price: number;
+	discount_price?: number | null; // *float64
+	currency: string;
+	is_available: boolean;
+	sku?: string;
+	tags?: string[];
+	photos: ProductPhoto[];
+	options?: ProductOption[];
+	ingredients?: string[];
+	allergens?: string[];
+	nutritional_info?: NutritionalInfo | null; // *NutritionalInfo
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+	deleted_at?: string | null; // *time.Time
+}
+
+export interface CreateProductInput {
+	name: string;
+	description: string;
+	category: ProductCategory;
+	price: number;
+	currency: string; // Should likely come from venue settings?
+	discount_price?: number | null;
+	is_available?: boolean; // Default to true?
+	sku?: string;
+	tags?: string[];
+	ingredients?: string[];
+	allergens?: string[];
+	nutritional_info?: NutritionalInfo | null;
+	// Options and Photos added separately?
+}
+
+export interface UpdateProductInput extends Partial<CreateProductInput> {
+	is_available?: boolean;
+	// Handle options/photos updates separately
+}
+
+
+// Based on internal/modules/venue/domain/table.go
+export type TableStatus = "available" | "occupied" | "reserved" | "out_of_service";
+export type TableType = "standard" | "bar" | "private" | "outdoor" | "lounge" | "vip";
+
+export interface Table {
+	id: string; // uuid.UUID
+	venue_id: string; // uuid.UUID
+	name: string;
+	description: string;
+	capacity: number;
+	status: TableStatus;
+	location: string;
+	min_spend?: number;
+	table_type: TableType;
+	is_active: boolean;
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+	deleted_at?: string | null; // *time.Time
+}
+
+export interface CreateTableInput {
+	name: string;
+	description: string;
+	capacity: number;
+	location: string;
+	table_type: TableType;
+	min_spend?: number;
+	is_active?: boolean; // Default to true?
+}
+
+export interface UpdateTableInput extends Partial<CreateTableInput> {
+	status?: TableStatus; // Status updated separately?
+	is_active?: boolean;
+}
+
+// Paginated responses for Venue resources
+export interface PaginatedVenues {
+	venues: Venue[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface PaginatedVenueStaff {
+	staff: VenueStaff[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface PaginatedEvents {
+	events: Event[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface PaginatedProducts {
+	products: Product[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface PaginatedTables {
+	tables: Table[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+// Generic search query parameters
+export interface BaseSearchQuery {
+	page?: number;
+	page_size?: number;
+	query?: string; // Generic search term
+	// Add other common filters like sort_by, sort_order if applicable
+}
+
+export interface VenueSearchQuery extends BaseSearchQuery {
+	status?: ApprovalStatus;
+	category_id?: string;
+	owner_id?: string;
+	city?: string;
+	country?: string;
+}
+
+export interface VenueStaffSearchQuery extends BaseSearchQuery {
+	role?: StaffRole;
+	status?: StaffStatus;
+}
+
+export interface EventSearchQuery extends BaseSearchQuery {
+	category?: EventCategory;
+	status?: EventStatus;
+	start_date?: string; // ISO 8601 date string
+	end_date?: string; // ISO 8601 date string
+	is_featured?: boolean;
+}
+
+export interface ProductSearchQuery extends BaseSearchQuery {
+	category?: ProductCategory;
+	is_available?: boolean;
+	min_price?: number;
+	max_price?: number;
+	tags?: string[]; // Comma-separated string or array? Check API
+}
+
+export interface TableSearchQuery extends BaseSearchQuery {
+	status?: TableStatus;
+	type?: TableType;
+	location?: string;
+	min_capacity?: number;
+	is_active?: boolean;
+}
+
+
+// --- End: Venue Module Type Definitions ---
 
 
 const apiClient = axios.create({
