@@ -140,9 +140,9 @@ async function main() {
 			// Manager (permissions apply within the context of their assigned venue - enforced by v2 in 'g' rules)
 			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: 'read' }, // Example: Read venue details
 			{ ptype: 'p', v0: 'manager', v1: 'Venue Management', v2: 'update' },// Example: Update venue details
-			{ ptype: 'p', v0: 'manager', v1: 'Product Management', v2: '*' },   // Example: Full product control
-			{ ptype: 'p', v0: 'manager', v1: 'Event Management', v2: '*' },     // Example: Full event control
-			{ ptype: 'p', v0: 'manager', v1: 'Staff Management', v2: '*' },   // Example: Manage staff for the venue
+			{ ptype: 'p', v0: 'manager', v1: 'Product Management', v2: '.*' },   // Example: Full product control
+			{ ptype: 'p', v0: 'manager', v1: 'Event Management', v2: '.*' },     // Example: Full event control
+			{ ptype: 'p', v0: 'manager', v1: 'Staff Management', v2: '.*' },   // Example: Manage staff for the venue
 			// Staff (permissions apply within the context of their assigned venue - enforced by v2 in 'g' rules)
 			{ ptype: 'p', v0: 'staff', v1: 'Venue Management', v2: 'read' },  // Example: Read venue details
 			{ ptype: 'p', v0: 'staff', v1: 'Product Management', v2: 'read' }, // Example: Read products
