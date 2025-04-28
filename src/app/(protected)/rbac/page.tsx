@@ -11,6 +11,9 @@ import {Checkbox} from '@/components/ui/checkbox'
 import {Label} from '@/components/ui/label'
 import {ScrollArea} from '@/components/ui/scroll-area'
 import {X, Loader2} from 'lucide-react' // Import Loader2
+import {useForm, SubmitHandler} from 'react-hook-form' // Added for form handling
+import {zodResolver} from '@hookform/resolvers/zod' // Added for validation
+import * as z from 'zod' // Added for Zod schema
 
 // --- Component Types ---
 // Define types based on backend API structure
@@ -20,12 +23,12 @@ interface RoleListOutput {
 
 // Used for POST request body when adding role to user
 interface UserRoleInput {
-	user_id: string
+	userId: string
 	role: string
 }
 
 interface UserRolesOutput {
-	user_id: string // Go backend uses user_id, ensure consistency if needed
+	userId: string // Go backend uses user_id, ensure consistency if needed
 	roles: string[]
 }
 
@@ -39,6 +42,20 @@ interface RolePermissionsOutput {
 	role: string
 	permissions: string[][] // Array of [object, action]
 }
+
+// Input type for creating a new role with initial permission
+interface CreateRoleWithPermissionInput {
+	role: string
+	permission: string[] // [subject, action] - Added
+}
+
+// Define Zod schema for the create role form (updated)
+const createRoleSchema = z.object({
+	roleName: z.string().min(1, {message: 'Role name cannot be empty'}).max(50, {message: 'Role name too long'}),
+	subject: z.string().min(1, {message: 'Subject cannot be empty'}).max(50, {message: 'Subject too long'}), // Added with validation
+	action: z.string().min(1, {message: 'Action cannot be empty'}).max(50, {message: 'Action too long'}), // Added with validation
+})
+type CreateRoleFormValues = z.infer<typeof createRoleSchema> // Updated type
 
 // UserOutput is imported from apiClient, no need to redefine here.
 
@@ -81,6 +98,19 @@ export default function RBACManagement() {
 	// State for adding new permission in modal
 	const [newPermObject, setNewPermObject] = useState('')
 	const [newPermAction, setNewPermAction] = useState('')
+	// State for create role modal
+	const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false)
+	const [createRoleError, setCreateRoleError] = useState<string | null>(null) // Specific error state for create role
+
+	// React Hook Form instance for create role modal
+	const {
+		register: registerCreateRole,
+		handleSubmit: handleCreateRoleSubmit,
+		formState: {errors: createRoleFormErrors},
+		reset: resetCreateRoleForm,
+	} = useForm<CreateRoleFormValues>({
+		resolver: zodResolver(createRoleSchema),
+	})
 
 	// --- Data Fetching & API Calls ---
 
@@ -182,6 +212,12 @@ export default function RBACManagement() {
 		setIsRolePermsModalOpen(true)
 	}
 
+	const openCreateRoleModal = () => {
+		resetCreateRoleForm() // Reset form fields when opening
+		setCreateRoleError(null) // Clear any previous errors
+		setIsCreateRoleModalOpen(true)
+	}
+
 	// --- Action Handlers (API Calls within Modals/UI) ---
 	const handleAddRoleToUser = async (userId: string | undefined, roleName: string) => {
 		if (!userId) return
@@ -194,7 +230,7 @@ export default function RBACManagement() {
 		setIsLoading((prev) => ({...prev, action: true}))
 		setError(null)
 		try {
-			const payload: UserRoleInput = {user_id: userId, role: roleName}
+			const payload: UserRoleInput = {userId, role: roleName}
 			await apiClient.post(`/rbac/users/roles`, payload)
 			// Update local state optimistically or re-fetch
 			setUserRolesMap((prev) => ({
@@ -324,6 +360,54 @@ export default function RBACManagement() {
 		}
 	}
 
+	const handleCreateRole: SubmitHandler<CreateRoleFormValues> = async (data) => {
+		setIsLoading((prev) => ({...prev, action: true}))
+		setCreateRoleError(null) // Clear previous specific errors
+		setError(null) // Clear general errors
+		const roleName = data.roleName.trim()
+		const subject = data.subject.trim()
+		const action = data.action.trim()
+		const permission = [subject, action] // Create permission array
+
+		try {
+			// Use the correct interface and construct the payload
+			const payload: CreateRoleWithPermissionInput = {role: roleName, permission}
+			// Assuming the endpoint for creating a role with permission is /rbac/roles/permissions or similar
+			// If it's just /rbac/roles, adjust accordingly. User specified POST /api/v1/rbac/roles/permissions initially.
+			// Let's stick to `/rbac/roles/permissions` as requested, although it might be unconventional for role *creation*.
+			await apiClient.post('/rbac/roles/permissions', payload)
+
+			// Update local state optimistically
+			setRoles((prevRoles) => [...prevRoles, roleName].sort().filter((v, i, a) => a.indexOf(v) === i)) // Add role, sort, deduplicate
+
+			// Optimistically update permissions map for the new role
+			setRolePermissionsMap((prev) => ({
+				...prev,
+				[roleName]: [...(prev[roleName] || []), permission].filter((p, i, a) => a.findIndex((p2) => p2[0] === p[0] && p2[1] === p[1]) === i), // Add permission, deduplicate
+			}))
+
+			setIsCreateRoleModalOpen(false) // Close modal on success
+			resetCreateRoleForm() // Reset form fields
+			// Add success feedback (e.g., toast)
+			console.log(`Role "${roleName}" created successfully.`)
+		} catch (err) {
+			console.error(`Error creating role "${roleName}":`, err)
+			let errorMessage = 'Unknown error'
+			// Extract error message (similar to other handlers)
+			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+				errorMessage = String(err.response.data.error)
+			} else if (err instanceof Error) {
+				errorMessage = err.message
+			} else if (typeof err === 'string') {
+				errorMessage = err
+			}
+			setCreateRoleError(`Failed to create role: ${errorMessage}`) // Set specific error for the modal
+			// Add error feedback (e.g., toast)
+		} finally {
+			setIsLoading((prev) => ({...prev, action: false}))
+		}
+	}
+
 	// --- Rendering Logic ---
 
 	const filteredUsers = users.filter((user) => (user.first_name + ' ' + user.last_name).toLowerCase().includes(searchQuery.toLowerCase()) || user.email.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -360,9 +444,12 @@ export default function RBACManagement() {
 					<h2 id='roles-heading' className='text-2xl font-semibold'>
 						Roles
 					</h2>
-					{/* "Add New Role" button removed */}
+					{/* Add "Create New Role" button */}
+					<Button onClick={openCreateRoleModal} size='sm' disabled={isLoading.action}>
+						Create New Role
+					</Button>
 				</div>
-				{roles.length === 0 && !isLoading.initial ? (
+				{roles.length === 0 && !isLoading.initial && !error ? ( // Also check for error
 					<p className='text-muted-foreground text-center py-4'>No roles defined in the system yet.</p>
 				) : (
 					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
@@ -402,6 +489,7 @@ export default function RBACManagement() {
 					<Table>
 						<TableHeader>
 							<TableRow>
+								<TableHead className='w-[50px]'>#</TableHead> {/* Add '#' header */}
 								<TableHead>Name</TableHead>
 								<TableHead>Email</TableHead>
 								<TableHead>Assigned Roles</TableHead> {/* Renamed header */}
@@ -411,39 +499,46 @@ export default function RBACManagement() {
 						<TableBody>
 							{filteredUsers.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={4} className='text-center text-muted-foreground py-4'>
+									{/* Adjust colSpan for the new column */}
+									<TableCell colSpan={5} className='text-center text-muted-foreground py-4'>
 										No users found{searchQuery ? ' matching your search' : ''}.
 									</TableCell>
 								</TableRow>
 							) : (
 								// Use user.roles directly from the fetched user data
-								filteredUsers.map((user) => (
-									<TableRow key={user.id}>
-										<TableCell className='font-medium'>{`${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()}</TableCell>
-										<TableCell>{user.email}</TableCell>
-										<TableCell>
-											{/* Display roles as badges directly from user.roles */}
-											<div className='flex flex-wrap gap-1'>
-												{user.roles && user.roles.length > 0 ? (
-													user.roles.map((roleName) => (
-														<Badge key={roleName} variant='secondary'>
-															{roleName}
-														</Badge>
-													))
-												) : (
-													<span className='text-xs text-muted-foreground italic'>No roles</span>
-												)}
-											</div>
-										</TableCell>
-										{/* Corrected TableCell placement for the button */}
-										<TableCell>
-											{/* Manage Roles Button - Reverted to simple text, no loader */}
-											<Button variant='outline' size='sm' onClick={() => openUserRolesModal(user)} disabled={isLoading.userRoles && selectedUser?.id === user.id}>
-												Manage Roles
-											</Button>
-										</TableCell>
-									</TableRow>
-								))
+								filteredUsers.map(
+									(
+										user,
+										index, // Add index here
+									) => (
+										<TableRow key={user.id}>
+											<TableCell>{index + 1}</TableCell> {/* Display index + 1 */}
+											<TableCell className='font-medium'>{`${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()}</TableCell>
+											<TableCell>{user.email}</TableCell>
+											<TableCell>
+												{/* Display roles as badges directly from user.roles */}
+												<div className='flex flex-wrap gap-1'>
+													{user.roles && user.roles.length > 0 ? (
+														user.roles.map((roleName) => (
+															<Badge key={roleName} variant='secondary'>
+																{roleName}
+															</Badge>
+														))
+													) : (
+														<span className='text-xs text-muted-foreground italic'>No roles</span>
+													)}
+												</div>
+											</TableCell>
+											{/* Corrected TableCell placement for the button */}
+											<TableCell>
+												{/* Manage Roles Button - Reverted to simple text, no loader */}
+												<Button variant='outline' size='sm' onClick={() => openUserRolesModal(user)} disabled={isLoading.userRoles && selectedUser?.id === user.id}>
+													Manage Roles
+												</Button>
+											</TableCell>
+										</TableRow>
+									),
+								)
 							)}
 						</TableBody>
 					</Table>
@@ -572,10 +667,91 @@ export default function RBACManagement() {
 						<DialogClose asChild>
 							<Button type='button' variant='secondary' onClick={() => setError(null)}>
 								{' '}
-								{/* Clear error on close */}
+								{/* Clear general error on close */}
 								Close
 							</Button>
 						</DialogClose>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Create New Role Modal */}
+			<Dialog open={isCreateRoleModalOpen} onOpenChange={setIsCreateRoleModalOpen}>
+				<DialogContent className='sm:max-w-[425px]'>
+					<DialogHeader>
+						<DialogTitle>Create New Role</DialogTitle>
+						{/* Updated description */}
+						<DialogDescription>Enter a name and an initial permission (subject/action) for the new role.</DialogDescription>
+					</DialogHeader>
+					{/* Use form element with onSubmit */}
+					{/* Added form ID for the submit button outside */}
+					<form id='create-role-form' onSubmit={handleCreateRoleSubmit(handleCreateRole)} className='grid gap-4 py-4'>
+						<div className='grid grid-cols-4 items-center gap-4'>
+							<Label htmlFor='roleName' className='text-right'>
+								Role Name
+							</Label>
+							<div className='col-span-3'>
+								{/* Use register from React Hook Form */}
+								<Input
+									id='roleName'
+									className='w-full'
+									placeholder='e.g., editor'
+									{...registerCreateRole('roleName')} // Register input
+									disabled={isLoading.action}
+								/>
+								{/* Display validation errors */}
+								{createRoleFormErrors.roleName && <p className='text-sm text-destructive mt-1'>{createRoleFormErrors.roleName.message}</p>}
+							</div>
+						</div>
+						{/* Added Subject Input */}
+						<div className='grid grid-cols-4 items-center gap-4'>
+							<Label htmlFor='subject' className='text-right'>
+								Subject
+							</Label>
+							<div className='col-span-3'>
+								<Input
+									id='subject'
+									className='w-full'
+									placeholder='e.g., articles or *'
+									{...registerCreateRole('subject')}
+									disabled={isLoading.action}
+									defaultValue='*' // Default to '*'
+								/>
+								{createRoleFormErrors.subject && <p className='text-sm text-destructive mt-1'>{createRoleFormErrors.subject.message}</p>}
+							</div>
+						</div>
+						{/* Added Action Input */}
+						<div className='grid grid-cols-4 items-center gap-4'>
+							<Label htmlFor='action' className='text-right'>
+								Action
+							</Label>
+							<div className='col-span-3'>
+								<Input
+									id='action'
+									className='w-full'
+									placeholder='e.g., read or .*'
+									{...registerCreateRole('action')}
+									disabled={isLoading.action}
+									defaultValue='.*' // Default to '.*'
+								/>
+								{createRoleFormErrors.action && <p className='text-sm text-destructive mt-1'>{createRoleFormErrors.action.message}</p>}
+							</div>
+						</div>
+						{/* Display API call errors */}
+						{createRoleError && <p className='col-span-4 text-sm text-destructive text-center mt-2'>{createRoleError}</p>}
+						{/* Footer is outside the form element now */}
+					</form>
+					<DialogFooter>
+						<DialogClose asChild>
+							<Button type='button' variant='secondary' onClick={() => setCreateRoleError(null)}>
+								Cancel
+							</Button>
+						</DialogClose>
+						{/* Submit button outside the form, but triggers submit via form ID or implicitly */}
+						<Button type='submit' form='create-role-form' onClick={handleCreateRoleSubmit(handleCreateRole)} disabled={isLoading.action}>
+							{isLoading.action ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+							Create Role
+						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
