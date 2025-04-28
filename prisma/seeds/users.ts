@@ -63,8 +63,8 @@ export async function seedUsers(prisma: PrismaClient) {
 	// Role is assigned directly in the user creation `role: 'admin'`
 	// Removed creation of non-existent user_roles record
 
-	// Create 15 regular users transactionally
-	for (let i = 0; i < 15; i++) {
+	// Create 100 regular users transactionally
+	for (let i = 0; i < 100; i++) { // Changed loop limit from 15 to 100
 		const firstName = faker.person.firstName()
 		const lastName = faker.person.lastName()
 		const email = faker.internet.email({ firstName, lastName })
