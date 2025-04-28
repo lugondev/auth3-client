@@ -7,15 +7,16 @@ import apiClient, {
 	ResetPasswordInput,
 	SocialTokenExchangeInput,
 	EmailVerificationOutput,
-	AuthResult, // Used by storeTokens
+	// AuthResult, // No longer used directly in this service
 } from '@/lib/apiClient';
-import { auth } from '@/lib/firebase'; // Import Firebase auth if needed
+import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 
-const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
-
-// Removed old TokenResponse interface
+// Note: Token constants (ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY) and direct localStorage
+// management functions (storeTokens, getTokens, clearTokens, dispatchStorageEvent)
+// have been removed. Token storage and retrieval are now expected to be handled
+// by a React hook using `useLocalStorage` (e.g., within AuthContext).
+// This service now focuses solely on API interactions related to authentication.
 
 /**
  * Exchanges a social provider's token (e.g., Firebase ID token) for a custom JWT from the backend.
@@ -118,105 +119,66 @@ export const verifyEmail = async (token: string): Promise<EmailVerificationOutpu
 };
 
 
-// --- Token Management ---
-
 /**
- * Stores the access and refresh tokens from AuthResult.
- * Note: This function now expects AuthResult directly, not AuthResponse['auth']
- * as refreshToken returns AuthResponse which contains AuthResult.
- * @param authResult The AuthResult object containing the tokens.
+ * Refreshes the access token using the provided refresh token.
+ * Uses the `/auth/refresh` endpoint. The caller is responsible for storing
+ * the new tokens and handling failures (e.g., logging out).
+ * @param currentRefreshToken The current refresh token.
+ * @returns An AuthResponse containing the new tokens, or throws an error on failure.
  */
-export const storeTokens = (authResult: AuthResult): void => {
-	localStorage.setItem(ACCESS_TOKEN_KEY, authResult.access_token);
-	if (authResult.refresh_token) {
-		localStorage.setItem(REFRESH_TOKEN_KEY, authResult.refresh_token);
-	} else {
-		// Ensure old refresh token is removed if not provided in the new set
-		localStorage.removeItem(REFRESH_TOKEN_KEY);
-	}
-};
-
-/**
- * Retrieves the stored access and refresh tokens.
- * @returns An object containing the access and refresh tokens, or null if not found.
- */
-export const getTokens = (): { accessToken: string | null; refreshToken: string | null } => {
-	const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-	const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-	return { accessToken, refreshToken };
-};
-
-/**
- * Clears the stored access and refresh tokens.
- */
-export const clearTokens = (): void => {
-	localStorage.removeItem(ACCESS_TOKEN_KEY);
-	localStorage.removeItem(REFRESH_TOKEN_KEY);
-};
-
-/**
- * Refreshes the access token using the refresh token.
- * Uses the `/auth/refresh` endpoint.
- * @returns An AuthResponse containing the new tokens.
- */
-export const refreshToken = async (): Promise<AuthResponse | null> => {
-	const { refreshToken: currentRefreshToken } = getTokens();
+export const refreshToken = async (currentRefreshToken: string): Promise<AuthResponse> => {
 	if (!currentRefreshToken) {
-		console.log('No refresh token available.');
-		return null;
+		console.error('refreshToken service: No refresh token provided.');
+		// Throw an error or handle appropriately, depending on desired contract
+		throw new Error('Refresh token is required.');
 	}
 
 	try {
-		// Expect AuthResponse from the backend refresh endpoint
 		const response = await apiClient.post<AuthResponse>('/auth/refresh', {
-			refresh_token: currentRefreshToken, // Backend expects this field
+			refresh_token: currentRefreshToken,
 		}, {
-			headers: { '__skipAuthRefresh': 'true' } // Signal to skip auth interceptor logic
+			headers: { '__skipAuthRefresh': 'true' } // Prevent interceptor loop
 		});
 
-		// Store the new tokens from the nested 'auth' object
-		storeTokens(response.data.auth);
-		console.log('Token refreshed successfully.');
-		return response.data; // Return the full AuthResponse
+		// Caller (e.g., AuthContext) is responsible for storing response.data.auth
+		console.log('refreshToken service: Token refresh API call successful.');
+		return response.data;
 	} catch (error) {
-		console.error('Error refreshing token:', error);
-		// If refresh fails (e.g., refresh token expired/invalid), clear tokens and log out
-		await logoutUser(); // Use the comprehensive logout function
-		return null;
+		console.error('refreshToken service: Error during token refresh API call:', error);
+		// Re-throw the error so the caller (e.g., AuthContext) can handle it,
+		// potentially by logging the user out.
+		throw error;
 	}
 };
 
-
 /**
- * Logs the user out by clearing tokens and signing out from Firebase.
- * Calls the backend logout endpoint.
+ * Logs the user out by notifying the backend and signing out from Firebase.
+ * The caller (e.g., AuthContext) is responsible for clearing local tokens/state.
  */
 export const logoutUser = async (): Promise<void> => {
+	// Caller is responsible for clearing tokens (e.g., via useLocalStorage setter)
+	console.log('logoutUser service: Initiating logout process.');
+
 	try {
-		// Notify backend about logout
-		await apiClient.post('/auth/logout', null, { // Send null body if backend expects it
-			headers: { '__skipAuthRefresh': 'true' } // Don't try to refresh if logout fails with 401
+		// Notify backend about logout (best effort, don't block UI on failure)
+		await apiClient.post('/auth/logout', null, {
+			headers: { '__skipAuthRefresh': 'true' } // Avoid potential issues if tokens were already cleared
 		});
-		console.log('Backend logout notification sent.');
+		console.log('logoutUser service: Backend logout notification sent.');
 	} catch (error) {
-		// Log error but proceed with local logout anyway
-		console.error('Error during backend logout notification:', error);
-	} finally {
-		clearTokens();
-		// Sign out from Firebase as well
-		try {
-			await signOut(auth);
-			console.log('Firebase sign-out successful.');
-		} catch (firebaseError) {
-			console.error('Error signing out from Firebase:', firebaseError);
-		}
-		// Redirect to home/login page
-		// Use router push for client-side navigation without full page reload
-		// Ensure this code runs client-side where window is available
-		if (typeof window !== 'undefined') {
-			window.location.href = '/'; // Or use Next.js router if available
-		}
+		// Log non-critical error
+		console.warn('logoutUser service: Error during backend logout notification:', error);
 	}
+
+	// Sign out from Firebase (best effort)
+	try {
+		await signOut(auth);
+		console.log('logoutUser service: Firebase sign-out successful.');
+	} catch (firebaseError) {
+		console.error('logoutUser service: Error signing out from Firebase:', firebaseError);
+		// Decide if this should be re-thrown or just logged
+	}
+	// No redirect here, handled by UI/AuthContext based on auth state change
 };
 
 // User profile management functions have been moved to userService.ts

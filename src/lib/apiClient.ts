@@ -1,5 +1,12 @@
 import axios, { AxiosError, InternalAxiosRequestConfig, AxiosResponse, AxiosHeaders } from 'axios';
-import { getTokens, refreshToken, logoutUser } from '@/services/authService'; // Import JWT handling functions
+// Import only refreshToken
+// getTokens is removed, tokens read directly from localStorage here.
+// serviceLogout is no longer called directly from here.
+import { refreshToken as serviceRefreshToken } from '@/services/authService';
+
+// Define localStorage keys here as they are no longer in authService
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 // --- Start: Backend Type Definitions ---
 
@@ -621,7 +628,8 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
 // Request Interceptor: Add JWT to headers
 apiClient.interceptors.request.use(
 	(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-		const { accessToken } = getTokens();
+		// Read access token directly from localStorage
+		const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)?.replaceAll('"', "");
 
 		const skipAuth = config.headers?.['__skipAuthRefresh'] === 'true';
 		if (accessToken && !skipAuth) {
@@ -670,30 +678,45 @@ apiClient.interceptors.response.use(
 			originalRequest._retry = true;
 			isRefreshing = true;
 
+			// Read refresh token directly from localStorage
+			const currentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)?.replaceAll('"', "");
+
+			if (!currentRefreshToken) {
+				console.log('Interceptor: No refresh token found, cannot refresh.');
+				processQueue(error, null); // Reject pending requests
+				// No need to call logoutUser here, let the caller handle UI/state changes
+				return Promise.reject(error); // Reject the original request
+			}
+
 			try {
-				// Use the updated AuthResponse type here
-				const refreshResponse = await refreshToken();
+				// Call the service function, passing the refresh token
+				const refreshResponse = await serviceRefreshToken(currentRefreshToken);
+
 				// Check access_token within the nested 'auth' object
-				if (refreshResponse?.auth.access_token) {
-					const newAccessToken = refreshResponse.auth.access_token;
-					console.log('Token refreshed successfully. Retrying original request.');
+				const newAccessToken = refreshResponse?.auth.access_token;
+				if (newAccessToken) {
+					// Note: The hook useLocalStorage will automatically update localStorage
+					// via the handleAuthenticationSuccess callback in AuthContext upon success.
+					// We just need the new token to retry the original request.
+					console.log('Interceptor: Token refreshed successfully. Retrying original request.');
 					if (originalRequest.headers) {
 						originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
 					}
-					processQueue(null, newAccessToken);
-					return apiClient(originalRequest);
+					processQueue(null, newAccessToken); // Resolve pending requests with the new token
+					return apiClient(originalRequest); // Retry the original request
 				} else {
-					console.error('Refresh endpoint did not return a new access token.');
-					processQueue(error, null);
-					await logoutUser(); // Logout if refresh fails definitively
-					return Promise.reject(error);
+					// This case should ideally not happen if serviceRefreshToken works correctly
+					console.error('Interceptor: Refresh endpoint returned response without a new access token.');
+					processQueue(error, null); // Reject pending requests
+					// No need to call logoutUser here
+					return Promise.reject(error); // Reject the original request
 				}
 			} catch (refreshError) {
-				console.error('Failed to refresh token:', refreshError);
-				processQueue(refreshError as AxiosError, null);
-				// logoutUser is likely called within refreshToken on failure
-				// await logoutUser(); // Consider if double logout is needed
-				return Promise.reject(refreshError);
+				console.error('Interceptor: Failed to refresh token via service:', refreshError);
+				processQueue(refreshError as AxiosError, null); // Reject pending requests with the refresh error
+				// Let AuthContext handle the logout state/UI changes upon catching this error.
+				// No explicit serviceLogout call needed here anymore.
+				return Promise.reject(refreshError); // Reject the original request with the refresh error
 			} finally {
 				isRefreshing = false;
 			}
