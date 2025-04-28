@@ -139,14 +139,6 @@ export interface PaginatedUsers {
 	total_pages: number;
 }
 
-export interface PaginatedRoles {
-	roles: RoleOutput[];
-	total: number; // Assuming int64 maps to number
-	page: number;
-	page_size: number;
-	total_pages: number;
-}
-
 // Search query parameters
 export interface UserSearchQuery {
 	query?: string;
