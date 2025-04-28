@@ -17,14 +17,8 @@ export type UserStatus = "active" | "pending" | "blocked" | "inactive";
 // Assuming Permission is a string for simplicity, adjust if it's more complex
 export type Permission = string;
 
-// Based on internal/modules/account/domain/role_dto.go
-export interface RoleOutput {
-	id: string; // uuid.UUID maps to string
-	name: string;
-	description: string;
-	permissions: Permission[];
-	created_at: string; // time.Time maps to string (ISO 8601)
-	updated_at: string; // time.Time maps to string
+export interface RoleResponse {
+	roles: string[]
 }
 
 // Based on internal/modules/account/domain/user_dto.go and models.go
@@ -35,7 +29,7 @@ export interface UserOutput {
 	last_name: string;
 	phone?: string;
 	avatar?: string;
-	role?: RoleOutput | null; // Role can be null if not loaded or doesn't exist
+	roles?: string[];
 	status: UserStatus;
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
@@ -99,7 +93,6 @@ export interface SocialLoginInput {
 	id_token?: string; // ID token (if applicable, e.g., Google Sign-In)
 	// Add other fields as needed based on the specific social provider flow
 }
-
 
 // Input DTOs for User operations (Keep existing)
 export interface UpdateUserInput {

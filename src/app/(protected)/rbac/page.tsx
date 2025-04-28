@@ -1,250 +1,584 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import RoleModal from '@/components/modals/RoleModal';
+import {useState, useEffect, useCallback} from 'react' // Removed Fragment
+import apiClient, {UserOutput, PaginatedUsers /* Add other necessary types if any */} from '@/lib/apiClient' // Import apiClient and types
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose} from '@/components/ui/dialog'
+import {Badge} from '@/components/ui/badge'
+import {Checkbox} from '@/components/ui/checkbox'
+import {Label} from '@/components/ui/label'
+import {ScrollArea} from '@/components/ui/scroll-area'
+import {X, Loader2} from 'lucide-react' // Import Loader2
 
-interface Role {
-	id: string
-	name: string
-	permissions: string[]
+// --- Component Types ---
+// Define types based on backend API structure
+interface RoleListOutput {
+	roles: string[]
 }
 
-interface User {
-	id: string
-	email: string
-	fullName: string
+// Used for POST request body when adding role to user
+interface UserRoleInput {
+	user_id: string
 	role: string
 }
 
+interface UserRolesOutput {
+	user_id: string // Go backend uses user_id, ensure consistency if needed
+	roles: string[]
+}
+
+// Used for POST request body when adding permission to role
+interface RolePermissionInput {
+	role: string
+	permission: string[] // [object, action]
+}
+
+interface RolePermissionsOutput {
+	role: string
+	permissions: string[][] // Array of [object, action]
+}
+
+// UserOutput is imported from apiClient, no need to redefine here.
+
+// --- Helper Functions ---
+
+const groupPermissionsByObject = (permissions: string[][] | undefined): Record<string, string[]> => {
+	if (!permissions) return {}
+	return permissions.reduce((acc, pair) => {
+		if (pair?.length === 2) {
+			const [object, action] = pair
+			if (!acc[object]) acc[object] = []
+			if (!acc[object].includes(action)) acc[object].push(action)
+		}
+		return acc
+	}, {} as Record<string, string[]>)
+}
+
+// --- Main Component ---
+
 export default function RBACManagement() {
-	const [roles, setRoles] = useState<Role[]>([])
-	const [users, setUsers] = useState<User[]>([])
-	const {token} = useAuth()
+	// --- State ---
+	const [roles, setRoles] = useState<string[]>([])
+	const [users, setUsers] = useState<UserOutput[]>([])
+	const [userRolesMap, setUserRolesMap] = useState<Record<string, string[]>>({}) // userId -> roles[]
+	const [rolePermissionsMap, setRolePermissionsMap] = useState<Record<string, string[][]>>({}) // roleName -> permissions[][]
+	const [isLoading, setIsLoading] = useState({
+		initial: true, // Combined initial load state
+		userRoles: false,
+		rolePermissions: false,
+		action: false, // For add/remove operations
+	})
+	const [error, setError] = useState<string | null>(null)
+
+	// UI State
+	const [searchQuery, setSearchQuery] = useState('')
+	const [selectedUser, setSelectedUser] = useState<UserOutput | null>(null)
+	const [selectedRole, setSelectedRole] = useState<string | null>(null)
+	const [isUserRolesModalOpen, setIsUserRolesModalOpen] = useState(false)
+	const [isRolePermsModalOpen, setIsRolePermsModalOpen] = useState(false)
+	// State for adding new permission in modal
+	const [newPermObject, setNewPermObject] = useState('')
+	const [newPermAction, setNewPermAction] = useState('')
+
+	// --- Data Fetching & API Calls ---
 
 	useEffect(() => {
-		// Fetch roles and users
-		const fetchData = async () => {
+		const fetchInitialData = async () => {
+			// Use combined initial loading state
+			setIsLoading((prev) => ({...prev, initial: true}))
+			setError(null)
 			try {
-				const [rolesRes, usersRes] = await Promise.all([
-					fetch('/api/v1/roles', {
-						headers: {
-							'Authorization': `Bearer ${token}`,
-						},
-					}),
-					fetch('/api/v1/users/search', {
-						headers: {
-							'Authorization': `Bearer ${token}`,
-						},
-					}),
-				])
-
-				const rolesData = await rolesRes.json()
-				const usersData = await usersRes.json()
-
-				setRoles(rolesData)
-				setUsers(usersData.users)
-			} catch (error) {
-				console.error('Error fetching RBAC data:', error)
+				// Use Promise.all for concurrent fetching
+				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/rbac/roles'), apiClient.get<PaginatedUsers>('/users/search')])
+				setRoles(rolesRes.data.roles || [])
+				setUsers(usersRes.data.users || [])
+			} catch (err) {
+				console.error('Error fetching initial RBAC data:', err)
+				let errorMessage = 'Unknown error'
+				if (err instanceof Error) {
+					errorMessage = err.message
+				} else if (typeof err === 'string') {
+					errorMessage = err
+				}
+				setError(`Failed to load initial data: ${errorMessage}`)
+			} finally {
+				// Update combined initial loading state
+				setIsLoading((prev) => ({...prev, initial: false}))
 			}
 		}
+		fetchInitialData()
+	}, []) // Empty dependency array ensures this runs only once on mount
+	const fetchUserRoles = useCallback(
+		async (userId: string) => {
+			if (userRolesMap[userId]) return // Skip if already fetched
+			setIsLoading((prev) => ({...prev, userRoles: true}))
+			setError(null) // Clear previous errors specific to this action
+			try {
+				const res = await apiClient.get<UserRolesOutput>(`/rbac/users/${userId}/roles`)
+				setUserRolesMap((prev) => ({...prev, [userId]: res.data.roles || []}))
+			} catch (err) {
+				console.error(`Error fetching roles for user ${userId}:`, err)
+				// Improved error handling (assuming apiClient throws axios-like errors)
+				let errorMessage = 'Unknown error'
+				if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+					errorMessage = String(err.response.data.error) // Extract specific error from response data if available
+				} else if (err instanceof Error) {
+					errorMessage = err.message
+				} else if (typeof err === 'string') {
+					errorMessage = err
+				}
+				setError(`User Roles Error: ${errorMessage}`)
+				setUserRolesMap((prev) => ({...prev, [userId]: []})) // Set empty on error to avoid inconsistent state
+			} finally {
+				setIsLoading((prev) => ({...prev, userRoles: false}))
+			}
+		},
+		[userRolesMap],
+	) // Depend on the map itself
 
-		fetchData()
-	}, [token])
+	const fetchRolePermissions = useCallback(
+		async (roleName: string) => {
+			if (rolePermissionsMap[roleName]) return // Skip if already fetched
+			setIsLoading((prev) => ({...prev, rolePermissions: true}))
+			setError(null) // Clear previous errors specific to this action
+			try {
+				const res = await apiClient.get<RolePermissionsOutput>(`/rbac/roles/${roleName}/permissions`)
+				setRolePermissionsMap((prev) => ({...prev, [roleName]: res.data.permissions || []}))
+			} catch (err) {
+				console.error(`Error fetching permissions for role ${roleName}:`, err)
+				// Improved error handling
+				let errorMessage = 'Unknown error'
+				if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+					errorMessage = String(err.response.data.error)
+				} else if (err instanceof Error) {
+					errorMessage = err.message
+				} else if (typeof err === 'string') {
+					errorMessage = err
+				}
+				setError(`Role Permissions Error: ${errorMessage}`)
+				setRolePermissionsMap((prev) => ({...prev, [roleName]: []})) // Set empty on error
+			} finally {
+				setIsLoading((prev) => ({...prev, rolePermissions: false}))
+			}
+		},
+		[rolePermissionsMap],
+	) // Depend on the map itself
 
-	const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-	const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-	const [searchQuery, setSearchQuery] = useState('');
+	// --- Modal Open/Close Handlers ---
+	const openUserRolesModal = (user: UserOutput) => {
+		setSelectedUser(user)
+		fetchUserRoles(user.id) // Fetch data when opening
+		setIsUserRolesModalOpen(true)
+	}
 
-	const handleAddRole = async (data: { name: string; permissions: string[] }) => {
+	const openRolePermsModal = (roleName: string) => {
+		setSelectedRole(roleName)
+		fetchRolePermissions(roleName) // Fetch data when opening
+		// Reset add permission form state
+		setNewPermObject('')
+		setNewPermAction('')
+		setIsRolePermsModalOpen(true)
+	}
+
+	// --- Action Handlers (API Calls within Modals/UI) ---
+	const handleAddRoleToUser = async (userId: string | undefined, roleName: string) => {
+		if (!userId) return
+		// Prevent adding if role already exists for the user
+		if (userRolesMap[userId]?.includes(roleName)) {
+			// Maybe show a message that the role is already assigned
+			console.log(`Role "${roleName}" already assigned to user ${userId}`)
+			return
+		}
+		setIsLoading((prev) => ({...prev, action: true}))
+		setError(null)
 		try {
-			const response = await fetch('/api/v1/roles', {
-				method: 'POST',
-				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(data),
-			});
-
-			if (response.ok) {
-				const newRole = await response.json();
-				setRoles([...roles, newRole]);
+			const payload: UserRoleInput = {user_id: userId, role: roleName}
+			await apiClient.post(`/rbac/users/roles`, payload)
+			// Update local state optimistically or re-fetch
+			setUserRolesMap((prev) => ({
+				...prev,
+				[userId]: [...(prev[userId] || []), roleName].filter((v, i, a) => a.indexOf(v) === i), // Deduplicate just in case
+			}))
+			// Add success feedback (e.g., toast)
+		} catch (err) {
+			console.error(`Error adding role ${roleName} to user ${userId}:`, err)
+			// Improved error handling
+			let errorMessage = 'Unknown error'
+			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+				errorMessage = String(err.response.data.error)
+			} else if (err instanceof Error) {
+				errorMessage = err.message
+			} else if (typeof err === 'string') {
+				errorMessage = err
 			}
-		} catch (error) {
-			console.error('Error adding role:', error);
+			setError(`Failed to add role: ${errorMessage}`)
+			// Add error feedback (e.g., toast)
+		} finally {
+			setIsLoading((prev) => ({...prev, action: false}))
 		}
-	};
+	}
 
-	const handleEditRole = async (data: { name: string; permissions: string[] }) => {
-		if (!selectedRole) return;
-
+	const handleRemoveRoleFromUser = async (userId: string | undefined, roleName: string) => {
+		if (!userId) return
+		setIsLoading((prev) => ({...prev, action: true}))
+		setError(null)
 		try {
-			const response = await fetch(`/api/v1/roles/${selectedRole.id}`, {
-				method: 'PUT',
-				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(data),
-			});
-
-			if (response.ok) {
-				const updatedRole = await response.json();
-				setRoles(roles.map(role => 
-					role.id === selectedRole.id ? updatedRole : role
-				));
+			await apiClient.delete(`/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`)
+			// Update local state optimistically
+			setUserRolesMap((prev) => ({
+				...prev,
+				[userId]: (prev[userId] || []).filter((r) => r !== roleName),
+			}))
+			// Add success feedback
+		} catch (err) {
+			console.error(`Error removing role ${roleName} from user ${userId}:`, err)
+			// Improved error handling
+			let errorMessage = 'Unknown error'
+			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+				errorMessage = String(err.response.data.error)
+			} else if (err instanceof Error) {
+				errorMessage = err.message
+			} else if (typeof err === 'string') {
+				errorMessage = err
 			}
-		} catch (error) {
-			console.error('Error updating role:', error);
+			setError(`Failed to remove role: ${errorMessage}`)
+			// Add error feedback
+		} finally {
+			setIsLoading((prev) => ({...prev, action: false}))
 		}
-	};
+	}
 
-	const handleDeleteRole = async (roleId: string) => {
-		if (!confirm('Are you sure you want to delete this role?')) return;
+	const handleAddPermissionToRole = async (roleName: string | null, object: string, action: string) => {
+		if (!roleName || !object || !action) {
+			setError('Object and Action cannot be empty.')
+			return // Basic validation
+		}
+		// Check if permission already exists
+		if (rolePermissionsMap[roleName]?.some((p) => p[0] === object && p[1] === action)) {
+			console.log(`Permission [${object}, ${action}] already exists for role ${roleName}`)
+			return
+		}
 
+		const permission: string[] = [object, action]
+		const payload: RolePermissionInput = {role: roleName, permission}
+		setIsLoading((prev) => ({...prev, action: true}))
+		setError(null)
 		try {
-			const response = await fetch(`/api/v1/roles/${roleId}`, {
-				method: 'DELETE',
-				headers: {
-					'Authorization': `Bearer ${token}`,
-				},
-			});
-
-			if (response.ok) {
-				setRoles(roles.filter(role => role.id !== roleId));
+			await apiClient.post(`/rbac/roles/permissions`, payload)
+			// Update local state optimistically
+			setRolePermissionsMap((prev) => ({
+				...prev,
+				[roleName]: [...(prev[roleName] || []), permission].filter((p, i, a) => a.findIndex((p2) => p2[0] === p[0] && p2[1] === p[1]) === i), // Deduplicate
+			}))
+			// Clear the input fields after successful addition
+			setNewPermObject('')
+			setNewPermAction('')
+			// Add success feedback
+		} catch (err) {
+			console.error(`Error adding permission [${object}, ${action}] to role ${roleName}:`, err)
+			// Improved error handling
+			let errorMessage = 'Unknown error'
+			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+				errorMessage = String(err.response.data.error)
+			} else if (err instanceof Error) {
+				errorMessage = err.message
+			} else if (typeof err === 'string') {
+				errorMessage = err
 			}
-		} catch (error) {
-			console.error('Error deleting role:', error);
+			setError(`Failed to add permission: ${errorMessage}`)
+			// Add error feedback
+		} finally {
+			setIsLoading((prev) => ({...prev, action: false}))
 		}
-	};
+	}
 
-	const handleChangeUserRole = async (userId: string, roleId: string) => {
+	const handleRemovePermissionFromRole = async (roleName: string | null, object: string, action: string) => {
+		if (!roleName) return
+		setIsLoading((prev) => ({...prev, action: true}))
+		setError(null)
 		try {
-			const response = await fetch(`/api/v1/users/${userId}/role`, {
-				method: 'PUT',
-				headers: {
-					'Authorization': `Bearer ${token}`,
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({ roleId }),
-			});
-
-			if (response.ok) {
-				const updatedUser = await response.json();
-				setUsers(users.map(user =>
-					user.id === userId ? updatedUser : user
-				));
+			await apiClient.delete(`/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`)
+			// Update local state optimistically
+			setRolePermissionsMap((prev) => ({
+				...prev,
+				[roleName]: (prev[roleName] || []).filter((p) => !(p[0] === object && p[1] === action)),
+			}))
+			// Add success feedback
+		} catch (err) {
+			console.error(`Error removing permission [${object}, ${action}] from role ${roleName}:`, err)
+			// Improved error handling
+			let errorMessage = 'Unknown error'
+			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
+				errorMessage = String(err.response.data.error)
+			} else if (err instanceof Error) {
+				errorMessage = err.message
+			} else if (typeof err === 'string') {
+				errorMessage = err
 			}
-		} catch (error) {
-			console.error('Error updating user role:', error);
+			setError(`Failed to remove permission: ${errorMessage}`)
+			// Add error feedback
+		} finally {
+			setIsLoading((prev) => ({...prev, action: false}))
 		}
-	};
+	}
 
-	const filteredUsers = users.filter(user =>
-		user.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-		user.email.toLowerCase().includes(searchQuery.toLowerCase())
-	);
+	// --- Rendering Logic ---
+
+	const filteredUsers = users.filter((user) => (user.first_name + ' ' + user.last_name).toLowerCase().includes(searchQuery.toLowerCase()) || user.email.toLowerCase().includes(searchQuery.toLowerCase()))
+
+	// Render loading state for initial data
+	if (isLoading.initial) {
+		return (
+			<div className='flex justify-center items-center min-h-screen'>
+				<Loader2 className='h-8 w-8 animate-spin text-primary' />
+				<span className='ml-2 text-lg'>Loading RBAC Data...</span>
+			</div>
+		)
+	}
+
+	// Render page-level error state (only if modals are not open)
+	// Also show modal-specific errors inside modals
+	const pageError = error && !isUserRolesModalOpen && !isRolePermsModalOpen
 
 	return (
-		<div className='p-6'>
-			<h1 className='text-2xl font-bold mb-6'>Role-Based Access Control</h1>
+		<div className='p-6 space-y-8'>
+			<h1 className='text-3xl font-bold'>Role-Based Access Control</h1>
 
-			{/* Roles Management Section */}
-			<div className='mb-8'>
-				<div className='flex justify-between items-center mb-4'>
-					<h2 className='text-xl font-semibold'>Roles</h2>
-					<button 
-						className='bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600'
-						onClick={() => {
-							setSelectedRole(null);
-							setIsRoleModalOpen(true);
-						}}
-					>
-						Add New Role
-					</button>
+			{pageError && (
+				<div className='p-4 text-center text-destructive bg-destructive/10 border border-destructive rounded-md'>
+					<h2 className='text-lg font-semibold mb-2'>Error</h2>
+					<p>{error}</p>
+					{/* Optional: Add a retry button or clear error button */}
 				</div>
-				<div className='grid gap-4'>
-					{roles.map((role) => (
-						<div key={role.id} className='border p-4 rounded-lg'>
-							<h3 className='font-medium'>{role.name}</h3>
-							<div className='mt-2'>
-								<h4 className='text-sm text-gray-600'>Permissions:</h4>
-								<div className='flex flex-wrap gap-2 mt-1'>
-									{role.permissions.map((permission) => (
-										<span key={permission} className='bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded'>
-											{permission}
-										</span>
-									))}
-								</div>
-							</div>
-							<div className='mt-4 flex gap-2'>
-								<button className='text-indigo-600 hover:text-indigo-900'>Edit</button>
-								<button className='text-red-600 hover:text-red-900'>Delete</button>
-							</div>
-						</div>
-					))}
-				</div>
-			</div>
+			)}
 
-			{/* Users Management Section */}
-			<div>
+			{/* Roles Management Section - Updated List */}
+			<section aria-labelledby='roles-heading'>
 				<div className='flex justify-between items-center mb-4'>
-					<h2 className='text-xl font-semibold'>Users</h2>
-					<div className='flex gap-2'>
-						<input 
-							type='text' 
-							placeholder='Search users...' 
-							className='border rounded px-3 py-2'
-							value={searchQuery}
-							onChange={(e) => setSearchQuery(e.target.value)}
-						/>
+					<h2 id='roles-heading' className='text-2xl font-semibold'>
+						Roles
+					</h2>
+					{/* "Add New Role" button removed */}
+				</div>
+				{roles.length === 0 && !isLoading.initial ? (
+					<p className='text-muted-foreground text-center py-4'>No roles defined in the system yet.</p>
+				) : (
+					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
+						{/* Map over role names (strings) */}
+						{roles.map((roleName) => (
+							<div key={roleName} className='border bg-card p-4 rounded-lg shadow-sm flex flex-col justify-between'>
+								<h3 className='font-medium text-lg mb-3 truncate'>{roleName}</h3>
+								<Button
+									variant='outline'
+									size='sm'
+									className='w-full mt-auto' // Ensure button is at the bottom
+									onClick={() => openRolePermsModal(roleName)}
+									disabled={isLoading.rolePermissions && selectedRole === roleName} // Disable while loading permissions for this role
+								>
+									{isLoading.rolePermissions && selectedRole === roleName ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+									Manage Permissions
+								</Button>
+							</div>
+						))}
+					</div>
+				)}
+			</section>
+
+			{/* Users Management Section - Updated Table */}
+			<section aria-labelledby='users-heading'>
+				{/* Updated header and search layout */}
+				<div className='flex flex-col sm:flex-row justify-between items-center mb-4 gap-4'>
+					<h2 id='users-heading' className='text-2xl font-semibold'>
+						Users
+					</h2>
+					<div className='w-full sm:w-auto sm:max-w-xs'>
+						<Input type='text' placeholder='Search users by name or email...' value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
 					</div>
 				</div>
-				<div className='overflow-x-auto'>
-					<table className='min-w-full'>
-						<thead>
-							<tr className='bg-gray-50'>
-								<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Name</th>
-								<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Email</th>
-								<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Role</th>
-								<th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>Actions</th>
-							</tr>
-						</thead>
-						<tbody className='bg-white divide-y divide-gray-200'>
-							{users.map((user) => (
-								<tr key={user.id}>
-									<td className='px-6 py-4 whitespace-nowrap'>{user.fullName}</td>
-									<td className='px-6 py-4 whitespace-nowrap'>{user.email}</td>
-									<td className='px-6 py-4 whitespace-nowrap'>
-										<select className='border rounded px-2 py-1' value={user.role} onChange={(e) => console.log('Change role', e.target.value)}>
-											{roles.map((role) => (
-												<option key={role.id} value={role.id}>
-													{role.name}
-												</option>
-											))}
-										</select>
-									</td>
-									<td className='px-6 py-4 whitespace-nowrap'>
-										<button className='text-indigo-600 hover:text-indigo-900 mr-4'>Edit</button>
-										<button className='text-red-600 hover:text-red-900'>Remove</button>
-									</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</div>
-			</div>
+				{/* Added border and bg-card for consistency */}
+				<div className='border rounded-lg overflow-hidden bg-card'>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Name</TableHead>
+								<TableHead>Email</TableHead>
+								<TableHead>Assigned Roles</TableHead> {/* Renamed header */}
+								<TableHead>Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{filteredUsers.length === 0 ? (
+								<TableRow>
+									<TableCell colSpan={4} className='text-center text-muted-foreground py-4'>
+										No users found{searchQuery ? ' matching your search' : ''}.
+									</TableCell>
+								</TableRow>
+							) : (
+								// Use user.roles directly from the fetched user data
+								filteredUsers.map((user) => (
+									<TableRow key={user.id}>
+										<TableCell className='font-medium'>{`${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()}</TableCell>
+										<TableCell>{user.email}</TableCell>
+										<TableCell>
+											{/* Display roles as badges directly from user.roles */}
+											<div className='flex flex-wrap gap-1'>
+												{user.roles && user.roles.length > 0 ? (
+													user.roles.map((roleName) => (
+														<Badge key={roleName} variant='secondary'>
+															{roleName}
+														</Badge>
+													))
+												) : (
+													<span className='text-xs text-muted-foreground italic'>No roles</span>
+												)}
+											</div>
+										</TableCell>
+										{/* Corrected TableCell placement for the button */}
+										<TableCell>
+											{/* Manage Roles Button - Reverted to simple text, no loader */}
+											<Button variant='outline' size='sm' onClick={() => openUserRolesModal(user)} disabled={isLoading.userRoles && selectedUser?.id === user.id}>
+												Manage Roles
+											</Button>
+										</TableCell>
+									</TableRow>
+								))
+							)}
+						</TableBody>
+					</Table>
+				</div>{' '}
+				{/* Removed trailing comment */}
+			</section>
 
-			<RoleModal
-				isOpen={isRoleModalOpen}
-				onClose={() => {
-					setIsRoleModalOpen(false);
-					setSelectedRole(null);
-				}}
-				onSubmit={selectedRole ? handleEditRole : handleAddRole}
-				role={selectedRole || undefined}
-			/>
+			{/* --- Modals --- */}
+
+			{/* User Roles Management Modal */}
+			<Dialog open={isUserRolesModalOpen} onOpenChange={setIsUserRolesModalOpen}>
+				<DialogContent className='sm:max-w-[500px]'>
+					<DialogHeader>
+						<DialogTitle>Manage Roles for {selectedUser?.email}</DialogTitle>
+						<DialogDescription>Assign or remove roles for this user.</DialogDescription>
+					</DialogHeader>
+					{isLoading.userRoles ? (
+						<div className='flex justify-center items-center p-8'>
+							<Loader2 className='h-6 w-6 animate-spin' />
+						</div>
+					) : (
+						<div className='grid gap-4 py-4'>
+							<h4 className='font-medium mb-2'>Available Roles</h4>
+							<ScrollArea className='h-[200px] border rounded p-2'>
+								<div className='space-y-2'>
+									{roles.map((roleName) => {
+										const isAssigned = userRolesMap[selectedUser?.id || '']?.includes(roleName)
+										return (
+											<div key={roleName} className='flex items-center justify-between'>
+												<Label htmlFor={`role-${roleName}`} className='flex-1 cursor-pointer'>
+													{roleName}
+												</Label>
+												<Checkbox
+													id={`role-${roleName}`}
+													checked={isAssigned}
+													onCheckedChange={(checked) => {
+														if (checked) {
+															handleAddRoleToUser(selectedUser?.id, roleName)
+														} else {
+															handleRemoveRoleFromUser(selectedUser?.id, roleName)
+														}
+													}}
+													disabled={isLoading.action} // Disable checkbox during add/remove actions
+												/>
+											</div>
+										)
+									})}
+									{roles.length === 0 && <p className='text-sm text-muted-foreground italic'>No roles defined.</p>}
+								</div>
+							</ScrollArea>
+							{/* Display modal-specific errors - Added null check */}
+							{error && (error.startsWith('Failed to add role:') || error.startsWith('Failed to remove role:')) ? <p className='text-sm text-destructive'>{error}</p> : null}
+						</div>
+					)}
+					<DialogFooter>
+						<DialogClose asChild>
+							<Button type='button' variant='secondary' onClick={() => setError(null)}>
+								{' '}
+								{/* Clear error on close */}
+								Close
+							</Button>
+						</DialogClose>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Role Permissions Management Modal */}
+			<Dialog open={isRolePermsModalOpen} onOpenChange={setIsRolePermsModalOpen}>
+				<DialogContent className='sm:max-w-[600px]'>
+					<DialogHeader>
+						<DialogTitle>Manage Permissions for Role: {selectedRole}</DialogTitle>
+						<DialogDescription>Add or remove permissions (object-action pairs) for this role.</DialogDescription>
+					</DialogHeader>
+					{isLoading.rolePermissions ? (
+						<div className='flex justify-center items-center p-8'>
+							<Loader2 className='h-6 w-6 animate-spin' />
+						</div>
+					) : (
+						<div className='py-4 space-y-4'>
+							{/* Add New Permission Form */}
+							<div className='flex gap-2 items-end border-b pb-4'>
+								<div className='flex-1 space-y-1'>
+									<Label htmlFor='new-perm-object'>Object</Label>
+									<Input id='new-perm-object' placeholder='e.g., users' value={newPermObject} onChange={(e) => setNewPermObject(e.target.value)} disabled={isLoading.action} />
+								</div>
+								<div className='flex-1 space-y-1'>
+									<Label htmlFor='new-perm-action'>Action</Label>
+									<Input id='new-perm-action' placeholder='e.g., read' value={newPermAction} onChange={(e) => setNewPermAction(e.target.value)} disabled={isLoading.action} />
+								</div>
+								<Button onClick={() => handleAddPermissionToRole(selectedRole, newPermObject, newPermAction)} disabled={isLoading.action || !newPermObject || !newPermAction}>
+									{isLoading.action ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+									Add
+								</Button>
+							</div>
+
+							{/* Existing Permissions List */}
+							<h4 className='font-medium'>Assigned Permissions</h4>
+							<ScrollArea className='h-[250px] border rounded p-2'>
+								{!rolePermissionsMap[selectedRole || ''] || rolePermissionsMap[selectedRole || ''].length === 0 ? (
+									<p className='text-sm text-muted-foreground italic p-2'>No permissions assigned.</p>
+								) : (
+									Object.entries(groupPermissionsByObject(rolePermissionsMap[selectedRole || ''])).map(([object, actions]) => (
+										<div key={object} className='mb-3 last:mb-0'>
+											<h5 className='text-sm font-semibold capitalize mb-1 px-2'>{object === '_' ? 'Other' : object}</h5>
+											<div className='space-y-1'>
+												{actions.map((action) => (
+													<div key={`${object}:${action}`} className='flex items-center justify-between p-2 rounded hover:bg-muted/50'>
+														<span className='text-sm'>{action}</span>
+														<Button variant='ghost' size='icon' className='h-6 w-6 text-muted-foreground hover:text-destructive' onClick={() => handleRemovePermissionFromRole(selectedRole, object, action)} disabled={isLoading.action}>
+															<X className='h-4 w-4' />
+															<span className='sr-only'>Remove permission</span>
+														</Button>
+													</div>
+												))}
+											</div>
+										</div>
+									))
+								)}
+							</ScrollArea>
+							{/* Display modal-specific errors - Added null checks */}
+							{error && (error.startsWith('Failed to add permission:') || error.startsWith('Failed to remove permission:')) ? <p className='text-sm text-destructive'>{error}</p> : null}
+							{error && error === 'Object and Action cannot be empty.' ? <p className='text-sm text-destructive'>{error}</p> : null}
+						</div>
+					)}
+					<DialogFooter>
+						<DialogClose asChild>
+							<Button type='button' variant='secondary' onClick={() => setError(null)}>
+								{' '}
+								{/* Clear error on close */}
+								Close
+							</Button>
+						</DialogClose>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
-	);
+	)
 }
