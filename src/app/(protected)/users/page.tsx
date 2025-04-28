@@ -2,20 +2,21 @@
 
 import React, {useEffect, useState, useCallback} from 'react'
 import apiClient, {UserOutput, PaginatedUsers, UserSearchQuery, UserStatus} from '@/lib/apiClient'
+import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle} from '@/components/ui/alert-dialog' // Import AlertDialog components
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
-// Removed Table imports, Checkbox is used by UserTable internally now
+import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose} from '@/components/ui/dialog' // Import Dialog components (Removed DialogTrigger)
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label' // Import Label
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
-import {DotsHorizontalIcon} from '@radix-ui/react-icons' // Removed pagination icons, handled by UserTable
+import {DotsHorizontalIcon} from '@radix-ui/react-icons'
 import {useDebounce} from 'use-debounce'
-// Import the new UserTable component and ColumnDefinition type
 import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
+import {toast} from 'sonner' // Import toast from sonner
 
 // Define initial filter state
 const initialFilters: Omit<UserSearchQuery, 'role_id'> & {role_name?: string} = {
-	// Use role_name instead of role_id
 	query: '',
 	status: undefined,
 	role_name: undefined, // Changed from role_id
@@ -32,6 +33,16 @@ export default function UsersPage() {
 	const [pageSize, setPageSize] = useState(initialFilters.page_size || 10)
 	const [totalPages, setTotalPages] = useState(0)
 	const [totalUsers, setTotalUsers] = useState(0)
+	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false) // State for delete confirmation dialog
+	const [userToDeleteId, setUserToDeleteId] = useState<string | null>(null) // State for user ID to delete
+	const [isStatusChangeDialogOpen, setIsStatusChangeDialogOpen] = useState(false) // State for status change confirmation
+	const [statusChangeDetails, setStatusChangeDetails] = useState<{userId: string; status: UserStatus} | null>(null) // State for pending status change details
+	const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false) // State for reset password confirmation
+	const [resetPasswordDetails, setResetPasswordDetails] = useState<{userId: string; email: string} | null>(null) // State for pending reset password details
+	const [isChangePasswordDialogOpen, setIsChangePasswordDialogOpen] = useState(false) // State for change password dialog
+	const [userToChangePassword, setUserToChangePassword] = useState<UserOutput | null>(null) // State for user whose password to change
+	const [newPassword, setNewPassword] = useState('') // State for new password input
+	const [confirmPassword, setConfirmPassword] = useState('') // State for confirm password input
 
 	// Update filter state type
 	const [filters, setFilters] = useState<Omit<UserSearchQuery, 'role_id'> & {role_name?: string}>(initialFilters)
@@ -61,20 +72,162 @@ export default function UsersPage() {
 		fetchRoles()
 	}, []) // Corrected closing braces/parentheses and added empty dependency array
 
-	// Placeholder action handlers (keep existing)
-	const handleEditUser = (userId: string) => {
-		console.log('Edit user:', userId)
-		// TODO: Implement edit logic (e.g., open modal, navigate to edit page)
-	}
-
+	// Opens the delete confirmation dialog
 	const handleDeleteUser = (userId: string) => {
-		console.log('Delete user:', userId)
-		// TODO: Implement delete logic (e.g., show confirmation, call API)
+		setUserToDeleteId(userId)
+		setIsDeleteDialogOpen(true)
 	}
 
-	const handleChangeUserStatus = (userId: string, status: 'active' | 'inactive' | 'pending') => {
-		console.log('Change status for user:', userId, 'to', status)
-		// TODO: Implement status change logic (e.g., call API, update state)
+	// Executes the delete action after confirmation
+	const confirmDeleteUser = () => {
+		if (userToDeleteId) {
+			console.log('Confirmed delete user:', userToDeleteId)
+			// TODO: Implement actual API call for deletion here
+			toast.info('Delete action triggered', {
+				description: `Would delete user ${userToDeleteId}. API call not yet implemented.`,
+			})
+			// Placeholder for API call:
+			// try {
+			//   await apiClient.delete(`/users/${userToDeleteId}`);
+			//   toast.success('User Deleted', { description: `User ${userToDeleteId} has been deleted.` });
+			//   fetchUsers(); // Refresh list after deletion
+			// } catch (err) {
+			//   console.error('Failed to delete user:', err);
+			//   toast.error('Delete Failed', { description: 'Could not delete the user.' });
+			// }
+		}
+		// Close the dialog regardless of success/failure for now
+		setIsDeleteDialogOpen(false)
+		setUserToDeleteId(null)
+	}
+
+	// Closes the delete confirmation dialog without action
+	const cancelDeleteUser = () => {
+		setIsDeleteDialogOpen(false)
+		setUserToDeleteId(null)
+	}
+
+	// --- Change Password ---
+	// Opens the change password dialog
+	const openChangePasswordDialog = (user: UserOutput) => {
+		setUserToChangePassword(user)
+		setNewPassword('') // Clear fields when opening
+		setConfirmPassword('')
+		setIsChangePasswordDialogOpen(true)
+	}
+
+	// Handles the submission of the change password form
+	const handleSubmitChangePassword = async (event: React.FormEvent) => {
+		event.preventDefault()
+		if (!userToChangePassword) return
+		if (newPassword !== confirmPassword) {
+			toast.error('Passwords do not match.')
+			return
+		}
+		if (newPassword.length < 6) {
+			// Basic validation, adjust as needed
+			toast.error('Password must be at least 6 characters long.')
+			return
+		}
+
+		console.log('Attempting to change password for user:', userToChangePassword.id)
+		try {
+			// TODO: Implement actual API call for changing password
+			// Example: await apiClient.patch(`/users/${userToChangePassword.id}/password`, { newPassword });
+			toast.success('Password Change Submitted', {
+				description: `Password for ${userToChangePassword.email} would be changed (API call pending).`,
+			})
+			setIsChangePasswordDialogOpen(false) // Close dialog on success
+		} catch (err) {
+			console.error('Failed to change password:', err)
+			toast.error('Password Change Failed', {
+				description: 'Could not change the password.',
+			})
+			// Optionally keep dialog open on failure
+		}
+	}
+
+	// --- Reset Password ---
+	// Opens the reset password confirmation dialog
+	const openResetPasswordDialog = (userId: string, email: string) => {
+		setResetPasswordDetails({userId, email})
+		setIsResetPasswordDialogOpen(true)
+	}
+
+	// Closes the reset password confirmation dialog
+	const cancelResetPassword = () => {
+		setIsResetPasswordDialogOpen(false)
+		setResetPasswordDetails(null)
+	}
+
+	// Executes the password reset trigger after confirmation
+	const confirmResetPassword = async () => {
+		if (!resetPasswordDetails) return
+
+		const {userId, email} = resetPasswordDetails
+		console.log('Trigger reset password for user:', userId)
+		// TODO: Implement API call to trigger password reset email
+		try {
+			// Example API call structure (adjust endpoint and payload as needed)
+			// await apiClient.post(`/users/${userId}/reset-password`);
+			toast.success('Password Reset Triggered', {
+				description: `A password reset link will be sent to ${email} if the feature is implemented.`,
+			})
+		} catch (err) {
+			console.error('Failed to trigger password reset:', err)
+			toast.error('Reset Failed', {
+				description: 'Could not trigger password reset.',
+			})
+		} finally {
+			cancelResetPassword() // Close dialog regardless of outcome
+		}
+	}
+
+	// --- Status Change ---
+	// Opens the status change confirmation dialog
+	const openStatusChangeDialog = (userId: string, status: UserStatus) => {
+		setStatusChangeDetails({userId, status})
+		setIsStatusChangeDialogOpen(true)
+	}
+
+	// Closes the status change dialog without action
+	const cancelChangeUserStatus = () => {
+		setIsStatusChangeDialogOpen(false)
+		setStatusChangeDetails(null)
+	}
+
+	// Executes the status change after confirmation
+	const confirmChangeUserStatus = async () => {
+		if (!statusChangeDetails) return
+
+		const {userId, status} = statusChangeDetails
+		console.log('Attempting to change status for user:', userId, 'to', status)
+		// Consider adding a temporary loading state for the specific row or action
+		try {
+			await apiClient.patch(`/users/${userId}/status`, {status}) // Using PATCH /users/{userId}/status
+			toast.success('Status Updated', {
+				description: `User status changed to ${status}.`, // Simplified description
+			})
+			fetchUsers() // Refresh the user list
+		} catch (err) {
+			console.error('Failed to change user status:', err)
+			let message = `Failed to update status for user ${userId}.`
+
+			// Type guard for AxiosError or similar structure
+			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'message' in err.response.data) {
+				message = String(err.response.data.message) // Safely access nested message
+			} else if (err instanceof Error) {
+				message = err.message // Fallback to standard error message
+			}
+
+			setError(message) // Update general error state
+			toast.error('Update Failed', {
+				description: message,
+			})
+		} finally {
+			// Reset any temporary loading state here if implemented
+			cancelChangeUserStatus() // Close the dialog regardless of outcome
+		}
 	}
 
 	// Fetch users function with pagination and filtering
@@ -185,40 +338,45 @@ export default function UsersPage() {
 		{
 			accessorKey: 'actions',
 			header: () => <div className='text-right'>Actions</div>,
-			cell: ({row}) => (
-				<div className='text-right'>
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button variant='ghost' className='h-8 w-8 p-0'>
-								<span className='sr-only'>Open menu</span>
-								<DotsHorizontalIcon className='h-4 w-4' />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align='end'>
-							<DropdownMenuLabel>Actions</DropdownMenuLabel>
-							<DropdownMenuItem onClick={() => handleEditUser(row.id)}>Edit</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() => handleDeleteUser(row.id)}
-								className='text-red-600' // Optional: Style delete differently
-							>
-								Delete
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<DropdownMenuLabel>Change Status</DropdownMenuLabel>
-							<DropdownMenuItem onClick={() => handleChangeUserStatus(row.id, 'active')} disabled={row.status === 'active'}>
-								Set Active
-							</DropdownMenuItem>
-							<DropdownMenuItem onClick={() => handleChangeUserStatus(row.id, 'inactive')} disabled={row.status === 'inactive'}>
-								Set Inactive
-							</DropdownMenuItem>
-							<DropdownMenuItem onClick={() => handleChangeUserStatus(row.id, 'pending')} disabled={row.status === 'pending'}>
-								Set Pending
-							</DropdownMenuItem>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				</div>
-			),
 			size: 'w-[80px]', // Give actions column a bit more space if needed
+			cell: ({row}) => {
+				const user = row // Get the full user object for context
+				return (
+					<div className='text-right'>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant='ghost' className='h-8 w-8 p-0'>
+									<span className='sr-only'>Open menu</span>
+									<DotsHorizontalIcon className='h-4 w-4' />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align='end'>
+								<DropdownMenuLabel>Actions</DropdownMenuLabel>
+								<DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className='text-red-600'>
+									Delete
+								</DropdownMenuItem>
+								{/* Corrected onClick handlers */}
+								<DropdownMenuItem onClick={() => openChangePasswordDialog(user)}>Change Password</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => openResetPasswordDialog(user.id, user.email)}>Reset Password</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								<DropdownMenuLabel>Change Status</DropdownMenuLabel>
+								<DropdownMenuItem onClick={() => openStatusChangeDialog(user.id, 'active')} disabled={user.status === 'active'}>
+									Set Active
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => openStatusChangeDialog(user.id, 'inactive')} disabled={user.status === 'inactive'}>
+									Set Inactive
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => openStatusChangeDialog(user.id, 'pending')} disabled={user.status === 'pending'}>
+									Set Pending
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => openStatusChangeDialog(user.id, 'blocked')} disabled={user.status === 'blocked'}>
+									Set Blocked
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				)
+			},
 		},
 	]
 
@@ -297,6 +455,88 @@ export default function UsersPage() {
 					/>
 				</CardContent>
 			</Card>
+
+			{/* Delete Confirmation Dialog */}
+			<AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+						<AlertDialogDescription>This action cannot be undone. This will permanently delete the user account.</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel onClick={cancelDeleteUser}>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmDeleteUser} className='bg-red-600 hover:bg-red-700'>
+							Delete
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Status Change Confirmation Dialog */}
+			<AlertDialog open={isStatusChangeDialogOpen} onOpenChange={setIsStatusChangeDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
+						<AlertDialogDescription>{statusChangeDetails ? `Are you sure you want to change the status of user ${statusChangeDetails.userId} to ${statusChangeDetails.status}?` : 'Are you sure you want to change the user status?'}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel onClick={cancelChangeUserStatus}>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmChangeUserStatus}>Confirm</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Reset Password Confirmation Dialog */}
+			<AlertDialog open={isResetPasswordDialogOpen} onOpenChange={setIsResetPasswordDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Confirm Password Reset</AlertDialogTitle>
+						<AlertDialogDescription>{resetPasswordDetails ? `Are you sure you want to trigger a password reset for ${resetPasswordDetails.email}? An email will be sent with instructions.` : 'Are you sure?'}</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel onClick={cancelResetPassword}>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmResetPassword}>Confirm Reset</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Change Password Dialog */}
+			<Dialog open={isChangePasswordDialogOpen} onOpenChange={setIsChangePasswordDialogOpen}>
+				<DialogContent className='sm:max-w-[425px]'>
+					<DialogHeader>
+						<DialogTitle>Change Password</DialogTitle>
+						{/* Using double quotes outside, single quote inside */}
+						<DialogDescription>{'Set a new password for ' + (userToChangePassword?.email || 'the selected user') + ". Click save when you're done."}</DialogDescription>
+					</DialogHeader>
+					<form onSubmit={handleSubmitChangePassword}>
+						<div className='grid gap-4 py-4'>
+							<div className='grid grid-cols-4 items-center gap-4'>
+								<Label htmlFor='newPassword' className='text-right'>
+									New Password
+								</Label>
+								<Input id='newPassword' type='password' value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className='col-span-3' required minLength={6} />
+							</div>
+							<div className='grid grid-cols-4 items-center gap-4'>
+								<Label htmlFor='confirmPassword' className='text-right'>
+									Confirm Password
+								</Label>
+								<Input id='confirmPassword' type='password' value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className='col-span-3' required />
+							</div>
+							{newPassword && confirmPassword && newPassword !== confirmPassword && <p className='col-span-4 text-red-600 text-sm text-center'>Passwords do not match.</p>}
+						</div>
+						<DialogFooter>
+							<DialogClose asChild>
+								<Button type='button' variant='outline'>
+									Cancel
+								</Button>
+							</DialogClose>
+							<Button type='submit' disabled={!newPassword || newPassword !== confirmPassword}>
+								Save changes
+							</Button>
+						</DialogFooter>
+					</form>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }
