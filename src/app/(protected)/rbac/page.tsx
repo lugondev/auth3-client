@@ -1,419 +1,182 @@
 'use client'
 
-import {useState, useEffect, useCallback} from 'react' // Removed Fragment
-import apiClient, {UserOutput, PaginatedUsers /* Add other necessary types if any */} from '@/lib/apiClient' // Import apiClient and types
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+import React, {useState, useEffect, useCallback} from 'react'
+import {Loader2} from 'lucide-react'
+import {useRbac} from '@/hooks/useRbac' // Keep for roles, permissions, modals
+import {RolesSection} from '@/components/rbac/RolesSection'
+import {UserRolesModal} from '@/components/rbac/modals/UserRolesModal'
+import {RolePermissionsModal} from '@/components/rbac/modals/RolePermissionsModal'
+import {CreateRoleModal} from '@/components/rbac/modals/CreateRoleModal'
+
+// Imports from users/page.tsx for UserTable integration
+import apiClient, {UserOutput, PaginatedUsers, UserSearchQuery, UserStatus} from '@/lib/apiClient'
 import {Button} from '@/components/ui/button'
+import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
+// Removed unused DropdownMenu imports
 import {Input} from '@/components/ui/input'
-import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose} from '@/components/ui/dialog'
-import {Badge} from '@/components/ui/badge'
-import {Checkbox} from '@/components/ui/checkbox'
-import {Label} from '@/components/ui/label'
-import {ScrollArea} from '@/components/ui/scroll-area'
-import {X, Loader2} from 'lucide-react' // Import Loader2
-import {useForm, SubmitHandler} from 'react-hook-form' // Added for form handling
-import {zodResolver} from '@hookform/resolvers/zod' // Added for validation
-import * as z from 'zod' // Added for Zod schema
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+// Removed unused DotsHorizontalIcon import
+import {useDebounce} from 'use-debounce'
+import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
 
-// --- Component Types ---
-// Define types based on backend API structure
-interface RoleListOutput {
-	roles: string[]
+// Define initial filter state for users section
+const initialUserFilters: Omit<UserSearchQuery, 'role_id' | 'role_name'> = {
+	// Role filter removed for RBAC page
+	query: '',
+	status: undefined,
+	page: 1,
+	page_size: 10,
 }
-
-// Used for POST request body when adding role to user
-interface UserRoleInput {
-	userId: string
-	role: string
-}
-
-interface UserRolesOutput {
-	userId: string // Go backend uses user_id, ensure consistency if needed
-	roles: string[]
-}
-
-// Used for POST request body when adding permission to role
-interface RolePermissionInput {
-	role: string
-	permission: string[] // [object, action]
-}
-
-interface RolePermissionsOutput {
-	role: string
-	permissions: string[][] // Array of [object, action]
-}
-
-// Input type for creating a new role with initial permission
-interface CreateRoleWithPermissionInput {
-	role: string
-	permission: string[] // [subject, action] - Added
-}
-
-// Define Zod schema for the create role form (updated)
-const createRoleSchema = z.object({
-	roleName: z.string().min(1, {message: 'Role name cannot be empty'}).max(50, {message: 'Role name too long'}),
-	subject: z.string().min(1, {message: 'Subject cannot be empty'}).max(50, {message: 'Subject too long'}), // Added with validation
-	action: z.string().min(1, {message: 'Action cannot be empty'}).max(50, {message: 'Action too long'}), // Added with validation
-})
-type CreateRoleFormValues = z.infer<typeof createRoleSchema> // Updated type
-
-// UserOutput is imported from apiClient, no need to redefine here.
-
-// --- Helper Functions ---
-
-const groupPermissionsByObject = (permissions: string[][] | undefined): Record<string, string[]> => {
-	if (!permissions) return {}
-	return permissions.reduce((acc, pair) => {
-		if (pair?.length === 2) {
-			const [object, action] = pair
-			if (!acc[object]) acc[object] = []
-			if (!acc[object].includes(action)) acc[object].push(action)
-		}
-		return acc
-	}, {} as Record<string, string[]>)
-}
-
-// --- Main Component ---
 
 export default function RBACManagement() {
-	// --- State ---
-	const [roles, setRoles] = useState<string[]>([])
-	const [users, setUsers] = useState<UserOutput[]>([])
-	const [userRolesMap, setUserRolesMap] = useState<Record<string, string[]>>({}) // userId -> roles[]
-	const [rolePermissionsMap, setRolePermissionsMap] = useState<Record<string, string[][]>>({}) // roleName -> permissions[][]
-	const [isLoading, setIsLoading] = useState({
-		initial: true, // Combined initial load state
-		userRoles: false,
-		rolePermissions: false,
-		action: false, // For add/remove operations
-	})
-	const [error, setError] = useState<string | null>(null)
-
-	// UI State
-	const [searchQuery, setSearchQuery] = useState('')
-	const [selectedUser, setSelectedUser] = useState<UserOutput | null>(null)
-	const [selectedRole, setSelectedRole] = useState<string | null>(null)
-	const [isUserRolesModalOpen, setIsUserRolesModalOpen] = useState(false)
-	const [isRolePermsModalOpen, setIsRolePermsModalOpen] = useState(false)
-	// State for adding new permission in modal
-	const [newPermObject, setNewPermObject] = useState('')
-	const [newPermAction, setNewPermAction] = useState('')
-	// State for create role modal
-	const [isCreateRoleModalOpen, setIsCreateRoleModalOpen] = useState(false)
-	const [createRoleError, setCreateRoleError] = useState<string | null>(null) // Specific error state for create role
-
-	// React Hook Form instance for create role modal
+	// --- State from useRbac (Roles, Permissions, Modals) ---
 	const {
-		register: registerCreateRole,
-		handleSubmit: handleCreateRoleSubmit,
-		formState: {errors: createRoleFormErrors},
-		reset: resetCreateRoleForm,
-	} = useForm<CreateRoleFormValues>({
-		resolver: zodResolver(createRoleSchema),
-	})
+		roles,
+		userRolesMap, // Keep for displaying roles in table/modal if needed
+		rolePermissionsMap,
+		loading: rbacLoading, // Rename to avoid conflict
+		error: rbacError, // Rename to avoid conflict
+		createRoleError,
+		selectedUser, // Keep for modals
+		selectedRole,
+		isUserRolesModalOpen,
+		isRolePermsModalOpen,
+		isCreateRoleModalOpen,
+		newPermObject,
+		newPermAction,
+		actions, // Keep RBAC actions
+		groupedPermissions,
+		// Remove user-related state managed below: users, searchQuery, filteredUsers
+	} = useRbac()
 
-	// --- Data Fetching & API Calls ---
+	// --- State for UserTable (Pagination, Filtering, Data) ---
+	const [users, setUsers] = useState<UserOutput[]>([])
+	const [userLoading, setUserLoading] = useState(true) // Separate loading state for users
+	const [userError, setUserError] = useState<string | null>(null) // Separate error state for users
+	const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
+	const [currentPage, setCurrentPage] = useState(initialUserFilters.page || 1)
+	const [pageSize, setPageSize] = useState(initialUserFilters.page_size || 10)
+	const [totalPages, setTotalPages] = useState(0)
+	const [totalUsers, setTotalUsers] = useState(0)
+	const [userFilters, setUserFilters] = useState(initialUserFilters)
+	const [debouncedQuery] = useDebounce(userFilters.query, 500)
+
+	// --- Fetch Users Logic (Adapted from users/page.tsx) ---
+	const fetchUsers = useCallback(async () => {
+		setUserLoading(true)
+		setUserError(null)
+		setSelectedRows({}) // Reset selections
+
+		const queryParams: UserSearchQuery = {
+			page: currentPage,
+			page_size: pageSize,
+			query: debouncedQuery || undefined,
+			status: userFilters.status || undefined,
+			// role_id or role_name filter is omitted here
+		}
+
+		Object.keys(queryParams).forEach((key) => queryParams[key as keyof typeof queryParams] === undefined && delete queryParams[key as keyof typeof queryParams])
+
+		try {
+			const response = await apiClient.get<PaginatedUsers>('/users/search', {params: queryParams})
+			setUsers(response.data.users)
+			setTotalUsers(response.data.total)
+			setTotalPages(response.data.total_pages)
+			if (response.data.page > response.data.total_pages && response.data.total_pages > 0) {
+				setCurrentPage(response.data.total_pages)
+			} else if (response.data.page < 1 && response.data.total > 0) {
+				setCurrentPage(1)
+			} else {
+				setCurrentPage(response.data.page)
+			}
+			setPageSize(response.data.page_size)
+		} catch (err: unknown) {
+			let message = 'Failed to fetch users'
+			if (err instanceof Error) message = err.message
+			else if (typeof err === 'string') message = err
+			setUserError(message)
+			console.error(err)
+			setUsers([])
+			setTotalUsers(0)
+			setTotalPages(0)
+		} finally {
+			setUserLoading(false)
+		}
+	}, [currentPage, pageSize, debouncedQuery, userFilters.status])
 
 	useEffect(() => {
-		const fetchInitialData = async () => {
-			// Use combined initial loading state
-			setIsLoading((prev) => ({...prev, initial: true}))
-			setError(null)
-			try {
-				// Use Promise.all for concurrent fetching
-				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/rbac/roles'), apiClient.get<PaginatedUsers>('/users/search')])
-				setRoles(rolesRes.data.roles || [])
-				setUsers(usersRes.data.users || [])
-			} catch (err) {
-				console.error('Error fetching initial RBAC data:', err)
-				let errorMessage = 'Unknown error'
-				if (err instanceof Error) {
-					errorMessage = err.message
-				} else if (typeof err === 'string') {
-					errorMessage = err
-				}
-				setError(`Failed to load initial data: ${errorMessage}`)
-			} finally {
-				// Update combined initial loading state
-				setIsLoading((prev) => ({...prev, initial: false}))
-			}
-		}
-		fetchInitialData()
-	}, []) // Empty dependency array ensures this runs only once on mount
-	const fetchUserRoles = useCallback(
-		async (userId: string) => {
-			if (userRolesMap[userId]) return // Skip if already fetched
-			setIsLoading((prev) => ({...prev, userRoles: true}))
-			setError(null) // Clear previous errors specific to this action
-			try {
-				const res = await apiClient.get<UserRolesOutput>(`/rbac/users/${userId}/roles`)
-				setUserRolesMap((prev) => ({...prev, [userId]: res.data.roles || []}))
-			} catch (err) {
-				console.error(`Error fetching roles for user ${userId}:`, err)
-				// Improved error handling (assuming apiClient throws axios-like errors)
-				let errorMessage = 'Unknown error'
-				if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-					errorMessage = String(err.response.data.error) // Extract specific error from response data if available
-				} else if (err instanceof Error) {
-					errorMessage = err.message
-				} else if (typeof err === 'string') {
-					errorMessage = err
-				}
-				setError(`User Roles Error: ${errorMessage}`)
-				setUserRolesMap((prev) => ({...prev, [userId]: []})) // Set empty on error to avoid inconsistent state
-			} finally {
-				setIsLoading((prev) => ({...prev, userRoles: false}))
-			}
+		fetchUsers()
+	}, [fetchUsers])
+
+	// --- User Filter and Pagination Handlers ---
+	const handleUserFilterChange = (key: keyof typeof userFilters, value: string | UserStatus | undefined) => {
+		setUserFilters((prev) => ({
+			...prev,
+			[key]: value === 'all' || value === '' ? undefined : value,
+		}))
+		setCurrentPage(1) // Reset to first page
+	}
+
+	const handlePreviousPage = () => setCurrentPage((prev) => Math.max(prev - 1, 1))
+	const handleNextPage = () => setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+
+	// --- Define Columns for UserTable in RBAC Context ---
+	const userColumns: ColumnDefinition<UserOutput>[] = [
+		{
+			accessorKey: 'email',
+			header: 'Email',
+			cell: ({row}) => <div className='font-medium'>{row.email}</div>, // Corrected: Use row.email
 		},
-		[userRolesMap],
-	) // Depend on the map itself
-
-	const fetchRolePermissions = useCallback(
-		async (roleName: string) => {
-			if (rolePermissionsMap[roleName]) return // Skip if already fetched
-			setIsLoading((prev) => ({...prev, rolePermissions: true}))
-			setError(null) // Clear previous errors specific to this action
-			try {
-				const res = await apiClient.get<RolePermissionsOutput>(`/rbac/roles/${roleName}/permissions`)
-				setRolePermissionsMap((prev) => ({...prev, [roleName]: res.data.permissions || []}))
-			} catch (err) {
-				console.error(`Error fetching permissions for role ${roleName}:`, err)
-				// Improved error handling
-				let errorMessage = 'Unknown error'
-				if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-					errorMessage = String(err.response.data.error)
-				} else if (err instanceof Error) {
-					errorMessage = err.message
-				} else if (typeof err === 'string') {
-					errorMessage = err
-				}
-				setError(`Role Permissions Error: ${errorMessage}`)
-				setRolePermissionsMap((prev) => ({...prev, [roleName]: []})) // Set empty on error
-			} finally {
-				setIsLoading((prev) => ({...prev, rolePermissions: false}))
-			}
+		{
+			accessorKey: 'name',
+			header: 'Name',
+			cell: ({row}) => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'N/A', // Corrected: Use row.first_name/last_name
 		},
-		[rolePermissionsMap],
-	) // Depend on the map itself
+		{
+			accessorKey: 'roles',
+			header: 'Roles',
+			// Display roles fetched by useRbac if available, otherwise from user object
+			cell: ({row}) => {
+				const rolesForUser = userRolesMap[row.id] || row.roles || [] // Corrected: Use row.id and row.roles
+				return rolesForUser.length > 0 ? rolesForUser.join(', ') : 'No Roles'
+			},
+		},
+		{
+			accessorKey: 'actions',
+			header: () => <div className='text-right'>Actions</div>,
+			cell: ({row}) => (
+				<div className='text-right'>
+					<Button
+						variant='outline'
+						size='sm'
+						onClick={() => actions.openUserRolesModal(row)} // Corrected: Pass the whole row object
+					>
+						Manage Roles
+					</Button>
+					{/* Example: Add other actions if needed */}
+					{/*
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 ml-2">
+                                <span className="sr-only">Open menu</span>
+                                <DotsHorizontalIcon className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>More Actions</DropdownMenuLabel>
+                            <DropdownMenuItem>View Details</DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    */}
+				</div>
+			),
+			size: 'w-[150px]', // Adjust size as needed
+		},
+	]
 
-	// --- Modal Open/Close Handlers ---
-	const openUserRolesModal = (user: UserOutput) => {
-		setSelectedUser(user)
-		fetchUserRoles(user.id) // Fetch data when opening
-		setIsUserRolesModalOpen(true)
-	}
-
-	const openRolePermsModal = (roleName: string) => {
-		setSelectedRole(roleName)
-		fetchRolePermissions(roleName) // Fetch data when opening
-		// Reset add permission form state
-		setNewPermObject('')
-		setNewPermAction('')
-		setIsRolePermsModalOpen(true)
-	}
-
-	const openCreateRoleModal = () => {
-		resetCreateRoleForm() // Reset form fields when opening
-		setCreateRoleError(null) // Clear any previous errors
-		setIsCreateRoleModalOpen(true)
-	}
-
-	// --- Action Handlers (API Calls within Modals/UI) ---
-	const handleAddRoleToUser = async (userId: string | undefined, roleName: string) => {
-		if (!userId) return
-		// Prevent adding if role already exists for the user
-		if (userRolesMap[userId]?.includes(roleName)) {
-			// Maybe show a message that the role is already assigned
-			console.log(`Role "${roleName}" already assigned to user ${userId}`)
-			return
-		}
-		setIsLoading((prev) => ({...prev, action: true}))
-		setError(null)
-		try {
-			const payload: UserRoleInput = {userId, role: roleName}
-			await apiClient.post(`/rbac/users/roles`, payload)
-			// Update local state optimistically or re-fetch
-			setUserRolesMap((prev) => ({
-				...prev,
-				[userId]: [...(prev[userId] || []), roleName].filter((v, i, a) => a.indexOf(v) === i), // Deduplicate just in case
-			}))
-			// Add success feedback (e.g., toast)
-		} catch (err) {
-			console.error(`Error adding role ${roleName} to user ${userId}:`, err)
-			// Improved error handling
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) {
-				errorMessage = err.message
-			} else if (typeof err === 'string') {
-				errorMessage = err
-			}
-			setError(`Failed to add role: ${errorMessage}`)
-			// Add error feedback (e.g., toast)
-		} finally {
-			setIsLoading((prev) => ({...prev, action: false}))
-		}
-	}
-
-	const handleRemoveRoleFromUser = async (userId: string | undefined, roleName: string) => {
-		if (!userId) return
-		setIsLoading((prev) => ({...prev, action: true}))
-		setError(null)
-		try {
-			await apiClient.delete(`/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`)
-			// Update local state optimistically
-			setUserRolesMap((prev) => ({
-				...prev,
-				[userId]: (prev[userId] || []).filter((r) => r !== roleName),
-			}))
-			// Add success feedback
-		} catch (err) {
-			console.error(`Error removing role ${roleName} from user ${userId}:`, err)
-			// Improved error handling
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) {
-				errorMessage = err.message
-			} else if (typeof err === 'string') {
-				errorMessage = err
-			}
-			setError(`Failed to remove role: ${errorMessage}`)
-			// Add error feedback
-		} finally {
-			setIsLoading((prev) => ({...prev, action: false}))
-		}
-	}
-
-	const handleAddPermissionToRole = async (roleName: string | null, object: string, action: string) => {
-		if (!roleName || !object || !action) {
-			setError('Object and Action cannot be empty.')
-			return // Basic validation
-		}
-		// Check if permission already exists
-		if (rolePermissionsMap[roleName]?.some((p) => p[0] === object && p[1] === action)) {
-			console.log(`Permission [${object}, ${action}] already exists for role ${roleName}`)
-			return
-		}
-
-		const permission: string[] = [object, action]
-		const payload: RolePermissionInput = {role: roleName, permission}
-		setIsLoading((prev) => ({...prev, action: true}))
-		setError(null)
-		try {
-			await apiClient.post(`/rbac/roles/permissions`, payload)
-			// Update local state optimistically
-			setRolePermissionsMap((prev) => ({
-				...prev,
-				[roleName]: [...(prev[roleName] || []), permission].filter((p, i, a) => a.findIndex((p2) => p2[0] === p[0] && p2[1] === p[1]) === i), // Deduplicate
-			}))
-			// Clear the input fields after successful addition
-			setNewPermObject('')
-			setNewPermAction('')
-			// Add success feedback
-		} catch (err) {
-			console.error(`Error adding permission [${object}, ${action}] to role ${roleName}:`, err)
-			// Improved error handling
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) {
-				errorMessage = err.message
-			} else if (typeof err === 'string') {
-				errorMessage = err
-			}
-			setError(`Failed to add permission: ${errorMessage}`)
-			// Add error feedback
-		} finally {
-			setIsLoading((prev) => ({...prev, action: false}))
-		}
-	}
-
-	const handleRemovePermissionFromRole = async (roleName: string | null, object: string, action: string) => {
-		if (!roleName) return
-		setIsLoading((prev) => ({...prev, action: true}))
-		setError(null)
-		try {
-			await apiClient.delete(`/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`)
-			// Update local state optimistically
-			setRolePermissionsMap((prev) => ({
-				...prev,
-				[roleName]: (prev[roleName] || []).filter((p) => !(p[0] === object && p[1] === action)),
-			}))
-			// Add success feedback
-		} catch (err) {
-			console.error(`Error removing permission [${object}, ${action}] from role ${roleName}:`, err)
-			// Improved error handling
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) {
-				errorMessage = err.message
-			} else if (typeof err === 'string') {
-				errorMessage = err
-			}
-			setError(`Failed to remove permission: ${errorMessage}`)
-			// Add error feedback
-		} finally {
-			setIsLoading((prev) => ({...prev, action: false}))
-		}
-	}
-
-	const handleCreateRole: SubmitHandler<CreateRoleFormValues> = async (data) => {
-		setIsLoading((prev) => ({...prev, action: true}))
-		setCreateRoleError(null) // Clear previous specific errors
-		setError(null) // Clear general errors
-		const roleName = data.roleName.trim()
-		const subject = data.subject.trim()
-		const action = data.action.trim()
-		const permission = [subject, action] // Create permission array
-
-		try {
-			// Use the correct interface and construct the payload
-			const payload: CreateRoleWithPermissionInput = {role: roleName, permission}
-			// Assuming the endpoint for creating a role with permission is /rbac/roles/permissions or similar
-			// If it's just /rbac/roles, adjust accordingly. User specified POST /api/v1/rbac/roles/permissions initially.
-			// Let's stick to `/rbac/roles/permissions` as requested, although it might be unconventional for role *creation*.
-			await apiClient.post('/rbac/roles/permissions', payload)
-
-			// Update local state optimistically
-			setRoles((prevRoles) => [...prevRoles, roleName].sort().filter((v, i, a) => a.indexOf(v) === i)) // Add role, sort, deduplicate
-
-			// Optimistically update permissions map for the new role
-			setRolePermissionsMap((prev) => ({
-				...prev,
-				[roleName]: [...(prev[roleName] || []), permission].filter((p, i, a) => a.findIndex((p2) => p2[0] === p[0] && p2[1] === p[1]) === i), // Add permission, deduplicate
-			}))
-
-			setIsCreateRoleModalOpen(false) // Close modal on success
-			resetCreateRoleForm() // Reset form fields
-			// Add success feedback (e.g., toast)
-			console.log(`Role "${roleName}" created successfully.`)
-		} catch (err) {
-			console.error(`Error creating role "${roleName}":`, err)
-			let errorMessage = 'Unknown error'
-			// Extract error message (similar to other handlers)
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) {
-				errorMessage = err.message
-			} else if (typeof err === 'string') {
-				errorMessage = err
-			}
-			setCreateRoleError(`Failed to create role: ${errorMessage}`) // Set specific error for the modal
-			// Add error feedback (e.g., toast)
-		} finally {
-			setIsLoading((prev) => ({...prev, action: false}))
-		}
-	}
-
-	// --- Rendering Logic ---
-
-	const filteredUsers = users.filter((user) => (user.first_name + ' ' + user.last_name).toLowerCase().includes(searchQuery.toLowerCase()) || user.email.toLowerCase().includes(searchQuery.toLowerCase()))
-
-	// Render loading state for initial data
-	if (isLoading.initial) {
+	// --- Render Logic ---
+	if (rbacLoading.initial) {
+		// Still use RBAC initial loading
 		return (
 			<div className='flex justify-center items-center min-h-screen'>
 				<Loader2 className='h-8 w-8 animate-spin text-primary' />
@@ -422,9 +185,9 @@ export default function RBACManagement() {
 		)
 	}
 
-	// Render page-level error state (only if modals are not open)
-	// Also show modal-specific errors inside modals
-	const pageError = error && !isUserRolesModalOpen && !isRolePermsModalOpen
+	// Combine page-level errors (consider how to display both if they occur)
+	const pageError = (rbacError || userError) && !isUserRolesModalOpen && !isRolePermsModalOpen && !isCreateRoleModalOpen
+	const errorMessage = rbacError ? `RBAC Error: ${rbacError}` : userError ? `User Fetch Error: ${userError}` : ''
 
 	return (
 		<div className='p-6 space-y-8'>
@@ -433,328 +196,105 @@ export default function RBACManagement() {
 			{pageError && (
 				<div className='p-4 text-center text-destructive bg-destructive/10 border border-destructive rounded-md'>
 					<h2 className='text-lg font-semibold mb-2'>Error</h2>
-					<p>{error}</p>
-					{/* Optional: Add a retry button or clear error button */}
+					<p>{errorMessage}</p>
 				</div>
 			)}
 
-			{/* Roles Management Section - Updated List */}
-			<section aria-labelledby='roles-heading'>
-				<div className='flex justify-between items-center mb-4'>
-					<h2 id='roles-heading' className='text-2xl font-semibold'>
-						Roles
-					</h2>
-					{/* Add "Create New Role" button */}
-					<Button onClick={openCreateRoleModal} size='sm' disabled={isLoading.action}>
-						Create New Role
-					</Button>
-				</div>
-				{roles.length === 0 && !isLoading.initial && !error ? ( // Also check for error
-					<p className='text-muted-foreground text-center py-4'>No roles defined in the system yet.</p>
-				) : (
-					<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
-						{/* Map over role names (strings) */}
-						{roles.map((roleName) => (
-							<div key={roleName} className='border bg-card p-4 rounded-lg shadow-sm flex flex-col justify-between'>
-								<h3 className='font-medium text-lg mb-3 truncate'>{roleName}</h3>
-								<Button
-									variant='outline'
-									size='sm'
-									className='w-full mt-auto' // Ensure button is at the bottom
-									onClick={() => openRolePermsModal(roleName)}
-									disabled={isLoading.rolePermissions && selectedRole === roleName} // Disable while loading permissions for this role
-								>
-									{isLoading.rolePermissions && selectedRole === roleName ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
-									Manage Permissions
-								</Button>
-							</div>
-						))}
+			{/* Roles Section (from useRbac) */}
+			<RolesSection
+				roles={roles}
+				loading={rbacLoading} // Use rbacLoading state
+				error={rbacError} // Use rbacError state
+				selectedRole={selectedRole}
+				onOpenCreateRoleModal={actions.openCreateRoleModal}
+				onOpenRolePermsModal={actions.openRolePermsModal}
+			/>
+
+			{/* Users Section (using UserTable) */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Users ({totalUsers} users)</CardTitle>
+				</CardHeader>
+				<CardContent className='space-y-4'>
+					{/* Filter Controls for Users */}
+					<div className='flex flex-col md:flex-row gap-4'>
+						<Input
+							placeholder='Search by name or email...'
+							value={userFilters.query || ''}
+							onChange={(e) => handleUserFilterChange('query', e.target.value)}
+							className='md:flex-1' // Allow search to take more space
+						/>
+						<Select value={userFilters.status || 'all'} onValueChange={(value: string) => handleUserFilterChange('status', value as UserStatus | 'all')}>
+							<SelectTrigger className='md:w-1/4'>
+								<SelectValue placeholder='Filter by status' />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value='all'>All Statuses</SelectItem>
+								<SelectItem value='active'>Active</SelectItem>
+								<SelectItem value='pending'>Pending</SelectItem>
+								<SelectItem value='inactive'>Inactive</SelectItem>
+								<SelectItem value='blocked'>Blocked</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
-				)}
-			</section>
 
-			{/* Users Management Section - Updated Table */}
-			<section aria-labelledby='users-heading'>
-				{/* Updated header and search layout */}
-				<div className='flex flex-col sm:flex-row justify-between items-center mb-4 gap-4'>
-					<h2 id='users-heading' className='text-2xl font-semibold'>
-						Users
-					</h2>
-					<div className='w-full sm:w-auto sm:max-w-xs'>
-						<Input type='text' placeholder='Search users by name or email...' value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-					</div>
-				</div>
-				{/* Added border and bg-card for consistency */}
-				<div className='border rounded-lg overflow-hidden bg-card'>
-					<Table>
-						<TableHeader>
-							<TableRow>
-								<TableHead className='w-[50px]'>#</TableHead> {/* Add '#' header */}
-								<TableHead>Name</TableHead>
-								<TableHead>Email</TableHead>
-								<TableHead>Assigned Roles</TableHead> {/* Renamed header */}
-								<TableHead>Actions</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{filteredUsers.length === 0 ? (
-								<TableRow>
-									{/* Adjust colSpan for the new column */}
-									<TableCell colSpan={5} className='text-center text-muted-foreground py-4'>
-										No users found{searchQuery ? ' matching your search' : ''}.
-									</TableCell>
-								</TableRow>
-							) : (
-								// Use user.roles directly from the fetched user data
-								filteredUsers.map(
-									(
-										user,
-										index, // Add index here
-									) => (
-										<TableRow key={user.id}>
-											<TableCell>{index + 1}</TableCell> {/* Display index + 1 */}
-											<TableCell className='font-medium'>{`${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()}</TableCell>
-											<TableCell>{user.email}</TableCell>
-											<TableCell>
-												{/* Display roles as badges directly from user.roles */}
-												<div className='flex flex-wrap gap-1'>
-													{user.roles && user.roles.length > 0 ? (
-														user.roles.map((roleName) => (
-															<Badge key={roleName} variant='secondary'>
-																{roleName}
-															</Badge>
-														))
-													) : (
-														<span className='text-xs text-muted-foreground italic'>No roles</span>
-													)}
-												</div>
-											</TableCell>
-											{/* Corrected TableCell placement for the button */}
-											<TableCell>
-												{/* Manage Roles Button - Reverted to simple text, no loader */}
-												<Button variant='outline' size='sm' onClick={() => openUserRolesModal(user)} disabled={isLoading.userRoles && selectedUser?.id === user.id}>
-													Manage Roles
-												</Button>
-											</TableCell>
-										</TableRow>
-									),
-								)
-							)}
-						</TableBody>
-					</Table>
-				</div>{' '}
-				{/* Removed trailing comment */}
-			</section>
+					{/* User Table */}
+					<UserTable
+						data={users}
+						columns={userColumns}
+						loading={userLoading} // Use userLoading state
+						error={userError} // Use userError state
+						selectedRows={selectedRows}
+						onSelectedRowsChange={setSelectedRows}
+						getRowId={(user) => user.id}
+						currentPage={currentPage}
+						totalPages={totalPages}
+						totalItems={totalUsers}
+						onPreviousPage={handlePreviousPage}
+						onNextPage={handleNextPage}
+						// Optional: Add page size change handler if needed
+						// pageSize={pageSize}
+						// onPageSizeChange={setPageSize}
+					/>
+				</CardContent>
+			</Card>
 
-			{/* --- Modals --- */}
+			{/* --- Modals (from useRbac) --- */}
+			<UserRolesModal
+				isOpen={isUserRolesModalOpen}
+				onClose={actions.closeUserRolesModal}
+				user={selectedUser} // selectedUser is managed by useRbac's openUserRolesModal
+				roles={roles}
+				userRolesMap={userRolesMap}
+				loading={rbacLoading} // Use rbacLoading state for modal operations
+				error={rbacError} // Use rbacError state for modal operations
+				onAddRole={actions.handleAddRoleToUser}
+				onRemoveRole={actions.handleRemoveRoleFromUser}
+			/>
 
-			{/* User Roles Management Modal */}
-			<Dialog open={isUserRolesModalOpen} onOpenChange={setIsUserRolesModalOpen}>
-				<DialogContent className='sm:max-w-[500px]'>
-					<DialogHeader>
-						<DialogTitle>Manage Roles for {selectedUser?.email}</DialogTitle>
-						<DialogDescription>Assign or remove roles for this user.</DialogDescription>
-					</DialogHeader>
-					{isLoading.userRoles ? (
-						<div className='flex justify-center items-center p-8'>
-							<Loader2 className='h-6 w-6 animate-spin' />
-						</div>
-					) : (
-						<div className='grid gap-4 py-4'>
-							<h4 className='font-medium mb-2'>Available Roles</h4>
-							<ScrollArea className='h-[200px] border rounded p-2'>
-								<div className='space-y-2'>
-									{roles.map((roleName) => {
-										const isAssigned = userRolesMap[selectedUser?.id || '']?.includes(roleName)
-										return (
-											<div key={roleName} className='flex items-center justify-between'>
-												<Label htmlFor={`role-${roleName}`} className='flex-1 cursor-pointer'>
-													{roleName}
-												</Label>
-												<Checkbox
-													id={`role-${roleName}`}
-													checked={isAssigned}
-													onCheckedChange={(checked) => {
-														if (checked) {
-															handleAddRoleToUser(selectedUser?.id, roleName)
-														} else {
-															handleRemoveRoleFromUser(selectedUser?.id, roleName)
-														}
-													}}
-													disabled={isLoading.action} // Disable checkbox during add/remove actions
-												/>
-											</div>
-										)
-									})}
-									{roles.length === 0 && <p className='text-sm text-muted-foreground italic'>No roles defined.</p>}
-								</div>
-							</ScrollArea>
-							{/* Display modal-specific errors - Added null check */}
-							{error && (error.startsWith('Failed to add role:') || error.startsWith('Failed to remove role:')) ? <p className='text-sm text-destructive'>{error}</p> : null}
-						</div>
-					)}
-					<DialogFooter>
-						<DialogClose asChild>
-							<Button type='button' variant='secondary' onClick={() => setError(null)}>
-								{' '}
-								{/* Clear error on close */}
-								Close
-							</Button>
-						</DialogClose>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<RolePermissionsModal
+				isOpen={isRolePermsModalOpen}
+				onClose={actions.closeRolePermsModal}
+				role={selectedRole}
+				rolePermissionsMap={rolePermissionsMap}
+				groupedPermissions={groupedPermissions(selectedRole)}
+				loading={rbacLoading} // Use rbacLoading state
+				error={rbacError} // Use rbacError state
+				newPermObject={newPermObject}
+				newPermAction={newPermAction}
+				onNewPermObjectChange={actions.setNewPermObject}
+				onNewPermActionChange={actions.setNewPermAction}
+				onAddPermission={actions.handleAddPermissionToRole}
+				onRemovePermission={actions.handleRemovePermissionFromRole}
+			/>
 
-			{/* Role Permissions Management Modal */}
-			<Dialog open={isRolePermsModalOpen} onOpenChange={setIsRolePermsModalOpen}>
-				<DialogContent className='sm:max-w-[600px]'>
-					<DialogHeader>
-						<DialogTitle>Manage Permissions for Role: {selectedRole}</DialogTitle>
-						<DialogDescription>Add or remove permissions (object-action pairs) for this role.</DialogDescription>
-					</DialogHeader>
-					{isLoading.rolePermissions ? (
-						<div className='flex justify-center items-center p-8'>
-							<Loader2 className='h-6 w-6 animate-spin' />
-						</div>
-					) : (
-						<div className='py-4 space-y-4'>
-							{/* Add New Permission Form */}
-							<div className='flex gap-2 items-end border-b pb-4'>
-								<div className='flex-1 space-y-1'>
-									<Label htmlFor='new-perm-object'>Object</Label>
-									<Input id='new-perm-object' placeholder='e.g., users' value={newPermObject} onChange={(e) => setNewPermObject(e.target.value)} disabled={isLoading.action} />
-								</div>
-								<div className='flex-1 space-y-1'>
-									<Label htmlFor='new-perm-action'>Action</Label>
-									<Input id='new-perm-action' placeholder='e.g., read' value={newPermAction} onChange={(e) => setNewPermAction(e.target.value)} disabled={isLoading.action} />
-								</div>
-								<Button onClick={() => handleAddPermissionToRole(selectedRole, newPermObject, newPermAction)} disabled={isLoading.action || !newPermObject || !newPermAction}>
-									{isLoading.action ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
-									Add
-								</Button>
-							</div>
-
-							{/* Existing Permissions List */}
-							<h4 className='font-medium'>Assigned Permissions</h4>
-							<ScrollArea className='h-[250px] border rounded p-2'>
-								{!rolePermissionsMap[selectedRole || ''] || rolePermissionsMap[selectedRole || ''].length === 0 ? (
-									<p className='text-sm text-muted-foreground italic p-2'>No permissions assigned.</p>
-								) : (
-									Object.entries(groupPermissionsByObject(rolePermissionsMap[selectedRole || ''])).map(([object, actions]) => (
-										<div key={object} className='mb-3 last:mb-0'>
-											<h5 className='text-sm font-semibold capitalize mb-1 px-2'>{object === '_' ? 'Other' : object}</h5>
-											<div className='space-y-1'>
-												{actions.map((action) => (
-													<div key={`${object}:${action}`} className='flex items-center justify-between p-2 rounded hover:bg-muted/50'>
-														<span className='text-sm'>{action}</span>
-														<Button variant='ghost' size='icon' className='h-6 w-6 text-muted-foreground hover:text-destructive' onClick={() => handleRemovePermissionFromRole(selectedRole, object, action)} disabled={isLoading.action}>
-															<X className='h-4 w-4' />
-															<span className='sr-only'>Remove permission</span>
-														</Button>
-													</div>
-												))}
-											</div>
-										</div>
-									))
-								)}
-							</ScrollArea>
-							{/* Display modal-specific errors - Added null checks */}
-							{error && (error.startsWith('Failed to add permission:') || error.startsWith('Failed to remove permission:')) ? <p className='text-sm text-destructive'>{error}</p> : null}
-							{error && error === 'Object and Action cannot be empty.' ? <p className='text-sm text-destructive'>{error}</p> : null}
-						</div>
-					)}
-					<DialogFooter>
-						<DialogClose asChild>
-							<Button type='button' variant='secondary' onClick={() => setError(null)}>
-								{' '}
-								{/* Clear general error on close */}
-								Close
-							</Button>
-						</DialogClose>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* Create New Role Modal */}
-			<Dialog open={isCreateRoleModalOpen} onOpenChange={setIsCreateRoleModalOpen}>
-				<DialogContent className='sm:max-w-[425px]'>
-					<DialogHeader>
-						<DialogTitle>Create New Role</DialogTitle>
-						{/* Updated description */}
-						<DialogDescription>Enter a name and an initial permission (subject/action) for the new role.</DialogDescription>
-					</DialogHeader>
-					{/* Use form element with onSubmit */}
-					{/* Added form ID for the submit button outside */}
-					<form id='create-role-form' onSubmit={handleCreateRoleSubmit(handleCreateRole)} className='grid gap-4 py-4'>
-						<div className='grid grid-cols-4 items-center gap-4'>
-							<Label htmlFor='roleName' className='text-right'>
-								Role Name
-							</Label>
-							<div className='col-span-3'>
-								{/* Use register from React Hook Form */}
-								<Input
-									id='roleName'
-									className='w-full'
-									placeholder='e.g., editor'
-									{...registerCreateRole('roleName')} // Register input
-									disabled={isLoading.action}
-								/>
-								{/* Display validation errors */}
-								{createRoleFormErrors.roleName && <p className='text-sm text-destructive mt-1'>{createRoleFormErrors.roleName.message}</p>}
-							</div>
-						</div>
-						{/* Added Subject Input */}
-						<div className='grid grid-cols-4 items-center gap-4'>
-							<Label htmlFor='subject' className='text-right'>
-								Subject
-							</Label>
-							<div className='col-span-3'>
-								<Input
-									id='subject'
-									className='w-full'
-									placeholder='e.g., articles or *'
-									{...registerCreateRole('subject')}
-									disabled={isLoading.action}
-									defaultValue='*' // Default to '*'
-								/>
-								{createRoleFormErrors.subject && <p className='text-sm text-destructive mt-1'>{createRoleFormErrors.subject.message}</p>}
-							</div>
-						</div>
-						{/* Added Action Input */}
-						<div className='grid grid-cols-4 items-center gap-4'>
-							<Label htmlFor='action' className='text-right'>
-								Action
-							</Label>
-							<div className='col-span-3'>
-								<Input
-									id='action'
-									className='w-full'
-									placeholder='e.g., read or .*'
-									{...registerCreateRole('action')}
-									disabled={isLoading.action}
-									defaultValue='.*' // Default to '.*'
-								/>
-								{createRoleFormErrors.action && <p className='text-sm text-destructive mt-1'>{createRoleFormErrors.action.message}</p>}
-							</div>
-						</div>
-						{/* Display API call errors */}
-						{createRoleError && <p className='col-span-4 text-sm text-destructive text-center mt-2'>{createRoleError}</p>}
-						{/* Footer is outside the form element now */}
-					</form>
-					<DialogFooter>
-						<DialogClose asChild>
-							<Button type='button' variant='secondary' onClick={() => setCreateRoleError(null)}>
-								Cancel
-							</Button>
-						</DialogClose>
-						{/* Submit button outside the form, but triggers submit via form ID or implicitly */}
-						<Button type='submit' form='create-role-form' onClick={handleCreateRoleSubmit(handleCreateRole)} disabled={isLoading.action}>
-							{isLoading.action ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
-							Create Role
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+			<CreateRoleModal
+				isOpen={isCreateRoleModalOpen}
+				onClose={actions.closeCreateRoleModal}
+				loading={rbacLoading} // Use rbacLoading state
+				error={createRoleError} // Use specific create role error
+				onCreateRole={actions.handleCreateRole}
+			/>
 		</div>
 	)
 }

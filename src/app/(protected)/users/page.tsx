@@ -1,16 +1,17 @@
 'use client'
 
 import React, {useEffect, useState, useCallback} from 'react'
-import apiClient, {UserOutput, PaginatedUsers, UserSearchQuery, UserStatus} from '@/lib/apiClient' // Import necessary types
+import apiClient, {UserOutput, PaginatedUsers, UserSearchQuery, UserStatus} from '@/lib/apiClient'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+// Removed Table imports, Checkbox is used by UserTable internally now
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
-import {Checkbox} from '@/components/ui/checkbox'
-import {Input} from '@/components/ui/input' // Import Input
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select' // Import Select
-import {DotsHorizontalIcon, ChevronLeftIcon, ChevronRightIcon} from '@radix-ui/react-icons' // Import pagination icons
-import {useDebounce} from 'use-debounce' // Import useDebounce
+import {Input} from '@/components/ui/input'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {DotsHorizontalIcon} from '@radix-ui/react-icons' // Removed pagination icons, handled by UserTable
+import {useDebounce} from 'use-debounce'
+// Import the new UserTable component and ColumnDefinition type
+import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
 
 // Define initial filter state
 const initialFilters: Omit<UserSearchQuery, 'role_id'> & {role_name?: string} = {
@@ -27,14 +28,11 @@ export default function UsersPage() {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
-
-	// --- Pagination State ---
 	const [currentPage, setCurrentPage] = useState(initialFilters.page || 1)
 	const [pageSize, setPageSize] = useState(initialFilters.page_size || 10)
 	const [totalPages, setTotalPages] = useState(0)
 	const [totalUsers, setTotalUsers] = useState(0)
 
-	// --- Filter State ---
 	// Update filter state type
 	const [filters, setFilters] = useState<Omit<UserSearchQuery, 'role_id'> & {role_name?: string}>(initialFilters)
 	const [debouncedQuery] = useDebounce(filters.query, 500) // Debounce search query
@@ -157,8 +155,72 @@ export default function UsersPage() {
 		setCurrentPage((prev) => Math.min(prev + 1, totalPages))
 	}
 
-	// Determine if select all checkbox should be checked
-	const isAllSelected = users.length > 0 && Object.keys(selectedRows).length === users.length && Object.values(selectedRows).every(Boolean)
+	// Define columns for the UserTable
+	const columns: ColumnDefinition<UserOutput>[] = [
+		{
+			accessorKey: 'email',
+			header: 'Email',
+			cell: ({row}) => <div className='font-medium'>{row.email}</div>,
+		},
+		{
+			accessorKey: 'name',
+			header: 'Name',
+			cell: ({row}) => `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim() || 'N/A',
+		},
+		{
+			accessorKey: 'phone',
+			header: 'Phone',
+			cell: ({row}) => row.phone || 'N/A',
+		},
+		{
+			accessorKey: 'roles',
+			header: 'Roles',
+			cell: ({row}) => (row.roles && row.roles.length > 0 ? row.roles.join(', ') : 'N/A'),
+		},
+		{
+			accessorKey: 'status',
+			header: 'Status',
+			cell: ({row}) => row.status,
+		},
+		{
+			accessorKey: 'actions',
+			header: () => <div className='text-right'>Actions</div>,
+			cell: ({row}) => (
+				<div className='text-right'>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant='ghost' className='h-8 w-8 p-0'>
+								<span className='sr-only'>Open menu</span>
+								<DotsHorizontalIcon className='h-4 w-4' />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align='end'>
+							<DropdownMenuLabel>Actions</DropdownMenuLabel>
+							<DropdownMenuItem onClick={() => handleEditUser(row.id)}>Edit</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => handleDeleteUser(row.id)}
+								className='text-red-600' // Optional: Style delete differently
+							>
+								Delete
+							</DropdownMenuItem>
+							<DropdownMenuSeparator />
+							<DropdownMenuLabel>Change Status</DropdownMenuLabel>
+							<DropdownMenuItem onClick={() => handleChangeUserStatus(row.id, 'active')} disabled={row.status === 'active'}>
+								Set Active
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleChangeUserStatus(row.id, 'inactive')} disabled={row.status === 'inactive'}>
+								Set Inactive
+							</DropdownMenuItem>
+							<DropdownMenuItem onClick={() => handleChangeUserStatus(row.id, 'pending')} disabled={row.status === 'pending'}>
+								Set Pending
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
+			),
+			size: 'w-[80px]', // Give actions column a bit more space if needed
+		},
+	]
 
 	return (
 		<div className='p-6 space-y-4'>
@@ -207,11 +269,11 @@ export default function UsersPage() {
 						</SelectContent>
 					</Select>
 					{/* Add Role Filter Here - Needs Role Data */}
-					{/* <Select disabled> ... </Select> */}
+					{/* Removed Role Filter Select, handled in the main Select */}
 				</CardContent>
 			</Card>
 
-			{/* User Table */}
+			{/* User Table using UserTable component */}
 			<Card>
 				<CardHeader className='flex flex-row items-center justify-between'>
 					<CardTitle>User Management ({totalUsers} users)</CardTitle>
@@ -219,124 +281,20 @@ export default function UsersPage() {
 					{/* <Button>Create User</Button> */}
 				</CardHeader>
 				<CardContent>
-					{/* Removed loading/error messages from here, handled globally or inline */}
-					<div className='overflow-x-auto'>
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead className='w-[40px]'>
-										{/* Updated Checkbox logic */}
-										<Checkbox
-											checked={isAllSelected}
-											// Handle indeterminate state if desired (requires additional logic/prop)
-											// indeterminate={isSomeSelected} // Needs shadcn checkbox update or custom implementation
-											onCheckedChange={(checked) => {
-												const newSelectedRows: Record<string, boolean> = {}
-												if (checked) {
-													users.forEach((user) => {
-														newSelectedRows[user.id] = true
-													})
-												}
-												setSelectedRows(newSelectedRows)
-											}}
-											aria-label='Select all rows on this page'
-											disabled={loading || users.length === 0} // Disable if loading or no users
-										/>
-									</TableHead>
-									<TableHead>Email</TableHead>
-									<TableHead>Name</TableHead>
-									<TableHead>Phone</TableHead>
-									<TableHead>Roles</TableHead> {/* Added Roles Header */}
-									<TableHead>Status</TableHead>
-									<TableHead className='text-right'>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{users.length > 0 ? (
-									users.map((user) => (
-										<TableRow key={user.id} data-state={selectedRows[user.id] && 'selected'}>
-											<TableCell>
-												<Checkbox
-													checked={selectedRows[user.id] || false}
-													onCheckedChange={(checked) => {
-														setSelectedRows((prev) => ({
-															...prev,
-															[user.id]: !!checked,
-														}))
-													}}
-													aria-label={`Select row for ${user.email}`}
-												/>
-											</TableCell>
-											<TableCell className='font-medium'>{user.email}</TableCell>
-											<TableCell>{`${user.first_name ?? ''} ${user.last_name ?? ''}`.trim()}</TableCell>
-											<TableCell>{user.phone ?? 'N/A'}</TableCell>
-											<TableCell>{user.roles && user.roles.length > 0 ? user.roles.join(', ') : 'N/A'}</TableCell> {/* Added Roles Cell */}
-											<TableCell>{user.status}</TableCell>
-											<TableCell className='text-right'>
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button variant='ghost' className='h-8 w-8 p-0'>
-															<span className='sr-only'>Open menu</span>
-															<DotsHorizontalIcon className='h-4 w-4' />
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align='end'>
-														<DropdownMenuLabel>Actions</DropdownMenuLabel>
-														<DropdownMenuItem onClick={() => handleEditUser(user.id)}>Edit</DropdownMenuItem>
-														<DropdownMenuItem
-															onClick={() => handleDeleteUser(user.id)}
-															className='text-red-600' // Optional: Style delete differently
-														>
-															Delete
-														</DropdownMenuItem>
-														<DropdownMenuSeparator />
-														<DropdownMenuLabel>Change Status</DropdownMenuLabel>
-														<DropdownMenuItem onClick={() => handleChangeUserStatus(user.id, 'active')} disabled={user.status === 'active'}>
-															Set Active
-														</DropdownMenuItem>
-														<DropdownMenuItem onClick={() => handleChangeUserStatus(user.id, 'inactive')} disabled={user.status === 'inactive'}>
-															Set Inactive
-														</DropdownMenuItem>
-														<DropdownMenuItem onClick={() => handleChangeUserStatus(user.id, 'pending')} disabled={user.status === 'pending'}>
-															Set Pending
-														</DropdownMenuItem>
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
-										</TableRow>
-									))
-								) : (
-									<TableRow>
-										<TableCell colSpan={7} className='h-24 text-center'>
-											{loading ? 'Loading users...' : error ? `Error: ${error}` : 'No users found matching your criteria.'}
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
-					</div>
-
-					{/* Pagination Controls */}
-					{!loading && !error && totalPages > 0 && (
-						<div className='flex items-center justify-between space-x-2 py-4'>
-							<div className='text-sm text-muted-foreground'>
-								{Object.keys(selectedRows).filter((k) => selectedRows[k]).length} of {users.length} row(s) on this page selected. Total users: {totalUsers}.
-							</div>
-							<div className='flex items-center space-x-2'>
-								<span className='text-sm text-muted-foreground'>
-									Page {currentPage} of {totalPages}
-								</span>
-								<Button variant='outline' size='sm' onClick={handlePreviousPage} disabled={currentPage <= 1 || loading}>
-									<ChevronLeftIcon className='h-4 w-4 mr-1' />
-									Previous
-								</Button>
-								<Button variant='outline' size='sm' onClick={handleNextPage} disabled={currentPage >= totalPages || loading}>
-									Next
-									<ChevronRightIcon className='h-4 w-4 ml-1' />
-								</Button>
-							</div>
-						</div>
-					)}
+					<UserTable
+						data={users}
+						columns={columns}
+						loading={loading}
+						error={error}
+						selectedRows={selectedRows}
+						onSelectedRowsChange={setSelectedRows}
+						getRowId={(user) => user.id} // Provide function to get unique row ID
+						currentPage={currentPage}
+						totalPages={totalPages}
+						totalItems={totalUsers} // Pass totalUsers as totalItems
+						onPreviousPage={handlePreviousPage}
+						onNextPage={handleNextPage}
+					/>
 				</CardContent>
 			</Card>
 		</div>
