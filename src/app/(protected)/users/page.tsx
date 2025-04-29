@@ -16,10 +16,10 @@ import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
 import {toast} from 'sonner' // Import toast from sonner
 
 // Define initial filter state
-const initialFilters: Omit<UserSearchQuery, 'role_id'> & {role_name?: string} = {
+const initialFilters: Omit<UserSearchQuery, 'role_name'> & {role_name?: string} = {
 	query: '',
 	status: undefined,
-	role_name: undefined, // Changed from role_id
+	role_name: undefined,
 	page: 1,
 	page_size: 10,
 }

@@ -3,9 +3,7 @@
 import {useAuth} from '@/contexts/AuthContext'
 import {useRouter} from 'next/navigation'
 import {useEffect} from 'react'
-import {Sidebar} from '@/components/layout/Sidebar'
-import {MobileHeader} from '@/components/layout/MobileHeader'
-import {Footer} from '@/components/layout/Footer' // Import Footer
+import AppShell from '@/components/layout/AppShell' // Import the new AppShell
 
 export default function ProtectedLayout({children}: {children: React.ReactNode}) {
 	const {user, loading} = useAuth()
@@ -30,19 +28,6 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 
 	if (!user) return null
 
-	return (
-		<div className='flex h-screen overflow-hidden'>
-			{/* Sidebar */}
-			<Sidebar />
-			{/* Main content */}
-			{/* Main content */}
-			<div className='flex flex-1 flex-col overflow-hidden'>
-				{' '}
-				{/* Added overflow-hidden */}
-				<MobileHeader />
-				<main className='flex-1 overflow-y-auto p-4 md:p-6'>{children}</main> {/* Added padding and main tag */}
-				<Footer /> {/* Add Footer */}
-			</div>
-		</div>
-	)
+	// Use the AppShell to wrap the children
+	return <AppShell>{children}</AppShell>
 }

@@ -6,8 +6,7 @@ import {AuthStatus} from '@/components/auth/AuthStatus'
 import {ThemeProvider} from '@/components/providers/theme-provider'
 import {ModeToggle} from '@/components/ui/mode-toggle'
 import Link from 'next/link' // Import Link for logo
-// Import Toaster
-import {Toaster} from 'react-hot-toast'
+import {Toaster as SonnerToaster} from '@/components/ui/sonner' // Correct import for sonner
 
 const geistSans = Geist({
 	variable: '--font-geist-sans',
@@ -63,8 +62,7 @@ export default function RootLayout({
 						</header>
 						{/* Main content area below the sticky header */}
 						<main className='flex-1'>{children}</main> {/* Removed pt-16 */}
-						{/* Add Toaster component here */}
-						<Toaster position='bottom-right' />
+						<SonnerToaster position='bottom-right' /> {/* Use Sonner Toaster */}
 					</AuthProvider>
 				</ThemeProvider>
 			</body>

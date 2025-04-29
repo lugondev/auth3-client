@@ -1,76 +1,125 @@
-'use client'
+'use client' // Needed for usePathname hook
 
+import React, {useState} from 'react' // Import useState
 import Link from 'next/link'
 import {usePathname} from 'next/navigation'
 import {cn} from '@/lib/utils'
-// Import necessary icons
-import {Home, Users, Building, ShieldCheck, UserCircle} from 'lucide-react'
+import {Building, User, Settings, BarChart, LayoutDashboard, ChevronDown, Users, CreditCard} from 'lucide-react' // Added icons
+import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible' // Import Collapsible
 
-const sidebarNavItems = [
+interface NavItem {
+	href?: string // Optional href for parent items
+	label: string
+	icon: React.ElementType
+	children?: NavItem[] // Optional children for collapsible sections
+	disabled?: boolean // Optional disabled state
+}
+
+interface SidebarProps {
+	isOpen: boolean // For mobile state
+}
+
+// TODO: Move this to a config file or context later for better management
+const navItems: NavItem[] = [
+	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/venues', label: 'Venues', icon: Building},
+	{href: '/analytics', label: 'Analytics', icon: BarChart, disabled: true}, // Example disabled item
+	{href: '/profile', label: 'Profile', icon: User},
 	{
-		title: 'Dashboard',
-		href: '/',
-		icon: Home,
-	},
-	{
-		title: 'Users',
-		href: '/users',
-		icon: Users,
-	},
-	{
-		title: 'Venues',
-		href: '/venues',
-		icon: Building,
-	},
-	{
-		title: 'RBAC',
-		href: '/rbac',
-		icon: ShieldCheck,
-	},
-	{
-		title: 'Profile',
-		href: '/profile',
-		icon: UserCircle,
+		// Collapsible Settings section
+		label: 'Settings',
+		icon: Settings,
+		children: [
+			{href: '/settings/account', label: 'Account', icon: Users},
+			{href: '/settings/billing', label: 'Billing', icon: CreditCard, disabled: true},
+		],
 	},
 ]
 
-export function Sidebar() {
+const Sidebar: React.FC<SidebarProps> = ({isOpen}) => {
 	const pathname = usePathname()
+	const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
+		// Initialize open sections based on current path
+		const initialOpen: Record<string, boolean> = {}
+		navItems.forEach((item) => {
+			if (item.children && item.children.some((child) => child.href && pathname.startsWith(child.href))) {
+				initialOpen[item.label] = true
+			}
+		})
+		return initialOpen
+	})
+
+	const toggleSection = (label: string) => {
+		setOpenSections((prev) => ({...prev, [label]: !prev[label]}))
+	}
 
 	return (
-		// Use sidebar specific background and border colors
-		<div className='hidden border-r border-sidebar-border bg-sidebar md:block'>
-			<div className='flex h-full max-h-screen flex-col gap-2'>
-				{/* Use sidebar specific border for the header */}
-				<div className='flex h-14 items-center border-b border-sidebar-border px-4 lg:h-[60px] lg:px-6'>
-					{/* Use sidebar foreground color for the brand text */}
-					<Link href='/' className='flex items-center gap-2 font-semibold text-sidebar-foreground'>
-						{/* <AppWindow className='h-6 w-6' /> Optional Icon */}
-						<span className=''>Moco</span> {/* Removed font-bold to match theme approach */}
-					</Link>
-					{/* Optional: Notification bell etc. can go here */}
-				</div>
-				<div className='flex-1'>
-					<nav className='grid items-start px-2 text-sm font-medium lg:px-4'>
-						{sidebarNavItems.map((item) => (
-							<Link
-								key={item.href}
-								href={item.href}
-								className={cn(
-									// Use sidebar specific text colors and hover effect
-									'flex items-center gap-3 rounded-lg px-3 py-2 text-sidebar-foreground transition-all hover:text-sidebar-accent-foreground hover:bg-sidebar-accent',
-									// Use sidebar specific active background and text color
-									pathname === item.href && 'bg-sidebar-accent text-sidebar-accent-foreground',
-								)}>
-								{/* Adjust icon color to match text */}
-								<item.icon className='h-4 w-4' />
-								{item.title}
-							</Link>
-						))}
-					</nav>
-				</div>
-				{/* Optional: Add content at the bottom of the sidebar, like settings or logout */}
+		<aside className={cn('fixed inset-y-0 left-0 z-30 w-64 transform border-r border-gray-200 bg-white p-4 transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 md:static md:z-auto md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full')} aria-label='Sidebar'>
+			<div className='mb-8 flex items-center justify-center'>
+				{/* Placeholder Logo/Title - Replace with actual logo if available */}
+				<Link href='/dashboard' className='text-2xl font-semibold text-gray-800 dark:text-gray-100'>
+					VenueApp
+				</Link>
 			</div>
-		</div>
+			<nav className='flex-1 space-y-1'>
+				{navItems.map((item) => {
+					const isSectionOpen = openSections[item.label] ?? false
+					// Check if the parent itself or any child is active
+					const isParentActive = (item.href && pathname === item.href) || (item.href && item.href !== '/dashboard' && pathname.startsWith(item.href))
+					const isChildActive = item.children?.some((child) => child.href && pathname.startsWith(child.href)) ?? false
+					const isActive = isParentActive || isChildActive
+
+					return item.children ? (
+						<Collapsible key={item.label} open={isSectionOpen} onOpenChange={() => toggleSection(item.label)} className='space-y-1'>
+							<CollapsibleTrigger asChild>
+								<button className={cn('flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isActive ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700', item.disabled && 'cursor-not-allowed opacity-50')} disabled={item.disabled}>
+									<div className='flex items-center'>
+										<item.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400')} aria-hidden='true' />
+										{item.label}
+									</div>
+									<ChevronDown className={cn('h-4 w-4 transform transition-transform duration-200', isSectionOpen ? 'rotate-180' : '')} />
+								</button>
+							</CollapsibleTrigger>
+							<CollapsibleContent className='space-y-1 pl-7'>
+								{item.children.map((child) => {
+									const isChildLinkActive = child.href && pathname.startsWith(child.href)
+									return (
+										<Link
+											key={child.label}
+											href={child.href ?? '#'} // Use '#' if href is missing
+											className={cn('flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isChildLinkActive ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white', child.disabled && 'cursor-not-allowed opacity-50')}
+											aria-disabled={child.disabled}
+											tabIndex={child.disabled ? -1 : undefined}
+											onClick={(e) => child.disabled && e.preventDefault()} // Prevent navigation for disabled items
+										>
+											<child.icon className={cn('mr-3 h-4 w-4 flex-shrink-0', isChildLinkActive ? 'text-indigo-500 dark:text-indigo-300' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300')} aria-hidden='true' />
+											{child.label}
+										</Link>
+									)
+								})}
+							</CollapsibleContent>
+						</Collapsible>
+					) : (
+						// Render non-collapsible item
+						item.href && ( // Ensure href exists before rendering Link
+							<Link
+								key={item.label}
+								href={item.href}
+								className={cn('flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isActive ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700', item.disabled && 'cursor-not-allowed opacity-50')}
+								aria-disabled={item.disabled}
+								tabIndex={item.disabled ? -1 : undefined}
+								onClick={(e) => item.disabled && e.preventDefault()} // Prevent navigation for disabled items
+							>
+								<item.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400')} aria-hidden='true' />
+								{item.label}
+							</Link>
+						)
+					)
+				})}
+			</nav>
+		</aside>
 	)
 }
+
+// Exporting as named export to match the import suggestion
+export {Sidebar}
