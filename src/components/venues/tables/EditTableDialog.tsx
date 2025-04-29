@@ -5,11 +5,11 @@ import React, {useState, useEffect} from 'react'
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription} from '@/components/ui/dialog'
 import {TableForm, TableFormData} from './TableForm'
 import venueService from '@/services/venueService'
-import {VenueTable, UpdateTableDto, CreateTableDto} from '@/types/venue' // Import CreateTableDto for casting
+import {Table, UpdateTableDto, CreateTableDto} from '@/types/venue' // Renamed VenueTable to Table
 import {toast} from 'sonner'
 
 interface EditTableDialogProps {
-	table: VenueTable | null // Table data to edit, null when closed
+	table: Table | null // Use new type
 	open: boolean
 	onOpenChange: (open: boolean) => void
 	onSuccess: () => void // Callback after successful update to refresh list

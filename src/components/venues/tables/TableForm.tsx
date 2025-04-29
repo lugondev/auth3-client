@@ -6,7 +6,7 @@ import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import * as z from 'zod'
 // Removed unused TableType, TableStatus imports
-import {VenueTable, CreateTableDto, UpdateTableDto, tableTypes, tableStatuses} from '@/types/venue'
+import {Table, CreateTableDto, UpdateTableDto, tableTypes, tableStatuses} from '@/types/venue' // Renamed VenueTable to Table
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Textarea} from '@/components/ui/textarea'
@@ -37,7 +37,7 @@ const tableFormSchema = z.object({
 export type TableFormData = z.infer<typeof tableFormSchema>
 
 interface TableFormProps {
-	initialData?: VenueTable // Provided when editing
+	initialData?: Table // Use new type
 	onSubmit: (data: CreateTableDto | UpdateTableDto) => Promise<void> // Handles API call
 	isSubmitting: boolean // To disable button during submission
 	onCancel?: () => void // Optional cancel handler
@@ -52,7 +52,7 @@ export function TableForm({initialData, onSubmit, isSubmitting, onCancel}: Table
 			type: initialData?.type || tableTypes[0], // Default to first type
 			location: initialData?.location || '',
 			status: initialData?.status || tableStatuses[0], // Default to first status
-			minSpend: initialData?.minSpend || undefined, // Ensure undefined for optional number
+			minSpend: initialData?.minimumSpend || undefined, // Use minimumSpend, ensure undefined for optional number
 			description: initialData?.description || '',
 		},
 	})

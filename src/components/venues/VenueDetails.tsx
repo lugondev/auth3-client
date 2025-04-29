@@ -14,6 +14,7 @@ import {Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPa
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {MoreHorizontal} from 'lucide-react' // Icon for actions menu
 import ProductList from './products/ProductList' // Import the ProductList component
+import {TableManagement} from './tables/TableManagement' // Import TableManagement
 
 // Placeholder for Photo Gallery component
 const VenuePhotoGallery = (
@@ -219,7 +220,8 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 				<TabsList className='mb-4'>
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='photos'>Photos</TabsTrigger>
-					<TabsTrigger value='products'>Products</TabsTrigger> {/* Add Products tab */}
+					<TabsTrigger value='products'>Products</TabsTrigger>
+					<TabsTrigger value='tables'>Tables</TabsTrigger> {/* Add Tables tab */}
 					{/* Add more tabs as needed: Settings, Staff, Events etc. */}
 					<TabsTrigger value='settings' disabled>
 						Settings
@@ -271,6 +273,19 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 						{/* Render the ProductList component, passing the venueId */}
 						<ProductList venueId={venue.id} />
 					</div>
+				</TabsContent>
+
+				<TabsContent value='settings'>
+					<div className='p-4 border rounded-lg bg-card text-card-foreground'>
+						<h3 className='text-xl font-semibold mb-4'>Venue Settings</h3>
+						<p className='text-muted-foreground'>Settings management will be implemented here.</p>
+					</div>
+				</TabsContent>
+
+				{/* Tables Tab Content */}
+				<TabsContent value='tables'>
+					{/* Render the TableManagement component */}
+					<TableManagement venueId={venue.id} />
 				</TabsContent>
 
 				<TabsContent value='settings'>

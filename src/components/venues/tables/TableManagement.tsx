@@ -2,7 +2,7 @@
 'use client'
 
 import React, {useState} from 'react'
-import {VenueTable} from '@/types/venue'
+import {Table} from '@/types/venue' // Renamed VenueTable to Table
 import {TableList} from './TableList'
 import {AddTableDialog} from './AddTableDialog'
 import {EditTableDialog} from './EditTableDialog'
@@ -16,7 +16,7 @@ export function TableManagement({venueId}: TableManagementProps) {
 	const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-	const [selectedTable, setSelectedTable] = useState<VenueTable | null>(null)
+	const [selectedTable, setSelectedTable] = useState<Table | null>(null) // Use new type
 	const [refreshKey, setRefreshKey] = useState(0) // Key to trigger list refresh
 
 	const handleSuccess = () => {
@@ -29,12 +29,14 @@ export function TableManagement({venueId}: TableManagementProps) {
 		setIsAddDialogOpen(true)
 	}
 
-	const openEditDialog = (table: VenueTable) => {
+	const openEditDialog = (table: Table) => {
+		// Use new type
 		setSelectedTable(table)
 		setIsEditDialogOpen(true)
 	}
 
-	const openDeleteDialog = (table: VenueTable) => {
+	const openDeleteDialog = (table: Table) => {
+		// Use new type
 		setSelectedTable(table)
 		setIsDeleteDialogOpen(true)
 	}

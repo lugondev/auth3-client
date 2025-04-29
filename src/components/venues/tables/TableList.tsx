@@ -3,7 +3,7 @@
 
 import React, {useState, useEffect, useMemo} from 'react'
 // Removed TableType as it's unused directly, tableTypes array is used
-import {VenueTable, tableStatuses, TableStatus, tableTypes} from '@/types/venue'
+import {Table as VenueTableType, tableStatuses, TableStatus, tableTypes} from '@/types/venue' // Renamed VenueTable import
 import venueService from '@/services/venueService'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -18,8 +18,8 @@ interface TableListProps {
 	venueId: string
 	// Add props for triggering Add/Edit/Delete modals later
 	onAddTable: () => void
-	onEditTable: (table: VenueTable) => void
-	onDeleteTable: (table: VenueTable) => void // Pass full table object
+	onEditTable: (table: VenueTableType) => void // Use new type
+	onDeleteTable: (table: VenueTableType) => void // Use new type
 	refreshKey?: number // Add refreshKey prop
 }
 
@@ -42,7 +42,7 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).replace
 
 // Destructure refreshKey from props
 export function TableList({venueId, onAddTable, onEditTable, onDeleteTable, refreshKey}: TableListProps) {
-	const [tables, setTables] = useState<VenueTable[]>([])
+	const [tables, setTables] = useState<VenueTableType[]>([]) // Use new type
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [filterStatus, setFilterStatus] = useState<string>('all') // 'all' or TableStatus
@@ -162,7 +162,7 @@ export function TableList({venueId, onAddTable, onEditTable, onDeleteTable, refr
 											{capitalize(table.status)}
 										</Badge>
 									</TableCell>
-									<TableCell>{table.minSpend ? `$${table.minSpend.toFixed(2)}` : '-'}</TableCell>
+									<TableCell>{table.minimumSpend ? `$${table.minimumSpend.toFixed(2)}` : '-'}</TableCell> {/* Corrected property name */}
 									<TableCell className='text-right'>
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
