@@ -666,10 +666,13 @@ apiClient.interceptors.response.use(
 			const currentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)?.replaceAll('"', "");
 
 			if (!currentRefreshToken) {
-				console.log('Interceptor: No refresh token found, cannot refresh.');
+				console.log('Interceptor: No refresh token found, redirecting to login.');
 				processQueue(error, null); // Reject pending requests
-				// No need to call logoutUser here, let the caller handle UI/state changes
-				return Promise.reject(error); // Reject the original request
+				// Redirect to login page
+				if (typeof window !== 'undefined') {
+					window.location.href = '/login';
+				}
+				return Promise.reject(error); // Reject the original request after triggering redirect
 			}
 
 			try {
@@ -699,7 +702,15 @@ apiClient.interceptors.response.use(
 				console.error('Interceptor: Failed to refresh token via service:', refreshError);
 				processQueue(refreshError as AxiosError, null); // Reject pending requests with the refresh error
 				// Let AuthContext handle the logout state/UI changes upon catching this error.
-				// No explicit serviceLogout call needed here anymore.
+				// Redirect to login page on refresh failure
+				if (typeof window !== 'undefined') {
+					// Avoid redirect loop if the refresh endpoint itself returns 401 repeatedly
+					// Although the main check already prevents retrying /auth/refresh
+					if ((refreshError as AxiosError).response?.status === 401) {
+						console.warn("Refresh token endpoint returned 401, potential issue with refresh token itself.");
+					}
+					window.location.href = '/login';
+				}
 				return Promise.reject(refreshError); // Reject the original request with the refresh error
 			} finally {
 				isRefreshing = false;

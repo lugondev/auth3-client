@@ -8,7 +8,7 @@ export async function seedSlots(prisma: PrismaClient, venues: CreatedVenue[]) {
 	console.log('Seeding Slots...');
 	let createdSlotsCount = 0;
 	const slotTypes = ['table', 'booth', 'bar_seat', 'area', 'service', 'decor']; // Shortened 'service_station' to 'service'
-	const shapes = ['rect', 'circle', 'ellipse', 'long_rect']; // Add polygon shape
+	const shapes = ['rect', 'circle', 'ellipse', 'longrect']; // Add polygon shape
 	const zones = ['Main Dining', 'Bar Area', 'Patio', 'VIP Lounge', 'Entrance', 'Kitchen Pass'];
 	const statuses = ['available', 'reserved', 'blocked', 'occupied', 'maintenance'];
 

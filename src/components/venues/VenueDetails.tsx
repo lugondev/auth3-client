@@ -1,7 +1,7 @@
 // next/src/components/venues/VenueDetails.tsx
 'use client'
 
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect} from 'react' // Remove unused useCallback
 import Image from 'next/image'
 import Link from 'next/link'
 import {notFound, useRouter} from 'next/navigation' // Use router for actions
@@ -48,7 +48,28 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const router = useRouter()
+	const [activeTab, setActiveTab] = useState<string>('overview') // State for active tab
 
+	// Effect to load the stored tab value on component mount
+	useEffect(() => {
+		if (typeof window !== 'undefined' && venueId) {
+			// Ensure localStorage is available and venueId is set
+			const storedTab = localStorage.getItem(`venue_${venueId}_activeTab`)
+			if (storedTab) {
+				setActiveTab(storedTab)
+			}
+		}
+	}, [venueId]) // Rerun if venueId changes, although typically it shouldn't on the same details page
+
+	// Handler for changing tabs and saving to localStorage
+	const handleTabChange = (value: string) => {
+		setActiveTab(value)
+		if (typeof window !== 'undefined' && venueId) {
+			localStorage.setItem(`venue_${venueId}_activeTab`, value)
+		}
+	}
+
+	// Effect to fetch venue data
 	useEffect(() => {
 		const fetchVenue = async () => {
 			setLoading(true)
@@ -216,8 +237,11 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 				</div>
 			</div>
 
-			{/* Tabs Section */}
-			<Tabs defaultValue='overview' className='w-full'>
+			{/* Tabs Section - Use activeTab state and handle changes */}
+			<Tabs
+				value={activeTab} // Control the active tab using state
+				onValueChange={handleTabChange} // Update state and localStorage on change
+				className='w-full'>
 				<TabsList className='mb-4'>
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='photos'>Photos</TabsTrigger>

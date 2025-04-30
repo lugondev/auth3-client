@@ -41,36 +41,48 @@ const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpd
 	const [originalData, setOriginalData] = useState<UpdateSlotDto>({})
 	const [hasChanges, setHasChanges] = useState(false)
 	const [isSaving, setIsSaving] = useState(false)
+	// Store the ID associated with the current formData to prevent unnecessary resets
+	const [formDataSlotId, setFormDataSlotId] = useState<string | null>(null)
 
-	// Reset form state when selectedSlot changes
+	// Reset form state ONLY when the selectedSlot ID truly changes or selection is cleared
 	useEffect(() => {
-		if (selectedSlot) {
-			const initialData: UpdateSlotDto = {}
-			editableKeys.forEach((key) => {
-				const value = selectedSlot[key as keyof Slot]
-				if (isNumericKey(key)) {
-					initialData[key] = typeof value === 'number' && !isNaN(value) ? value : undefined
-				} else if (isStringKey(key)) {
-					initialData[key] = typeof value === 'string' ? value : undefined
-				} else if (key === 'status' && isSlotStatus(value)) {
-					initialData[key] = value
-				} else if (key === 'type' && isSlotType(value)) {
-					initialData[key] = value
-				} else if (key === 'shape' && isSlotShape(value)) {
-					initialData[key] = value
-				} else {
-					initialData[key] = undefined
-				}
-			})
-			setFormData(initialData)
-			setOriginalData(initialData)
-			setHasChanges(false)
-		} else {
-			setFormData({})
-			setOriginalData({})
-			setHasChanges(false)
+		const currentSelectedId = selectedSlot?.id ?? null
+
+		// Only proceed if the selected ID has actually changed from what the form currently represents
+		if (currentSelectedId !== formDataSlotId) {
+			if (selectedSlot) {
+				// A new slot is selected
+				const initialData: UpdateSlotDto = {}
+				editableKeys.forEach((key) => {
+					const value = selectedSlot[key as keyof Slot]
+					if (isNumericKey(key)) {
+						initialData[key] = typeof value === 'number' && !isNaN(value) ? value : undefined
+					} else if (isStringKey(key)) {
+						initialData[key] = typeof value === 'string' ? value : undefined
+					} else if (key === 'status' && isSlotStatus(value)) {
+						initialData[key] = value
+					} else if (key === 'type' && isSlotType(value)) {
+						initialData[key] = value
+					} else if (key === 'shape' && isSlotShape(value)) {
+						initialData[key] = value
+					} else {
+						initialData[key] = undefined
+					}
+				})
+				setFormData(initialData)
+				setOriginalData(initialData)
+				setHasChanges(false)
+				setFormDataSlotId(currentSelectedId) // Update the ID associated with the form data
+			} else {
+				// Selection was cleared
+				setFormData({})
+				setOriginalData({})
+				setHasChanges(false)
+				setFormDataSlotId(null) // Clear the associated ID
+			}
 		}
-	}, [selectedSlot])
+		// If currentSelectedId === formDataSlotId, do nothing in this effect.
+	}, [selectedSlot, formDataSlotId]) // Depend on the selectedSlot object and the tracking state
 
 	// Check for changes whenever formData updates
 	useEffect(() => {
