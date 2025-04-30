@@ -71,31 +71,28 @@ const Breadcrumbs: React.FC = () => {
 	if (breadcrumbItems.length <= 1) return null // Don't show if only 'Home' and on root page
 
 	return (
-        <nav aria-label='Breadcrumb' className='flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400'>
-            {breadcrumbItems.map((item, index) => (
+		<nav aria-label='Breadcrumb' className='flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400'>
+			{breadcrumbItems.map((item, index) => (
 				<React.Fragment key={item.href || item.label}>
 					{index > 0 && <ChevronRight className='h-4 w-4 flex-shrink-0' aria-hidden='true' />}
 					<div className='flex items-center'>
 						{item.icon &&
 							index === 0 && ( // Show Home icon only for the first item if it's Home
-								(<item.icon className='mr-1.5 h-4 w-4 flex-shrink-0' aria-hidden='true' />)
+								<item.icon className='mr-1.5 h-4 w-4 flex-shrink-0' aria-hidden='true' />
 							)}
 						{item.href && index < breadcrumbItems.length - 1 ? ( // Make all but the last item links
-							(<Link
-                                href={item.href}
-                                className='hover:text-gray-700 dark:hover:text-gray-200'
-                                legacyBehavior>
-                                {item.label}
-                            </Link>)
+							<Link href={item.href} className='hover:text-gray-700 dark:hover:text-gray-200'>
+								{item.label}
+							</Link>
 						) : (
 							// Last item is not a link, display as text
-							(<span className='font-medium text-gray-700 dark:text-gray-200'>{item.label}</span>)
+							<span className='font-medium text-gray-700 dark:text-gray-200'>{item.label}</span>
 						)}
 					</div>
 				</React.Fragment>
 			))}
-        </nav>
-    );
+		</nav>
+	)
 }
 
 export default Breadcrumbs

@@ -30,8 +30,8 @@ export default function RootLayout({
 	children: React.ReactNode
 }>) {
 	return (
-        <html lang='en' suppressHydrationWarning>
-            <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+		<html lang='en' suppressHydrationWarning>
+			<body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
 				<ThemeProvider attribute='class' defaultTheme='dark' enableSystem disableTransitionOnChange>
 					<QueryProvider>
 						{' '}
@@ -44,7 +44,7 @@ export default function RootLayout({
 									<div className='mr-4 flex'>
 										{' '}
 										{/* Removed hidden md:flex for now */}
-										<Link href='/' className='mr-6 flex items-center space-x-2' legacyBehavior>
+										<Link href='/' className='mr-6 flex items-center space-x-2'>
 											{/* Optional Icon: <AppWindow className='h-6 w-6' /> */}
 											<span className='font-bold sm:inline-block'>
 												{' '}
@@ -72,6 +72,6 @@ export default function RootLayout({
 					{/* Close QueryProvider */}
 				</ThemeProvider>
 			</body>
-        </html>
-    );
+		</html>
+	)
 }

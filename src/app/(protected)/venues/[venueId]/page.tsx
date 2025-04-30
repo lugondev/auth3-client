@@ -5,9 +5,9 @@ import VenueDetails from '@/components/venues/VenueDetails' // Assuming VenueDet
 import {notFound} from 'next/navigation' // For handling invalid IDs
 
 interface VenueDetailsPageProps {
-	params: {
+	params: Promise<{
 		venueId: string
-	}
+	}>
 }
 
 export default function VenueDetailsPage({params}: VenueDetailsPageProps) {
