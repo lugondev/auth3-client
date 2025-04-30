@@ -92,7 +92,7 @@ export async function seedEventRelatedData(prisma: PrismaClient, events: Created
         await prisma.event_photos.create({
           data: {
             events: { connect: { id: event.id } },
-            url: faker.image.urlLoremFlickr({ category: faker.helpers.arrayElement(['concert', 'party', 'conference', 'people']) }),
+            url: faker.image.urlPicsumPhotos(),
             caption: faker.lorem.words(faker.number.int({ min: 3, max: 10 })),
             is_primary: isPrimary,
             created_at: baseDate,

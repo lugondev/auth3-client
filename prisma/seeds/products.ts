@@ -70,10 +70,9 @@ export async function seedProducts(prisma: PrismaClient, categories: CreatedCate
 				const product = await prisma.products.create({
 					data: {
 						venues: { connect: { id: category.venue_id } },
-						category_id: category.id,
+						product_categories: { connect: { id: category.id } }, // Connect via relation
 						name: `${faker.commerce.productAdjective()} ${faker.commerce.productMaterial()} ${category.name}`, // More descriptive names
 						description: faker.commerce.productDescription(),
-						category: category.name, // Use the actual category name
 						price: price,
 						discount_price: discountPrice,
 						currency: 'VND',
@@ -123,7 +122,7 @@ export async function seedProductRelatedData(prisma: PrismaClient, products: Cre
 				await prisma.product_photos.create({
 					data: {
 						products: { connect: { id: product.id } },
-						url: faker.image.urlLoremFlickr({ category: faker.helpers.arrayElement(['food', 'drinks', 'dessert']) }),
+						url: faker.image.urlPicsumPhotos(),
 						caption: faker.lorem.sentence(4),
 						is_primary: isPrimary,
 						created_at: baseDate,

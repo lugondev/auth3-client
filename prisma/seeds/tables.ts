@@ -72,7 +72,7 @@ export async function seedTableMapsAndPositions(prisma: PrismaClient, venues: Cr
 						venue_id: venue.id,
 						name: `${faker.helpers.arrayElement(['Ground Floor', 'Upstairs', 'Patio', 'Main Area'])} Map ${i + 1}`,
 						map_data: { // Example JSON structure
-							svgUrl: faker.image.urlLoremFlickr({ category: 'abstract' }), // Link to an SVG background/layout
+							svgUrl: faker.image.urlPicsumPhotos({}), // Link to an SVG background/layout
 							width: 1200,
 							height: 800,
 							gridSize: 10,

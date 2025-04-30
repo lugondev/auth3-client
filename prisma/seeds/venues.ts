@@ -1,15 +1,18 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, venue_categories } from '@prisma/client'; // Correct type import: venue_categories
 import { faker } from '@faker-js/faker';
 import { randomDecimal } from './helpers'; // Import helper
 
+// Remove duplicate id field
 export interface CreatedVenue {
 	id: string;
 	owner_id: string;
 }
 
-export async function seedVenues(prisma: PrismaClient, userIds: string[]): Promise<CreatedVenue[]> {
+// Update function signature to accept seeded categories with correct type
+export async function seedVenues(prisma: PrismaClient, userIds: string[], venueCategories: venue_categories[]): Promise<CreatedVenue[]> {
 	console.log('Seeding Venues...');
 	const createdVenues: CreatedVenue[] = [];
+	const categoryIds = venueCategories.map(cat => cat.id); // Extract category IDs
 	for (let i = 0; i < 8; i++) { // Increase venue count slightly
 		const ownerId = faker.helpers.arrayElement(userIds);
 		try {
@@ -20,14 +23,16 @@ export async function seedVenues(prisma: PrismaClient, userIds: string[]): Promi
 					address: faker.location.streetAddress(true),
 					latitude: randomDecimal(10.0, 21.0, 8), // VN coordinates
 					longitude: randomDecimal(102.0, 109.0, 8),
-					website_url: faker.internet.url(),
-					phone: faker.phone.number(),
+					website: faker.internet.url(), // Corrected field name
+					phone_number: faker.phone.number(), // Corrected field name
 					email: faker.internet.email(),
 					status: faker.helpers.arrayElement(['active', 'pending', 'closed', 'renovation']),
 					timezone: faker.location.timeZone(),
 					currency: 'VND',
 					is_active: faker.datatype.boolean(0.9), // 90% active
 					users: { connect: { id: ownerId } }, // Connect to owner
+					// Assign a random category ID from the seeded ones
+					category_id: faker.helpers.arrayElement(categoryIds),
 					created_at: faker.date.past({ years: 2 }),
 					updated_at: faker.date.recent({ days: 60 }),
 				},
@@ -116,7 +121,7 @@ export async function seedVenueRelatedData(prisma: PrismaClient, venues: Created
 				await prisma.venue_photos.create({
 					data: {
 						venues: { connect: { id: venue.id } },
-						url: faker.image.urlLoremFlickr({ category: faker.helpers.arrayElement(['nightlife', 'restaurant', 'architecture']) }),
+						url: faker.image.urlPicsumPhotos(),
 						caption: faker.lorem.sentence(5),
 						is_primary: isPrimary,
 						created_at: baseDate,

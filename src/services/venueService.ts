@@ -30,7 +30,7 @@ const venueService = {
 	async searchVenues(params: VenueSearchParams): Promise<VenueSearchResult> {
 		try {
 			// apiClient expects query params as the second argument for GET
-			const response = await apiClient.get<VenueSearchResult>('/venues/search', { params });
+			const response = await apiClient.get<VenueSearchResult>('/api/v1/venues/search', { params }); // Added /api/v1
 			// Ensure the response matches the expected structure, provide defaults if needed
 			return response.data || { venues: [], total: 0, page: 1, limit: params.limit || 10 };
 		} catch (error) {
@@ -48,7 +48,7 @@ const venueService = {
 	async getVenueById(id: string): Promise<Venue> {
 		if (!id) throw new Error('Venue ID is required');
 		try {
-			const response = await apiClient.get<Venue>(`/venues/${id}`);
+			const response = await apiClient.get<Venue>(`/api/v1/venues/${id}`); // Added /api/v1
 			if (!response.data) {
 				throw new Error(`Venue with ID ${id} not found.`);
 			}
@@ -66,7 +66,7 @@ const venueService = {
 	async createVenue(data: CreateVenueData): Promise<Venue> {
 		try {
 			// apiClient expects data as the second argument for POST
-			const response = await apiClient.post<Venue>('/venues', data);
+			const response = await apiClient.post<Venue>('/api/v1/venues', data); // Added /api/v1
 			return response.data;
 		} catch (error) {
 			console.error('Error creating venue:', error);
@@ -82,7 +82,7 @@ const venueService = {
 		if (!id) throw new Error('Venue ID is required for update');
 		try {
 			// apiClient expects data as the second argument for PATCH
-			const response = await apiClient.patch<Venue>(`/venues/${id}`, data);
+			const response = await apiClient.patch<Venue>(`/api/v1/venues/${id}`, data); // Added /api/v1
 			return response.data;
 		} catch (error) {
 			console.error(`Error updating venue ${id}:`, error);
@@ -97,7 +97,7 @@ const venueService = {
 	async deleteVenue(id: string): Promise<void> {
 		if (!id) throw new Error('Venue ID is required for deletion');
 		try {
-			await apiClient.delete(`/venues/${id}`);
+			await apiClient.delete(`/api/v1/venues/${id}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting venue ${id}:`, error);
@@ -121,7 +121,7 @@ const venueService = {
 		try {
 			// Adjust apiClient call if needed for FormData and content-type header
 			const response = await apiClient.post<{ id: string; url: string }>(
-				`/venues/${venueId}/photos`,
+				`/api/v1/venues/${venueId}/photos`, // Added /api/v1
 				formData,
 				{
 					headers: {
@@ -143,7 +143,7 @@ const venueService = {
 	async deleteVenuePhoto(venueId: string, photoId: string): Promise<void> {
 		if (!venueId || !photoId) throw new Error('Venue ID and Photo ID are required for deletion');
 		try {
-			await apiClient.delete(`/venues/${venueId}/photos/${photoId}`);
+			await apiClient.delete(`/api/v1/venues/${venueId}/photos/${photoId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting photo ${photoId} for venue ${venueId}:`, error);
@@ -160,7 +160,7 @@ const venueService = {
 	async getVenueSettings(venueId: string): Promise<VenueSettings> {
 		if (!venueId) throw new Error('Venue ID is required to get settings');
 		try {
-			const response = await apiClient.get<VenueSettings>(`/venues/${venueId}/settings`);
+			const response = await apiClient.get<VenueSettings>(`/api/v1/venues/${venueId}/settings`); // Added /api/v1
 			if (!response.data) {
 				throw new Error(`Settings not found for venue ID ${venueId}.`);
 			}
@@ -178,7 +178,7 @@ const venueService = {
 	async updateVenueSettings(venueId: string, data: UpdateVenueSettingsDto): Promise<VenueSettings> {
 		if (!venueId) throw new Error('Venue ID is required to update settings');
 		try {
-			const response = await apiClient.patch<VenueSettings>(`/venues/${venueId}/settings`, data);
+			const response = await apiClient.patch<VenueSettings>(`/api/v1/venues/${venueId}/settings`, data); // Added /api/v1
 			return response.data; // Assuming API returns the updated settings
 		} catch (error) {
 			console.error(`Error updating settings for venue ${venueId}:`, error);
@@ -195,7 +195,7 @@ const venueService = {
 	async getVenueStaff(venueId: string): Promise<StaffMember[]> {
 		if (!venueId) throw new Error('Venue ID is required to get staff');
 		try {
-			const response = await apiClient.get<StaffMember[]>(`/venues/${venueId}/staff`);
+			const response = await apiClient.get<StaffMember[]>(`/api/v1/venues/${venueId}/staff`); // Added /api/v1
 			return response.data || []; // Return empty array if no staff or data is null/undefined
 		} catch (error) {
 			console.error(`Error fetching staff for venue ${venueId}:`, error);
@@ -210,7 +210,7 @@ const venueService = {
 	async addStaffMember(venueId: string, data: AddStaffDto): Promise<StaffMember> {
 		if (!venueId) throw new Error('Venue ID is required to add staff');
 		try {
-			const response = await apiClient.post<StaffMember>(`/venues/${venueId}/staff`, data);
+			const response = await apiClient.post<StaffMember>(`/api/v1/venues/${venueId}/staff`, data); // Added /api/v1
 			return response.data; // Assuming API returns the newly added staff member details
 		} catch (error) {
 			console.error(`Error adding staff to venue ${venueId}:`, error);
@@ -225,7 +225,7 @@ const venueService = {
 	async updateStaffMember(venueId: string, staffId: string, data: UpdateStaffDto): Promise<StaffMember> {
 		if (!venueId || !staffId) throw new Error('Venue ID and Staff ID are required to update staff');
 		try {
-			const response = await apiClient.patch<StaffMember>(`/venues/${venueId}/staff/${staffId}`, data);
+			const response = await apiClient.patch<StaffMember>(`/api/v1/venues/${venueId}/staff/${staffId}`, data); // Added /api/v1
 			return response.data; // Assuming API returns the updated staff member details
 		} catch (error) {
 			console.error(`Error updating staff ${staffId} for venue ${venueId}:`, error);
@@ -240,7 +240,7 @@ const venueService = {
 	async removeStaffMember(venueId: string, staffId: string): Promise<void> {
 		if (!venueId || !staffId) throw new Error('Venue ID and Staff ID are required to remove staff');
 		try {
-			await apiClient.delete(`/venues/${venueId}/staff/${staffId}`);
+			await apiClient.delete(`/api/v1/venues/${venueId}/staff/${staffId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error removing staff ${staffId} from venue ${venueId}:`, error);
@@ -256,7 +256,7 @@ const venueService = {
 		if (!venueId) throw new Error('Venue ID is required to transfer ownership');
 		try {
 			// Assuming the API returns 204 No Content or similar on success
-			await apiClient.post(`/venues/${venueId}/transfer-ownership`, data);
+			await apiClient.post(`/api/v1/venues/${venueId}/transfer-ownership`, data); // Added /api/v1
 		} catch (error) {
 			console.error(`Error transferring ownership for venue ${venueId}:`, error);
 			throw error;
@@ -281,7 +281,7 @@ const venueService = {
 			params.groupID = groupId; // Match backend query param name
 		}
 		try {
-			const response = await apiClient.get<PaginatedTableResponse>(`/venues/${venueId}/tables`, { params });
+			const response = await apiClient.get<PaginatedTableResponse>(`/api/v1/venues/${venueId}/tables`, { params }); // Added /api/v1
 			// Return the full paginated response structure
 			return response.data || { tables: [], total: 0, page: 1, limit: 10 };
 		} catch (error) {
@@ -297,7 +297,7 @@ const venueService = {
 	async createTable(venueId: string, data: CreateTableDTO): Promise<Table> { // Use imported CreateTableDTO
 		if (!venueId) throw new Error('Venue ID is required to create a table');
 		try {
-			const response = await apiClient.post<Table>(`/venues/${venueId}/tables`, data);
+			const response = await apiClient.post<Table>(`/api/v1/venues/${venueId}/tables`, data); // Added /api/v1
 			return response.data; // Assuming API returns the newly created table details
 		} catch (error) {
 			console.error(`Error creating table for venue ${venueId}:`, error);
@@ -313,7 +313,7 @@ const venueService = {
 	async getTableDetails(tableId: string): Promise<Table> { // Updated return type
 		if (!tableId) throw new Error('Table ID is required to get details');
 		try {
-			const response = await apiClient.get<Table>(`/tables/${tableId}`); // Updated generic type
+			const response = await apiClient.get<Table>(`/api/v1/tables/${tableId}`); // Added /api/v1
 			if (!response.data) {
 				throw new Error(`Table with ID ${tableId} not found.`);
 			}
@@ -332,7 +332,7 @@ const venueService = {
 	async updateTable(tableId: string, data: UpdateTableDTO): Promise<Table> { // Use imported UpdateTableDTO
 		if (!tableId) throw new Error('Table ID is required for update');
 		try {
-			const response = await apiClient.patch<Table>(`/tables/${tableId}`, data);
+			const response = await apiClient.patch<Table>(`/api/v1/tables/${tableId}`, data); // Added /api/v1
 			return response.data; // Assuming API returns the updated table details
 		} catch (error) {
 			console.error(`Error updating table ${tableId}:`, error);
@@ -348,7 +348,7 @@ const venueService = {
 	async deleteTable(tableId: string): Promise<void> {
 		if (!tableId) throw new Error('Table ID is required for deletion');
 		try {
-			await apiClient.delete(`/tables/${tableId}`);
+			await apiClient.delete(`/api/v1/tables/${tableId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting table ${tableId}:`, error);
@@ -376,7 +376,7 @@ const venueService = {
 		}
 
 		try {
-			const response = await apiClient.get<PaginatedProductResponse>(`/venues/${venueId}/products`, { params });
+			const response = await apiClient.get<PaginatedProductResponse>(`/api/v1/venues/${venueId}/products`, { params }); // Added /api/v1
 			// Return the full paginated response structure
 			return response.data || { products: [], total: 0, page: 1, limit: 10 };
 		} catch (error) {
@@ -392,7 +392,7 @@ const venueService = {
 	async createProduct(venueId: string, data: CreateProductDTO): Promise<Product> {
 		if (!venueId) throw new Error('Venue ID is required to create a product');
 		try {
-			const response = await apiClient.post<Product>(`/venues/${venueId}/products`, data);
+			const response = await apiClient.post<Product>(`/api/v1/venues/${venueId}/products`, data); // Added /api/v1
 			return response.data; // Assuming API returns the newly created product details
 		} catch (error) {
 			console.error(`Error creating product for venue ${venueId}:`, error);
@@ -408,7 +408,7 @@ const venueService = {
 	async getProductDetails(productId: string): Promise<Product> {
 		if (!productId) throw new Error('Product ID is required to get details');
 		try {
-			const response = await apiClient.get<Product>(`/products/${productId}`);
+			const response = await apiClient.get<Product>(`/api/v1/products/${productId}`); // Added /api/v1
 			if (!response.data) {
 				throw new Error(`Product with ID ${productId} not found.`);
 			}
@@ -427,7 +427,7 @@ const venueService = {
 	async updateProduct(productId: string, data: UpdateProductDTO): Promise<Product> {
 		if (!productId) throw new Error('Product ID is required for update');
 		try {
-			const response = await apiClient.patch<Product>(`/products/${productId}`, data);
+			const response = await apiClient.patch<Product>(`/api/v1/products/${productId}`, data); // Added /api/v1
 			return response.data; // Assuming API returns the updated product details
 		} catch (error) {
 			console.error(`Error updating product ${productId}:`, error);
@@ -443,7 +443,7 @@ const venueService = {
 	async deleteProduct(productId: string): Promise<void> {
 		if (!productId) throw new Error('Product ID is required for deletion');
 		try {
-			await apiClient.delete(`/products/${productId}`);
+			await apiClient.delete(`/api/v1/products/${productId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting product ${productId}:`, error);
@@ -477,7 +477,7 @@ const venueService = {
 		try {
 			// Assuming API returns the newly added ProductPhoto object
 			const response = await apiClient.post<ProductPhoto>(
-				`/products/${productId}/photos`,
+				`/api/v1/products/${productId}/photos`, // Added /api/v1
 				formData,
 				{ headers: { 'Content-Type': 'multipart/form-data' } }
 			);
@@ -509,7 +509,7 @@ const venueService = {
 	async deleteProductPhoto(productId: string, photoId: string): Promise<void> {
 		if (!productId || !photoId) throw new Error('Product ID and Photo ID are required for deletion');
 		try {
-			await apiClient.delete(`/products/${productId}/photos/${photoId}`);
+			await apiClient.delete(`/api/v1/products/${productId}/photos/${photoId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting photo ${photoId} for product ${productId}:`, error);
@@ -526,7 +526,7 @@ const venueService = {
 	async getVenueEvents(venueId: string): Promise<Event[]> {
 		if (!venueId) throw new Error('Venue ID is required to get events');
 		try {
-			const response = await apiClient.get<Event[]>(`/venues/${venueId}/events`);
+			const response = await apiClient.get<Event[]>(`/api/v1/venues/${venueId}/events`); // Added /api/v1
 			return response.data || []; // Return empty array if no events
 		} catch (error) {
 			console.error(`Error fetching events for venue ${venueId}:`, error);
@@ -541,7 +541,7 @@ const venueService = {
 	async getUpcomingVenueEvents(venueId: string): Promise<Event[]> {
 		if (!venueId) throw new Error('Venue ID is required to get upcoming events');
 		try {
-			const response = await apiClient.get<Event[]>(`/venues/${venueId}/events/upcoming`);
+			const response = await apiClient.get<Event[]>(`/api/v1/venues/${venueId}/events/upcoming`); // Added /api/v1
 			return response.data || []; // Return empty array if no events
 		} catch (error) {
 			console.error(`Error fetching upcoming events for venue ${venueId}:`, error);
@@ -556,7 +556,7 @@ const venueService = {
 	async createEvent(venueId: string, data: CreateEventDto): Promise<Event> {
 		if (!venueId) throw new Error('Venue ID is required to create an event');
 		try {
-			const response = await apiClient.post<Event>(`/venues/${venueId}/events`, data);
+			const response = await apiClient.post<Event>(`/api/v1/venues/${venueId}/events`, data); // Added /api/v1
 			return response.data; // Assuming API returns the newly created event details
 		} catch (error) {
 			console.error(`Error creating event for venue ${venueId}:`, error);
@@ -572,7 +572,7 @@ const venueService = {
 	async getEventDetails(eventId: string): Promise<Event> {
 		if (!eventId) throw new Error('Event ID is required to get details');
 		try {
-			const response = await apiClient.get<Event>(`/events/${eventId}`);
+			const response = await apiClient.get<Event>(`/api/v1/events/${eventId}`); // Added /api/v1
 			if (!response.data) {
 				throw new Error(`Event with ID ${eventId} not found.`);
 			}
@@ -591,7 +591,7 @@ const venueService = {
 	async updateEvent(eventId: string, data: UpdateEventDto): Promise<Event> {
 		if (!eventId) throw new Error('Event ID is required for update');
 		try {
-			const response = await apiClient.patch<Event>(`/events/${eventId}`, data);
+			const response = await apiClient.patch<Event>(`/api/v1/events/${eventId}`, data); // Added /api/v1
 			return response.data; // Assuming API returns the updated event details
 		} catch (error) {
 			console.error(`Error updating event ${eventId}:`, error);
@@ -607,7 +607,7 @@ const venueService = {
 	async deleteEvent(eventId: string): Promise<void> {
 		if (!eventId) throw new Error('Event ID is required for deletion');
 		try {
-			await apiClient.delete(`/events/${eventId}`);
+			await apiClient.delete(`/api/v1/events/${eventId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting event ${eventId}:`, error);
@@ -633,7 +633,7 @@ const venueService = {
 		try {
 			// Assuming API returns the newly added EventPhoto object
 			const response = await apiClient.post<EventPhoto>(
-				`/events/${eventId}/photos`,
+				`/api/v1/events/${eventId}/photos`, // Added /api/v1
 				formData,
 				{
 					headers: {
@@ -656,7 +656,7 @@ const venueService = {
 	async deleteEventPhoto(eventId: string, photoId: string): Promise<void> {
 		if (!eventId || !photoId) throw new Error('Event ID and Photo ID are required for deletion');
 		try {
-			await apiClient.delete(`/events/${eventId}/photos/${photoId}`);
+			await apiClient.delete(`/api/v1/events/${eventId}/photos/${photoId}`); // Added /api/v1
 			// No content expected on successful delete
 		} catch (error) {
 			console.error(`Error deleting photo ${photoId} for event ${eventId}:`, error);

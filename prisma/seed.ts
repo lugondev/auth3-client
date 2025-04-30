@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
-import { clearDatabase } from './seeds/helpers';
+import { clearDatabase } from './seeds/helpers'; // Keep only one import
 import { seedUsers, seedUserRelatedData } from './seeds/users';
+import { seedVenueCategories } from './seeds/venueCategories'; // Import venue category seeder
 import { seedVenues, seedVenueRelatedData } from './seeds/venues';
 import { seedEvents, seedEventRelatedData } from './seeds/events';
 import { seedProductCategories, seedProducts, seedProductRelatedData } from './seeds/products';
@@ -18,11 +19,13 @@ async function main() {
 	await clearDatabase(prisma);
 
 	// --- Seed Data in Order ---
+	// --- Seed Data in Order ---
 	const users = await seedUsers(prisma);
 	const userIds = users.map(u => u.id);
 	await seedUserRelatedData(prisma, userIds); // Seed profiles, tokens etc.
 
-	const venues = await seedVenues(prisma, userIds);
+	const venueCategories = await seedVenueCategories(); // Seed venue categories first (no prisma arg)
+	const venues = await seedVenues(prisma, userIds, venueCategories); // Pass categories to venue seeder
 	await seedVenueRelatedData(prisma, venues, userIds); // Seed settings, staff, photos
 
 	const events = await seedEvents(prisma, venues);

@@ -16,7 +16,7 @@ import apiClient, {
  */
 export const getCurrentUser = async (): Promise<UserOutput> => {
 	try {
-		const response = await apiClient.get<UserOutput>('/users/me');
+		const response = await apiClient.get<UserOutput>('/api/v1/users/me'); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error('Error fetching current user:', error);
@@ -32,7 +32,7 @@ export const getCurrentUser = async (): Promise<UserOutput> => {
  */
 export const updateCurrentUser = async (data: UpdateUserInput): Promise<UserOutput> => {
 	try {
-		const response = await apiClient.patch<UserOutput>('/users/me', data);
+		const response = await apiClient.patch<UserOutput>('/api/v1/users/me', data); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error('Error updating current user:', error);
@@ -49,7 +49,7 @@ export const updateCurrentUser = async (data: UpdateUserInput): Promise<UserOutp
  */
 export const getUserProfile = async (userId: string): Promise<UserProfile> => {
 	try {
-		const response = await apiClient.get<UserProfile>(`/users/profile/${userId}`);
+		const response = await apiClient.get<UserProfile>(`/api/v1/users/profile/${userId}`); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error(`Error fetching profile for user ${userId}:`, error);
@@ -68,7 +68,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile> => {
 export const updateCurrentUserProfile = async (data: UpdateProfileInput): Promise<UserProfile> => {
 	try {
 		// Assuming PATCH /users/profile updates the *current* user's profile
-		const response = await apiClient.patch<UserProfile>('/users/profile', data);
+		const response = await apiClient.patch<UserProfile>('/api/v1/users/profile', data); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error('Error updating current user profile:', error);
@@ -84,7 +84,7 @@ export const updateCurrentUserProfile = async (data: UpdateProfileInput): Promis
  */
 export const updateCurrentUserPassword = async (data: UpdatePasswordInput): Promise<UpdatePasswordResponse> => {
 	try {
-		const response = await apiClient.patch<UpdatePasswordResponse>('/users/password', data);
+		const response = await apiClient.patch<UpdatePasswordResponse>('/api/v1/users/password', data); // Added /api/v1
 		console.log('Password updated successfully.');
 		return response.data; // Return the success message from backend
 	} catch (error) {
@@ -104,7 +104,7 @@ export const updateUserAvatar = async (file: File): Promise<UserOutput> => {
 	formData.append('avatar', file); // Backend expects the key 'avatar'
 
 	try {
-		const response = await apiClient.post<UserOutput>('/users/avatar', formData, {
+		const response = await apiClient.post<UserOutput>('/api/v1/users/avatar', formData, { // Added /api/v1
 			headers: {
 				'Content-Type': 'multipart/form-data', // Important for file uploads
 			},
@@ -124,7 +124,7 @@ export const updateUserAvatar = async (file: File): Promise<UserOutput> => {
  */
 export const getUserById = async (userId: string): Promise<UserOutput> => {
 	try {
-		const response = await apiClient.get<UserOutput>(`/users/${userId}`);
+		const response = await apiClient.get<UserOutput>(`/api/v1/users/${userId}`); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error(`Error fetching user ${userId}:`, error);
@@ -140,7 +140,7 @@ export const getUserById = async (userId: string): Promise<UserOutput> => {
  */
 export const searchUsers = async (params: UserSearchQuery): Promise<PaginatedUsers> => {
 	try {
-		const response = await apiClient.get<PaginatedUsers>('/users/search', { params });
+		const response = await apiClient.get<PaginatedUsers>('/api/v1/users/search', { params }); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error('Error searching users:', error);

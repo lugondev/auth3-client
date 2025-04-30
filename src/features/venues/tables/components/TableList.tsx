@@ -6,7 +6,7 @@ import {Table as TableType} from '@/types/table'
 import {Button} from '@/components/ui/button'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Badge} from '@/components/ui/badge'
-import {Trash2, Edit, PlusCircle} from 'lucide-react'
+import {Trash2, Edit} from 'lucide-react' // Removed PlusCircle
 import {Alert, AlertDescription, AlertTitle} from '@/components/ui/alert'
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle} from '@/components/ui/alert-dialog' // Removed unused AlertDialogTrigger
 // TODO: Import TableForm when created
@@ -68,11 +68,7 @@ const TableList: React.FC<TableListProps> = ({venueId, onEditTable}) => {
 		<div className='space-y-4'>
 			<div className='flex justify-between items-center'>
 				<h2 className='text-2xl font-semibold'>Tables</h2>
-				<Button /*onClick={onCreateTable}*/>
-					{' '}
-					{/* TODO: Re-enable when TableForm exists */}
-					<PlusCircle className='mr-2 h-4 w-4' /> Add Table
-				</Button>
+				{/* Add Table button is now handled in ManageTables.tsx */}
 			</div>
 
 			{allTables.length === 0 ? (

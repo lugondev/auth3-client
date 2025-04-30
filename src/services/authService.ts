@@ -26,7 +26,7 @@ import { signOut } from 'firebase/auth';
 export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput): Promise<AuthResponse> => {
 	try {
 		// Expect AuthResponse from the backend endpoint
-		const response = await apiClient.post<AuthResponse>('/auth/social-token-exchange', data);
+		const response = await apiClient.post<AuthResponse>('/api/v1/auth/social-token-exchange', data); // Added /api/v1
 		return response.data;
 	} catch (error) {
 		console.error('Error exchanging Firebase token:', error);
@@ -42,7 +42,7 @@ export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput): Pro
 export const signInWithEmail = async (data: LoginInput): Promise<AuthResponse> => {
 	try {
 		// Expect AuthResponse from the backend /auth/login endpoint
-		const response = await apiClient.post<AuthResponse>('/auth/login', data);
+		const response = await apiClient.post<AuthResponse>('/api/v1/auth/login', data); // Added /api/v1
 		// No need to store tokens here, AuthContext will handle it
 		return response.data;
 	} catch (error) {
@@ -63,7 +63,7 @@ export const signInWithEmail = async (data: LoginInput): Promise<AuthResponse> =
  */
 export const register = async (data: RegisterInput): Promise<AuthResponse> => {
 	try {
-		const response = await apiClient.post<AuthResponse>('/auth/register', data);
+		const response = await apiClient.post<AuthResponse>('/api/v1/auth/register', data); // Added /api/v1
 		// AuthContext will handle storing tokens and user state
 		return response.data;
 	} catch (error) {
@@ -79,7 +79,7 @@ export const register = async (data: RegisterInput): Promise<AuthResponse> => {
  */
 export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> => {
 	try {
-		await apiClient.post('/auth/password/forgot', data);
+		await apiClient.post('/api/v1/auth/password/forgot', data); // Added /api/v1
 		console.log('Forgot password request sent.');
 	} catch (error) {
 		console.error('Error sending forgot password request:', error);
@@ -93,7 +93,7 @@ export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> =
  */
 export const resetPassword = async (data: ResetPasswordInput): Promise<void> => {
 	try {
-		await apiClient.post('/auth/password/reset', data);
+		await apiClient.post('/api/v1/auth/password/reset', data); // Added /api/v1
 		console.log('Password reset successful.');
 	} catch (error) {
 		console.error('Error resetting password:', error);
@@ -109,7 +109,7 @@ export const resetPassword = async (data: ResetPasswordInput): Promise<void> => 
 export const verifyEmail = async (token: string): Promise<EmailVerificationOutput> => {
 	try {
 		// Backend expects GET request for email verification
-		const response = await apiClient.get<EmailVerificationOutput>(`/auth/email/verify/${token}`);
+		const response = await apiClient.get<EmailVerificationOutput>(`/api/v1/auth/email/verify/${token}`); // Added /api/v1
 		console.log('Email verification successful.');
 		return response.data;
 	} catch (error) {
@@ -134,7 +134,7 @@ export const refreshToken = async (currentRefreshToken: string): Promise<AuthRes
 	}
 
 	try {
-		const response = await apiClient.post<AuthResponse>('/auth/refresh', {
+		const response = await apiClient.post<AuthResponse>('/api/v1/auth/refresh', { // Added /api/v1
 			refresh_token: currentRefreshToken,
 		}, {
 			headers: { '__skipAuthRefresh': 'true' } // Prevent interceptor loop
@@ -161,7 +161,7 @@ export const logoutUser = async (): Promise<void> => {
 
 	try {
 		// Notify backend about logout (best effort, don't block UI on failure)
-		await apiClient.post('/auth/logout', null, {
+		await apiClient.post('/api/v1/auth/logout', null, { // Added /api/v1
 			headers: { '__skipAuthRefresh': 'true' } // Avoid potential issues if tokens were already cleared
 		});
 		console.log('logoutUser service: Backend logout notification sent.');

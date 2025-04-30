@@ -5,7 +5,7 @@ import {Product} from '@/types/product'
 import {Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle} from '@/components/ui/card'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
-// import {MoreVertical} from 'lucide-react'; // Keep if planning dropdown later
+import {MoreVertical} from 'lucide-react'
 
 // Placeholder function for price formatting
 const formatPrice = (price: number) => {
@@ -37,7 +37,7 @@ const ProductCard: React.FC<ProductCardProps> = ({product, onEdit, onDelete}) =>
 				<CardTitle className='text-lg mb-1'>{product.name}</CardTitle>
 				<CardDescription className='text-sm mb-2 line-clamp-2'>{product.description || 'No description available.'}</CardDescription>
 				<div className='flex justify-between items-center'>
-					<Badge variant='secondary'>{product.category.charAt(0).toUpperCase() + product.category.slice(1)}</Badge>
+					<Badge variant='secondary'>{product.category}</Badge>
 					<span className='font-semibold text-lg'>{formatPrice(product.price)}</span>
 				</div>
 			</CardContent>
@@ -50,9 +50,9 @@ const ProductCard: React.FC<ProductCardProps> = ({product, onEdit, onDelete}) =>
 					Delete
 				</Button>
 				{/* Or use a Dropdown menu for more actions */}
-				{/* <Button variant="ghost" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                </Button> */}
+				<Button variant='ghost' size='icon'>
+					<MoreVertical className='h-4 w-4' />
+				</Button>
 			</CardFooter>
 		</Card>
 	)
