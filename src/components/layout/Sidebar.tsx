@@ -55,14 +55,14 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen}) => {
 	}
 
 	return (
-		<aside className={cn('fixed inset-y-0 left-0 z-30 w-64 transform border-r border-gray-200 bg-white p-4 transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 md:static md:z-auto md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full')} aria-label='Sidebar'>
-			<div className='mb-8 flex items-center justify-center'>
+        <aside className={cn('fixed inset-y-0 left-0 z-30 w-64 transform border-r border-gray-200 bg-white p-4 transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 md:static md:z-auto md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full')} aria-label='Sidebar'>
+            <div className='mb-8 flex items-center justify-center'>
 				{/* Placeholder Logo/Title - Replace with actual logo if available */}
 				<Link href='/dashboard' className='text-2xl font-semibold text-gray-800 dark:text-gray-100'>
 					VenueApp
 				</Link>
 			</div>
-			<nav className='flex-1 space-y-1'>
+            <nav className='flex-1 space-y-1'>
 				{navItems.map((item) => {
 					const isSectionOpen = openSections[item.label] ?? false
 					// Check if the parent itself or any child is active
@@ -105,27 +105,25 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen}) => {
 					) : (
 						// Render non-collapsible item
 						// Ensure href exists before rendering Link
-						item.href && (
-							<Link
-								key={item.label}
-								href={item.href}
-								aria-disabled={item.disabled}
-								tabIndex={item.disabled ? -1 : undefined}
-								// Prevent navigation for disabled items
-								onClick={(e) => item.disabled && e.preventDefault()}
-								legacyBehavior>
-								{/* Wrap icon and label in an anchor tag */}
-								<a className={cn('flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isActive ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700', item.disabled && 'cursor-not-allowed opacity-50')}>
-									<item.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400')} aria-hidden='true' />
-									{item.label}
-								</a>
-							</Link>
-						)
-					)
+						(item.href && (<Link
+                            key={item.label}
+                            href={item.href}
+                            aria-disabled={item.disabled}
+                            tabIndex={item.disabled ? -1 : undefined}
+                            // Prevent navigation for disabled items
+                            onClick={(e) => item.disabled && e.preventDefault()}
+                            legacyBehavior>
+                            {/* Wrap icon and label in an anchor tag */}
+                            <a className={cn('flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isActive ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700', item.disabled && 'cursor-not-allowed opacity-50')}>
+                                <item.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400')} aria-hidden='true' />
+                                {item.label}
+                            </a>
+                        </Link>))
+					);
 				})}
 			</nav>
-		</aside>
-	)
+        </aside>
+    );
 }
 
 // Exporting as named export to match the import suggestion
