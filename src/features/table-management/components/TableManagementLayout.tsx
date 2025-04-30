@@ -134,16 +134,21 @@ const TableManagementLayout: React.FC<TableManagementLayoutProps> = ({venueId}) 
 		}
 	}
 
-	// Handles updates from the SlotInspector form
+	// NEW: Handles live form changes from SlotInspector for visual updates
+	const handleSlotFormChange = useCallback((slotId: string, changedData: Partial<UpdateSlotDto>) => {
+		setSlots((prevSlots) => prevSlots.map((s) => (s.id === slotId ? {...s, ...changedData} : s)))
+		// Note: This only updates the visual state. Saving happens via handleUpdateSlot.
+	}, []) // No dependencies needed if it only uses setSlots
+
+	// Handles SAVING updates from the SlotInspector form
 	const handleUpdateSlot = async (slotId: string, data: UpdateSlotDto) => {
-		console.log(`Update inspector data for ${slotId}:`, data)
+		console.log(`Save inspector data for ${slotId}:`, data)
 		setActionError(null)
-		const originalSlots = [...slots]
-		// Optimistic update
-		setSlots((prevSlots) => prevSlots.map((s) => (s.id === slotId ? {...s, ...data} : s)))
+		const originalSlots = [...slots] // Keep for revert on API error
+		// REMOVED Optimistic update: setSlots((prevSlots) => prevSlots.map((s) => (s.id === slotId ? {...s, ...data} : s)))
 		try {
 			const updatedSlot = await slotService.updateSlot(venueId, slotId, data)
-			// Update state with the definitive response from backend
+			// Update state with the definitive response from backend (might be slightly different due to rounding/validation)
 			setSlots((prevSlots) => prevSlots.map((s) => (s.id === slotId ? updatedSlot : s)))
 			toast.success(`Slot "${updatedSlot.label}" updated.`)
 		} catch (err) {
@@ -240,7 +245,8 @@ const TableManagementLayout: React.FC<TableManagementLayoutProps> = ({venueId}) 
 				) : null}
 				{/* Render Canvas underneath the loader or when not loading */}
 				{/* Ensure canvas itself doesn't show placeholder text when empty */}
-				<SlotCanvas slots={slots} selectedSlotIds={selectedSlotIds} onSelectSlot={handleSelectSlot} onUpdateSlotTransform={handleUpdateSlotTransform} />
+				{/* Correct prop name: onSlotUpdate */}
+				<SlotCanvas slots={slots} selectedSlotIds={selectedSlotIds} onSelectSlot={handleSelectSlot} onSlotUpdate={handleUpdateSlotTransform} />
 			</div>
 
 			{/* Bottom Inspector Panel */}
@@ -251,6 +257,7 @@ const TableManagementLayout: React.FC<TableManagementLayoutProps> = ({venueId}) 
 					zones={zones.filter((z) => z !== '__ALL__')} // Pass actual zones
 					onUpdateSlot={handleUpdateSlot}
 					onDeleteSlot={handleDeleteSlot}
+					onFormChange={handleSlotFormChange} // Pass the live update handler
 					disabled={loading} // Disable form while loading/saving actions handled internally by SlotInspector
 				/>
 			</div>

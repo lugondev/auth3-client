@@ -14,10 +14,12 @@ interface SlotInspectorProps {
 	zones: string[] // List of available zones in the venue (excluding '__ALL__')
 	onUpdateSlot: (slotId: string, data: UpdateSlotDto) => Promise<void>
 	onDeleteSlot: (slotId: string) => Promise<void>
+	onFormChange?: (slotId: string, changedData: Partial<UpdateSlotDto>) => void // New prop for live updates
 	disabled?: boolean
 }
 
-const editableKeys: ReadonlyArray<keyof UpdateSlotDto> = ['label', 'status', 'type', 'shape', 'width', 'height', 'rotation', 'zone'] as const
+// Add x and y to editable keys
+const editableKeys: ReadonlyArray<keyof UpdateSlotDto> = ['label', 'status', 'type', 'shape', 'width', 'height', 'rotation', 'zone', 'x', 'y'] as const
 
 // Type guards
 function isSlotStatus(value: unknown): value is SlotStatus {
@@ -29,14 +31,16 @@ function isSlotType(value: unknown): value is SlotType {
 function isSlotShape(value: unknown): value is SlotShape {
 	return slotShapes.includes(value as SlotShape)
 }
-function isNumericKey(key: keyof UpdateSlotDto): key is 'width' | 'height' | 'rotation' {
-	return key === 'width' || key === 'height' || key === 'rotation'
+// Add x and y to numeric keys check
+function isNumericKey(key: keyof UpdateSlotDto): key is 'width' | 'height' | 'rotation' | 'x' | 'y' {
+	return key === 'width' || key === 'height' || key === 'rotation' || key === 'x' || key === 'y'
 }
 function isStringKey(key: keyof UpdateSlotDto): key is 'label' | 'zone' {
 	return key === 'label' || key === 'zone'
 }
 
-const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpdateSlot, onDeleteSlot, disabled = false}) => {
+// Destructure onFormChange from props
+const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpdateSlot, onDeleteSlot, onFormChange, disabled = false}) => {
 	const [formData, setFormData] = useState<UpdateSlotDto>({})
 	const [originalData, setOriginalData] = useState<UpdateSlotDto>({})
 	const [hasChanges, setHasChanges] = useState(false)
@@ -84,6 +88,26 @@ const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpd
 		// If currentSelectedId === formDataSlotId, do nothing in this effect.
 	}, [selectedSlot, formDataSlotId]) // Depend on the selectedSlot object and the tracking state
 
+	// Effect to update form data's X/Y when the selected slot's coordinates change externally (e.g., dragging)
+	// This runs ONLY when selectedSlot.x or selectedSlot.y changes, AND the ID is the same as the one the form holds.
+	useEffect(() => {
+		if (selectedSlot && selectedSlot.id === formDataSlotId) {
+			// Check if the external X/Y differs from the form's current X/Y
+			const xChanged = selectedSlot.x !== formData.x
+			const yChanged = selectedSlot.y !== formData.y
+
+			if (xChanged || yChanged) {
+				setFormData((prev) => ({
+					...prev,
+					...(xChanged && {x: selectedSlot.x}), // Only update if changed
+					...(yChanged && {y: selectedSlot.y}), // Only update if changed
+				}))
+				// Important: Do NOT update originalData here, as that would prevent detecting this as a change to save.
+			}
+		}
+		// Depend specifically on the coordinates and the ID match status
+	}, [selectedSlot?.x, selectedSlot?.y, selectedSlot?.id, formDataSlotId, formData.x, formData.y])
+
 	// Check for changes whenever formData updates
 	useEffect(() => {
 		let changed = false
@@ -96,6 +120,22 @@ const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpd
 		}
 		setHasChanges(changed)
 	}, [formData, originalData])
+
+	// Effect to call onFormChange when formData updates for a selected slot
+	useEffect(() => {
+		if (selectedSlot && formDataSlotId === selectedSlot.id && onFormChange) {
+			// Construct a partial update DTO. Important: Only include keys that are meant to be live-updated.
+			// Currently, all editableKeys are included. Adjust if some shouldn't live-update.
+			const liveUpdateData: Partial<UpdateSlotDto> = {}
+			editableKeys.forEach((key) => {
+				const value = formData[key]
+				// Assign value, converting null to undefined to match DTO partial types better
+				liveUpdateData[key] = value === null ? undefined : value
+			})
+			onFormChange(selectedSlot.id, liveUpdateData)
+		}
+		// Depend on formData, selectedSlot's ID, and the callback prop itself
+	}, [formData, selectedSlot?.id, formDataSlotId, onFormChange])
 
 	// Generic input handler
 	const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -285,14 +325,16 @@ const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpd
 				</div>
 				<div> {/* Placeholder for X/Y or spacer */} </div>
 
-				{/* Row 4 - Coordinates (Read Only) */}
+				{/* Row 4 - Coordinates (Editable) */}
 				<div>
 					<Label htmlFor='slot-x'>X</Label>
-					<Input id='slot-x' type='number' value={selectedSlot.x} readOnly disabled />
+					{/* Bind to formData, remove readOnly/disabled */}
+					<Input id='slot-x' type='number' value={formData.x ?? ''} onChange={handleInputChange} disabled={isFormDisabled} />
 				</div>
 				<div>
 					<Label htmlFor='slot-y'>Y</Label>
-					<Input id='slot-y' type='number' value={selectedSlot.y} readOnly disabled />
+					{/* Bind to formData, remove readOnly/disabled */}
+					<Input id='slot-y' type='number' value={formData.y ?? ''} onChange={handleInputChange} disabled={isFormDisabled} />
 				</div>
 				<div> {/* Spacer */} </div>
 			</div>
