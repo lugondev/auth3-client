@@ -38,10 +38,10 @@ export default function RoleModal({isOpen, onClose, onSubmit, role}: RoleModalPr
 	if (!isOpen) return null
 
 	return (
-		// Use a semi-transparent background variable for the backdrop
-		<div className='fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center'>
-			{/* Use card background and foreground for the modal content */}
-			<div className='bg-card text-card-foreground rounded-lg p-6 w-full max-w-md border'>
+        // Use a semi-transparent background variable for the backdrop
+        <div className='fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center'>
+            {/* Use card background and foreground for the modal content */}
+            <div className='bg-card text-card-foreground rounded-lg p-6 w-full max-w-md border'>
 				<h2 className='text-xl font-bold mb-4'>{role ? 'Edit Role' : 'Add New Role'}</h2>
 				<form onSubmit={handleSubmit}>
 					<div className='mb-4'>
@@ -64,13 +64,13 @@ export default function RoleModal({isOpen, onClose, onSubmit, role}: RoleModalPr
 						<div className='flex flex-wrap gap-2'>
 							{permissions.map((permission) => (
 								// Use accent colors for permission badges
-								<span key={permission} className='bg-accent text-accent-foreground text-xs px-2 py-1 rounded flex items-center gap-2'>
-									{permission}
-									{/* Use accent foreground for remove button */}
-									<button type='button' onClick={() => removePermission(permission)} className='text-accent-foreground hover:text-accent-foreground/80'>
+								(<span key={permission} className='bg-accent text-accent-foreground text-xs px-2 py-1 rounded flex items-center gap-2'>
+                                    {permission}
+                                    {/* Use accent foreground for remove button */}
+                                    <button type='button' onClick={() => removePermission(permission)} className='text-accent-foreground hover:text-accent-foreground/80'>
 										×
 									</button>
-								</span>
+                                </span>)
 							))}
 						</div>
 					</div>
@@ -87,6 +87,6 @@ export default function RoleModal({isOpen, onClose, onSubmit, role}: RoleModalPr
 					</div>
 				</form>
 			</div>
-		</div>
-	)
+        </div>
+    );
 }

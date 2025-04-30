@@ -49,9 +49,9 @@ const EditEventDialog: React.FC<EditEventDialogProps> = ({event, isOpen, onClose
 	if (!event) return null // Don't render the dialog if no event is provided
 
 	return (
-		// Using isOpen prop to control visibility, onOpenChange handles closing via overlay click/esc
-		<Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-			<DialogContent className='sm:max-w-[600px]'>
+        // Using isOpen prop to control visibility, onOpenChange handles closing via overlay click/esc
+        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className='sm:max-w-[600px]'>
 				{' '}
 				{/* Adjust width */}
 				<DialogHeader>
@@ -71,8 +71,8 @@ const EditEventDialog: React.FC<EditEventDialogProps> = ({event, isOpen, onClose
 					/>
 				</div>
 			</DialogContent>
-		</Dialog>
-	)
+        </Dialog>
+    );
 }
 
 export default EditEventDialog

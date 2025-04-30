@@ -67,8 +67,8 @@ const EventManagement: React.FC<EventManagementProps> = ({venueId}) => {
 	}
 
 	return (
-		<div className='space-y-6'>
-			<div className='flex justify-between items-center'>
+        <div className='space-y-6'>
+            <div className='flex justify-between items-center'>
 				<h2 className='text-2xl font-semibold tracking-tight'>Event Management</h2>
 				<div className='flex items-center space-x-2'>
 					{/* View Toggle Buttons */}
@@ -84,11 +84,9 @@ const EventManagement: React.FC<EventManagementProps> = ({venueId}) => {
 					</Button>
 				</div>
 			</div>
-
-			{isLoading && <p>Loading events...</p>}
-			{error && <p className='text-red-500'>{error}</p>}
-
-			{!isLoading && !error && (
+            {isLoading && <p>Loading events...</p>}
+            {error && <p className='text-red-500'>{error}</p>}
+            {!isLoading && !error && (
 				<>
 					{/* Conditional Rendering based on viewMode */}
 					{viewMode === 'list' ? (
@@ -101,28 +99,26 @@ const EventManagement: React.FC<EventManagementProps> = ({venueId}) => {
 						/>
 					) : (
 						// <EventCalendarView events={events} /> // Placeholder for calendar view
-						<p>Calendar View Placeholder</p>
+						(<p>Calendar View Placeholder</p>)
 					)}
 					{/* Remove placeholder paragraph */}
 				</>
 			)}
-
-			{/* Dialogs */}
-			{/* Uncomment AddEventDialog */}
-			<AddEventDialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} venueId={venueId} onEventAdded={handleEventAdded} />
-			{/* Remove placeholder paragraph */}
-			{/* {isAddDialogOpen && <p>Add Event Dialog would open here.</p>} */}
-
-			{/* Render EditEventDialog */}
-			<EditEventDialog
+            {/* Dialogs */}
+            {/* Uncomment AddEventDialog */}
+            <AddEventDialog isOpen={isAddDialogOpen} onClose={() => setIsAddDialogOpen(false)} venueId={venueId} onEventAdded={handleEventAdded} />
+            {/* Remove placeholder paragraph */}
+            {/* {isAddDialogOpen && <p>Add Event Dialog would open here.</p>} */}
+            {/* Render EditEventDialog */}
+            <EditEventDialog
 				event={editingEvent}
 				isOpen={!!editingEvent} // Open if editingEvent is not null
 				onClose={() => setEditingEvent(null)} // Close by setting editingEvent to null
 				venueId={venueId}
 				onEventUpdated={handleEventUpdated} // Pass update handler
 			/>
-		</div>
-	)
+        </div>
+    );
 }
 
 export default EventManagement

@@ -12,9 +12,9 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
 	return (
-		<header className='sticky top-0 z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8'>
-			{/* Left side: Mobile Menu Button and Breadcrumbs/Title */}
-			<div className='flex items-center'>
+        <header className='sticky top-0 z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8'>
+            {/* Left side: Mobile Menu Button and Breadcrumbs/Title */}
+            <div className='flex items-center'>
 				<Button variant='ghost' size='icon' className='mr-4 md:hidden' onClick={onMenuButtonClick} aria-label='Toggle menu'>
 					<Menu className='h-6 w-6' />
 				</Button>
@@ -24,9 +24,8 @@ const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
 					<Breadcrumbs />
 				</div>
 			</div>
-
-			{/* Right side: User Profile Section */}
-			<DropdownMenu>
+            {/* Right side: User Profile Section */}
+            <DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button variant='ghost' size='icon' aria-label='User profile'>
 						<User className='h-6 w-6 text-gray-600 dark:text-gray-300' />
@@ -36,13 +35,13 @@ const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
 					<DropdownMenuLabel>My Account</DropdownMenuLabel>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem asChild>
-						<Link href='/profile'>
+						<Link href='/profile' legacyBehavior>
 							<User className='mr-2 h-4 w-4' />
 							<span>Profile</span>
 						</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
-						<Link href='/settings'>
+						<Link href='/settings' legacyBehavior>
 							<Settings className='mr-2 h-4 w-4' />
 							<span>Settings</span>
 						</Link>
@@ -56,8 +55,8 @@ const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
-		</header>
-	)
+        </header>
+    );
 }
 
 export default Header

@@ -103,9 +103,9 @@ const EventForm: React.FC<EventFormProps> = ({venueId, event, onSubmit, onCancel
 	// }
 
 	return (
-		<Form {...form}>
-			{/* Use original submit handler */}
-			<form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-6'>
+        <Form {...form}>
+            {/* Use original submit handler */}
+            <form onSubmit={form.handleSubmit(handleSubmit)} className='space-y-6'>
 				{/* Name */}
 				<FormField
 					control={form.control}
@@ -149,7 +149,7 @@ const EventForm: React.FC<EventFormProps> = ({venueId, event, onSubmit, onCancel
 										<FormControl>
 											<Button variant={'outline'} className={cn('pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
 												{field.value ? (
-													format(field.value, 'PPP HH:mm') // Format includes time
+													(format(field.value, 'PPP HH:mm')) // Format includes time
 												) : (
 													<span>Pick a date and time</span>
 												)}
@@ -199,7 +199,7 @@ const EventForm: React.FC<EventFormProps> = ({venueId, event, onSubmit, onCancel
 										<FormControl>
 											<Button variant={'outline'} className={cn('pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
 												{field.value ? (
-													format(field.value, 'PPP HH:mm') // Format includes time
+													(format(field.value, 'PPP HH:mm')) // Format includes time
 												) : (
 													<span>Pick a date and time</span>
 												)}
@@ -357,8 +357,8 @@ const EventForm: React.FC<EventFormProps> = ({venueId, event, onSubmit, onCancel
 					</Button>
 				</div>
 			</form>
-		</Form>
-	)
+        </Form>
+    );
 }
 
 export default EventForm

@@ -30,8 +30,8 @@ export function AuthStatus() {
 	const fallbackInitials = displayName ? displayName.charAt(0).toUpperCase() : 'U'
 
 	return (
-		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
 				<Button variant='ghost' className='relative h-8 w-8 rounded-full'>
 					<Avatar className='h-8 w-8'>
 						<AvatarImage src={user.avatar || ''} alt={displayName || 'User Avatar'} />
@@ -39,7 +39,7 @@ export function AuthStatus() {
 					</Avatar>
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className='w-56' align='end' forceMount>
+            <DropdownMenuContent className='w-56' align='end' forceMount>
 				<DropdownMenuLabel className='font-normal'>
 					<div className='flex flex-col space-y-1'>
 						<p className='text-sm font-medium leading-none'>{displayName}</p>
@@ -47,7 +47,7 @@ export function AuthStatus() {
 					</div>
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				<Link href='/profile' passHref>
+				<Link href='/profile' passHref legacyBehavior>
 					<DropdownMenuItem>Profile</DropdownMenuItem>
 				</Link>
 				<DropdownMenuSeparator />
@@ -55,6 +55,6 @@ export function AuthStatus() {
 					{loading ? 'Signing out...' : 'Sign out'}
 				</DropdownMenuItem>
 			</DropdownMenuContent>
-		</DropdownMenu>
-	)
+        </DropdownMenu>
+    );
 }
