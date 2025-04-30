@@ -241,12 +241,9 @@ export default function VenueList() {
 				<>
 					<div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8'>
 						{data.venues.map((venue) => (
-							<Link key={venue.id} href={`/venues/${venue.id}`} passHref>
-								<a className='block'>
-									{' '}
-									{/* Wrap Card in link */}
-									<VenueCard venue={venue} />
-								</a>
+							<Link key={venue.id} href={`/venues/${venue.id}`} className='block'>
+								{/* Wrap Card in link - a tag removed, className moved to Link */}
+								<VenueCard venue={venue} />
 							</Link>
 						))}
 					</div>

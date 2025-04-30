@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { use } from 'react';
 import VenueDetails from '@/components/venues/VenueDetails' // Assuming VenueDetails component will be created later
 import {notFound} from 'next/navigation' // For handling invalid IDs
 
@@ -10,17 +10,18 @@ interface VenueDetailsPageProps {
 	}>
 }
 
-export default function VenueDetailsPage({params}: VenueDetailsPageProps) {
-	const {venueId} = params
+export default function VenueDetailsPage(props: VenueDetailsPageProps) {
+    const params = use(props.params);
+    const {venueId} = params
 
-	// Basic validation - ensure venueId looks like a plausible ID
-	// More robust validation might be needed depending on ID format (e.g., UUID check)
-	if (!venueId || typeof venueId !== 'string' || venueId.trim() === '') {
+    // Basic validation - ensure venueId looks like a plausible ID
+    // More robust validation might be needed depending on ID format (e.g., UUID check)
+    if (!venueId || typeof venueId !== 'string' || venueId.trim() === '') {
 		console.error('Invalid venueId param:', venueId)
 		notFound() // Use Next.js notFound helper
 	}
 
-	return (
+    return (
 		<div className='container mx-auto py-8'>
 			{/* The VenueDetails component will handle fetching and displaying */}
 			<VenueDetails venueId={venueId} />

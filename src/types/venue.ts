@@ -11,7 +11,7 @@ export interface Venue {
 	longitude?: number;
 	phone?: string;
 	website?: string;
-	category?: string; // For filtering
+	category?: { id?: string; name: string }; // Changed to object type
 	mainPhotoUrl?: string;
 	photos?: { id: string; url: string }[]; // For gallery
 	rating?: number;

@@ -233,7 +233,7 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 					<div className='p-4 border rounded-lg bg-card text-card-foreground'>
 						<h3 className='text-xl font-semibold mb-4'>Details</h3>
 						<p>
-							<strong>Category:</strong> {venue.category || 'N/A'}
+							<strong>Category:</strong> {venue.category?.name || 'N/A'} {/* Display category name */}
 						</p>
 						<p>
 							<strong>Phone:</strong> {venue.phone || 'N/A'}
