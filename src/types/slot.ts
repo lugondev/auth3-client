@@ -32,7 +32,6 @@ export interface Slot {
 
 // --- DTOs for API Requests ---
 
-// Matches the POST /venues/{venueId}/slots body
 export interface CreateSlotDto {
 	label: string;
 	type: SlotType;
@@ -47,7 +46,6 @@ export interface CreateSlotDto {
 	metadata?: number[] | null; // Optional
 }
 
-// Matches the PATCH /venues/{venueId}/slots/{slotId} body
 // All fields are optional for partial updates
 export interface UpdateSlotDto {
 	label?: string;
@@ -65,7 +63,6 @@ export interface UpdateSlotDto {
 
 // --- API Response Type ---
 
-// Type for the GET /venues/{venueId}/slots response
 // Assuming it might return an array directly or a structured response
 export interface SlotListResponse {
 	slots: Slot[];
