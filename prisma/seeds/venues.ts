@@ -1,166 +1,136 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client';
+import { faker } from '@faker-js/faker';
+import { randomDecimal } from './helpers'; // Import helper
 
-interface Venue {
-	id: string
-	name: string // Added name property
+export interface CreatedVenue {
+	id: string;
+	owner_id: string;
 }
 
-interface Table {
-	id: string
-	venue_id: string
-	capacity: number | bigint // Ensure capacity field is here
-}
-
-interface TableMap {
-	id: string
-	venue_id: string
-}
-
-// Add userId parameter
-export async function seedVenues(prisma: PrismaClient, params: { userId: string }) {
-	console.log('Seeding venues...')
-	const { userId } = params
-
-	// Create venues
-	const venues = await prisma.$transaction([
-		prisma.venues.create({
-			data: {
-				name: 'Nhà Hàng Sen',
-				description: 'Nhà hàng ẩm thực Việt Nam cao cấp',
-				address: '123 Đồng Khởi, Quận 1, TP.HCM',
-				latitude: 10.762622,
-				longitude: 106.660172,
-				website_url: 'https://nhasen.example.com',
-				phone: '+84283822xxxx',
-				email: 'info@nhasen.example.com',
-				status: 'active',
-				timezone: 'Asia/Ho_Chi_Minh',
-				currency: 'VND',
-				is_active: true,
-				users: { // Connect to user
-					connect: { id: userId },
+export async function seedVenues(prisma: PrismaClient, userIds: string[]): Promise<CreatedVenue[]> {
+	console.log('Seeding Venues...');
+	const createdVenues: CreatedVenue[] = [];
+	for (let i = 0; i < 8; i++) { // Increase venue count slightly
+		const ownerId = faker.helpers.arrayElement(userIds);
+		try {
+			const venue = await prisma.venues.create({
+				data: {
+					name: faker.company.name() + ` ${faker.helpers.arrayElement(['Club', 'Lounge', 'Bar', 'Restaurant'])}`,
+					description: faker.lorem.paragraph(2),
+					address: faker.location.streetAddress(true),
+					latitude: randomDecimal(10.0, 21.0, 8), // VN coordinates
+					longitude: randomDecimal(102.0, 109.0, 8),
+					website_url: faker.internet.url(),
+					phone: faker.phone.number(),
+					email: faker.internet.email(),
+					status: faker.helpers.arrayElement(['active', 'pending', 'closed', 'renovation']),
+					timezone: faker.location.timeZone(),
+					currency: 'VND',
+					is_active: faker.datatype.boolean(0.9), // 90% active
+					users: { connect: { id: ownerId } }, // Connect to owner
+					created_at: faker.date.past({ years: 2 }),
+					updated_at: faker.date.recent({ days: 60 }),
 				},
-			},
-		}),
-		prisma.venues.create({
-			data: {
-				name: 'Sky Lounge Saigon',
-				description: 'Rooftop bar với view panorama thành phố',
-				address: '456 Nguyễn Huệ, Quận 1, TP.HCM',
-				latitude: 10.772622,
-				longitude: 106.692172,
-				website_url: 'https://skylounge.example.com',
-				phone: '+84283823xxxx',
-				email: 'info@skylounge.example.com',
-				status: 'active',
-				timezone: 'Asia/Ho_Chi_Minh',
-				currency: 'VND',
-				is_active: true,
-				users: { // Connect to user
-					connect: { id: userId },
-				},
-			},
-		}),
-	]) as Venue[]
+				select: { id: true, owner_id: true } // Select necessary fields
+			});
+			createdVenues.push(venue);
+		} catch (error) {
+			console.error(`Error seeding venue ${i + 1}:`, error);
+		}
+	}
+	console.log(`-> Seeded ${createdVenues.length} venues.`);
+	return createdVenues;
+}
 
-	// Create venue settings, photos, tables, maps, and positions for each venue
-	await Promise.all(
-		venues.map(async (venue) => {
-			// Venue Settings
+export async function seedVenueRelatedData(prisma: PrismaClient, venues: CreatedVenue[], userIds: string[]) {
+	console.log('Seeding Venue Settings, Staff, and Photos...');
+	let createdSettingsCount = 0;
+	let createdStaffCount = 0;
+	let createdPhotosCount = 0;
+
+	for (const venue of venues) {
+		const baseDate = faker.date.past({ years: 1 });
+
+		// --- Seed Venue Settings (One-to-One) ---
+		try {
 			await prisma.venue_settings.create({
 				data: {
-					venue_id: venue.id,
-					timezone: 'Asia/Ho_Chi_Minh',
+					venues: { connect: { id: venue.id } },
+					timezone: faker.location.timeZone(),
 					currency: 'VND',
-					business_hours: {
-						monday: { open: '10:00', close: '22:00' },
-						tuesday: { open: '10:00', close: '22:00' },
-						wednesday: { open: '10:00', close: '22:00' },
-						thursday: { open: '10:00', close: '22:00' },
-						friday: { open: '10:00', close: '23:00' },
-						saturday: { open: '11:00', close: '23:00' },
-						sunday: { open: '11:00', close: '22:00' },
+					business_hours: { // Example JSON
+						mon: { open: '10:00', close: '23:00' },
+						tue: { open: '10:00', close: '23:00' },
+						wed: { open: '10:00', close: '23:00' },
+						thu: { open: '10:00', close: '00:00' },
+						fri: { open: '10:00', close: '01:00' },
+						sat: { open: '11:00', close: '01:00' },
+						sun: null, // Closed on Sunday example
 					},
-					booking_settings: {
-						min_advance_hours: 24,
-						max_advance_days: 90,
-						min_party_size: 2,
-						max_party_size: 20,
-						deposit_required: true,
-						deposit_amount: 500000,
-					},
-					loyalty_settings: { enabled: true, points_per_vnd: 0.1, vnd_per_point: 100 },
-					affiliate_settings: { enabled: true, commission_rate: 0.1, payment_threshold: 1000000 },
-				},
-			})
+					booking_settings: { allow_online: true, min_lead_time_hours: 2, max_lead_time_days: 60 },
+					loyalty_settings: { enabled: true, points_per_vnd: 0.01, reward_threshold_points: 500 },
+					affiliate_settings: { enabled: false },
+					created_at: baseDate,
+					updated_at: faker.date.between({ from: baseDate, to: new Date() }),
+				}
+			});
+			createdSettingsCount++;
+		} catch (error) {
+			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+				console.warn(`Skipping duplicate venue settings for venue: ${venue.id}`);
+			} else {
+				console.error(`Error seeding settings for venue ${venue.id}:`, error);
+			}
+		}
 
-			// Venue Photos
-			await prisma.venue_photos.createMany({
-				data: [
-					{ venue_id: venue.id, url: `https://storage.example.com/venues/${venue.id}/main.jpg`, caption: 'Không gian chính', is_primary: true },
-					{ venue_id: venue.id, url: `https://storage.example.com/venues/${venue.id}/entrance.jpg`, caption: 'Lối vào', is_primary: false },
-					{ venue_id: venue.id, url: `https://storage.example.com/venues/${venue.id}/dining.jpg`, caption: 'Khu vực ẩm thực', is_primary: false },
-				],
-			})
+		// --- Seed Venue Staff (Many-to-Many implicit) ---
+		const staffCount = faker.number.int({ min: 3, max: 8 });
+		const potentialStaffIds = userIds.filter(id => id !== venue.owner_id); // Exclude owner
+		const staffUserIds = faker.helpers.arrayElements(potentialStaffIds, Math.min(staffCount, potentialStaffIds.length));
 
-			// Tables
-			const tables = await prisma.$transaction(
-				Array.from({ length: 10 }, (_, i) =>
-					prisma.tables.create({
-						data: {
-							venue_id: venue.id,
-							name: `Bàn ${i + 1}`,
-							description: `Bàn ${i % 2 === 0 ? '2' : '4'} người`,
-							capacity: i % 2 === 0 ? 2 : 4, // Ensure capacity uses BigInt if necessary, or adjust schema/seed
-							status: 'available',
-							location: 'Tầng trệt',
-							table_type: 'standard',
-							is_active: true,
-						},
-					})
-				)
-			) as Table[]
+		for (const userId of staffUserIds) {
+			try {
+				await prisma.venue_staffs.create({
+					data: {
+						venues: { connect: { id: venue.id } },
+						user_id: userId,
+						role: faker.helpers.arrayElement(['manager', 'waiter', 'bartender', 'host', 'kitchen']),
+						permissions: faker.helpers.arrayElements(['orders:create', 'orders:read', 'tables:update', 'inventory:read', 'events:read'], faker.number.int({ min: 1, max: 4 })),
+						status: 'active',
+						created_at: baseDate,
+						updated_at: faker.date.between({ from: baseDate, to: new Date() }),
+					}
+				});
+				createdStaffCount++;
+			} catch (error) {
+				console.error(`Error seeding staff ${userId} for venue ${venue.id}:`, error);
+			}
+		}
 
-			// Table Map
-			const tableMap = await prisma.table_maps.create({
-				data: {
-					venue_id: venue.id,
-					name: 'Sơ đồ tầng trệt',
-					map_data: { width: 1200, height: 900, background: 'floorplan-ground.png' },
-				},
-			}) as TableMap
-
-			// Table Positions
-			await prisma.table_positions.createMany({
-				data: tables.map((table, i) => ({
-					map_id: tableMap.id,
-					table_id: table.id,
-					x: 50 + (i % 5) * 200, // Grid layout: 5 columns
-					y: 100 + Math.floor(i / 5) * 250, // Grid layout: 2 rows
-					width: table.capacity === 2 ? 80 : 120, // Correctly reference capacity
-					height: table.capacity === 2 ? 80 : 120, // Correctly reference capacity
-					rotation: 0, // No rotation for simplicity
-				})),
-			})
-		})
-	)
-
-	// Create product categories (must happen after venues)
-	const categories = await Promise.all(
-		venues.map((venue) =>
-			prisma.$transaction([
-				prisma.product_categories.create({
-					data: { venue_id: venue.id, name: 'Đồ uống', description: 'Các loại thức uống', display_order: 1, is_active: true },
-				}),
-				prisma.product_categories.create({
-					data: { venue_id: venue.id, name: 'Món chính', description: 'Các món ăn chính', display_order: 2, is_active: true },
-				}),
-				prisma.product_categories.create({
-					data: { venue_id: venue.id, name: 'Tráng miệng', description: 'Các món tráng miệng', display_order: 3, is_active: true },
-				}),
-			])
-		)
-	)
-
-	return { venues, categories: categories.flat() }
+		// --- Seed Venue Photos (One-to-Many) ---
+		const photoCount = faker.number.int({ min: 4, max: 10 });
+		let hasPrimary = false;
+		for (let i = 0; i < photoCount; i++) {
+			const isPrimary = !hasPrimary && faker.datatype.boolean(0.2); // Ensure only one primary photo
+			try {
+				await prisma.venue_photos.create({
+					data: {
+						venues: { connect: { id: venue.id } },
+						url: faker.image.urlLoremFlickr({ category: faker.helpers.arrayElement(['nightlife', 'restaurant', 'architecture']) }),
+						caption: faker.lorem.sentence(5),
+						is_primary: isPrimary,
+						created_at: baseDate,
+						updated_at: faker.date.between({ from: baseDate, to: new Date() }),
+					}
+				});
+				if (isPrimary) hasPrimary = true;
+				createdPhotosCount++;
+			} catch (error) {
+				console.error(`Error seeding photo ${i + 1} for venue ${venue.id}:`, error);
+			}
+		}
+	}
+	console.log(`-> Seeded ${createdSettingsCount} venue settings.`);
+	console.log(`-> Seeded ${createdStaffCount} venue staff members.`);
+	console.log(`-> Seeded ${createdPhotosCount} venue photos.`);
 }

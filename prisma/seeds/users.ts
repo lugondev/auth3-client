@@ -1,216 +1,189 @@
-import { PrismaClient } from '@prisma/client'
-import { faker } from '@faker-js/faker/locale/vi'
-import bcrypt from 'bcryptjs'
+import { PrismaClient, Prisma } from '@prisma/client';
+import { faker } from '@faker-js/faker';
+import bcrypt from 'bcryptjs';
 
-// Define types for users and roles
-interface User {
-	id: string
-	email: string
-	first_name: string
-	last_name: string
-	status: string
-	avatar: string | null
-	provider?: string | null
-}
+export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]> {
+	console.log('Seeding Users...');
+	const usersData: Prisma.usersCreateInput[] = [];
 
-// Removed Role interface as permissions are managed by Casbin
-// and the type assertion is no longer needed.
+	// --- Add Specific Admin User ---
+	console.log('Adding specific admin user...');
+	const adminEmail = 'luongle96@yahoo.com';
+	const adminPassword = 'password123'; // WARNING: Use a hashed password in production!
 
-export async function seedUsers(prisma: PrismaClient) {
-	console.log('Seeding users and related data...')
+	// Check if admin user already exists to avoid duplicate errors on re-seed
+	const existingAdmin = await prisma.users.findUnique({ where: { email: adminEmail } });
 
-	// Removed role creation section as 'roles' is an array on the User model in schema.prisma
-
-	// Create users
-	const users: User[] = [] // Note: User interface might need update if used strictly
-
-	// Create admin user (kept separate for simplicity, original logic)
-	const adminUser = await prisma.users.create({
-		data: {
-			email: 'luongle96@yahoo.com',
+	if (!existingAdmin) {
+		usersData.push({
+			email: adminEmail,
+			// IMPORTANT: In a real application, hash the password securely (e.g., using bcrypt) BEFORE storing it.
+			// Storing plain text passwords is a major security risk.
+			password: bcrypt.hashSync(adminPassword, 10), // Still truncate just in case, but hashing is essential.
 			first_name: 'Admin',
 			last_name: 'User',
-			status: 'active',
-			email_verified: true,
-			email_verified_at: new Date(),
-			last_login: new Date(),
-			phone: '0909123456',
-			avatar: 'https://storage.example.com/avatars/admin.jpg',
-			provider: 'email',
-			password: bcrypt.hashSync("password123", 10), // Ensure password is provided
-		},
-	})
-	users.push(adminUser)
+			status: 'active', // Ensure admin is active
+			email_verified: true, // Ensure admin email is verified
+			email_verified_at: new Date(), // Set verification date
+			provider: 'local',
+			created_at: new Date(),
+			updated_at: new Date(),
+			phone: '0909123456'.substring(0, 20), // Example phone
+			avatar: faker.image.avatar().substring(0, 255), // Generic avatar
+		});
+		console.log(`-> Admin user ${adminEmail} prepared for seeding.`);
+	} else {
+		console.log(`-> Admin user ${adminEmail} already exists, skipping creation.`);
+	}
 
-	// Create user profile for admin (original logic)
-	await prisma.user_profiles.create({
-		data: {
-			user_id: adminUser.id,
-			bio: 'System Administrator',
-			date_of_birth: new Date('1990-01-01'),
-			address: 'Ho Chi Minh City, Vietnam',
-			interests: ['technology', 'management', 'food'],
-			preferences: {
-				theme: 'dark',
-				notifications: {
-					email: true,
-					push: true,
-				},
-			},
-		},
-	})
+	// --- Add Random Users ---
+	console.log('Generating random users...');
+	for (let i = 0; i < 20; i++) { // Generate 20 random users
+		const randomEmail = faker.internet.email({ firstName: faker.person.firstName().toLowerCase(), lastName: faker.person.lastName().toLowerCase() }).substring(0, 255);
+		// Skip if the random email conflicts with the admin email
+		if (randomEmail === adminEmail) continue;
 
-	// Role is assigned directly in the user creation `role: 'admin'`
-	// Removed creation of non-existent user_roles record
+		usersData.push({
+			email: randomEmail, // Ensure email within limit
+			// In a real application, hash the password here using bcrypt
+			// Ensure generated password doesn't exceed the DB limit
+			password: faker.internet.password({ length: 30 }).substring(0, 255), // Generate reasonably sized password & truncate just in case
+			first_name: faker.person.firstName().substring(0, 100), // Ensure first name within limit
+			last_name: faker.person.lastName().substring(0, 100), // Ensure last name within limit
+			status: faker.helpers.arrayElement(['active', 'pending', 'inactive']),
+			email_verified: faker.datatype.boolean(0.8), // 80% chance of being verified
+			email_verified_at: faker.datatype.boolean() ? faker.date.past({ years: 1 }) : null,
+			last_login: faker.date.recent({ days: 90 }),
+			// Ensure phone doesn't exceed the strict 20 character limit
+			phone: faker.phone.number().substring(0, 20),
+			avatar: faker.image.avatar().substring(0, 255), // Ensure avatar URL within limit
+			// Keep 'local' provider for password-based auth, add others for social
+			provider: 'local', // Default to local, social profiles will handle others
+			provider_id: null, // Null for local provider
+			created_at: faker.date.past({ years: 2 }),
+			updated_at: faker.date.recent({ days: 30 }),
+		});
+	}
 
-	// Create 100 regular users transactionally
-	for (let i = 0; i < 100; i++) { // Changed loop limit from 15 to 100
-		const firstName = faker.person.firstName()
-		const lastName = faker.person.lastName()
-		const email = faker.internet.email({ firstName, lastName })
-
+	const createdUsers: { id: string }[] = [];
+	for (const userData of usersData) {
 		try {
-			// Wrap user and profile creation in an interactive transaction
-			const user = await prisma.$transaction(async (tx) => {
-				const createdUser = await tx.users.create({
+			const user = await prisma.users.create({ data: userData });
+			createdUsers.push(user);
+		} catch (error) {
+			// Handle potential duplicate email errors gracefully during seeding
+			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+				console.warn(`Skipping duplicate user email during seed: ${userData.email}`);
+			} else {
+				throw error; // Re-throw other errors
+			}
+		}
+	}
+	console.log(`-> Seeded ${createdUsers.length} users.`);
+	return createdUsers;
+}
+
+export async function seedUserRelatedData(prisma: PrismaClient, userIds: string[]) {
+	console.log('Seeding User Profiles, Social Profiles, Tokens & Sessions...');
+	let createdUserProfilesCount = 0;
+	let createdSocialProfilesCount = 0;
+	let createdRefreshTokensCount = 0;
+	let createdSessionsCount = 0;
+
+	for (const userId of userIds) {
+		const baseDate = faker.date.past({ years: 1 }); // Base creation date for related items
+
+		// --- Seed User Profiles (One-to-One) ---
+		if (faker.datatype.boolean(0.7)) { // 70% chance of having a profile
+			try {
+				await prisma.user_profiles.create({
 					data: {
-						email,
-						first_name: firstName,
-						last_name: lastName,
-						status: faker.helpers.arrayElement(['active', 'pending', 'inactive']),
-						email_verified: faker.datatype.boolean(0.7), // 70% have verified email
-						email_verified_at: faker.datatype.boolean(0.7) ? faker.date.past() : null,
-						last_login: faker.datatype.boolean(0.8) ? faker.date.recent() : null,
-						phone: faker.phone.number(),
-						avatar: faker.datatype.boolean(0.6) ? `https://storage.example.com/avatars/user${i}.jpg` : null,
-						provider: faker.helpers.arrayElement(['email', 'google', 'facebook']),
-						provider_id: faker.string.uuid(),
-						password: bcrypt.hashSync(faker.internet.password(), 10), // Hash password
-					},
-				})
+						users: { connect: { id: userId } },
+						bio: faker.lorem.sentence(),
+						date_of_birth: faker.date.birthdate({ min: 18, max: 65, mode: 'age' }),
+						address: faker.location.streetAddress(),
+						interests: faker.lorem.words(faker.number.int({ min: 2, max: 5 })).split(' '),
+						preferences: { theme: faker.helpers.arrayElement(['light', 'dark']), language: 'vi' },
+						created_at: baseDate,
+						updated_at: faker.date.between({ from: baseDate, to: new Date() }),
+					}
+				});
+				createdUserProfilesCount++;
+			} catch (error) {
+				// Handle potential unique constraint violation if re-seeding
+				if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+					console.warn(`Skipping duplicate user profile for user: ${userId}`);
+				} else {
+					throw error;
+				}
+			}
+		}
 
-				// Create the profile using the ID from the newly created user within the transaction
-				await tx.user_profiles.create({
-					data: {
-						user_id: createdUser.id,
-						bio: faker.datatype.boolean(0.7) ? faker.lorem.paragraph() : null,
-						date_of_birth: faker.datatype.boolean(0.8) ? faker.date.birthdate({ min: 18, max: 65, mode: 'age' }) : null,
-						address: faker.datatype.boolean(0.9) ? faker.location.streetAddress() + ', ' + faker.location.city() : null,
-						interests: faker.helpers.arrayElements(['food', 'music', 'art', 'sports', 'travel', 'technology', 'fashion'], { min: 0, max: 4 }),
-						preferences: {
-							theme: faker.helpers.arrayElement(['light', 'dark', 'system']),
-							notifications: {
-								email: faker.datatype.boolean(),
-								push: faker.datatype.boolean(),
-							},
-						},
-					},
-				})
-
-				// Return the created user so it can be used outside the transaction block if needed
-				return createdUser
-			})
-
-			// If transaction succeeded, add the user to the list
-			users.push(user)
-
-			// --- Operations dependent on the user existing (kept outside transaction) ---
-
-			// Role is assigned directly in the user creation `role: faker.helpers.arrayElement(...)`
-			// Removed creation of non-existent user_roles record
-
-			// Create social profile for some users
-			if (user.provider !== 'email') {
+		// --- Seed Social Profiles (One-to-Many) ---
+		if (faker.datatype.boolean(0.5)) { // 50% chance of having a social profile
+			const provider = faker.helpers.arrayElement(['google', 'facebook', 'github']);
+			try {
 				await prisma.social_profiles.create({
 					data: {
-						user_id: user.id,
-						provider: user.provider as string,
+						users: { connect: { id: userId } },
+						provider: provider,
 						provider_user_id: faker.string.uuid(),
-						email: user.email,
-						display_name: `${user.first_name} ${user.last_name}`,
-						photo_url: user.avatar,
-						access_token: faker.string.alphanumeric(64),
-						refresh_token: faker.string.alphanumeric(64),
-						token_expires_at: faker.date.future(),
-						raw_data: {
-							id: faker.string.uuid(),
-							name: `${user.first_name} ${user.last_name}`,
-							email: user.email,
-						},
-					},
-				})
+						email: faker.internet.email(), // May differ from main user email
+						display_name: faker.person.fullName(),
+						photo_url: faker.image.avatar(),
+						// access_token, refresh_token are often dynamic/temporary
+						created_at: baseDate,
+						updated_at: faker.date.between({ from: baseDate, to: new Date() }),
+					}
+				});
+				createdSocialProfilesCount++;
+			} catch (error) {
+				console.error(`Error seeding social profile for user ${userId}:`, error);
 			}
+		}
 
-			// Create session for some users
-			if (user.status === 'active') {
-				await prisma.sessions.create({
-					data: {
-						user_id: user.id,
-						access_token: faker.string.alphanumeric(64),
-						refresh_token: faker.string.alphanumeric(64),
-						expires_at: faker.date.future(),
-					},
-				})
-			}
+		// --- Seed Refresh Tokens & Sessions (One-to-Many) ---
+		if (faker.datatype.boolean(0.8)) { // 80% chance of having an active session
+			try {
+				const now = new Date();
+				const refreshTokenExpires = faker.date.future({ years: 1 }); // Refresh tokens usually last longer
+				const accessTokenExpires = faker.date.soon({ days: 1 }); // Access tokens are short-lived
 
-			// Create refresh token for some users
-			if (user.status === 'active') {
+				const refreshTokenString = faker.string.uuid() + faker.string.hexadecimal({ length: 64 }); // Longer token
+				const accessTokenString = faker.string.uuid() + faker.string.hexadecimal({ length: 128 }); // Longer JWT-like
+
 				await prisma.refresh_tokens.create({
 					data: {
-						user_id: user.id,
-						token: faker.string.alphanumeric(64),
+						users: { connect: { id: userId } },
+						token: refreshTokenString,
 						device_id: faker.string.uuid(),
-						user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
+						user_agent: faker.internet.userAgent(),
 						ip_address: faker.internet.ip(),
-						expires_at: faker.date.future(),
-						revoked_at: faker.datatype.boolean(0.2) ? faker.date.recent() : null,
-					},
-				})
+						expires_at: refreshTokenExpires,
+						created_at: now,
+						updated_at: now,
+					}
+				});
+				createdRefreshTokensCount++;
+
+				await prisma.sessions.create({
+					data: {
+						users: { connect: { id: userId } },
+						access_token: accessTokenString,
+						refresh_token: refreshTokenString, // Link to the refresh token created above
+						expires_at: accessTokenExpires,
+						created_at: now,
+						updated_at: now,
+					}
+				});
+				createdSessionsCount++;
+			} catch (error) {
+				console.error(`Error seeding tokens/session for user ${userId}:`, error);
 			}
-
-		} catch (error) {
-			// Log error if the transaction fails for a user
-			console.error(`Failed to create user ${i} and profile transactionally:`, error)
-			// Continue to the next iteration to attempt creating the next user
 		}
 	}
-
-	// Create audit logs for activities
-	const actionTypes = ['create', 'update', 'delete', 'login', 'logout', 'register']
-	const resourceTypes = ['user', 'venue', 'product', 'event', 'session']
-
-	for (let i = 0; i < 50; i++) {
-		// Ensure users array is not empty before trying to access elements
-		if (users.length === 0) {
-			console.warn("Skipping audit log creation as no users were successfully created.");
-			break;
-		}
-		const user = faker.helpers.arrayElement(users)
-		const actionType = faker.helpers.arrayElement(actionTypes)
-		const resourceType = faker.helpers.arrayElement(resourceTypes)
-
-		await prisma.audit_logs.create({
-			data: {
-				// user_id: user.id, // Replaced with connect syntax
-				users: { // Corrected relation name to 'users'
-					connect: { id: user.id },
-				},
-				action_type: actionType,
-				resource_type: resourceType,
-				resource_id: faker.string.uuid(),
-				description: `User ${user.email} ${actionType}d a ${resourceType}`,
-				metadata: {
-					browser: faker.helpers.arrayElement(['Chrome', 'Firefox', 'Safari', 'Edge']),
-					os: faker.helpers.arrayElement(['Windows', 'MacOS', 'iOS', 'Android']),
-					timestamp: faker.date.recent().toISOString(),
-				},
-				ip_address: faker.internet.ip(),
-				user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
-			},
-		})
-	}
-
-	console.log('Finished seeding users and related data.')
-	// Return only users as roles are not created as a separate entity
-	return { users }
+	console.log(`-> Seeded ${createdUserProfilesCount} user profiles.`);
+	console.log(`-> Seeded ${createdSocialProfilesCount} social profiles.`);
+	console.log(`-> Seeded ${createdRefreshTokensCount} refresh tokens.`);
+	console.log(`-> Seeded ${createdSessionsCount} sessions.`);
 }

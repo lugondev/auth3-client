@@ -14,7 +14,8 @@ import {Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPa
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {MoreHorizontal} from 'lucide-react' // Icon for actions menu
 import ProductList from './products/ProductList' // Import the ProductList component
-import {TableManagement} from './tables/TableManagement' // Import TableManagement
+// import {TableManagement} from './tables/TableManagement' // Remove old import
+import TableManagementLayout from '@/features/table-management/components/TableManagementLayout' // Import the new layout
 
 // Placeholder for Photo Gallery component
 const VenuePhotoGallery = (
@@ -284,8 +285,8 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 
 				{/* Tables Tab Content */}
 				<TabsContent value='tables'>
-					{/* Render the TableManagement component */}
-					<TableManagement venueId={venue.id} />
+					{/* Render the new TableManagementLayout component */}
+					<TableManagementLayout venueId={venue.id} />
 				</TabsContent>
 
 				<TabsContent value='settings'>

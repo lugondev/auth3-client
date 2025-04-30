@@ -479,3 +479,29 @@ model casbin_rule {
 
   @@unique([ptype, v0, v1, v2, v3, v4, v5], map: "idx_casbin_rule")
 }
+
+model slots {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+  deleted_at DateTime? @db.Timestamptz(6)
+  venue_id   String    @db.Uuid
+  label      String
+  type       String    @db.VarChar(10)
+  x          BigInt
+  y          BigInt
+  width      BigInt
+  height     BigInt
+  rotation   BigInt?   @default(0)
+  shape      String    @default("rect") @db.VarChar(10)
+  zone       String?   @db.VarChar(100)
+  status     String    @default("available") @db.VarChar(20)
+  metadata   Json?
+
+  @@index([label], map: "idx_slot_label")
+  @@index([status], map: "idx_slot_status")
+  @@index([type], map: "idx_slot_type")
+  @@index([venue_id], map: "idx_slot_venue")
+  @@index([zone], map: "idx_slot_zone")
+  @@index([deleted_at], map: "idx_slots_deleted_at")
+}

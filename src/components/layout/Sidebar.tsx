@@ -4,7 +4,7 @@ import React, {useState} from 'react' // Import useState
 import Link from 'next/link'
 import {usePathname} from 'next/navigation'
 import {cn} from '@/lib/utils'
-import {Building, User, Settings, BarChart, LayoutDashboard, ChevronDown, Users, CreditCard} from 'lucide-react' // Added icons
+import {Building, User, Settings, BarChart, LayoutDashboard, ChevronDown, Users, CreditCard} from 'lucide-react' // Removed Grid3x3 icon
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible' // Import Collapsible
 
 interface NavItem {
@@ -23,6 +23,7 @@ interface SidebarProps {
 const navItems: NavItem[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
 	{href: '/venues', label: 'Venues', icon: Building},
+	// {href: '/table-management', label: 'Tables/Slots', icon: Grid3x3}, // Removed Table Management Link
 	{href: '/analytics', label: 'Analytics', icon: BarChart, disabled: true}, // Example disabled item
 	{href: '/profile', label: 'Profile', icon: User},
 	{
