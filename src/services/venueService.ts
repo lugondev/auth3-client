@@ -1,18 +1,17 @@
 // next/src/services/venueService.ts
 import apiClient from '@/lib/apiClient';
-import {
+import { // Removed duplicate/incorrect Table type imports from venue.ts
 	Venue, VenueSearchResult, VenueSearchParams,
 	VenueSettings, UpdateVenueSettingsDto,
 	StaffMember, AddStaffDto, UpdateStaffDto, TransferOwnershipDto,
-	// Table Types
-	Table, CreateTableDto, UpdateTableDto, VenueTableListResponse,
 	// Venue DTOs
 	CreateVenueData, UpdateVenueData,
 } from '@/types/venue';
+import { Table, CreateTableDTO, UpdateTableDTO, PaginatedTableResponse } from '@/types/table'; // Keep table types import
 import {
 	// Product Types
-	Product, CreateProductDTO, UpdateProductDTO, ProductPhoto,
-} from '@/types/product';
+	Product, CreateProductDTO, UpdateProductDTO, ProductPhoto, PaginatedProductResponse,
+} from '@/types/product'; // Corrected PaginatedProductResponse already present
 import {
 	// Event Types
 	Event, CreateEventDto, UpdateEventDto, EventPhoto, AddEventPhotoDto,
@@ -268,16 +267,23 @@ const venueService = {
 
 	/**
 	 * Get all tables for a specific venue.
-	 * GET /api/v1/venues/{id}/tables
+	 * GET /api/v1/venues/{id}/tables?page={page}&limit={limit}&groupID={groupID}
 	 */
-	async getVenueTables(venueId: string): Promise<Table[]> { // Updated return type
+	async getVenueTables(
+		venueId: string,
+		page: number = 1,
+		limit: number = 10,
+		groupId?: string | null // Optional group ID filter
+	): Promise<PaginatedTableResponse> {
 		if (!venueId) throw new Error('Venue ID is required to get tables');
+		const params: Record<string, string | number | boolean | undefined> = { page, limit }; // Explicitly type params
+		if (groupId) {
+			params.groupID = groupId; // Match backend query param name
+		}
 		try {
-			// Assuming the endpoint returns the structure defined in VenueTableListResponse
-			// If it returns just an array, adjust the generic type accordingly
-			const response = await apiClient.get<VenueTableListResponse>(`/venues/${venueId}/tables`);
-			// Adapt based on actual API response structure (e.g., response.data.tables or just response.data)
-			return response.data.tables || [];
+			const response = await apiClient.get<PaginatedTableResponse>(`/venues/${venueId}/tables`, { params });
+			// Return the full paginated response structure
+			return response.data || { tables: [], total: 0, page: 1, limit: 10 };
 		} catch (error) {
 			console.error(`Error fetching tables for venue ${venueId}:`, error);
 			throw error;
@@ -288,10 +294,10 @@ const venueService = {
 	 * Create a new table for a specific venue.
 	 * POST /api/v1/venues/{id}/tables
 	 */
-	async createTable(venueId: string, data: CreateTableDto): Promise<Table> { // Updated return type
+	async createTable(venueId: string, data: CreateTableDTO): Promise<Table> { // Use imported CreateTableDTO
 		if (!venueId) throw new Error('Venue ID is required to create a table');
 		try {
-			const response = await apiClient.post<Table>(`/venues/${venueId}/tables`, data); // Updated generic type
+			const response = await apiClient.post<Table>(`/venues/${venueId}/tables`, data);
 			return response.data; // Assuming API returns the newly created table details
 		} catch (error) {
 			console.error(`Error creating table for venue ${venueId}:`, error);
@@ -323,10 +329,10 @@ const venueService = {
 	 * PATCH /api/v1/tables/{id}
 	 * Note: Endpoint uses /tables/{id}, not nested under venue
 	 */
-	async updateTable(tableId: string, data: UpdateTableDto): Promise<Table> { // Updated return type
+	async updateTable(tableId: string, data: UpdateTableDTO): Promise<Table> { // Use imported UpdateTableDTO
 		if (!tableId) throw new Error('Table ID is required for update');
 		try {
-			const response = await apiClient.patch<Table>(`/tables/${tableId}`, data); // Updated generic type
+			const response = await apiClient.patch<Table>(`/tables/${tableId}`, data);
 			return response.data; // Assuming API returns the updated table details
 		} catch (error) {
 			console.error(`Error updating table ${tableId}:`, error);
@@ -354,14 +360,25 @@ const venueService = {
 
 	/**
 	 * Get all products for a specific venue.
-	 * GET /api/v1/venues/{id}/products
+	 * GET /api/v1/venues/{id}/products?page={page}&limit={limit}&category={category}&featured={featured}
 	 */
-	async getVenueProducts(venueId: string): Promise<Product[]> {
+	async getVenueProducts(
+		venueId: string,
+		page: number = 1,
+		limit: number = 10,
+		filters?: { category?: string; featured?: boolean } // Add filters
+	): Promise<PaginatedProductResponse> {
 		if (!venueId) throw new Error('Venue ID is required to get products');
+		const params: Record<string, string | number | boolean | undefined> = { page, limit, ...filters }; // Explicitly type params
+		// Ensure boolean 'featured' filter is string 'true' or 'false' if sent
+		if (params.featured !== undefined) {
+			params.featured = String(params.featured); // Convert boolean to string for query param
+		}
+
 		try {
-			// Assuming the endpoint returns an array of products directly
-			const response = await apiClient.get<Product[]>(`/venues/${venueId}/products`);
-			return response.data || []; // Return empty array if no products
+			const response = await apiClient.get<PaginatedProductResponse>(`/venues/${venueId}/products`, { params });
+			// Return the full paginated response structure
+			return response.data || { products: [], total: 0, page: 1, limit: 10 };
 		} catch (error) {
 			console.error(`Error fetching products for venue ${venueId}:`, error);
 			throw error;
@@ -439,28 +456,48 @@ const venueService = {
 	 * POST /api/v1/products/{id}/photos
 	 * Note: Endpoint uses /products/{id}, not nested under venue
 	 */
-	async uploadProductPhoto(productId: string, file: File): Promise<ProductPhoto> {
+	async uploadProductPhoto(
+		productId: string,
+		file: File,
+		caption?: string,
+		isPrimary?: boolean
+	): Promise<ProductPhoto> {
 		if (!productId) throw new Error('Product ID is required for photo upload');
 		if (!file) throw new Error('File is required for photo upload');
 
 		const formData = new FormData();
-		formData.append('file', file); // Key 'file' might need to match backend expectation
+		formData.append('photo', file); // Key 'photo' matches backend handler
+		if (caption) {
+			formData.append('caption', caption); // Add caption if provided
+		}
+		if (isPrimary !== undefined) {
+			formData.append('isPrimary', String(isPrimary)); // Add isPrimary if provided (as string 'true'/'false')
+		}
 
 		try {
 			// Assuming API returns the newly added ProductPhoto object
 			const response = await apiClient.post<ProductPhoto>(
 				`/products/${productId}/photos`,
 				formData,
-				{
-					headers: {
-						'Content-Type': 'multipart/form-data',
-					},
-				}
+				{ headers: { 'Content-Type': 'multipart/form-data' } }
 			);
 			return response.data;
-		} catch (error) {
-			console.error(`Error uploading photo for product ${productId}:`, error);
-			throw error;
+		} catch (error: unknown) { // Use unknown type for error
+			// Improve error logging
+			let errorMessage = `Error uploading photo for product ${productId}`;
+			if (error instanceof Error) {
+				errorMessage += `: ${error.message}`;
+				// Check if it's an Axios error to potentially get more details
+				if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response) {
+					console.error("Server Response Data:", error.response.data);
+					errorMessage += ` - Server response: ${JSON.stringify(error.response.data)}`;
+				}
+			} else {
+				errorMessage += `: An unknown error occurred.`;
+				console.error(errorMessage, error); // Log the raw error object
+			}
+			console.error(errorMessage); // Log the combined message
+			throw new Error(errorMessage); // Re-throw with a more informative message
 		}
 	},
 

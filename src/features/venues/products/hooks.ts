@@ -1,27 +1,42 @@
-import { useQuery, useMutation, useQueryClient, UseQueryOptions, MutationOptions } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseQueryOptions, MutationOptions, useInfiniteQuery, InfiniteData, UseInfiniteQueryOptions } from '@tanstack/react-query'; // Added useInfiniteQuery, InfiniteData, UseInfiniteQueryOptions
 import venueService from '@/services/venueService';
-import { Product, CreateProductDTO, UpdateProductDTO, ProductPhoto } from '@/types/product'; // Import product types
+import { Product, CreateProductDTO, UpdateProductDTO, ProductPhoto, PaginatedProductResponse } from '@/types/product'; // Added PaginatedProductResponse
 import { toast } from 'sonner';
 
 // --- Query Key Factory ---
-const venueProductsQueryKey = (venueId: string) => ['venueProducts', venueId];
+// Updated key factory to include filters
+type ProductFilters = { category?: string; featured?: boolean; limit?: number };
+const venueProductsQueryKey = (venueId: string, filters: ProductFilters = {}) => ['venueProducts', venueId, filters];
 const productDetailsQueryKey = (productId: string) => ['productDetails', productId];
 
-// --- Fetch Products Hook ---
+
+// --- Fetch Products Hook (Using Infinite Query) ---
 /**
- * Hook to fetch the list of products for a specific venue.
+ * Hook to fetch products for a specific venue with pagination and filtering.
  */
 export const useFetchVenueProducts = (
 	venueId: string,
-	options?: Omit<UseQueryOptions<Product[], Error>, 'queryKey' | 'queryFn'>
+	filters: ProductFilters = {}, // Accept filters
+	options?: Omit<UseInfiniteQueryOptions<PaginatedProductResponse, Error, InfiniteData<PaginatedProductResponse, unknown>, PaginatedProductResponse, ReturnType<typeof venueProductsQueryKey>, number>, 'queryKey' | 'queryFn' | 'getNextPageParam' | 'initialPageParam'>
 ) => {
-	return useQuery<Product[], Error>({
-		queryKey: venueProductsQueryKey(venueId),
-		queryFn: () => {
-			if (!venueId) return Promise.resolve([]);
-			return venueService.getVenueProducts(venueId);
+	const queryKey = venueProductsQueryKey(venueId, filters); // Use updated key factory
+	const { limit = 10, ...restFilters } = filters; // Default limit
+
+	return useInfiniteQuery<PaginatedProductResponse, Error, InfiniteData<PaginatedProductResponse>, ReturnType<typeof venueProductsQueryKey>, number>({
+		queryKey: queryKey,
+		queryFn: ({ pageParam }) => {
+			if (!venueId) {
+				return Promise.reject(new Error("Venue ID is required"));
+			}
+			return venueService.getVenueProducts(venueId, pageParam, limit, restFilters);
 		},
-		enabled: !!venueId && options?.enabled !== false,
+		initialPageParam: 1,
+		getNextPageParam: (lastPage) => {
+			const totalPages = Math.ceil(lastPage.total / lastPage.limit);
+			const nextPage = lastPage.page + 1;
+			return nextPage <= totalPages ? nextPage : undefined;
+		},
+		enabled: !!venueId,
 		staleTime: 5 * 60 * 1000, // Cache for 5 minutes
 		...options,
 	});
@@ -89,12 +104,10 @@ export const useUpdateProduct = (options?: MutationOptions<Product, Error, Updat
 			// Invalidate specific product details query
 			queryClient.invalidateQueries({ queryKey: productDetailsQueryKey(variables.productId) });
 			// Invalidate the venue's product list query if venueId is provided
+			// Invalidate the venue's product list query (all pages/filters) if venueId is provided
 			if (variables.venueId) {
-				queryClient.invalidateQueries({ queryKey: venueProductsQueryKey(variables.venueId) });
-				// Optionally update cache directly
-				queryClient.setQueryData(venueProductsQueryKey(variables.venueId), (oldData: Product[] | undefined) =>
-					oldData?.map(product => product.id === variables.productId ? updatedProduct : product) || []
-				);
+				queryClient.invalidateQueries({ queryKey: ['venueProducts', variables.venueId] });
+				// TODO: Consider selectively updating infinite query cache
 			}
 			toast.success(`Product "${updatedProduct.name}" updated successfully.`);
 			options?.onSuccess?.(updatedProduct, variables, undefined);
@@ -122,13 +135,12 @@ export const useDeleteProduct = (options?: MutationOptions<void, Error, DeletePr
 		mutationFn: ({ productId }) => venueService.deleteProduct(productId),
 		onSuccess: (data, variables) => {
 			// Invalidate specific product details query
+			// Invalidate specific product details query
 			queryClient.invalidateQueries({ queryKey: productDetailsQueryKey(variables.productId) });
+			// Invalidate the venue's product list query (all pages/filters) if venueId is provided
 			if (variables.venueId) {
-				queryClient.invalidateQueries({ queryKey: venueProductsQueryKey(variables.venueId) });
-				// Optionally remove from cache directly
-				queryClient.setQueryData(venueProductsQueryKey(variables.venueId), (oldData: Product[] | undefined) =>
-					oldData?.filter(product => product.id !== variables.productId) || []
-				);
+				queryClient.invalidateQueries({ queryKey: ['venueProducts', variables.venueId] });
+				// TODO: Consider selectively updating infinite query cache
 			}
 			toast.success(`Product "${variables.productName || variables.productId}" deleted successfully.`);
 			options?.onSuccess?.(data, variables, undefined);
@@ -146,6 +158,8 @@ export const useDeleteProduct = (options?: MutationOptions<void, Error, DeletePr
 interface UploadProductPhotoVariables {
 	productId: string;
 	file: File;
+	caption?: string; // Added caption
+	isPrimary?: boolean; // Added isPrimary
 	venueId?: string; // For list invalidation
 }
 
@@ -153,12 +167,15 @@ export const useUploadProductPhoto = (options?: MutationOptions<ProductPhoto, Er
 	const queryClient = useQueryClient();
 
 	return useMutation<ProductPhoto, Error, UploadProductPhotoVariables>({
-		mutationFn: ({ productId, file }) => venueService.uploadProductPhoto(productId, file),
+		// Pass caption and isPrimary to the service function
+		mutationFn: ({ productId, file, caption, isPrimary }) => venueService.uploadProductPhoto(productId, file, caption, isPrimary),
 		onSuccess: (newPhoto, variables) => {
+			// Invalidate product details to show new photo
 			queryClient.invalidateQueries({ queryKey: productDetailsQueryKey(variables.productId) });
+			// Invalidate product lists if venueId provided
 			if (variables.venueId) {
-				queryClient.invalidateQueries({ queryKey: venueProductsQueryKey(variables.venueId) });
-				// Note: Updating product list cache with new photo URL might be complex
+				queryClient.invalidateQueries({ queryKey: ['venueProducts', variables.venueId] });
+				// TODO: Consider selectively updating infinite query cache
 			}
 			toast.success(`Photo uploaded successfully for product ${variables.productId}.`);
 			options?.onSuccess?.(newPhoto, variables, undefined);
@@ -186,9 +203,12 @@ export const useDeleteProductPhoto = (options?: MutationOptions<void, Error, Del
 		mutationFn: ({ productId, photoId }) => venueService.deleteProductPhoto(productId, photoId),
 		onSuccess: (data, variables) => {
 			queryClient.invalidateQueries({ queryKey: productDetailsQueryKey(variables.productId) });
+			// Invalidate product details after deletion
+			queryClient.invalidateQueries({ queryKey: productDetailsQueryKey(variables.productId) });
+			// Invalidate product lists if venueId provided
 			if (variables.venueId) {
-				queryClient.invalidateQueries({ queryKey: venueProductsQueryKey(variables.venueId) });
-				// Note: Updating product list cache after photo deletion might be complex
+				queryClient.invalidateQueries({ queryKey: ['venueProducts', variables.venueId] });
+				// TODO: Consider selectively updating infinite query cache
 			}
 			toast.success(`Photo deleted successfully for product ${variables.productId}.`);
 			options?.onSuccess?.(data, variables, undefined);

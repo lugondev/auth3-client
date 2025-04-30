@@ -1,7 +1,7 @@
 // next/src/components/venues/products/ProductList.tsx
 'use client'
 
-import React, {useState, useEffect, useMemo} from 'react'
+import React, {useState, useEffect, useMemo, useCallback} from 'react' // Add useCallback import
 import {Product, ProductCategory} from '@/types/product'
 import venueService from '@/services/venueService'
 import {Input} from '@/components/ui/input'
@@ -27,25 +27,28 @@ const ProductList: React.FC<ProductListProps> = ({venueId}) => {
 	const [editingProduct, setEditingProduct] = useState<Product | null>(null) // State for product being edited
 	const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false) // State for Edit dialog
 
-	const fetchProducts = async () => {
+	const fetchProducts = useCallback(async () => {
+		// Wrap in useCallback
 		setIsLoading(true)
 		setError(null)
 		try {
-			const fetchedProducts = await venueService.getVenueProducts(venueId)
-			setProducts(fetchedProducts)
+			// Destructure the response to get the products array
+			const response = await venueService.getVenueProducts(venueId)
+			setProducts(response.products) // Extract the products array
+			// TODO: Consider storing pagination info (response.limit, response.page, response.total) if needed later
 		} catch (err) {
 			console.error('Error fetching products:', err)
 			setError('Failed to load products. Please try again.')
 		} finally {
 			setIsLoading(false)
 		}
-	}
+	}, [venueId]) // Add venueId as dependency for useCallback
 
 	useEffect(() => {
 		if (venueId) {
 			fetchProducts()
 		}
-	}, [venueId])
+	}, [venueId, fetchProducts]) // Add fetchProducts to useEffect dependencies
 
 	const filteredProducts = useMemo(() => {
 		return products.filter((product) => {

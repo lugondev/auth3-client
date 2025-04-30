@@ -204,7 +204,6 @@ export interface CreateVenueInput {
 	website: string;
 	capacity: number;
 	category_id?: string | null; // Optional category ID
-	// owner_id is usually set server-side based on the authenticated user
 }
 
 export interface UpdateVenueInput extends Partial<Omit<CreateVenueInput, 'owner_id'>> {

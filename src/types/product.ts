@@ -27,7 +27,8 @@ export interface ProductOption {
 export interface ProductPhoto {
 	id: string;
 	url: string;
-	altText?: string;
+	caption?: string; // Renamed from altText to match backend handler input
+	isPrimary?: boolean; // Added based on backend handler input
 }
 
 export interface NutritionalInfo {
@@ -62,3 +63,13 @@ export type CreateProductDTO = Omit<Product, 'id' | 'venueId' | 'createdAt' | 'u
 };
 
 export type UpdateProductDTO = Partial<Omit<CreateProductDTO, 'venueId'>>; // venueId shouldn't change on update
+
+/**
+ * Response structure for fetching multiple products with pagination.
+ */
+export interface PaginatedProductResponse {
+	products: Product[];
+	total: number;
+	page: number;
+	limit: number;
+}
