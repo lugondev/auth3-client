@@ -1,4 +1,5 @@
-// next/src/app/(protected)/venues/[venueId]/page.tsx
+'use client'
+
 import React from 'react'
 import VenueDetails from '@/components/venues/VenueDetails' // Assuming VenueDetails component will be created later
 import {notFound} from 'next/navigation' // For handling invalid IDs
