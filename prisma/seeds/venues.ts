@@ -13,29 +13,40 @@ export async function seedVenues(prisma: PrismaClient, userIds: string[], venueC
 	console.log('Seeding Venues...');
 	const createdVenues: CreatedVenue[] = [];
 	const categoryIds = venueCategories.map(cat => cat.id); // Extract category IDs
+
+	if (categoryIds.length === 0) {
+		console.warn("⚠️ Warning: No venue categories provided to seedVenues. Venues will be created without categories.");
+	}
+
 	for (let i = 0; i < 8; i++) { // Increase venue count slightly
 		const ownerId = faker.helpers.arrayElement(userIds);
 		try {
+			// Base data without category_id first
+			const venueData: Prisma.venuesCreateInput = {
+				name: faker.company.name() + ` ${faker.helpers.arrayElement(['Club', 'Lounge', 'Bar', 'Restaurant'])}`,
+				description: faker.lorem.paragraph(2),
+				address: faker.location.streetAddress(true),
+				latitude: randomDecimal(10.0, 21.0, 8), // VN coordinates
+				longitude: randomDecimal(102.0, 109.0, 8),
+				website: faker.internet.url(), // Corrected field name
+				phone_number: faker.phone.number(), // Corrected field name
+				email: faker.internet.email(),
+				status: faker.helpers.arrayElement(['active', 'pending', 'closed', 'renovation']),
+				timezone: faker.location.timeZone(),
+				currency: 'VND',
+				is_active: faker.datatype.boolean(0.9), // 90% active
+				users: { connect: { id: ownerId } }, // Connect to owner
+				created_at: faker.date.past({ years: 2 }),
+				updated_at: faker.date.recent({ days: 60 }),
+			};
+
+			// Conditionally connect venue_categories if categories exist
+			if (categoryIds.length > 0) {
+				venueData.venue_categories = { connect: { id: faker.helpers.arrayElement(categoryIds) } };
+			}
+
 			const venue = await prisma.venues.create({
-				data: {
-					name: faker.company.name() + ` ${faker.helpers.arrayElement(['Club', 'Lounge', 'Bar', 'Restaurant'])}`,
-					description: faker.lorem.paragraph(2),
-					address: faker.location.streetAddress(true),
-					latitude: randomDecimal(10.0, 21.0, 8), // VN coordinates
-					longitude: randomDecimal(102.0, 109.0, 8),
-					website: faker.internet.url(), // Corrected field name
-					phone_number: faker.phone.number(), // Corrected field name
-					email: faker.internet.email(),
-					status: faker.helpers.arrayElement(['active', 'pending', 'closed', 'renovation']),
-					timezone: faker.location.timeZone(),
-					currency: 'VND',
-					is_active: faker.datatype.boolean(0.9), // 90% active
-					users: { connect: { id: ownerId } }, // Connect to owner
-					// Assign a random category ID from the seeded ones
-					category_id: faker.helpers.arrayElement(categoryIds),
-					created_at: faker.date.past({ years: 2 }),
-					updated_at: faker.date.recent({ days: 60 }),
-				},
+				data: venueData,
 				select: { id: true, owner_id: true } // Select necessary fields
 			});
 			createdVenues.push(venue);

@@ -86,7 +86,6 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 export async function seedUserRelatedData(prisma: PrismaClient, userIds: string[]) {
 	console.log('Seeding User Profiles, Social Profiles, Tokens & Sessions...');
 	let createdUserProfilesCount = 0;
-	let createdSocialProfilesCount = 0;
 	let createdRefreshTokensCount = 0;
 	let createdSessionsCount = 0;
 
@@ -116,29 +115,6 @@ export async function seedUserRelatedData(prisma: PrismaClient, userIds: string[
 				} else {
 					throw error;
 				}
-			}
-		}
-
-		// --- Seed Social Profiles (One-to-Many) ---
-		if (faker.datatype.boolean(0.5)) { // 50% chance of having a social profile
-			const provider = faker.helpers.arrayElement(['google', 'facebook', 'github']);
-			try {
-				await prisma.social_profiles.create({
-					data: {
-						users: { connect: { id: userId } },
-						provider: provider,
-						provider_user_id: faker.string.uuid(),
-						email: faker.internet.email(), // May differ from main user email
-						display_name: faker.person.fullName(),
-						photo_url: faker.image.avatar(),
-						// access_token, refresh_token are often dynamic/temporary
-						created_at: baseDate,
-						updated_at: faker.date.between({ from: baseDate, to: new Date() }),
-					}
-				});
-				createdSocialProfilesCount++;
-			} catch (error) {
-				console.error(`Error seeding social profile for user ${userId}:`, error);
 			}
 		}
 
@@ -183,7 +159,6 @@ export async function seedUserRelatedData(prisma: PrismaClient, userIds: string[
 		}
 	}
 	console.log(`-> Seeded ${createdUserProfilesCount} user profiles.`);
-	console.log(`-> Seeded ${createdSocialProfilesCount} social profiles.`);
 	console.log(`-> Seeded ${createdRefreshTokensCount} refresh tokens.`);
 	console.log(`-> Seeded ${createdSessionsCount} sessions.`);
 }

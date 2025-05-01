@@ -323,8 +323,8 @@ model venues {
   currency           String?              @default("USD") @db.VarChar(3)
   is_active          Boolean?             @default(true)
   owner_id           String               @db.Uuid
-  capacity           BigInt?
   category_id        String?              @db.Uuid
+  capacity           BigInt?
   events             events[]
   product_categories product_categories[]
   products           products[]
@@ -332,6 +332,7 @@ model venues {
   venue_photos       venue_photos[]
   venue_settings     venue_settings?
   venue_staffs       venue_staffs[]
+  venue_categories   venue_categories?    @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_venues_category")
   users              users                @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_venues_owner")
 
   @@index([address], map: "idx_venue_address")
@@ -412,17 +413,12 @@ model social_profiles {
   provider         String    @db.VarChar(50)
   provider_user_id String    @db.VarChar(255)
   email            String?   @db.VarChar(255)
-  display_name     String?   @db.VarChar(255)
+  name             String?   @db.VarChar(255)
   photo_url        String?   @db.VarChar(255)
-  access_token     String?
-  refresh_token    String?
-  token_expires_at DateTime? @db.Timestamptz(6)
-  raw_data         Json?
   users            users     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_social_profiles_user")
 
+  @@unique([provider, provider_user_id], map: "idx_provider_provideruserid")
   @@index([deleted_at], map: "idx_social_profiles_deleted_at")
-  @@index([provider], map: "idx_social_profiles_provider")
-  @@index([provider_user_id], map: "idx_social_profiles_provider_user_id")
   @@index([user_id], map: "idx_social_profiles_user_id")
 }
 
@@ -520,6 +516,7 @@ model venue_categories {
   name       String    @unique(map: "idx_venue_categories_name") @db.VarChar(100)
   slug       String    @unique(map: "idx_venue_categories_slug") @db.VarChar(100)
   icon       String?
+  venues     venues[]
 
   @@index([deleted_at], map: "idx_venue_categories_deleted_at")
 }
