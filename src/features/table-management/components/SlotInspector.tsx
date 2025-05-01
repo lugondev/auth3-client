@@ -106,7 +106,8 @@ const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpd
 			}
 		}
 		// Depend specifically on the coordinates and the ID match status
-	}, [selectedSlot?.x, selectedSlot?.y, selectedSlot?.id, formDataSlotId, formData.x, formData.y])
+		// We include selectedSlot here to satisfy exhaustive-deps, the logic inside handles the ID check.
+	}, [selectedSlot, formDataSlotId, formData.x, formData.y])
 
 	// Check for changes whenever formData updates
 	useEffect(() => {
@@ -125,12 +126,40 @@ const SlotInspector: React.FC<SlotInspectorProps> = ({selectedSlot, zones, onUpd
 	useEffect(() => {
 		if (selectedSlot && formDataSlotId === selectedSlot.id && onFormChange) {
 			// Construct a partial update DTO. Important: Only include keys that are meant to be live-updated.
-			// Currently, all editableKeys are included. Adjust if some shouldn't live-update.
 			const liveUpdateData: Partial<UpdateSlotDto> = {}
 			editableKeys.forEach((key) => {
-				const value = formData[key]
-				// Assign value, converting null to undefined to match DTO partial types better
-				liveUpdateData[key] = value === null ? undefined : value
+				const value = formData[key] // Get the value from the form
+
+				switch (key) {
+					case 'label':
+						liveUpdateData.label = typeof value === 'string' && value !== '' ? value : undefined
+						break
+					case 'status':
+						liveUpdateData.status = isSlotStatus(value) ? value : undefined
+						break
+					case 'type':
+						liveUpdateData.type = isSlotType(value) ? value : undefined
+						break
+					case 'shape':
+						liveUpdateData.shape = isSlotShape(value) ? value : undefined
+						break
+					case 'zone':
+						liveUpdateData.zone = typeof value === 'string' && value !== '' ? value : undefined
+						break
+					case 'width':
+					case 'height':
+					case 'rotation':
+					case 'x':
+					case 'y':
+						const numValue = typeof value === 'number' ? value : parseFloat(String(value))
+						liveUpdateData[key] = !isNaN(numValue) ? numValue : undefined
+						break
+					// No default case needed as we iterate only over editableKeys
+				}
+				// Ensure null values are treated as undefined for consistency with partial DTOs
+				if (liveUpdateData[key] === null) {
+					liveUpdateData[key] = undefined
+				}
 			})
 			onFormChange(selectedSlot.id, liveUpdateData)
 		}
