@@ -59,7 +59,7 @@ export default function UsersPage() {
 			setRoleError(null)
 			try {
 				// Adjust if the actual response wraps the array, e.g., response.data.roles
-				const response = await apiClient.get<{roles: string[]}>('/rbac/roles')
+				const response = await apiClient.get<{roles: string[]}>('/api/v1/rbac/roles')
 				// Filter out potential duplicates if necessary, though GetAllRoles should return unique
 				const uniqueRoles = Array.from(new Set(response.data.roles))
 				setRoles(uniqueRoles)
@@ -88,7 +88,7 @@ export default function UsersPage() {
 			})
 			// Placeholder for API call:
 			// try {
-			//   await apiClient.delete(`/users/${userToDeleteId}`);
+			//   await apiClient.delete(`/api/v1/users/${userToDeleteId}`);
 			//   toast.success('User Deleted', { description: `User ${userToDeleteId} has been deleted.` });
 			//   fetchUsers(); // Refresh list after deletion
 			// } catch (err) {
@@ -133,7 +133,7 @@ export default function UsersPage() {
 		console.log('Attempting to change password for user:', userToChangePassword.id)
 		try {
 			// TODO: Implement actual API call for changing password
-			// Example: await apiClient.patch(`/users/${userToChangePassword.id}/password`, { newPassword });
+			// Example: await apiClient.patch(`/api/v1/users/${userToChangePassword.id}/password`, { newPassword });
 			toast.success('Password Change Submitted', {
 				description: `Password for ${userToChangePassword.email} would be changed (API call pending).`,
 			})
@@ -169,7 +169,7 @@ export default function UsersPage() {
 		// TODO: Implement API call to trigger password reset email
 		try {
 			// Example API call structure (adjust endpoint and payload as needed)
-			// await apiClient.post(`/users/${userId}/reset-password`);
+			// await apiClient.post(`/api/v1/users/${userId}/reset-password`);
 			toast.success('Password Reset Triggered', {
 				description: `A password reset link will be sent to ${email} if the feature is implemented.`,
 			})
@@ -204,7 +204,7 @@ export default function UsersPage() {
 		console.log('Attempting to change status for user:', userId, 'to', status)
 		// Consider adding a temporary loading state for the specific row or action
 		try {
-			await apiClient.patch(`/users/${userId}/status`, {status}) // Using PATCH /users/{userId}/status
+			await apiClient.patch(`/api/v1/users/${userId}/status`, {status}) // Using PATCH /users/{userId}/status
 			toast.success('Status Updated', {
 				description: `User status changed to ${status}.`, // Simplified description
 			})
@@ -251,7 +251,7 @@ export default function UsersPage() {
 		Object.keys(queryParams).forEach((key) => queryParams[key as keyof typeof queryParams] === undefined && delete queryParams[key as keyof typeof queryParams])
 
 		try {
-			const response = await apiClient.get<PaginatedUsers>('/users/search', {
+			const response = await apiClient.get<PaginatedUsers>('/api/v1/users/search', {
 				params: queryParams,
 			})
 			setUsers(response.data.users)

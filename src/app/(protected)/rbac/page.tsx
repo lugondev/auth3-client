@@ -78,7 +78,7 @@ export default function RBACManagement() {
 		Object.keys(queryParams).forEach((key) => queryParams[key as keyof typeof queryParams] === undefined && delete queryParams[key as keyof typeof queryParams])
 
 		try {
-			const response = await apiClient.get<PaginatedUsers>('/users/search', {params: queryParams})
+			const response = await apiClient.get<PaginatedUsers>('/api/v1/users/search', {params: queryParams})
 			setUsers(response.data.users)
 			setTotalUsers(response.data.total)
 			setTotalPages(response.data.total_pages)

@@ -71,7 +71,7 @@ export function useRbac(): UseRbacReturn {
 			setLoading({ initial: true })
 			setError(null)
 			try {
-				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/rbac/roles'), apiClient.get<PaginatedUsers>('/users/search')]) // Assuming /users/search fetches all users for RBAC context
+				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/api/v1/rbac/roles'), apiClient.get<PaginatedUsers>('/api/v1/users/search')]) // Assuming /users/search fetches all users for RBAC context
 				setState((prev) => ({
 					...prev,
 					roles: rolesRes.data.roles || [],
@@ -96,7 +96,7 @@ export function useRbac(): UseRbacReturn {
 			setLoading({ userRoles: true })
 			setError(null)
 			try {
-				const res = await apiClient.get<UserRolesOutput>(`/rbac/users/${userId}/roles`)
+				const res = await apiClient.get<UserRolesOutput>(`/api/v1/rbac/users/${userId}/roles`)
 				setState((prev) => ({
 					...prev,
 					userRolesMap: { ...prev.userRolesMap, [userId]: res.data.roles || [] },
@@ -195,7 +195,7 @@ export function useRbac(): UseRbacReturn {
 		setError(null)
 		try {
 			const payload: UserRoleInput = { userId, role: roleName }
-			await apiClient.post(`/rbac/users/roles`, payload)
+			await apiClient.post(`/api/v1/rbac/users/roles`, payload)
 			setState((prev) => ({
 				...prev,
 				userRolesMap: {
@@ -221,7 +221,7 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.delete(`/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`)
+			await apiClient.delete(`/api/v1/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`)
 			setState((prev) => ({
 				...prev,
 				userRolesMap: {
