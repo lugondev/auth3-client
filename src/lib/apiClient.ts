@@ -31,6 +31,9 @@ export interface UserOutput {
 	avatar?: string;
 	roles?: string[];
 	status: UserStatus;
+	email_verified_at?: string | null; // time.Time or null
+	phone_verified_at?: string | null; // time.Time or null
+	two_factor_enabled: boolean; // Added for 2FA status
 	profile?: UserProfile | null; // Added optional profile field
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
@@ -84,6 +87,30 @@ export interface ResetPasswordInput {
 
 export interface EmailVerificationOutput {
 	message: string; // Example: "Email verified successfully"
+}
+
+// --- Phone Verification DTOs ---
+export interface VerifyPhoneInput {
+	otp: string;
+}
+
+// --- 2FA DTOs ---
+export interface Generate2FAResponse {
+	secret: string;
+	qrcode_uri: string; // Data URI for QR code image
+}
+
+export interface Verify2FARequest {
+	code: string; // The TOTP code from the authenticator app
+}
+
+export interface TwoFactorRecoveryCodesResponse {
+	recovery_codes: string[];
+}
+
+export interface Disable2FARequest {
+	password?: string; // Optional: Current user password
+	code?: string; // Optional: Current TOTP code
 }
 
 // Based on internal/modules/account/domain/social_dto.go

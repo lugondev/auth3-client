@@ -7,7 +7,13 @@ import apiClient, {
 	ResetPasswordInput,
 	SocialTokenExchangeInput,
 	EmailVerificationOutput,
-	// AuthResult, // No longer used directly in this service
+	// Phone Verification
+	VerifyPhoneInput,
+	// 2FA Types
+	Generate2FAResponse,
+	Verify2FARequest,
+	TwoFactorRecoveryCodesResponse,
+	Disable2FARequest,
 } from '@/lib/apiClient';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -182,3 +188,83 @@ export const logoutUser = async (): Promise<void> => {
 };
 
 // User profile management functions have been moved to userService.ts
+
+// --- Phone Verification ---
+
+/**
+ * Requests a phone verification OTP to be sent to the authenticated user's phone.
+ */
+export const requestPhoneVerification = async (): Promise<void> => {
+	try {
+		await apiClient.post('/api/v1/auth/verify-phone/request');
+		console.log('Phone verification OTP request sent.');
+	} catch (error) {
+		console.error('Error requesting phone verification:', error);
+		throw error;
+	}
+};
+
+/**
+ * Verifies the phone number using the provided OTP.
+ * @param data The OTP code (VerifyPhoneInput).
+ */
+export const verifyPhone = async (data: VerifyPhoneInput): Promise<void> => {
+	try {
+		await apiClient.post('/api/v1/auth/verify-phone/confirm', data);
+		console.log('Phone verified successfully.');
+	} catch (error) {
+		console.error('Error verifying phone:', error);
+		throw error;
+	}
+};
+
+// --- Two-Factor Authentication (2FA) ---
+
+/**
+ * Generates a new 2FA secret and QR code URI for the authenticated user.
+ * @returns Generate2FAResponse containing the secret and QR code data URI.
+ */
+export const generate2FASecret = async (): Promise<Generate2FAResponse> => {
+	try {
+		const response = await apiClient.get<Generate2FAResponse>('/api/v1/auth/2fa/generate');
+		console.log('2FA secret generated.');
+		return response.data;
+	} catch (error) {
+		console.error('Error generating 2FA secret:', error);
+		throw error;
+	}
+};
+
+/**
+ * Enables 2FA for the authenticated user by verifying the initial TOTP code.
+ * @param data The verification code (Verify2FARequest).
+ * @returns TwoFactorRecoveryCodesResponse containing recovery codes.
+ */
+export const enable2FA = async (data: Verify2FARequest): Promise<TwoFactorRecoveryCodesResponse> => {
+	try {
+		const response = await apiClient.post<TwoFactorRecoveryCodesResponse>('/api/v1/auth/2fa/enable', data);
+		console.log('2FA enabled successfully.');
+		return response.data;
+	} catch (error) {
+		console.error('Error enabling 2FA:', error);
+		throw error;
+	}
+};
+
+/**
+ * Disables 2FA for the authenticated user. Requires password or current TOTP code.
+ * @param data Verification data (Disable2FARequest).
+ */
+export const disable2FA = async (data: Disable2FARequest): Promise<void> => {
+	try {
+		await apiClient.post('/api/v1/auth/2fa/disable', data);
+		console.log('2FA disabled successfully.');
+	} catch (error) {
+		console.error('Error disabling 2FA:', error);
+		throw error;
+	}
+};
+
+// --- TODO: Email Verification Resend ---
+// Add a function here if a backend endpoint for resending verification emails exists or is added.
+// export const resendVerificationEmail = async (): Promise<void> => { ... };

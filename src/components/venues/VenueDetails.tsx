@@ -14,8 +14,8 @@ import {Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPa
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {MoreHorizontal} from 'lucide-react' // Icon for actions menu
 import ProductList from './products/ProductList' // Import the ProductList component
-// import {TableManagement} from './tables/TableManagement' // Remove old import
 import TableManagementLayout from '@/features/table-management/components/TableManagementLayout' // Import the new layout
+import VenueStaffManager from '@/features/venues/components/staff-management/VenueStaffManager' // Import Staff Manager
 
 // Placeholder for Photo Gallery component
 const VenuePhotoGallery = (
@@ -246,8 +246,9 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='photos'>Photos</TabsTrigger>
 					<TabsTrigger value='products'>Products</TabsTrigger>
-					<TabsTrigger value='tables'>Tables</TabsTrigger> {/* Add Tables tab */}
-					{/* Add more tabs as needed: Settings, Staff, Events etc. */}
+					<TabsTrigger value='tables'>Tables</TabsTrigger>
+					<TabsTrigger value='staff'>Staff</TabsTrigger> {/* Add Staff tab */}
+					{/* TODO: Consolidate or clarify Settings tabs */}
 					<TabsTrigger value='settings' disabled>
 						Settings
 					</TabsTrigger>
@@ -309,10 +310,17 @@ export default function VenueDetails({venueId}: VenueDetailsProps) {
 
 				{/* Tables Tab Content */}
 				<TabsContent value='tables'>
-					{/* Render the new TableManagementLayout component */}
 					<TableManagementLayout venueId={venue.id} />
 				</TabsContent>
 
+				{/* Staff Tab Content */}
+				<TabsContent value='staff'>
+					<div className='p-4 border rounded-lg bg-card text-card-foreground'>
+						<VenueStaffManager venueId={venue.id} />
+					</div>
+				</TabsContent>
+
+				{/* Settings Tab Content (Note: Duplicated, needs consolidation) */}
 				<TabsContent value='settings'>
 					<div className='p-4 border rounded-lg bg-card text-card-foreground'>
 						<h3 className='text-xl font-semibold mb-4'>Venue Settings</h3>

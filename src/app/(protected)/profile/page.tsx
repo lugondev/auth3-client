@@ -23,6 +23,11 @@ import {format} from 'date-fns'
 import {cn} from '@/lib/utils'
 import {Checkbox} from '@/components/ui/checkbox'
 
+// --- Import Security Tab Components ---
+import EmailVerificationStatus from '@/features/profile/components/security/EmailVerificationStatus'
+import PhoneVerification from '@/features/profile/components/security/PhoneVerification'
+import TwoFactorAuthManagement from '@/features/profile/components/security/TwoFactorAuthManagement'
+
 // Helper function to get initials
 const getInitials = (firstName?: string, lastName?: string, email?: string): string => {
 	if (firstName && lastName) {
@@ -546,10 +551,13 @@ export default function ProfilePage() {
 
 					{/* Tabs for Editing Different Sections */}
 					<Tabs defaultValue='general' className='w-full'>
-						<TabsList className='grid w-full grid-cols-3'>
+						{/* Updated grid-cols to 4 */}
+						<TabsList className='grid w-full grid-cols-4'>
 							<TabsTrigger value='general'>General Info</TabsTrigger>
 							<TabsTrigger value='profile'>Profile Details</TabsTrigger>
 							<TabsTrigger value='password'>Password</TabsTrigger>
+							{/* Added Security Tab Trigger */}
+							<TabsTrigger value='security'>Security</TabsTrigger>
 						</TabsList>
 
 						{/* General Info Tab */}
@@ -588,6 +596,22 @@ export default function ProfilePage() {
 								</CardHeader>
 								<CardContent>
 									<PasswordForm />
+								</CardContent>
+							</Card>
+						</TabsContent>
+
+						{/* Security Tab */}
+						<TabsContent value='security'>
+							<Card>
+								<CardHeader>
+									<CardTitle>Security Settings</CardTitle>
+									<CardDescription>Manage your email/phone verification and two-factor authentication.</CardDescription>
+								</CardHeader>
+								<CardContent className='space-y-6'>
+									{/* Integrate Security Components */}
+									<EmailVerificationStatus userData={userData} />
+									<PhoneVerification userData={userData} onUpdate={handleGeneralInfoUpdate} />
+									<TwoFactorAuthManagement userData={userData} onUpdate={handleGeneralInfoUpdate} />
 								</CardContent>
 							</Card>
 						</TabsContent>
