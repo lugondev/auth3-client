@@ -28,7 +28,6 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 			provider: 'local',
 			created_at: new Date(),
 			updated_at: new Date(),
-			phone: '0909123456'.substring(0, 20), // Example phone
 			avatar: faker.image.avatar().substring(0, 255), // Generic avatar
 		});
 		console.log(`-> Admin user ${adminEmail} prepared for seeding.`);
@@ -55,7 +54,7 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 			email_verified_at: faker.datatype.boolean() ? faker.date.past({ years: 1 }) : null,
 			last_login: faker.date.recent({ days: 90 }),
 			// Ensure phone doesn't exceed the strict 20 character limit
-			phone: faker.phone.number().substring(0, 20),
+			// phone: faker.phone.number().substring(0, 20), // Example phone
 			avatar: faker.image.avatar().substring(0, 255), // Ensure avatar URL within limit
 			// Keep 'local' provider for password-based auth, add others for social
 			provider: 'local', // Default to local, social profiles will handle others
