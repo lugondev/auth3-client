@@ -8,8 +8,8 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 
 	// --- Add Specific Admin User ---
 	console.log('Adding specific admin user...');
-	const adminEmail = 'luongle96@yahoo.com';
-	const adminPassword = 'password123'; // WARNING: Use a hashed password in production!
+	const adminEmail = 'lugon@util.vn';
+	const adminPassword = '123123asd'; // WARNING: Use a hashed password in production!
 
 	// Check if admin user already exists to avoid duplicate errors on re-seed
 	const existingAdmin = await prisma.users.findUnique({ where: { email: adminEmail } });
