@@ -8,7 +8,7 @@ import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/
 import {Input} from '@/components/ui/input'
 import {forgotPassword} from '@/services/authService' // Import directly from service
 import {useState} from 'react'
-import toast from 'react-hot-toast'
+import {toast} from 'sonner'
 
 const formSchema = z.object({
 	email: z.string().email({message: 'Invalid email address.'}),

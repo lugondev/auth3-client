@@ -8,7 +8,7 @@ import {Chrome, Facebook, Apple} from 'lucide-react'
 export function LoginButtons() {
 	const {signInWithGoogle, signInWithFacebook, signInWithApple, loading} = useAuth()
 
-	// TODO: Add error handling display (e.g., using react-hot-toast or similar)
+	// TODO: Add error handling display (e.g., using sonner or similar)
 
 	return (
 		<div className='flex flex-col space-y-2'>

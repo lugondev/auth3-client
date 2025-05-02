@@ -10,7 +10,8 @@ import {Separator} from '@/components/ui/separator'
 import {Skeleton} from '@/components/ui/skeleton' // Import Skeleton for loading state
 import Link from 'next/link' // <-- Import Link
 
-export default function Home() {
+export default function LoginPage() {
+	// Renamed component to LoginPage for clarity
 	const {isAuthenticated, loading} = useAuth()
 	const router = useRouter()
 

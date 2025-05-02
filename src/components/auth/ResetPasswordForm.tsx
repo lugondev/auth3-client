@@ -8,7 +8,7 @@ import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/
 import {Input} from '@/components/ui/input'
 import {resetPassword} from '@/services/authService' // Import directly from service
 import {useState} from 'react'
-import toast from 'react-hot-toast'
+import {toast} from 'sonner'
 import {useRouter} from 'next/navigation'
 
 // Schema for password reset

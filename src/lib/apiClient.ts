@@ -31,6 +31,7 @@ export interface UserOutput {
 	avatar?: string;
 	roles?: string[];
 	status: UserStatus;
+	profile?: UserProfile | null; // Added optional profile field
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
 }

@@ -2,7 +2,7 @@
 
 import {verifyEmail} from '@/services/authService' // Import directly from service
 import {useState, useEffect} from 'react'
-import toast from 'react-hot-toast'
+import {toast} from 'sonner'
 import Link from 'next/link'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'

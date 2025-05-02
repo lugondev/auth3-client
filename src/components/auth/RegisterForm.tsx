@@ -8,6 +8,7 @@ import {Form, FormControl, FormField, FormItem, FormLabel, FormMessage} from '@/
 import {Input} from '@/components/ui/input'
 import {useAuth} from '@/contexts/AuthContext'
 import {useState} from 'react'
+import {useRouter} from 'next/navigation'
 // Removed unused toast import
 
 // Schema includes optional first_name and last_name
@@ -26,6 +27,7 @@ const formSchema = z
 
 export function RegisterForm() {
 	const {register} = useAuth() // Get the register function from context
+	const router = useRouter() // Get router instance
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 
@@ -49,7 +51,8 @@ export function RegisterForm() {
 			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			const {confirmPassword, ...registerData} = values
 			await register(registerData)
-			// AuthContext handles success toast and state update/redirect
+			// AuthContext handles success toast, now navigate explicitly
+			router.push('/login') // Navigate to login page
 		} catch (err) {
 			// AuthContext throws the error, catch it here
 			// AuthContext already shows an error toast

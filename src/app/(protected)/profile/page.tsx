@@ -2,7 +2,7 @@
 
 import {useEffect, useState} from 'react'
 import {useAuth} from '@/contexts/AuthContext'
-import {getCurrentUser, getUserProfile, updateCurrentUser, updateCurrentUserProfile, updateCurrentUserPassword} from '@/services/userService'
+import {getCurrentUser, updateCurrentUser, updateCurrentUserProfile, updateCurrentUserPassword} from '@/services/userService'
 import {UserOutput, UserProfile, UpdateUserInput, UpdateProfileInput, UpdatePasswordInput} from '@/lib/apiClient' // Ensure these types match your generated client
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Skeleton} from '@/components/ui/skeleton'
@@ -11,19 +11,17 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Textarea} from '@/components/ui/textarea'
-// Removed unused Label import
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import {toast} from 'sonner' // Using sonner for notifications
+import {toast} from 'sonner'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {CalendarIcon} from 'lucide-react'
 import {Calendar} from '@/components/ui/calendar'
 import {format} from 'date-fns'
 import {cn} from '@/lib/utils'
 import {Checkbox} from '@/components/ui/checkbox'
-// Removed non-existent PasswordInput import
 
 // Helper function to get initials
 const getInitials = (firstName?: string, lastName?: string, email?: string): string => {
@@ -458,15 +456,14 @@ export default function ProfilePage() {
 				try {
 					setLoading(true)
 					setError(null)
-					const [fetchedUser, fetchedProfile] = await Promise.all([
-						getCurrentUser(),
-						getUserProfile(authUser.id), // Ensure this uses the authenticated user's ID
-					])
+					// Fetch only the current user, profile is included
+					const fetchedUser = await getCurrentUser()
 					setUserData(fetchedUser)
-					setProfileData(fetchedProfile)
+					// Extract profile from user data, handle potential null profile
+					setProfileData(fetchedUser.profile || null)
 				} catch (err: unknown) {
-					console.error('Error fetching profile data:', err)
-					let message = 'Failed to load profile information.'
+					console.error('Error fetching user data:', err) // Updated error message context
+					let message = 'Failed to load user information.' // Updated error message context
 					if (err instanceof Error) {
 						message = err.message
 					}

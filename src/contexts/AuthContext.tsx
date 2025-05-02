@@ -25,8 +25,8 @@ import {jwtDecode} from 'jwt-decode'
 // Import types needed for service calls and user object
 // Changed RoleOutput to string[] based on apiClient.ts UserOutput
 import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult} from '@/lib/apiClient'
-// Import react-hot-toast
-import toast from 'react-hot-toast'
+// Import sonner
+import {toast} from 'sonner'
 
 // Define the shape of the user object derived from the JWT payload and UserOutput
 // Aligning more closely with UserOutput for consistency
@@ -355,10 +355,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		async (data: RegisterInput) => {
 			setLoading(true)
 			try {
-				const authResponse = await serviceRegister(data)
-				handleAuthenticationSuccess(authResponse.auth)
+				await serviceRegister(data)
 				console.log('Registration successful.')
-				toast.success('Successfully registered and signed in!')
+				toast.success('Successfully registered!')
 			} catch (error: unknown) {
 				console.error('Registration error:', error)
 				let errorMessage = 'Registration failed. Please try again.'
