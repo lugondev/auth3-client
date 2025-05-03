@@ -1,5 +1,6 @@
 import apiClient, {
-	AuthResponse, // Use the new combined response type
+	AuthResponse,
+	LoginOutput, // <-- Add LoginOutput
 	// Types specific to auth operations:
 	LoginInput,
 	RegisterInput,
@@ -43,17 +44,34 @@ export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput): Pro
 /**
  * Signs in a user using email and password.
  * @param data Login credentials (LoginInput).
- * @returns An AuthResponse containing tokens and user data.
+ * @returns A LoginOutput which might contain tokens or indicate 2FA is required.
  */
-export const signInWithEmail = async (data: LoginInput): Promise<AuthResponse> => {
+export const signInWithEmail = async (data: LoginInput): Promise<LoginOutput> => {
 	try {
-		// Expect AuthResponse from the backend /auth/login endpoint
-		const response = await apiClient.post<AuthResponse>('/api/v1/auth/login', data); // Added /api/v1
-		// No need to store tokens here, AuthContext will handle it
+		// Expect LoginOutput from the backend /auth/login endpoint
+		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login', data); // Added /api/v1
+		// AuthContext will handle storing tokens or prompting for 2FA
 		return response.data;
 	} catch (error) {
 		console.error('Error signing in with email:', error);
 		throw error; // Re-throw to be handled by the caller (AuthContext/LoginForm)
+	}
+};
+
+/**
+ * Verifies the 2FA code during login.
+ * @param data The 2FA session token and code (Verify2FARequest).
+ * @returns A LoginOutput containing the final tokens and user data upon success.
+ */
+export const verifyTwoFactorLogin = async (data: Verify2FARequest): Promise<LoginOutput> => {
+	try {
+		// Expect LoginOutput from the backend /auth/login/verify-2fa endpoint
+		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login/verify-2fa', data);
+		// AuthContext will handle storing tokens on success
+		return response.data;
+	} catch (error) {
+		console.error('Error verifying 2FA code during login:', error);
+		throw error; // Re-throw to be handled by the caller (AuthContext)
 	}
 };
 

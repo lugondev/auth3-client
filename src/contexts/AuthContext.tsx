@@ -20,11 +20,20 @@ import {
 	refreshToken as serviceRefreshToken, // Now requires refreshToken argument
 	signInWithEmail as serviceSignInWithEmail,
 	register as serviceRegister,
+	verifyTwoFactorLogin, // <-- Import the missing service function
 } from '@/services/authService'
 import {jwtDecode} from 'jwt-decode'
 // Import types needed for service calls and user object
 // Changed RoleOutput to string[] based on apiClient.ts UserOutput
-import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult} from '@/lib/apiClient'
+// Added LoginOutput and Verify2FARequest for the new flow
+import {
+	SocialTokenExchangeInput,
+	LoginInput,
+	RegisterInput,
+	AuthResult,
+	LoginOutput, // <-- Add LoginOutput type
+	Verify2FARequest, // <-- Add Verify2FARequest type
+} from '@/lib/apiClient'
 // Import sonner
 import {toast} from 'sonner'
 
@@ -49,9 +58,13 @@ interface AuthContextType {
 	signInWithGoogle: () => Promise<void>
 	signInWithFacebook: () => Promise<void>
 	signInWithApple: () => Promise<void>
-	signInWithEmail: (data: LoginInput) => Promise<void>
-	register: (data: RegisterInput) => Promise<void> // <-- Add register signature
+	// Update signInWithEmail return type to indicate 2FA status
+	signInWithEmail: (data: LoginInput) => Promise<{success: boolean; twoFactorRequired: boolean; sessionToken?: string; error?: unknown}>
+	verifyTwoFactorCode: (data: Verify2FARequest) => Promise<{success: boolean; error?: unknown}> // <-- Add 2FA verification function
+	register: (data: RegisterInput) => Promise<void>
 	logout: () => Promise<void>
+	isTwoFactorPending: boolean // <-- State to track if 2FA is pending
+	twoFactorSessionToken: string | null // <-- Expose the session token
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -101,6 +114,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [user, setUser] = useState<AppUser | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
+	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false) // <-- State for 2FA pending status
+	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null) // <-- State for 2FA token
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Ref for the timeout ID
 
 	// Use useLocalStorage for tokens
@@ -115,10 +130,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			refreshTimeoutRef.current = null
 			console.log('Cleared scheduled token refresh.')
 		}
+		// Clear any pending refresh timeout
+		if (refreshTimeoutRef.current) {
+			clearTimeout(refreshTimeoutRef.current)
+			refreshTimeoutRef.current = null
+			console.log('Cleared scheduled token refresh.')
+		}
 		setAccessToken(null)
 		setRefreshToken(null)
 		setUser(null)
 		setIsAuthenticated(false)
+		setIsTwoFactorPending(false) // <-- Reset 2FA state
+		setTwoFactorSessionToken(null) // <-- Reset 2FA token
 		// Call serviceLogout for backend notification and Firebase signout (best effort)
 		try {
 			await serviceLogout()
@@ -196,7 +219,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		try {
 			// Use the captured refresh token
 			const refreshResponse = await serviceRefreshToken(currentRefreshToken)
-			handleAuthenticationSuccess(refreshResponse.auth) // This will reschedule the next refresh
+			// On success, handleAuthenticationSuccess updates the access token in local storage,
+			// updates user state, and schedules the next refresh, keeping the session active.
+			handleAuthenticationSuccess(refreshResponse.auth)
 			console.log('Scheduled token refresh successful.')
 		} catch (error) {
 			console.error('Scheduled token refresh failed:', error)
@@ -321,62 +346,134 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		await handleSocialSignIn(new OAuthProvider('apple.com'))
 	}
 
-	// Email/Password Sign-In Handler
+	// Email/Password Sign-In Handler - Updated for 2FA
 	const signInWithEmail = useCallback(
-		async (data: LoginInput) => {
+		async (data: LoginInput): Promise<{success: boolean; twoFactorRequired: boolean; sessionToken?: string; error?: unknown}> => {
 			setLoading(true)
+			setIsTwoFactorPending(false) // Reset pending state
+			setTwoFactorSessionToken(null) // Reset token
 			try {
-				const authResponse = await serviceSignInWithEmail(data)
-				handleAuthenticationSuccess(authResponse.auth)
-				console.log('Email/Password sign-in successful.')
-				toast.success('Successfully signed in!')
+				// Assume serviceSignInWithEmail now returns LoginOutput
+				const response: LoginOutput = await serviceSignInWithEmail(data)
+
+				if (response.two_factor_required && response.two_factor_session_token) {
+					// 2FA is required
+					console.log('2FA required, storing session token.')
+					setTwoFactorSessionToken(response.two_factor_session_token)
+					setIsTwoFactorPending(true)
+					// Don't call handleAuthenticationSuccess yet
+					setLoading(false)
+					return {success: true, twoFactorRequired: true, sessionToken: response.two_factor_session_token}
+				} else if (response.auth) {
+					// Login successful without 2FA
+					handleAuthenticationSuccess(response.auth)
+					console.log('Email/Password sign-in successful (no 2FA).')
+					toast.success('Successfully signed in!')
+					setLoading(false)
+					return {success: true, twoFactorRequired: false}
+				} else {
+					// Should not happen based on API spec, but handle defensively
+					throw new Error('Invalid login response structure.')
+				}
 			} catch (error: unknown) {
 				console.error('Email/Password sign-in error:', error)
 				let errorMessage = 'Please check your credentials and try again.'
+				// Basic error handling, can be improved
 				if (error instanceof Error) {
 					errorMessage = error.message
+				} else if (typeof error === 'object' && error && 'message' in error) {
+					errorMessage = String(error.message) // Handle potential API error objects
 				} else if (typeof error === 'string') {
 					errorMessage = error
 				}
 				toast.error(`Sign-in failed: ${errorMessage}`)
-				setIsAuthenticated(false)
-				setUser(null)
-				// Re-throw the error so the form can catch it
-				throw error
-			} finally {
+				await clearAuthData() // Clear auth data on failure
 				setLoading(false)
+				return {success: false, twoFactorRequired: false, error}
 			}
+			// No finally block needed here as setLoading(false) is handled in branches
 		},
-		[handleAuthenticationSuccess],
-	) // Correct syntax for useCallback
+		[handleAuthenticationSuccess, clearAuthData], // Added clearAuthData dependency
+	)
 
-	// Register Handler
-	const register = useCallback(
-		async (data: RegisterInput) => {
+	// 2FA Verification Handler
+	const verifyTwoFactorCode = useCallback(
+		async (data: Verify2FARequest): Promise<{success: boolean; error?: unknown}> => {
 			setLoading(true)
+			// Ensure we have the session token from the previous step
+			if (!twoFactorSessionToken || data.two_factor_session_token !== twoFactorSessionToken) {
+				console.error('2FA session token mismatch or missing.')
+				toast.error('Invalid 2FA session. Please try logging in again.')
+				await clearAuthData() // Clear auth state if session is invalid
+				setLoading(false)
+				return {success: false, error: new Error('Invalid 2FA session')}
+			}
+
 			try {
-				await serviceRegister(data)
-				console.log('Registration successful.')
-				toast.success('Successfully registered!')
+				// Assume a new service function verifyTwoFactorLogin exists
+				// It should take Verify2FARequest and return LoginOutput on success
+				const response: LoginOutput = await verifyTwoFactorLogin(data) // Need to add verifyTwoFactorLogin to authService
+
+				if (response.auth) {
+					// 2FA verification successful, complete login
+					handleAuthenticationSuccess(response.auth)
+					setIsTwoFactorPending(false) // Clear pending state
+					setTwoFactorSessionToken(null) // Clear token
+					console.log('2FA verification successful.')
+					toast.success('Successfully signed in!')
+					setLoading(false)
+					return {success: true}
+				} else {
+					// Should not happen on successful verification
+					throw new Error('Invalid 2FA verification response structure.')
+				}
 			} catch (error: unknown) {
-				console.error('Registration error:', error)
-				let errorMessage = 'Registration failed. Please try again.'
+				console.error('2FA verification error:', error)
+				let errorMessage = 'Invalid 2FA code or session expired. Please try again.'
+				// Basic error handling
 				if (error instanceof Error) {
 					errorMessage = error.message
+				} else if (typeof error === 'object' && error && 'message' in error) {
+					errorMessage = String(error.message)
 				} else if (typeof error === 'string') {
 					errorMessage = error
 				}
-				toast.error(`Registration failed: ${errorMessage}`)
-				setIsAuthenticated(false)
-				setUser(null)
-				// Re-throw the error so the form can catch it
-				throw error
-			} finally {
+				toast.error(`2FA verification failed: ${errorMessage}`)
+				// Don't clear full auth data here, just the 2FA state,
+				// allowing the user to potentially retry the code input or restart login.
+				setIsTwoFactorPending(false) // Reset pending state on failure
+				setTwoFactorSessionToken(null) // Reset token on failure
 				setLoading(false)
+				return {success: false, error}
 			}
 		},
-		[handleAuthenticationSuccess, clearAuthData],
-	) // Correct syntax for useCallback
+		[twoFactorSessionToken, handleAuthenticationSuccess, clearAuthData], // Added dependencies
+	)
+
+	// Register Handler
+	const register = useCallback(async (data: RegisterInput) => {
+		setLoading(true)
+		try {
+			await serviceRegister(data)
+			console.log('Registration successful.')
+			toast.success('Successfully registered!')
+		} catch (error: unknown) {
+			console.error('Registration error:', error)
+			let errorMessage = 'Registration failed. Please try again.'
+			if (error instanceof Error) {
+				errorMessage = error.message
+			} else if (typeof error === 'string') {
+				errorMessage = error
+			}
+			toast.error(`Registration failed: ${errorMessage}`)
+			setIsAuthenticated(false)
+			setUser(null)
+			// Re-throw the error so the form can catch it
+			throw error
+		} finally {
+			setLoading(false)
+		}
+	}, []) // Correct syntax for useCallback
 
 	// Logout function
 	const logout = useCallback(async () => {
@@ -395,8 +492,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		signInWithFacebook,
 		signInWithApple,
 		signInWithEmail,
+		verifyTwoFactorCode, // <-- Add verify function to context value
 		register,
 		logout,
+		isTwoFactorPending, // <-- Add pending state to context value
+		twoFactorSessionToken, // <-- Add session token to context value
 	}
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

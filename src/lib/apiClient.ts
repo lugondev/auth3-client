@@ -100,7 +100,11 @@ export interface Generate2FAResponse {
 	qr_code_uri: string; // Data URI for QR code image (Corrected to snake_case)
 }
 
+// Removed the empty interface definition above
+
+// Added based on API spec for POST /api/v1/auth/login/verify-2fa
 export interface Verify2FARequest {
+	two_factor_session_token: string; // The token received from the initial login step
 	code: string; // The TOTP code from the authenticator app
 }
 
@@ -157,6 +161,15 @@ export interface AuthResponse {
 	user?: UserOutput; // User might be returned on login/register/refresh
 	profile?: UserProfile; // Profile might be returned on login/register/refresh
 }
+
+// Added based on API spec for POST /api/v1/auth/login and POST /api/v1/auth/login/verify-2fa
+export interface LoginOutput {
+	user?: UserOutput; // User details might be returned
+	auth?: AuthResult | null; // Auth tokens (null if 2FA is required initially)
+	two_factor_required: boolean; // Flag indicating if 2FA step is needed
+	two_factor_session_token?: string; // Token for the 2FA verification step (only if two_factor_required is true)
+}
+
 
 // Paginated results for users and roles
 export interface PaginatedUsers {
