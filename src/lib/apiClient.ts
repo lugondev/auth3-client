@@ -145,6 +145,7 @@ export interface UpdateProfileInput {
 export interface UpdatePasswordInput {
 	current_password: string;
 	new_password: string;
+	otp_code?: string; // Optional: Required if 2FA is enabled
 }
 
 // Based on internal/modules/account/domain/auth_dto.go

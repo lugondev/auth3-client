@@ -50,15 +50,17 @@ const generalInfoSchema = z.object({
 	// Status update might need specific logic/permissions, omitted for now
 })
 
+// Define the base password schema including otp_code and password match refinement
 const passwordSchema = z
 	.object({
 		current_password: z.string().min(1, 'Current password is required'),
 		new_password: z.string().min(8, 'New password must be at least 8 characters long'),
 		confirm_new_password: z.string(),
+		otp_code: z.string().optional(), // Optional by default
 	})
 	.refine((data) => data.new_password === data.confirm_new_password, {
-		message: 'New passwords do not match', // Avoid apostrophe for ESLint
-		path: ['confirm_new_password'], // path of error
+		message: 'New passwords do not match',
+		path: ['confirm_new_password'],
 	})
 
 const profileDetailsSchema = z.object({
@@ -76,11 +78,18 @@ const profileDetailsSchema = z.object({
 		.optional(),
 })
 
-type GeneralInfoFormData = z.infer<typeof generalInfoSchema>
+// Infer type from the base password schema
 type PasswordFormData = z.infer<typeof passwordSchema>
+
+type GeneralInfoFormData = z.infer<typeof generalInfoSchema>
 type ProfileDetailsFormData = z.infer<typeof profileDetailsSchema>
 
 // --- Form Components ---
+
+// --- Add Props for PasswordForm ---
+interface PasswordFormProps {
+	userData: UserOutput | null
+}
 
 interface GeneralInfoFormProps {
 	userData: UserOutput | null
@@ -179,23 +188,54 @@ function GeneralInfoForm({userData, onSubmitSuccess}: GeneralInfoFormProps) {
 	)
 }
 
-function PasswordForm() {
+// Update PasswordForm to accept userData
+function PasswordForm({userData}: PasswordFormProps) {
+	const is2FAEnabled = userData?.is_two_factor_enabled ?? false
+
+	// Conditionally add the OTP refinement if 2FA is enabled
+	const finalPasswordSchema = is2FAEnabled
+		? passwordSchema.refine((data) => !!data.otp_code && data.otp_code.trim().length > 0, {
+				message: 'OTP code is required when 2FA is enabled',
+				path: ['otp_code'],
+		  })
+		: passwordSchema // Use the base schema if 2FA is not enabled
+
+	// Use the final schema for the resolver
 	const form = useForm<PasswordFormData>({
-		resolver: zodResolver(passwordSchema),
+		resolver: zodResolver(finalPasswordSchema), // Use the potentially refined schema
 		defaultValues: {
 			current_password: '',
 			new_password: '',
 			confirm_new_password: '',
+			otp_code: '', // Add default for otp_code
 		},
 	})
 
 	const [isSubmitting, setIsSubmitting] = useState(false)
 
+	// Watch 2FA status in case it changes (though unlikely within this form's lifecycle)
+	useEffect(() => {
+		// Re-validate or reset based on schema change if needed,
+		// but zodResolver should handle this based on the schema passed during initialization.
+		// If userData could change *while* the form is mounted, more complex handling might be needed.
+	}, [is2FAEnabled, form])
+
 	async function onSubmit(values: PasswordFormData) {
+		// Double-check OTP requirement based on current userData state
+		if (is2FAEnabled && (!values.otp_code || values.otp_code.trim() === '')) {
+			form.setError('otp_code', {
+				type: 'manual',
+				message: 'OTP code is required when 2FA is enabled.',
+			})
+			return // Prevent submission
+		}
+
 		setIsSubmitting(true)
 		const updateData: UpdatePasswordInput = {
 			current_password: values.current_password,
 			new_password: values.new_password,
+			// Conditionally include otp_code
+			...(is2FAEnabled && values.otp_code && {otp_code: values.otp_code}),
 		}
 
 		try {
@@ -265,6 +305,23 @@ function PasswordForm() {
 						</FormItem>
 					)}
 				/>
+				{/* Conditionally render OTP input */}
+				{is2FAEnabled && (
+					<FormField
+						control={form.control}
+						name='otp_code'
+						render={({field}) => (
+							<FormItem>
+								<FormLabel>Two-Factor Authentication Code</FormLabel>
+								<FormControl>
+									<Input type='text' placeholder='Enter your 6-digit code' {...field} maxLength={6} />
+								</FormControl>
+								<FormDescription>Enter the code from your authenticator app.</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
 				<Button type='submit' disabled={isSubmitting || !form.formState.isDirty}>
 					{isSubmitting ? 'Updating...' : 'Update Password'}
 				</Button>
@@ -595,7 +652,8 @@ export default function ProfilePage() {
 									<CardDescription>Update your account password. Make sure it&#39;s strong!</CardDescription>
 								</CardHeader>
 								<CardContent>
-									<PasswordForm />
+									{/* Pass userData to PasswordForm */}
+									<PasswordForm userData={userData} />
 								</CardContent>
 							</Card>
 						</TabsContent>
