@@ -31,9 +31,9 @@ export interface UserOutput {
 	avatar?: string;
 	roles?: string[];
 	status: UserStatus;
-	email_verified_at?: string | null; // time.Time or null
-	phone_verified_at?: string | null; // time.Time or null
-	two_factor_enabled: boolean; // Added for 2FA status
+	email_verified_at?: string | null; // Reverted back to timestamp
+	phone_verified_at?: string | null; // Reverted back to timestamp
+	is_two_factor_enabled: boolean; // Added for 2FA status
 	profile?: UserProfile | null; // Added optional profile field
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
@@ -97,7 +97,7 @@ export interface VerifyPhoneInput {
 // --- 2FA DTOs ---
 export interface Generate2FAResponse {
 	secret: string;
-	qrcode_uri: string; // Data URI for QR code image
+	qr_code_uri: string; // Data URI for QR code image (Corrected to snake_case)
 }
 
 export interface Verify2FARequest {

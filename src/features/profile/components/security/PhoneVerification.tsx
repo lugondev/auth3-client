@@ -7,6 +7,7 @@ import {Badge} from '@/components/ui/badge'
 import {InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from '@/components/ui/input-otp'
 import {AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
+import {format} from 'date-fns' // Import date-fns format function
 import {requestPhoneVerification, verifyPhone} from '@/services/authService'
 import {Label} from '@/components/ui/label' // Added Label import
 
@@ -17,7 +18,9 @@ interface PhoneVerificationProps {
 
 const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate}) => {
 	const hasPhoneNumber = !!userData?.phone
+	// Check for the timestamp field
 	const isVerified = !!userData?.phone_verified_at
+	const verifiedAt = userData?.phone_verified_at ? new Date(userData.phone_verified_at) : null
 	const [isRequestingOtp, setIsRequestingOtp] = useState(false)
 	const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)
 	const [otpRequested, setOtpRequested] = useState(false)
@@ -102,7 +105,13 @@ const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate
 
 			{hasPhoneNumber ? (
 				<>
-					<p className='text-sm text-muted-foreground'>{isVerified ? `Your phone number (${userData?.phone}) is verified.` : `Your phone number (${userData?.phone}) is not verified.`}</p>
+					{isVerified && verifiedAt ? (
+						<p className='text-sm text-muted-foreground'>
+							Your phone number ({userData?.phone}) was verified on {format(verifiedAt, 'PPP p')}. {/* Format: Jan 1, 2023 12:00 PM */}
+						</p>
+					) : (
+						<p className='text-sm text-muted-foreground'>Your phone number ({userData?.phone}) is not verified.</p>
+					)}
 					{!isVerified && !otpRequested && (
 						<Button onClick={handleRequestOtp} disabled={isRequestingOtp} size='sm' variant='outline'>
 							{isRequestingOtp ? 'Sending OTP...' : 'Verify Phone Number'}

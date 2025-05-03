@@ -9,8 +9,8 @@ import {Input} from '@/components/ui/input' // Needed for disable password
 import {InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from '@/components/ui/input-otp'
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose} from '@/components/ui/dialog'
 import {Alert, AlertDescription, AlertTitle} from '@/components/ui/alert'
-// Removed CheckCircle from imports as it was unused
-import {Copy, AlertCircle, ShieldCheck, ShieldOff} from 'lucide-react'
+import {Checkbox} from '@/components/ui/checkbox' // Added Checkbox
+import {Copy, AlertCircle, ShieldCheck, ShieldOff, Download} from 'lucide-react' // Added Download icon
 import {toast} from 'sonner'
 import {generate2FASecret, enable2FA, disable2FA} from '@/services/authService'
 import {Label} from '@/components/ui/label'
@@ -24,7 +24,7 @@ interface TwoFactorAuthManagementProps {
 type SetupStage = 'idle' | 'generating' | 'verifying' | 'showing_codes' | 'disabling' | 'error'
 
 const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userData, onUpdate}) => {
-	const isEnabled = userData?.two_factor_enabled ?? false
+	const isEnabled = userData?.is_two_factor_enabled ?? false
 	const [stage, setStage] = useState<SetupStage>('idle')
 	const [qrCodeUri, setQrCodeUri] = useState<string | null>(null)
 	const [secret, setSecret] = useState<string | null>(null)
@@ -34,8 +34,10 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 	const [disableOtp, setDisableOtp] = useState('')
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 	const [isDisablingDialogOpen, setIsDisablingDialogOpen] = useState(false)
+	const [hasConfirmedSave, setHasConfirmedSave] = useState(false) // Added state for confirmation
 
 	const handleGenerateSecret = async () => {
+		// console.log('handleGenerateSecret called') // Removed previous log
 		setStage('generating')
 		setErrorMessage(null)
 		setOtp('')
@@ -43,9 +45,13 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 		setSecret(null)
 		try {
 			const response = await generate2FASecret()
-			setQrCodeUri(response.qrcode_uri)
-			setSecret(response.secret) // Store the secret temporarily if needed, though often not shown directly
-			setStage('verifying') // Move to verification stage
+			// Use qr_code_uri consistent with corrected type and actual API response
+			const newQrCodeUri = response.qr_code_uri
+			const newSecret = response.secret
+			setQrCodeUri(newQrCodeUri)
+			setSecret(newSecret)
+			setStage('verifying')
+			// Removed console log
 		} catch (error: unknown) {
 			console.error('Error generating 2FA secret:', error)
 			const message = error instanceof Error ? error.message : 'Failed to generate 2FA setup code.'
@@ -146,6 +152,21 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 		toast.success('Recovery code copied!')
 	}
 
+	const handleDownloadCodes = () => {
+		if (recoveryCodes.length === 0) return
+		const text = recoveryCodes.join('\n')
+		const blob = new Blob([text], {type: 'text/plain'})
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = 'recovery-codes.txt'
+		document.body.appendChild(a)
+		a.click()
+		document.body.removeChild(a)
+		URL.revokeObjectURL(url)
+		toast.info('Recovery codes downloaded.')
+	}
+
 	const handleCopySecret = () => {
 		if (secret) {
 			navigator.clipboard.writeText(secret)
@@ -160,9 +181,12 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 		setOtp('')
 		setRecoveryCodes([])
 		setErrorMessage(null)
+		setHasConfirmedSave(false) // Reset confirmation on reset
 	}
 
 	const isLoading = stage === 'generating' || stage === 'disabling' // Add more states if needed
+
+	// Removed console log
 
 	return (
 		<div className='space-y-4 rounded-md border p-4'>
@@ -258,9 +282,22 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 						))}
 					</div>
 					<p className='text-xs text-muted-foreground'>Each recovery code can only be used once. Treat them like passwords.</p>
-					<Button onClick={resetSetup} size='sm' variant='outline'>
-						Done
-					</Button>
+					{/* Confirmation Checkbox */}
+					<div className='flex items-center space-x-2 pt-2'>
+						<Checkbox id='confirm-save' checked={hasConfirmedSave} onCheckedChange={(checked) => setHasConfirmedSave(Boolean(checked))} />
+						<Label htmlFor='confirm-save' className='text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70'>
+							I have saved these recovery codes securely.
+						</Label>
+					</div>
+					{/* Action Buttons */}
+					<div className='flex items-center gap-2 pt-2'>
+						<Button onClick={handleDownloadCodes} size='sm' variant='secondary'>
+							<Download className='mr-2 h-4 w-4' /> Download Codes
+						</Button>
+						<Button onClick={resetSetup} size='sm' variant='outline' disabled={!hasConfirmedSave}>
+							Done
+						</Button>
+					</div>
 				</div>
 			)}
 

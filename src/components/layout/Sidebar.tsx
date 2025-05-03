@@ -32,10 +32,7 @@ const navItems: NavItem[] = [
 		// Collapsible Settings section
 		label: 'Settings',
 		icon: Settings,
-		children: [
-			{href: '/settings/account', label: 'Account', icon: Users},
-			{href: '/settings/billing', label: 'Billing', icon: CreditCard, disabled: true},
-		],
+		children: [{href: '/settings/billing', label: 'Billing', icon: CreditCard, disabled: true}],
 	},
 ]
 

@@ -6,6 +6,7 @@ import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
+import {format} from 'date-fns' // Import date-fns format function
 // import { resendVerificationEmail } from '@/services/authService' // TODO: Uncomment when service function exists
 
 interface EmailVerificationStatusProps {
@@ -14,13 +15,15 @@ interface EmailVerificationStatusProps {
 }
 
 const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userData}) => {
+	// Check for the timestamp field
 	const isVerified = !!userData?.email_verified_at
+	const verifiedAt = userData?.email_verified_at ? new Date(userData.email_verified_at) : null
 	const [isResending, setIsResending] = React.useState(false)
 
 	const handleResendVerification = async () => {
 		setIsResending(true)
 		try {
-			// await resendVerificationEmail(); // TODO: Call the actual service function
+			// await resendVerificationEmail();
 			toast.info('Verification email resend request sent (placeholder).') // Placeholder message
 			// Optionally: Add logic to prevent rapid resends
 		} catch (error: unknown) {
@@ -43,7 +46,13 @@ const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userDa
 					{isVerified ? 'Verified' : 'Not Verified'}
 				</Badge>
 			</div>
-			<p className='text-sm text-muted-foreground'>{isVerified ? `Your email address (${userData?.email}) is verified.` : `Your email address (${userData?.email}) is not verified. Please check your inbox for the verification link.`}</p>
+			{isVerified && verifiedAt ? (
+				<p className='text-sm text-muted-foreground'>
+					Your email address ({userData?.email}) was verified on {format(verifiedAt, 'PPP p')}. {/* Format: Jan 1, 2023 12:00 PM */}
+				</p>
+			) : (
+				<p className='text-sm text-muted-foreground'>Your email address ({userData?.email}) is not verified. Please check your inbox for the verification link.</p>
+			)}
 			{!isVerified && (
 				<Button onClick={handleResendVerification} disabled={isResending} size='sm' variant='outline'>
 					{isResending ? 'Sending...' : 'Resend Verification Email'}

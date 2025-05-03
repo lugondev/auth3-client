@@ -228,6 +228,7 @@ export const generate2FASecret = async (): Promise<Generate2FAResponse> => {
 	try {
 		const response = await apiClient.get<Generate2FAResponse>('/api/v1/auth/2fa/generate');
 		console.log('2FA secret generated.');
+		console.log('generate2FASecret returning:', response.data); // Log what's being returned
 		return response.data;
 	} catch (error) {
 		console.error('Error generating 2FA secret:', error);
