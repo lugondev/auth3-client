@@ -126,7 +126,7 @@ export function useRbac(): UseRbacReturn {
 			setLoading({ rolePermissions: true })
 			setError(null)
 			try {
-				const res = await apiClient.get<RolePermissionsOutput>(`/rbac/roles/${roleName}/permissions`)
+				const res = await apiClient.get<RolePermissionsOutput>(`/api/v1/rbac/roles/${roleName}/permissions`)
 				setState((prev) => ({
 					...prev,
 					rolePermissionsMap: { ...prev.rolePermissionsMap, [roleName]: res.data.permissions || [] },
@@ -257,7 +257,7 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.post(`/rbac/roles/permissions`, payload)
+			await apiClient.post(`/api/v1/rbac/roles/permissions`, payload)
 			setState((prev) => ({
 				...prev,
 				rolePermissionsMap: {
@@ -285,7 +285,7 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.delete(`/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`)
+			await apiClient.delete(`/api/v1/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`)
 			setState((prev) => ({
 				...prev,
 				rolePermissionsMap: {
