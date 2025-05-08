@@ -21,7 +21,11 @@ import {
 	signInWithEmail as serviceSignInWithEmail,
 	register as serviceRegister,
 	verifyTwoFactorLogin, // <-- Import the missing service function
+	// switchTenantContext, // Placeholder, will be added to authService later
 } from '@/services/authService'
+// Assuming getUserTenants will be in tenantService or a new userService
+// import {getUserTenants} from '@/services/tenantService' // Placeholder, will be added later
+import apiClient from '@/lib/apiClient' // Import apiClient
 import {jwtDecode} from 'jwt-decode'
 // Import types needed for service calls and user object
 // Changed RoleOutput to string[] based on apiClient.ts UserOutput
@@ -33,6 +37,7 @@ import {
 	AuthResult,
 	LoginOutput, // <-- Add LoginOutput type
 	Verify2FARequest, // <-- Add Verify2FARequest type
+	UserTenantMembershipInfo, // Import for user's tenants list
 } from '@/lib/apiClient'
 // Import sonner
 import {toast} from 'sonner'
@@ -46,6 +51,7 @@ interface AppUser {
 	last_name?: string // Use snake_case from backend DTO
 	avatar?: string
 	roles?: string[] // Changed from role: RoleOutput | null to roles: string[]
+	tenant_id?: string // Add tenant_id from JWT
 	// Add 'exp' and 'iat' if needed for client-side expiry checks (though decodeToken handles exp)
 	// exp?: number;
 	// iat?: number;
@@ -55,6 +61,8 @@ interface AuthContextType {
 	user: AppUser | null
 	isAuthenticated: boolean
 	loading: boolean
+	currentTenantId: string | null // Currently active tenant ID
+	userTenants: UserTenantMembershipInfo[] | null // List of tenants user belongs to
 	signInWithGoogle: () => Promise<void>
 	signInWithFacebook: () => Promise<void>
 	signInWithApple: () => Promise<void>
@@ -63,6 +71,8 @@ interface AuthContextType {
 	verifyTwoFactorCode: (data: Verify2FARequest) => Promise<{success: boolean; error?: unknown}> // <-- Add 2FA verification function
 	register: (data: RegisterInput) => Promise<void>
 	logout: () => Promise<void>
+	fetchUserTenants: () => Promise<void>
+	switchTenant: (tenantId: string) => Promise<boolean>
 	isTwoFactorPending: boolean // <-- State to track if 2FA is pending
 	twoFactorSessionToken: string | null // <-- Expose the session token
 }
@@ -80,6 +90,7 @@ const decodeToken = (token: string): AppUser | null => {
 			last_name?: string // Corresponds to 'last_name' in AppUser
 			avatar?: string // Corresponds to 'avatar' in AppUser
 			roles?: string[] // Changed from role: RoleOutput to roles: string[]
+			tenant_id?: string // Tenant ID from JWT
 			exp: number // Standard expiry claim
 			// Add other claims you expect, like 'iat' (issued at)
 		}>(token)
@@ -98,6 +109,7 @@ const decodeToken = (token: string): AppUser | null => {
 			last_name: decoded.last_name,
 			avatar: decoded.avatar,
 			roles: decoded.roles || [], // Changed from role to roles, default to empty array
+			tenant_id: decoded.tenant_id,
 		}
 	} catch (error) {
 		console.error('Failed to decode token:', error)
@@ -114,6 +126,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [user, setUser] = useState<AppUser | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
+	const [currentTenantId, setCurrentTenantId] = useState<string | null>(null)
+	const [userTenants, setUserTenants] = useState<UserTenantMembershipInfo[] | null>(null)
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false) // <-- State for 2FA pending status
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null) // <-- State for 2FA token
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null) // Ref for the timeout ID
@@ -140,6 +154,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		setRefreshToken(null)
 		setUser(null)
 		setIsAuthenticated(false)
+		setCurrentTenantId(null)
+		setUserTenants(null)
 		setIsTwoFactorPending(false) // <-- Reset 2FA state
 		setTwoFactorSessionToken(null) // <-- Reset 2FA token
 		// Call serviceLogout for backend notification and Firebase signout (best effort)
@@ -196,6 +212,27 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const appUser = decodeToken(authResult.access_token)
 			setUser(appUser)
 			setIsAuthenticated(!!appUser)
+
+			if (appUser?.tenant_id) {
+				setCurrentTenantId(appUser.tenant_id)
+				// If we have a tenant-specific token, we might not need to fetch all tenants immediately,
+				// or we might want to ensure userTenants list is populated if it's empty.
+				// For now, if tenant_id is present, we assume this context is primary.
+				// If userTenants is null, it implies it hasn't been fetched yet.
+				if (!userTenants || userTenants.length === 0) {
+					// Wrapped in a self-invoking async function to avoid making handleAuthSuccess async
+					;(async () => {
+						await fetchUserTenants()
+					})()
+				}
+			} else {
+				setCurrentTenantId(null)
+				// If it's a global token, fetch user's tenants to allow selection or auto-selection
+				// Wrapped in a self-invoking async function
+				;(async () => {
+					await fetchUserTenants()
+				})()
+			}
 			console.log('Authentication successful, state updated.')
 
 			// Schedule the next refresh only if token is valid
@@ -203,8 +240,68 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				scheduleTokenRefresh(authResult.access_token)
 			}
 		},
-		[setAccessToken, setRefreshToken, scheduleTokenRefresh], // scheduleTokenRefresh is now defined above
+		[setAccessToken, setRefreshToken, scheduleTokenRefresh, userTenants], // Added userTenants
 	)
+
+	// Function to fetch user's tenants
+	const fetchUserTenants = useCallback(async () => {
+		if (!isAuthenticated || !accessToken) {
+			// Ensure user is authenticated
+			// console.log("fetchUserTenants: User not authenticated or no access token.");
+			// setUserTenants(null); // Clear if not authenticated
+			return
+		}
+		console.log('Fetching user tenants...')
+		try {
+			// const tenants = await getUserTenants(); // This service needs to be implemented
+			// For now, using a placeholder. Replace with actual API call.
+			const response = await apiClient.get<{data: UserTenantMembershipInfo[]}>('/api/v1/me/tenants')
+			const tenants = response.data.data
+
+			setUserTenants(tenants)
+			console.log('User tenants fetched: ', tenants)
+
+			if (tenants && tenants.length === 1 && !currentTenantId) {
+				// If only one tenant and no current tenant context, automatically switch
+				console.log('User has one tenant, attempting to auto-switch...')
+				await switchTenant(tenants[0].tenant_id)
+			} else if (tenants && tenants.length > 0 && !currentTenantId) {
+				// Multiple tenants, no current context - UI should prompt for selection
+				console.log('User has multiple tenants, UI should prompt for selection.')
+			} else if (!tenants || (tenants.length === 0 && !currentTenantId)) {
+				console.log('User has no tenants, operating in global context or needs to create/join.')
+			}
+		} catch (error) {
+			console.error('Failed to fetch user tenants:', error)
+			toast.error('Could not load your organizations.')
+			setUserTenants(null) // Clear on error
+		}
+	}, [isAuthenticated, accessToken, currentTenantId]) // Added dependencies
+
+	// Function to switch tenant context
+	const switchTenant = useCallback(
+		async (tenantId: string): Promise<boolean> => {
+			console.log(`Attempting to switch to tenant: ${tenantId}`)
+			setLoading(true)
+			try {
+				// const authResult = await switchTenantContext(tenantId); // This service needs to be implemented
+				// For now, using a placeholder. Replace with actual API call.
+				const response = await apiClient.post<AuthResult>('/auth/switch-tenant', {tenant_id: tenantId})
+				const authResult = response.data
+
+				handleAuthenticationSuccess(authResult)
+				toast.success(`Switched to organization: ${userTenants?.find((t) => t.tenant_id === tenantId)?.tenant_name || tenantId}`)
+				setLoading(false)
+				return true
+			} catch (error) {
+				console.error('Failed to switch tenant:', error)
+				toast.error('Failed to switch organization.')
+				setLoading(false)
+				return false
+			}
+		},
+		[handleAuthenticationSuccess, userTenants],
+	) // Added dependencies
 
 	// Function to handle the actual refresh call scheduled by setTimeout (defined last among these three)
 	const handleScheduledRefresh = useCallback(async () => {
@@ -244,53 +341,50 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			if (accessToken) {
 				const decodedUser = decodeToken(accessToken)
 				if (decodedUser) {
-					// Access token is valid and not expired
 					setUser(decodedUser)
 					setIsAuthenticated(true)
+					if (decodedUser.tenant_id) {
+						setCurrentTenantId(decodedUser.tenant_id)
+					} else {
+						setCurrentTenantId(null)
+						// If global token and tenants not fetched, fetch them
+						if (!userTenants) {
+							await fetchUserTenants()
+						}
+					}
 					console.log('User authenticated from stored access token.')
-					// Schedule refresh based on existing valid token
 					scheduleTokenRefresh(accessToken)
 				} else {
-					// Access token exists but is invalid/expired, try refreshing
 					console.log('Access token invalid/expired, attempting refresh...')
 					if (refreshToken) {
 						try {
-							// Pass the current refresh token to the service function
 							const refreshResponse = await serviceRefreshToken(refreshToken)
-							// Update tokens and user state using the helper
-							// handleAuthenticationSuccess will also schedule the next refresh
-							handleAuthenticationSuccess(refreshResponse.auth)
+							handleAuthenticationSuccess(refreshResponse.auth) // This will set user, tokens, tenantId, and fetch tenants if needed
 							console.log('User authenticated after initial token refresh.')
 						} catch (refreshError) {
 							console.error('Error during initial token refresh:', refreshError)
-							// Clear all auth data if refresh fails
 							await clearAuthData()
 						}
 					} else {
 						console.log('No refresh token available to attempt refresh.')
-						// Clear only access token and user, keep potential refresh token if logic allows
-						setAccessToken(null)
-						setUser(null)
-						setIsAuthenticated(false)
+						await clearAuthData()
 					}
 				}
 			} else {
-				// No access token found
 				console.log('No stored access token found.')
-				// Ensure state is clean if no access token
-				await clearAuthData() // Clear everything if no access token initially
+				await clearAuthData()
 			}
 		} catch (error) {
 			console.error('Error during initial auth status check:', error)
-			await clearAuthData() // Clear everything on unexpected errors
+			await clearAuthData()
 		} finally {
 			setLoading(false)
 		}
-	}, [accessToken, refreshToken, clearAuthData, handleAuthenticationSuccess, setAccessToken]) // Added dependencies
+	}, [accessToken, refreshToken, clearAuthData, handleAuthenticationSuccess, setAccessToken, userTenants, fetchUserTenants])
 
 	useEffect(() => {
 		checkAuthStatus()
-	}, [checkAuthStatus])
+	}, [checkAuthStatus]) // checkAuthStatus dependencies include fetchUserTenants now
 
 	// Generic Social Sign-In Handler
 	const handleSocialSignIn = useCallback(
@@ -366,7 +460,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					return {success: true, twoFactorRequired: true, sessionToken: response.two_factor_session_token}
 				} else if (response.auth) {
 					// Login successful without 2FA
-					handleAuthenticationSuccess(response.auth)
+					handleAuthenticationSuccess(response.auth) // This will also trigger fetchUserTenants if token is global
 					console.log('Email/Password sign-in successful (no 2FA).')
 					toast.success('Successfully signed in!')
 					setLoading(false)
@@ -416,7 +510,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 				if (response.auth) {
 					// 2FA verification successful, complete login
-					handleAuthenticationSuccess(response.auth)
+					handleAuthenticationSuccess(response.auth) // This will also trigger fetchUserTenants if token is global
 					setIsTwoFactorPending(false) // Clear pending state
 					setTwoFactorSessionToken(null) // Clear token
 					console.log('2FA verification successful.')
@@ -495,6 +589,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		verifyTwoFactorCode, // <-- Add verify function to context value
 		register,
 		logout,
+		fetchUserTenants,
+		switchTenant,
+		currentTenantId,
+		userTenants,
 		isTwoFactorPending, // <-- Add pending state to context value
 		twoFactorSessionToken, // <-- Add session token to context value
 	}

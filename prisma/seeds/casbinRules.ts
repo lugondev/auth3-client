@@ -1,87 +1,146 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 
-export async function seedCasbinRules(prisma: PrismaClient, userIds: string[]) {
-	console.log('Seeding Casbin Rules...');
+// Define a type for the roles passed to this function
+// This should match the structure returned by seedRoles in rbacDb.ts
+type TenantRole = {
+	id: string;
+	tenant_id: string;
+	name: string;
+	is_system_role: boolean; // Keep this if it's used for specific logic
+};
 
-	// Define policy rules (p, subject, object, action)
-	const policyRules: Prisma.casbin_ruleCreateManyInput[] = [
-		// --- Admin Role ---
-		{ ptype: 'p', v0: 'admin', v1: '*', v2: '.*' }, // Super admin can manage everything
+// Define a type for the user-role assignments passed to this function
+type CasbinUserRole = {
+	user_id: string;
+	role_id: string;
+	tenant_id: string;
+};
 
-		// --- Manager Role --- (Scope often needs to be enforced in application logic based on venue association)
-		{ ptype: 'p', v0: 'manager', v1: 'venue_settings', v2: 'manage' },
-		{ ptype: 'p', v0: 'manager', v1: 'product', v2: 'manage' },
-		{ ptype: 'p', v0: 'manager', v1: 'category', v2: 'manage' },
-		{ ptype: 'p', v0: 'manager', v1: 'event', v2: 'manage' },
-		{ ptype: 'p', v0: 'manager', v1: 'table', v2: 'manage' },
-		{ ptype: 'p', v0: 'manager', v1: 'slot', v2: 'manage' },
-		{ ptype: 'p', v0: 'manager', v1: 'staff', v2: 'manage' }, // Manage staff within their venue
-		{ ptype: 'p', v0: 'manager', v1: 'order', v2: 'read' }, // Managers can usually read orders
-		{ ptype: 'p', v0: 'manager', v1: 'report', v2: 'read' }, // Read reports
+export async function seedCasbinRules(
+	prisma: PrismaClient,
+	allTenantRoles: TenantRole[],
+	userRoleAssignments: CasbinUserRole[],
+) {
+	console.log('Seeding Tenant-Aware Casbin Rules...');
 
-		// --- Waiter Role ---
-		{ ptype: 'p', v0: 'waiter', v1: 'order', v2: 'create' },
-		{ ptype: 'p', v0: 'waiter', v1: 'order', v2: 'read_own' }, // Read their own orders (example)
-		{ ptype: 'p', v0: 'waiter', v1: 'table', v2: 'read' },
-		{ ptype: 'p', v0: 'waiter', v1: 'table', v2: 'update_status' }, // Update table status (e.g., occupied, available)
-		{ ptype: 'p', v0: 'waiter', v1: 'product', v2: 'read' }, // Read products/menu
-		{ ptype: 'p', v0: 'waiter', v1: 'slot', v2: 'read' }, // View slots/map
+	const casbinRules: Prisma.casbin_ruleCreateManyInput[] = [];
 
-		// --- Host Role ---
-		{ ptype: 'p', v0: 'host', v1: 'table', v2: 'read' },
-		{ ptype: 'p', v0: 'host', v1: 'table', v2: 'reserve' }, // Assign/reserve tables
-		{ ptype: 'p', v0: 'host', v1: 'slot', v2: 'read' },
-		{ ptype: 'p', v0: 'host', v1: 'slot', v2: 'update_status' }, // Update slot status
+	// --- 1. Policy Rules (p, subject_role_id, domain_tenant_id, object, action) ---
+	// These rules define what a role can do within a specific tenant (domain).
+	// The 'subject' (v0) will be the role's ID.
+	// The 'domain' (v1) will be the tenant_id associated with that role.
+	allTenantRoles.forEach(role => {
+		const tenantId = role.tenant_id; // Domain for Casbin
 
-		// --- Bartender Role ---
-		{ ptype: 'p', v0: 'bartender', v1: 'order', v2: 'create_drink' }, // Specific create action
-		{ ptype: 'p', v0: 'bartender', v1: 'order', v2: 'read_drink' },
-		{ ptype: 'p', v0: 'bartender', v1: 'product', v2: 'read_drink' }, // Read drink menu
-
-		// --- Kitchen Role ---
-		{ ptype: 'p', v0: 'kitchen', v1: 'order', v2: 'read_food' }, // Read food orders
-		{ ptype: 'p', v0: 'kitchen', v1: 'order', v2: 'update_status' }, // Update order item status (e.g., preparing, ready)
-		{ ptype: 'p', v0: 'kitchen', v1: 'inventory', v2: 'read' },
-	];
-
-	// Define role hierarchy/inheritance (g, user/role, inherited_role)
-	const roleHierarchy: Prisma.casbin_ruleCreateManyInput[] = [
-		{ ptype: 'g', v0: 'manager', v1: 'waiter' }, // Manager inherits waiter permissions
-		{ ptype: 'g', v0: 'manager', v1: 'host' },   // Manager inherits host permissions
-		// Add other inheritance if needed
-	];
-
-	// Assign roles to specific users (g, user_id, role)
-	const userRoleAssignments: Prisma.casbin_ruleCreateManyInput[] = [];
-	if (userIds.length > 0) {
-		// Assign Admin to the first user
-		userRoleAssignments.push({ ptype: 'g', v0: userIds[0], v1: 'admin', v2: null, v3: null, v4: null, v5: null });
-	}
-	if (userIds.length > 1) {
-		// Assign Manager to the second user
-		userRoleAssignments.push({ ptype: 'g', v0: userIds[1], v1: 'manager', v2: null, v3: null, v4: null, v5: null });
-	}
-	// Assign Waiter role to a few more users
-	userIds.slice(2, 5).forEach(userId => {
-		userRoleAssignments.push({ ptype: 'g', v0: userId, v1: 'waiter', v2: null, v3: null, v4: null, v5: null });
+		// Example: 'admin' role (by name) within its specific tenant
+		if (role.name === 'admin') {
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: '*', v3: '.*' });
+		}
+		// Example: 'manager' role (by name) within its specific tenant
+		if (role.name === 'manager') {
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'venue_settings', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'product', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'category', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'event', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'table', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'slot', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'staff', v3: 'manage' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'read' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'report', v3: 'read' });
+		}
+		// Example: 'waiter' role
+		if (role.name === 'waiter') {
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'create' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'read_own' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'table', v3: 'read' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'table', v3: 'update_status' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'product', v3: 'read' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'slot', v3: 'read' });
+		}
+		// Add other role-specific policies here, using role.id as v0 and role.tenant_id as v1
+		if (role.name === 'host') {
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'table', v3: 'read' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'table', v3: 'reserve' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'slot', v3: 'read' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'slot', v3: 'update_status' });
+		}
+		if (role.name === 'bartender') {
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'create_drink' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'read_drink' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'product', v3: 'read_drink' });
+		}
+		if (role.name === 'kitchen') {
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'read_food' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'order', v3: 'update_status' });
+			casbinRules.push({ ptype: 'p', v0: role.id, v1: tenantId, v2: 'inventory', v3: 'read' });
+		}
 	});
-	// Assign Host role
-	if (userIds.length > 5) {
-		userRoleAssignments.push({ ptype: 'g', v0: userIds[5], v1: 'host', v2: null, v3: null, v4: null, v5: null });
-	}
-	// Assign Bartender role
-	if (userIds.length > 6) {
-		userRoleAssignments.push({ ptype: 'g', v0: userIds[6], v1: 'bartender', v2: null, v3: null, v4: null, v5: null });
-	}
 
-	const allRules = [...policyRules, ...roleHierarchy, ...userRoleAssignments];
+	// --- 2. Role Hierarchy/Inheritance (g, child_role_id, parent_role_id, domain_tenant_id) ---
+	// These rules define role inheritance within a specific tenant.
+	// Example: In Tenant A, ManagerRoleA inherits WaiterRoleA.
+	// We need to find roles by name within the *same tenant* to establish hierarchy.
+	const rolesByTenantAndName: Record<string, Record<string, TenantRole>> = {};
+	allTenantRoles.forEach(role => {
+		if (!rolesByTenantAndName[role.tenant_id]) {
+			rolesByTenantAndName[role.tenant_id] = {};
+		}
+		rolesByTenantAndName[role.tenant_id][role.name] = role;
+	});
+
+	Object.keys(rolesByTenantAndName).forEach(tenantId => {
+		const tenantRoles = rolesByTenantAndName[tenantId];
+		const managerRole = tenantRoles['manager'];
+		const waiterRole = tenantRoles['waiter'];
+		const hostRole = tenantRoles['host'];
+
+		if (managerRole && waiterRole) {
+			casbinRules.push({ ptype: 'g', v0: waiterRole.id, v1: managerRole.id, v2: tenantId });
+		}
+		if (managerRole && hostRole) {
+			casbinRules.push({ ptype: 'g', v0: hostRole.id, v1: managerRole.id, v2: tenantId });
+		}
+		// Add other inheritance rules here, ensuring both roles exist in the current tenant.
+		// For Casbin: g, user_or_role_being_assigned, role_being_inherited, domain
+		// So if manager inherits waiter: g, manager.id, waiter.id, tenantId
+		// Corrected: If waiter is child of manager: g, waiter.id, manager.id, tenantId
+		// If you mean manager has all permissions of waiter (manager is "more powerful"):
+		// g, manager.id (user/role), waiter.id (inherited_role/group), tenantId (domain)
+		// Let's assume manager inherits (is a superset of) waiter and host
+		if (managerRole && waiterRole) {
+			// This means manager role (v0) inherits waiter role (v1) in tenantId (v2)
+			// So, a user with 'manager' role also has 'waiter' permissions.
+			casbinRules.push({ ptype: 'g', v0: managerRole.id, v1: waiterRole.id, v2: tenantId });
+		}
+		if (managerRole && hostRole) {
+			casbinRules.push({ ptype: 'g', v0: managerRole.id, v1: hostRole.id, v2: tenantId });
+		}
+	});
+
+
+	// --- 3. User-Role Assignments (g, user_id, role_id, domain_tenant_id) ---
+	// These rules assign a user to a role within a specific tenant.
+	userRoleAssignments.forEach(assignment => {
+		casbinRules.push({
+			ptype: 'g',
+			v0: assignment.user_id,    // User ID
+			v1: assignment.role_id,    // Role ID they are assigned
+			v2: assignment.tenant_id,  // Tenant ID (domain) for this assignment
+		});
+	});
 
 	try {
-		// It might be safer to delete existing rules before seeding if duplicates are an issue
-		await prisma.casbin_rule.deleteMany({}); // Clear existing rules first
-		await prisma.casbin_rule.createMany({ data: allRules });
-		console.log(`-> Seeded ${allRules.length} casbin rules.`);
+		// Clear existing rules before seeding to prevent duplicates or conflicts
+		await prisma.casbin_rule.deleteMany({});
+		if (casbinRules.length > 0) {
+			await prisma.casbin_rule.createMany({ data: casbinRules });
+			console.log(`-> Seeded ${casbinRules.length} tenant-aware casbin rules.`);
+		} else {
+			console.log('-> No casbin rules were generated to seed.');
+		}
 	} catch (error) {
-		console.error('Error seeding casbin rules:', error);
+		console.error('Error seeding tenant-aware casbin rules:', error);
+		// Consider re-throwing the error if the seed script should halt on failure
+		throw error;
 	}
 }

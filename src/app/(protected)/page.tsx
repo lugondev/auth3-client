@@ -40,7 +40,7 @@ export default function ProtectedPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Dashboard</CardTitle>
-					<CardDescription>Welcome to the Moco Management System.</CardDescription>
+					<CardDescription>Welcome to the AuthSys Management System.</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<p className='text-muted-foreground'>

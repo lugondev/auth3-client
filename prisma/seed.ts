@@ -100,9 +100,26 @@ async function main() {
 	await seedAuditLogs(prisma, allUserIdsForAudit, allTenantIdsForAudit);
 
 	// 14. Seed Casbin Rules (For policy-based access control)
-	// Casbin rules might refer to user IDs or role names (which might be IDs or actual names depending on Casbin setup).
-	// The current seedCasbinRules expects userIds (string[]).
-	await seedCasbinRules(prisma, userIds);
+	// Fetch the user-role assignments with tenant context for Casbin
+	const userRoleAssignmentsForCasbin = await prisma.user_roles.findMany({
+		select: {
+			user_id: true,
+			role_id: true,
+			roles: { // Access the related role
+				select: {
+					tenant_id: true, // Get tenant_id from the role
+				}
+			}
+		}
+	});
+	const casbinUserRoles = userRoleAssignmentsForCasbin.map(ur => ({
+		user_id: ur.user_id,
+		role_id: ur.role_id,
+		tenant_id: ur.roles.tenant_id,
+	}));
+
+	// Pass all created roles and the tenant-specific user-role assignments to Casbin seeder
+	await seedCasbinRules(prisma, roles, casbinUserRoles);
 
 	console.log('✅ Database seeding completed successfully!');
 }

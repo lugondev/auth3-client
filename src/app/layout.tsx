@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-	title: 'Moco Management', // Updated Title
+	title: 'Auth3 Management', // Updated Title
 	description: 'Management System', // Updated Description
 }
 
@@ -49,7 +49,7 @@ export default function RootLayout({
 											<span className='font-bold sm:inline-block'>
 												{' '}
 												{/* Removed hidden */}
-												Moco
+												AuthSys
 											</span>
 										</Link>
 										{/* Main navigation links can go here later */}

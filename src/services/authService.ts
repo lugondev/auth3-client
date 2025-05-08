@@ -15,6 +15,7 @@ import apiClient, {
 	Verify2FARequest,
 	TwoFactorRecoveryCodesResponse,
 	Disable2FARequest,
+	AuthResult, // Explicitly import AuthResult
 } from '@/lib/apiClient';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -287,3 +288,20 @@ export const disable2FA = async (data: Disable2FARequest): Promise<void> => {
 // --- TODO: Email Verification Resend ---
 // Add a function here if a backend endpoint for resending verification emails exists or is added.
 // export const resendVerificationEmail = async (): Promise<void> => { ... };
+
+/**
+ * Switches the active tenant context for the authenticated user.
+ * @param tenantId The ID of the tenant to switch to.
+ * @returns An AuthResult containing new tokens for the selected tenant context.
+ */
+export const switchTenantContext = async (tenantId: string): Promise<AuthResult> => {
+	try {
+		const response = await apiClient.post<AuthResult>('/api/v1/auth/switch-tenant', { tenant_id: tenantId });
+		// The AuthContext will use this AuthResult to update tokens and user state.
+		console.log('Tenant context switched successfully.');
+		return response.data;
+	} catch (error) {
+		console.error('Error switching tenant context:', error);
+		throw error; // Re-throw to be handled by the caller (AuthContext)
+	}
+};
