@@ -1,8 +1,11 @@
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma, users } from '@prisma/client'; // Import users type
 import { faker } from '@faker-js/faker';
 import bcrypt from 'bcryptjs';
 
-export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]> {
+// Define a return type that includes more user details
+export type SeededUser = Pick<users, 'id' | 'email' | 'phone'>;
+
+export async function seedUsers(prisma: PrismaClient): Promise<SeededUser[]> {
 	console.log('Seeding Users...');
 	const usersData: Prisma.usersCreateInput[] = [];
 
@@ -17,18 +20,19 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 	if (!existingAdmin) {
 		usersData.push({
 			email: adminEmail,
-			// IMPORTANT: In a real application, hash the password securely (e.g., using bcrypt) BEFORE storing it.
-			// Storing plain text passwords is a major security risk.
-			password: bcrypt.hashSync(adminPassword, 10), // Still truncate just in case, but hashing is essential.
+			password: bcrypt.hashSync(adminPassword, 10),
 			first_name: 'Admin',
 			last_name: 'User',
-			status: 'active', // Ensure admin is active
-			email_verified: true, // Ensure admin email is verified
-			email_verified_at: new Date(), // Set verification date
+			status: 'active',
+			email_verified: true,
+			email_verified_at: new Date(),
+			phone_verified: true, // Admin phone verified
+			phone_verified_at: new Date(),
+			phone: `09${faker.string.numeric(8)}`.substring(0, 20), // Manually construct phone number
 			provider: 'local',
 			created_at: new Date(),
 			updated_at: new Date(),
-			avatar: faker.image.avatar().substring(0, 255), // Generic avatar
+			avatar: faker.image.avatar().substring(0, 255),
 		});
 		console.log(`-> Admin user ${adminEmail} prepared for seeding.`);
 	} else {
@@ -43,32 +47,30 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 		if (randomEmail === adminEmail) continue;
 
 		usersData.push({
-			email: randomEmail, // Ensure email within limit
-			// In a real application, hash the password here using bcrypt
-			// Ensure generated password doesn't exceed the DB limit
-			password: faker.internet.password({ length: 30 }).substring(0, 255), // Generate reasonably sized password & truncate just in case
-			first_name: faker.person.firstName().substring(0, 100), // Ensure first name within limit
-			last_name: faker.person.lastName().substring(0, 100), // Ensure last name within limit
+			email: randomEmail,
+			password: bcrypt.hashSync(faker.internet.password({ length: 20 }), 10), // Hash random passwords
+			first_name: faker.person.firstName().substring(0, 100),
+			last_name: faker.person.lastName().substring(0, 100),
 			status: faker.helpers.arrayElement(['active', 'pending', 'inactive']),
-			email_verified: faker.datatype.boolean(0.8), // 80% chance of being verified
+			email_verified: faker.datatype.boolean(0.8),
 			email_verified_at: faker.datatype.boolean() ? faker.date.past({ years: 1 }) : null,
+			phone_verified: faker.datatype.boolean(0.6), // 60% chance phone verified
+			phone_verified_at: faker.datatype.boolean() ? faker.date.past({ years: 1 }) : null,
 			last_login: faker.date.recent({ days: 90 }),
-			// Ensure phone doesn't exceed the strict 20 character limit
-			// phone: faker.phone.number().substring(0, 20), // Example phone
-			avatar: faker.image.avatar().substring(0, 255), // Ensure avatar URL within limit
-			// Keep 'local' provider for password-based auth, add others for social
-			provider: 'local', // Default to local, social profiles will handle others
-			provider_id: null, // Null for local provider
+			phone: faker.datatype.boolean(0.7) ? `0${faker.string.numeric(9)}`.substring(0, 20) : null, // Manually construct phone number
+			avatar: faker.image.avatar().substring(0, 255),
+			provider: 'local',
+			provider_id: null,
 			created_at: faker.date.past({ years: 2 }),
 			updated_at: faker.date.recent({ days: 30 }),
 		});
 	}
 
-	const createdUsers: { id: string }[] = [];
+	const createdUsers: SeededUser[] = [];
 	for (const userData of usersData) {
 		try {
 			const user = await prisma.users.create({ data: userData });
-			createdUsers.push(user);
+			createdUsers.push({ id: user.id, email: user.email, phone: user.phone });
 		} catch (error) {
 			// Handle potential duplicate email errors gracefully during seeding
 			if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
@@ -82,13 +84,14 @@ export async function seedUsers(prisma: PrismaClient): Promise<{ id: string }[]>
 	return createdUsers;
 }
 
-export async function seedUserRelatedData(prisma: PrismaClient, userIds: string[]) {
-	console.log('Seeding User Profiles, Social Profiles, Tokens & Sessions...');
+export async function seedUserRelatedData(prisma: PrismaClient, seededUsers: SeededUser[]) {
+	console.log('Seeding User Profiles, Refresh Tokens & Sessions...');
 	let createdUserProfilesCount = 0;
 	let createdRefreshTokensCount = 0;
 	let createdSessionsCount = 0;
 
-	for (const userId of userIds) {
+	for (const seededUser of seededUsers) {
+		const userId = seededUser.id;
 		const baseDate = faker.date.past({ years: 1 }); // Base creation date for related items
 
 		// --- Seed User Profiles (One-to-One) ---
