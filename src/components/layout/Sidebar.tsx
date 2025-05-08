@@ -22,7 +22,6 @@ interface SidebarProps {
 // TODO: Move this to a config file or context later for better management
 const navItems: NavItem[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-	{href: '/venues', label: 'Venues', icon: Building},
 	{href: '/users', label: 'User Management', icon: Users}, // Added User Management
 	{href: '/rbac', label: 'RBAC Management', icon: ShieldCheck}, // Added RBAC Management
 	// {href: '/table-management', label: 'Tables/Slots', icon: Grid3x3}, // Removed Table Management Link
@@ -58,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({isOpen}) => {
 			<div className='mb-8 flex items-center justify-center'>
 				{/* Placeholder Logo/Title - Replace with actual logo if available */}
 				<Link href='/dashboard' className='text-2xl font-semibold text-gray-800 dark:text-gray-100'>
-					VenueApp
+					Auth System
 				</Link>
 			</div>
 			<nav className='flex-1 space-y-1'>

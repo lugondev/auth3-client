@@ -23,7 +23,7 @@ export function MobileHeader() {
 				</SheetContent>
 			</Sheet>
 			<div className='flex-1'>
-				<h1 className='text-lg font-semibold'>Admin Panel</h1>
+				<h1 className='text-lg font-semibold'>Auth System</h1>
 			</div>
 		</div>
 	)
