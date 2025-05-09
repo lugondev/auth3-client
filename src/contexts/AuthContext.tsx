@@ -66,6 +66,7 @@ interface AuthContextType {
 	signInWithGoogle: () => Promise<void>
 	signInWithFacebook: () => Promise<void>
 	signInWithApple: () => Promise<void>
+	signInWithTwitter: () => Promise<void> // Added signInWithTwitter
 	// Update signInWithEmail return type to indicate 2FA status
 	signInWithEmail: (data: LoginInput) => Promise<{success: boolean; twoFactorRequired: boolean; sessionToken?: string; error?: unknown}>
 	verifyTwoFactorCode: (data: Verify2FARequest) => Promise<{success: boolean; error?: unknown}> // <-- Add 2FA verification function
@@ -400,6 +401,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				if (provider instanceof GoogleAuthProvider) providerId = 'google'
 				else if (provider instanceof FacebookAuthProvider) providerId = 'facebook'
 				else if (provider instanceof OAuthProvider && provider.providerId === 'apple.com') providerId = 'apple'
+				else if (provider instanceof OAuthProvider && provider.providerId === 'twitter.com') providerId = 'twitter' // Added Twitter
 
 				const exchangeInput: SocialTokenExchangeInput = {
 					token: firebaseToken,
@@ -438,6 +440,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	const signInWithApple = async () => {
 		await handleSocialSignIn(new OAuthProvider('apple.com'))
+	}
+
+	const signInWithTwitter = async () => {
+		// Added signInWithTwitter function
+		await handleSocialSignIn(new OAuthProvider('twitter.com'))
 	}
 
 	// Email/Password Sign-In Handler - Updated for 2FA
@@ -585,6 +592,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		signInWithGoogle,
 		signInWithFacebook,
 		signInWithApple,
+		signInWithTwitter, // Added signInWithTwitter
 		signInWithEmail,
 		verifyTwoFactorCode, // <-- Add verify function to context value
 		register,
