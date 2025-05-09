@@ -4,6 +4,7 @@ import React from 'react'
 import Link from 'next/link'
 import {usePathname} from 'next/navigation'
 import {ChevronRight, Home} from 'lucide-react'
+import {useBreadcrumbLabelStore} from '@/lib/breadcrumbStore'
 // cn import removed as it was unused
 
 // Define the shape of a breadcrumb item
@@ -16,18 +17,37 @@ interface NavItem {
 // Helper function to capitalize first letter
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 // Helper function to generate breadcrumb items from path
-const generateBreadcrumbs = (pathname: string): NavItem[] => {
+const generateBreadcrumbs = (pathname: string, dynamicLabels: Record<string, string>): NavItem[] => {
 	// Added return type
 	const pathSegments = pathname.split('/').filter((segment) => segment) // Remove empty strings
 	const breadcrumbs: NavItem[] = [{href: '/', label: 'Home', icon: Home}] // Always start with Home, specify type
 
 	let currentPath = ''
-	pathSegments.forEach((segment) => {
-		// Removed unused 'index'
+	pathSegments.forEach((segment, idx) => {
 		currentPath += `/${segment}`
-		// Basic label generation, might need more complex logic for dynamic routes (e.g., venue IDs)
-		const label = capitalize(segment.replace(/-/g, ' ')) // Replace hyphens and capitalize
+		let label: string
+
+		if (UUID_REGEX.test(segment)) {
+			const displayName = dynamicLabels[segment]
+			if (displayName) {
+				label = displayName // Use the display name from the store
+			} else {
+				// Fallback to generic name if not found in store
+				const prevSegmentKey = pathSegments[idx - 1]
+				if (prevSegmentKey) {
+					// Singularize (e.g., "tenants" -> "Tenant", "users" -> "User")
+					const singularPrevSegment = prevSegmentKey.endsWith('s') ? prevSegmentKey.slice(0, -1) : prevSegmentKey
+					label = capitalize(singularPrevSegment.replace(/-/g, ' '))
+				} else {
+					label = 'Detail' // Fallback
+				}
+			}
+		} else {
+			label = capitalize(segment.replace(/-/g, ' '))
+		}
 
 		// TODO: Add logic to fetch dynamic labels (e.g., venue name for /venues/[venueId])
 		// if (segment === '[venueId]' && venueData) { label = venueData.name; }
@@ -53,7 +73,8 @@ const generateBreadcrumbs = (pathname: string): NavItem[] => {
 
 const Breadcrumbs: React.FC = () => {
 	const pathname = usePathname()
-	const breadcrumbItems = generateBreadcrumbs(pathname)
+	const {labels} = useBreadcrumbLabelStore()
+	const breadcrumbItems = generateBreadcrumbs(pathname, labels)
 
 	// Handle the case where generateBreadcrumbs returns only one item for top-level sections
 	if (breadcrumbItems.length === 1 && pathname !== '/') {

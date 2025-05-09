@@ -22,8 +22,9 @@ interface SidebarProps {
 // TODO: Move this to a config file or context later for better management
 const navItems: NavItem[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/admin/tenants', label: 'Tenant Management', icon: Building},
 	{href: '/users', label: 'User Management', icon: Users}, // Added User Management
-	{href: '/rbac', label: 'RBAC Management', icon: ShieldCheck}, // Added RBAC Management
+	{href: '/admin/rbac', label: 'RBAC Management', icon: ShieldCheck}, // Updated RBAC href to match page location
 	// {href: '/table-management', label: 'Tables/Slots', icon: Grid3x3}, // Removed Table Management Link
 	{href: '/analytics', label: 'Analytics', icon: BarChart, disabled: true}, // Example disabled item
 	{href: '/profile', label: 'Profile', icon: User},

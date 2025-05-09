@@ -2,29 +2,38 @@
 
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useForm} from 'react-hook-form'
-import * as z from 'zod'
+import {z} from 'zod'
 import {Button} from '@/components/ui/button'
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
-import {toast} from 'sonner' // Changed to sonner
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {createTenant} from '@/services/tenantService'
+import {toast} from 'sonner'
 import {useRouter} from 'next/navigation' // Corrected import for App Router
+import Link from 'next/link'
+import {ArrowLeftIcon} from '@radix-ui/react-icons'
 
 const tenantFormSchema = z.object({
-	name: z.string().min(2, 'Name must be at least 2 characters.').max(100),
+	name: z.string().min(2, {message: 'Tenant name must be at least 2 characters.'}).max(100),
 	slug: z
 		.string()
-		.min(3, 'Slug must be at least 3 characters.')
+		.min(3, {message: 'Slug must be at least 3 characters.'})
 		.max(50)
-		.regex(/^[a-zA-Z0-9]+$/, 'Slug must be alphanumeric.'),
-	owner_email: z.string().email('Invalid email address.'),
+		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+			message: 'Slug must be lowercase alphanumeric with optional hyphens and no leading/trailing hyphens.',
+		}),
+	owner_email: z.string().email({message: 'Please enter a valid email address.'}),
 })
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>
 
-export default function NewTenantPage() {
-	// const {toast} = useToast(); // Removed useToast hook
+const TENANTS_QUERY_KEY = 'tenants'
+
+export default function CreateTenantPage() {
 	const router = useRouter()
+	const queryClient = useQueryClient()
+
 	const form = useForm<TenantFormValues>({
 		resolver: zodResolver(tenantFormSchema),
 		defaultValues: {
@@ -34,69 +43,100 @@ export default function NewTenantPage() {
 		},
 	})
 
-	async function onSubmit(data: TenantFormValues) {
-		try {
-			await createTenant(data)
-			toast.success(`Tenant "${data.name}" has been successfully created.`)
-			router.push('/admin/tenants') // Redirect to the tenants list page
-		} catch (error) {
-			console.error('Failed to create tenant:', error)
-			toast.error('Failed to create tenant. Please try again.')
-		}
+	const createTenantMutation = useMutation({
+		mutationFn: createTenant,
+		onSuccess: (data) => {
+			toast.success(`Tenant "${data.name}" created successfully!`)
+			queryClient.invalidateQueries({queryKey: [TENANTS_QUERY_KEY]})
+			router.push('/admin/tenants') // Redirect to the tenants list
+		},
+		onError: (error: Error | import('axios').AxiosError<{message?: string; error?: string}>) => {
+			let errorMessage = 'Failed to create tenant.'
+			let errorDescription = 'Please check the details and try again.'
+			if (error && typeof error === 'object' && 'isAxiosError' in error && error.isAxiosError) {
+				const axiosError = error as import('axios').AxiosError<{message?: string; error?: string}>
+				errorMessage = axiosError.response?.data?.message || axiosError.message
+				errorDescription = axiosError.response?.data?.error || errorDescription
+			} else if (error && error.message) {
+				errorMessage = error.message
+			}
+			toast.error(errorMessage, {
+				description: errorDescription,
+			})
+		},
+	})
+
+	function onSubmit(values: TenantFormValues) {
+		createTenantMutation.mutate(values)
 	}
 
 	return (
-		<div className='container mx-auto py-10'>
-			<h1 className='text-3xl font-bold mb-6'>Create New Tenant</h1>
-			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
-					<FormField
-						control={form.control}
-						name='name'
-						render={({field}) => (
-							<FormItem>
-								<FormLabel>Tenant Name</FormLabel>
-								<FormControl>
-									<Input placeholder='Acme Corporation' {...field} />
-								</FormControl>
-								<FormDescription>The official name of the tenant.</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					<FormField
-						control={form.control}
-						name='slug'
-						render={({field}) => (
-							<FormItem>
-								<FormLabel>Tenant Slug</FormLabel>
-								<FormControl>
-									<Input placeholder='acmecorp' {...field} />
-								</FormControl>
-								<FormDescription>A unique, URL-friendly identifier (alphanumeric).</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					<FormField
-						control={form.control}
-						name='owner_email'
-						render={({field}) => (
-							<FormItem>
-								<FormLabel>Owner's Email</FormLabel>
-								<FormControl>
-									<Input placeholder='owner@example.com' {...field} />
-								</FormControl>
-								<FormDescription>The email address of the primary owner for this tenant.</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-					<Button type='submit' disabled={form.formState.isSubmitting}>
-						{form.formState.isSubmitting ? 'Creating...' : 'Create Tenant'}
+		<div className='container mx-auto py-8'>
+			<div className='mb-4'>
+				<Link href='/admin/tenants' passHref>
+					<Button variant='outline' size='sm'>
+						<ArrowLeftIcon className='mr-2 h-4 w-4' />
+						Back to Tenants
 					</Button>
-				</form>
-			</Form>
+				</Link>
+			</div>
+			<Card className='max-w-2xl mx-auto'>
+				<CardHeader>
+					<CardTitle>Create New Tenant</CardTitle>
+					<CardDescription>Fill in the details to create a new tenant/organization.</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Form {...form}>
+						<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
+							<FormField
+								control={form.control}
+								name='name'
+								render={({field}) => (
+									<FormItem>
+										<FormLabel>Tenant Name</FormLabel>
+										<FormControl>
+											<Input placeholder='Acme Corporation' {...field} />
+										</FormControl>
+										<FormDescription>The official name of the tenant or organization.</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name='slug'
+								render={({field}) => (
+									<FormItem>
+										<FormLabel>Tenant Slug</FormLabel>
+										<FormControl>
+											<Input placeholder='acme-corp' {...field} />
+										</FormControl>
+										<FormDescription>A unique, URL-friendly identifier (e.g., acme-corp). Lowercase alphanumeric and hyphens only.</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<FormField
+								control={form.control}
+								name='owner_email'
+								render={({field}) => (
+									<FormItem>
+										<FormLabel>Owner&apos;s Email</FormLabel>
+										<FormControl>
+											<Input type='email' placeholder='owner@example.com' {...field} />
+										</FormControl>
+										<FormDescription>The email address of the primary owner for this tenant.</FormDescription>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+							<Button type='submit' disabled={createTenantMutation.isPending}>
+								{createTenantMutation.isPending ? 'Creating...' : 'Create Tenant'}
+							</Button>
+						</form>
+					</Form>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

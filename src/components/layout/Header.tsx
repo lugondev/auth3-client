@@ -1,25 +1,14 @@
 import React from 'react'
 import {Button} from '@/components/ui/button'
-import {Menu, User, LogOut, Settings} from 'lucide-react'
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
-import Link from 'next/link'
+import {Menu} from 'lucide-react'
 import Breadcrumbs from './Breadcrumbs' // Import Breadcrumbs
 import {TenantSwitcher} from '@/components/tenants/TenantSwitcher' // Import TenantSwitcher
-import {useAuth} from '@/contexts/AuthContext' // Import useAuth
 
 interface HeaderProps {
 	onMenuButtonClick: () => void
 }
 
 const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
-	const {logout} = useAuth()
-
-	const handleSignOut = async () => {
-		await logout()
-		// Optionally, redirect the user to the login page or home page after sign out
-		// router.push('/login'); // Example if using Next.js router
-	}
-
 	return (
 		<header className='sticky top-0 z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 dark:border-gray-700 dark:bg-gray-800 sm:px-6 lg:px-8'>
 			{/* Left side: Mobile Menu Button and Breadcrumbs/Title */}
@@ -36,34 +25,6 @@ const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
 			{/* Right side: Tenant Switcher and User Profile Section */}
 			<div className='flex items-center space-x-4'>
 				<TenantSwitcher /> {/* Add Tenant Switcher here */}
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant='ghost' size='icon' aria-label='User profile'>
-							<User className='h-6 w-6 text-gray-600 dark:text-gray-300' />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align='end'>
-						<DropdownMenuLabel>My Account</DropdownMenuLabel>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem asChild>
-							<Link href='/profile'>
-								<User className='mr-2 h-4 w-4' />
-								<span>Profile</span>
-							</Link>
-						</DropdownMenuItem>
-						<DropdownMenuItem asChild>
-							<Link href='/settings'>
-								<Settings className='mr-2 h-4 w-4' />
-								<span>Settings</span>
-							</Link>
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						<DropdownMenuItem onClick={handleSignOut}>
-							<LogOut className='mr-2 h-4 w-4' />
-							<span>Sign out</span>
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
 			</div>
 		</header>
 	)

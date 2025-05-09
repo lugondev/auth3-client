@@ -11,14 +11,19 @@ export function TenantSwitcher() {
 	const [isSwitching, setIsSwitching] = useState(false)
 	const [currentTenantName, setCurrentTenantName] = useState<string | null>(null)
 
+	console.log('[TenantSwitcher] AuthContext values:', {user, userTenants, currentTenantId, authLoading})
+
 	useEffect(() => {
+		console.log('[TenantSwitcher] useEffect triggered. currentTenantId:', currentTenantId, 'userTenants:', userTenants)
 		if (currentTenantId && userTenants) {
 			const activeTenant = userTenants.find((t) => t.tenant_id === currentTenantId)
 			setCurrentTenantName(activeTenant ? activeTenant.tenant_name : 'Unknown Organization')
 		} else if (userTenants && userTenants.length > 0) {
 			// If no currentTenantId but tenants are available, prompt selection
+			console.log('[TenantSwitcher] No currentTenantId, but tenants available. Setting to "Select Organization".')
 			setCurrentTenantName('Select Organization')
 		} else {
+			console.log('[TenantSwitcher] No currentTenantId or no userTenants. Setting currentTenantName to null.')
 			setCurrentTenantName(null) // No tenants or not loaded
 		}
 	}, [currentTenantId, userTenants])
@@ -34,9 +39,11 @@ export function TenantSwitcher() {
 	}
 
 	if (!user || !userTenants || userTenants.length === 0) {
+		console.log('[TenantSwitcher] Condition: !user || !userTenants || userTenants.length === 0. Values:', {user, userTenants, length: userTenants?.length})
 		// Don't show switcher if no user, no tenants, or tenants list is empty
 		// Or if only one tenant and it's already selected (AuthContext handles auto-switch for single tenant)
 		if (userTenants && userTenants.length === 1 && currentTenantId === userTenants[0].tenant_id) {
+			console.log('[TenantSwitcher] Rendering disabled button for single, active tenant.')
 			return (
 				<div className='ml-auto flex items-center space-x-4'>
 					<Button variant='outline' disabled className='w-[200px] justify-between'>
@@ -45,11 +52,13 @@ export function TenantSwitcher() {
 				</div>
 			)
 		}
+		console.log('[TenantSwitcher] Returning null (no user/tenants).')
 		return null
 	}
 
 	// If there are multiple tenants, or one tenant that isn't yet the current context
 	if (userTenants.length > 1 || (userTenants.length === 1 && currentTenantId !== userTenants[0].tenant_id)) {
+		console.log('[TenantSwitcher] Rendering dropdown. userTenants.length:', userTenants.length, 'currentTenantId:', currentTenantId)
 		return (
 			<div className='ml-auto flex items-center space-x-4'>
 				<DropdownMenu>
@@ -76,6 +85,7 @@ export function TenantSwitcher() {
 
 	// Fallback for single tenant already selected (though above condition might catch it)
 	if (currentTenantName) {
+		console.log('[TenantSwitcher] Rendering fallback disabled button with currentTenantName:', currentTenantName)
 		return (
 			<div className='ml-auto flex items-center space-x-4'>
 				<Button variant='outline' disabled className='w-[200px] justify-between'>
@@ -84,6 +94,6 @@ export function TenantSwitcher() {
 			</div>
 		)
 	}
-
+	console.log('[TenantSwitcher] Returning null (default fallback).')
 	return null // Default to rendering nothing if no appropriate state
 }

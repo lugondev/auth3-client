@@ -10,6 +10,8 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, 
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label' // Import Label
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table' // Import Table components
+import {UserTenantMembershipInfo} from '@/types/tenant' // Import UserTenantMembershipInfo
 import {DotsHorizontalIcon} from '@radix-ui/react-icons'
 import {useDebounce} from 'use-debounce'
 import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
@@ -43,6 +45,11 @@ export default function UsersPage() {
 	const [userToChangePassword, setUserToChangePassword] = useState<UserOutput | null>(null) // State for user whose password to change
 	const [newPassword, setNewPassword] = useState('') // State for new password input
 	const [confirmPassword, setConfirmPassword] = useState('') // State for confirm password input
+	const [isViewTenantsDialogOpen, setIsViewTenantsDialogOpen] = useState(false)
+	const [userTenants, setUserTenants] = useState<UserTenantMembershipInfo[]>([]) // Use UserTenantMembershipInfo
+	const [selectedUserForTenants, setSelectedUserForTenants] = useState<UserOutput | null>(null)
+	const [tenantsLoading, setTenantsLoading] = useState(false)
+	const [tenantsError, setTenantsError] = useState<string | null>(null)
 
 	// Update filter state type
 	const [filters, setFilters] = useState<Omit<UserSearchQuery, 'role_id'> & {role_name?: string}>(initialFilters)
@@ -71,6 +78,29 @@ export default function UsersPage() {
 		}
 		fetchRoles()
 	}, []) // Corrected closing braces/parentheses and added empty dependency array
+
+	// --- View User Tenants ---
+	const openViewTenantsDialog = async (user: UserOutput) => {
+		setSelectedUserForTenants(user)
+		setIsViewTenantsDialogOpen(true)
+		setTenantsLoading(true)
+		setTenantsError(null)
+		setUserTenants([]) // Clear previous tenants
+
+		try {
+			// Expect a direct array of UserTenantMembershipInfo based on user feedback
+			const response = await apiClient.get<UserTenantMembershipInfo[]>(`/api/v1/users/${user.id}/tenants`)
+			setUserTenants(response.data || []) // Assign response.data directly
+		} catch (err) {
+			console.error(`Failed to fetch tenants for user ${user.id}:`, err)
+			setTenantsError('Could not load tenants for this user.')
+			toast.error('Failed to load tenants', {
+				description: `Could not retrieve tenants for ${user.email}.`,
+			})
+		} finally {
+			setTenantsLoading(false)
+		}
+	}
 
 	// Opens the delete confirmation dialog
 	const handleDeleteUser = (userId: string) => {
@@ -352,6 +382,8 @@ export default function UsersPage() {
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align='end'>
 								<DropdownMenuLabel>Actions</DropdownMenuLabel>
+								<DropdownMenuItem onClick={() => openViewTenantsDialog(user)}>View Tenants</DropdownMenuItem>
+								<DropdownMenuSeparator />
 								<DropdownMenuItem onClick={() => handleDeleteUser(user.id)} className='text-red-600'>
 									Delete
 								</DropdownMenuItem>
@@ -535,6 +567,54 @@ export default function UsersPage() {
 							</Button>
 						</DialogFooter>
 					</form>
+				</DialogContent>
+			</Dialog>
+
+			{/* View User Tenants Dialog */}
+			<Dialog open={isViewTenantsDialogOpen} onOpenChange={setIsViewTenantsDialogOpen}>
+				<DialogContent className='sm:max-w-md md:max-w-lg lg:max-w-xl'>
+					<DialogHeader>
+						<DialogTitle>Tenants for {selectedUserForTenants?.email || 'User'}</DialogTitle>
+						<DialogDescription>List of tenants this user is a member of.</DialogDescription>
+					</DialogHeader>
+					{tenantsLoading && <p>Loading tenants...</p>}
+					{tenantsError && <p className='text-red-600'>{tenantsError}</p>}
+					{!tenantsLoading && !tenantsError && userTenants.length === 0 && <p>This user is not a member of any tenants.</p>}
+					{!tenantsLoading && !tenantsError && userTenants.length > 0 && (
+						<div className='max-h-96 overflow-y-auto'>
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead>Name</TableHead>
+										<TableHead>Slug</TableHead>
+										<TableHead>Tenant Status</TableHead>
+										<TableHead>Your Role(s)</TableHead>
+										<TableHead>Your Status</TableHead>
+										<TableHead>Joined At</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{userTenants.map((tenantInfo) => (
+										<TableRow key={tenantInfo.tenant_id}>
+											<TableCell>{tenantInfo.tenant_name}</TableCell>
+											<TableCell>{tenantInfo.tenant_slug}</TableCell>
+											<TableCell>{tenantInfo.tenant_is_active ? 'Active' : 'Inactive'}</TableCell>
+											<TableCell>{tenantInfo.user_roles.join(', ') || 'N/A'}</TableCell>
+											<TableCell>{tenantInfo.user_status}</TableCell>
+											<TableCell>{new Date(tenantInfo.joined_at).toLocaleDateString()}</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					)}
+					<DialogFooter>
+						<DialogClose asChild>
+							<Button type='button' variant='outline'>
+								Close
+							</Button>
+						</DialogClose>
+					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 		</div>

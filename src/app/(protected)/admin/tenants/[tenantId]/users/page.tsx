@@ -1,202 +1,204 @@
-'use client' // This page uses hooks like useParams and useEffect
+'use client'
 
-import * as React from 'react'
-import {useParams, useRouter} from 'next/navigation'
-import {AxiosError} from 'axios' // Import AxiosError
-import {TenantUserDataTable} from '@/components/admin/tenants/TenantUserDataTable'
-import {tenantUserColumns} from '@/components/admin/tenants/TenantUserColumns'
-import {getTenantById, addUserToTenant, getTenantRoles, Role} from '@/services/tenantService' // Added getTenantRoles, Role
-import {TenantResponse, AddUserToTenantRequest} from '@/lib/apiClient'
+import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
+import {PlusCircledIcon, DotsHorizontalIcon, ArrowLeftIcon} from '@radix-ui/react-icons'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Checkbox} from '@/components/ui/checkbox' // Added Checkbox
-import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
-import {useForm} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import * as z from 'zod'
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
+import {Badge} from '@/components/ui/badge'
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {listUsersInTenant, removeUserFromTenant, getTenantById} from '@/services/tenantService'
+import {TenantUserResponse} from '@/types/tenant'
 import {toast} from 'sonner'
-// TODO: Add a multi-select component for roles if available, or use multiple checkboxes. - Partially addressed with checkboxes
+import Link from 'next/link'
+import {useState} from 'react' // Removed useEffect
+import {useParams} from 'next/navigation' // Removed useRouter
+import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle} from '@/components/ui/alert-dialog'
+import {AxiosError} from 'axios'
 
-const addUserFormSchema = z.object({
-	email: z.string().email('Invalid email address.'),
-	role_ids: z.array(z.string().uuid()).min(1, 'At least one role must be selected.'),
-})
-
-type AddUserFormValues = z.infer<typeof addUserFormSchema>
+const TENANT_USERS_QUERY_KEY = 'tenantUsers'
+const TENANT_DETAIL_QUERY_KEY = 'tenantDetail' // For fetching tenant name
 
 export default function TenantUsersPage() {
 	const params = useParams()
-	const router = useRouter()
 	const tenantId = params.tenantId as string
+	const queryClient = useQueryClient()
 
-	const [tenant, setTenant] = React.useState<TenantResponse | null>(null)
-	const [isLoadingTenant, setIsLoadingTenant] = React.useState(true)
-	const [availableRoles, setAvailableRoles] = React.useState<Role[]>([])
-	const [isLoadingRoles, setIsLoadingRoles] = React.useState(true)
-	const [isAddUserDialogOpen, setIsAddUserDialogOpen] = React.useState(false)
+	const [page, setPage] = useState(0)
+	const [rowsPerPage] = useState(10)
+	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+	const [userToRemove, setUserToRemove] = useState<TenantUserResponse | null>(null)
 
-	const addUserForm = useForm<AddUserFormValues>({
-		resolver: zodResolver(addUserFormSchema),
-		defaultValues: {
-			email: '',
-			role_ids: [],
+	const {data: tenantData, isLoading: isLoadingTenantName} = useQuery({
+		queryKey: [TENANT_DETAIL_QUERY_KEY, tenantId],
+		queryFn: () => getTenantById(tenantId),
+		enabled: !!tenantId,
+	})
+
+	const {data, isLoading, error, isFetching} = useQuery({
+		queryKey: [TENANT_USERS_QUERY_KEY, tenantId, page, rowsPerPage],
+		queryFn: () => listUsersInTenant(tenantId, rowsPerPage, page * rowsPerPage),
+		enabled: !!tenantId,
+		placeholderData: (previousData) => previousData,
+	})
+
+	const removeUserMutation = useMutation({
+		mutationFn: ({userId}: {userId: string}) => removeUserFromTenant(tenantId, userId),
+		onSuccess: () => {
+			toast.success('User removed from tenant successfully.')
+			queryClient.invalidateQueries({queryKey: [TENANT_USERS_QUERY_KEY, tenantId]})
+			setShowDeleteConfirm(false)
+			setUserToRemove(null)
+		},
+		onError: (err: Error | AxiosError<{message?: string}>) => {
+			let errorMessage = 'Failed to remove user.'
+			if (err && typeof err === 'object' && 'isAxiosError' in err && err.isAxiosError) {
+				const axiosError = err as AxiosError<{message?: string}>
+				errorMessage = axiosError.response?.data?.message || axiosError.message
+			} else {
+				errorMessage = err.message
+			}
+			toast.error(errorMessage)
+			setShowDeleteConfirm(false)
+			setUserToRemove(null)
 		},
 	})
 
-	React.useEffect(() => {
-		if (tenantId) {
-			const fetchTenantDetailsAndRoles = async () => {
-				setIsLoadingTenant(true)
-				setIsLoadingRoles(true)
-				try {
-					const tenantData = await getTenantById(tenantId)
-					setTenant(tenantData)
-				} catch (error) {
-					console.error('Failed to fetch tenant details:', error)
-					toast.error('Failed to load tenant details.')
-				} finally {
-					setIsLoadingTenant(false)
-				}
+	const handleDeleteClick = (user: TenantUserResponse) => {
+		setUserToRemove(user)
+		setShowDeleteConfirm(true)
+	}
 
-				try {
-					const rolesData = await getTenantRoles(tenantId) // Assuming no pagination needed for roles list in form
-					setAvailableRoles(rolesData.roles)
-				} catch (error) {
-					console.error('Failed to fetch tenant roles:', error)
-					toast.error('Failed to load roles for selection.')
-				} finally {
-					setIsLoadingRoles(false)
-				}
-			}
-			fetchTenantDetailsAndRoles()
-		}
-	}, [tenantId, router])
-
-	async function handleAddUser(data: AddUserFormValues) {
-		if (!tenantId) return
-
-		try {
-			const requestData: AddUserToTenantRequest = {
-				email: data.email,
-				role_ids: data.role_ids, // Directly use the array of role IDs
-			}
-			await addUserToTenant(tenantId, requestData)
-			toast.success(`User ${data.email} invited/added to tenant.`)
-			setIsAddUserDialogOpen(false)
-			addUserForm.reset()
-			// TODO: Re-fetch or update user list in TenantUserDataTable
-		} catch (error) {
-			console.error('Failed to add user to tenant:', error)
-			let errorMessage = 'Failed to add user.'
-			if (error instanceof AxiosError) {
-				errorMessage = error.response?.data?.message || error.message || errorMessage
-			} else if (error instanceof Error) {
-				errorMessage = error.message || errorMessage
-			}
-			toast.error(`Error: ${errorMessage}`)
+	const confirmDelete = () => {
+		if (userToRemove) {
+			removeUserMutation.mutate({userId: userToRemove.user_id})
 		}
 	}
 
-	if (isLoadingTenant) {
-		return <div className='container mx-auto py-10'>Loading tenant details...</div>
-	}
+	if (isLoadingTenantName || isLoading) return <div className='container mx-auto py-8'>Loading tenant users...</div>
+	if (error) return <div className='container mx-auto py-8'>Error fetching users: {error.message}</div>
 
-	if (!tenant) {
-		return <div className='container mx-auto py-10'>Tenant not found.</div>
-	}
+	const users = data?.users || []
+	const totalPages = data?.total_pages || 0
+	const tenantName = tenantData?.name || 'Tenant'
 
 	return (
-		<div className='container mx-auto py-10'>
-			<div className='flex justify-between items-center mb-4'>
-				<div>
-					<Button variant='outline' size='sm' onClick={() => router.back()} className='mb-2'>
-						&larr; Back to Tenants
+		<div className='container mx-auto py-8'>
+			<div className='mb-4'>
+				<Link href='/admin/tenants' passHref>
+					<Button variant='outline' size='sm'>
+						<ArrowLeftIcon className='mr-2 h-4 w-4' />
+						Back to Tenants
 					</Button>
-					<h1 className='text-3xl font-bold'>Users for Tenant: {tenant.name}</h1>
-					<p className='text-sm text-muted-foreground'>Tenant ID: {tenant.id}</p>
-				</div>
-				<Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
-					<DialogTrigger asChild>
-						<Button>Add User to Tenant</Button>
-					</DialogTrigger>
-					<DialogContent className='sm:max-w-[425px]'>
-						<DialogHeader>
-							<DialogTitle>Add New User to {tenant.name}</DialogTitle>
-							<DialogDescription>Enter the email and assign roles for the new user in this tenant.</DialogDescription>
-						</DialogHeader>
-						<Form {...addUserForm}>
-							<form onSubmit={addUserForm.handleSubmit(handleAddUser)} className='space-y-4 py-4'>
-								<FormField
-									control={addUserForm.control}
-									name='email'
-									render={({field}) => (
-										<FormItem>
-											<FormLabel>User Email</FormLabel>
-											<FormControl>
-												<Input placeholder='user@example.com' {...field} />
-											</FormControl>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-								<FormField
-									control={addUserForm.control}
-									name='role_ids'
-									render={() => (
-										// Remove unused fieldState
-										<FormItem>
-											<FormLabel>Roles</FormLabel>
-											{isLoadingRoles ? (
-												<p>Loading roles...</p>
-											) : availableRoles.length === 0 ? (
-												<p>No roles available for this tenant.</p>
-											) : (
-												<div className='space-y-2'>
-													{availableRoles.map((role) => (
-														<FormField
-															key={role.id}
-															control={addUserForm.control}
-															name='role_ids'
-															render={({field: itemField}) => {
-																return (
-																	<FormItem className='flex flex-row items-start space-x-3 space-y-0'>
-																		<FormControl>
-																			<Checkbox
-																				checked={itemField.value?.includes(role.id)}
-																				onCheckedChange={(checked) => {
-																					return checked ? itemField.onChange([...(itemField.value || []), role.id]) : itemField.onChange((itemField.value || []).filter((value) => value !== role.id))
-																				}}
-																			/>
-																		</FormControl>
-																		<FormLabel className='font-normal'>{role.name}</FormLabel>
-																	</FormItem>
-																)
-															}}
-														/>
-													))}
-												</div>
-											)}
-											<FormDescription>Select one or more roles for the user.</FormDescription>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-								<DialogFooter>
-									<Button type='button' variant='outline' onClick={() => setIsAddUserDialogOpen(false)}>
-										Cancel
-									</Button>
-									<Button type='submit' disabled={addUserForm.formState.isSubmitting || isLoadingRoles}>
-										{addUserForm.formState.isSubmitting ? 'Adding...' : 'Add User'}
-									</Button>
-								</DialogFooter>
-							</form>
-						</Form>
-					</DialogContent>
-				</Dialog>
+				</Link>
 			</div>
+			<Card>
+				<CardHeader>
+					<div className='flex items-center justify-between'>
+						<div>
+							<CardTitle>Users in {tenantName}</CardTitle>
+							<CardDescription>Manage users and their roles within this tenant.</CardDescription>
+						</div>
+						<Link href={`/admin/tenants/${tenantId}/users/add`} passHref>
+							<Button>
+								<PlusCircledIcon className='mr-2 h-4 w-4' /> Add User
+							</Button>
+						</Link>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Email</TableHead>
+								<TableHead>Name</TableHead>
+								<TableHead>Roles</TableHead>
+								<TableHead>Status in Tenant</TableHead>
+								<TableHead>Global Status</TableHead>
+								<TableHead>Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{users.length > 0 ? (
+								users.map((user) => (
+									<TableRow key={user.user_id}>
+										<TableCell>{user.email}</TableCell>
+										<TableCell>{`${user.first_name} ${user.last_name}`}</TableCell>
+										<TableCell>
+											{user.roles.map((role) => (
+												<Badge key={role} variant='secondary' className='mr-1'>
+													{role}
+												</Badge>
+											))}
+											{user.roles.length === 0 && <span className='text-xs text-muted-foreground'>No roles</span>}
+										</TableCell>
+										<TableCell>
+											<Badge variant={user.status_in_tenant === 'active' ? 'default' : 'outline'}>{user.status_in_tenant}</Badge>
+										</TableCell>
+										<TableCell>
+											<Badge variant={user.global_status === 'active' ? 'default' : 'outline'}>{user.global_status}</Badge>
+										</TableCell>
+										<TableCell>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button variant='ghost' className='h-8 w-8 p-0'>
+														<span className='sr-only'>Open menu</span>
+														<DotsHorizontalIcon className='h-4 w-4' />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align='end'>
+													<DropdownMenuLabel>Actions</DropdownMenuLabel>
+													<Link href={`/admin/tenants/${tenantId}/users/${user.user_id}/edit`} passHref>
+														<DropdownMenuItem>Edit User Roles/Status</DropdownMenuItem>
+													</Link>
+													<DropdownMenuSeparator />
+													<DropdownMenuItem onClick={() => handleDeleteClick(user)} className='text-red-600'>
+														Remove from Tenant
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
+										</TableCell>
+									</TableRow>
+								))
+							) : (
+								<TableRow>
+									<TableCell colSpan={6} className='h-24 text-center'>
+										No users found in this tenant.
+									</TableCell>
+								</TableRow>
+							)}
+						</TableBody>
+					</Table>
+					<div className='flex items-center justify-end space-x-2 py-4'>
+						<Button variant='outline' size='sm' onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0 || isFetching}>
+							Previous
+						</Button>
+						<span>
+							Page {page + 1} of {totalPages}
+						</span>
+						<Button variant='outline' size='sm' onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1 || isFetching}>
+							Next
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
 
-			<TenantUserDataTable columns={tenantUserColumns} tenantId={tenantId} />
+			<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Are you sure?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This will remove user {userToRemove?.email} from the tenant &quot;{tenantName}&quot;. The user&apos;s global account will not be deleted.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel onClick={() => setUserToRemove(null)}>Cancel</AlertDialogCancel>
+						<AlertDialogAction onClick={confirmDelete} disabled={removeUserMutation.isPending} className='bg-red-600 hover:bg-red-700'>
+							{removeUserMutation.isPending ? 'Removing...' : 'Remove User'}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	)
 }
