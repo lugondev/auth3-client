@@ -1,7 +1,7 @@
 'use client' // Make it a client component
 
 import {useEffect} from 'react'
-import {useRouter} from 'next/navigation'
+import {useRouter, useSearchParams} from 'next/navigation' // Import useSearchParams
 import {useAuth} from '@/contexts/AuthContext'
 import {LoginButtons} from '@/components/auth/LoginButtons'
 import {LoginForm} from '@/components/auth/LoginForm'
@@ -14,13 +14,19 @@ export default function LoginPage() {
 	// Renamed component to LoginPage for clarity
 	const {isAuthenticated, loading} = useAuth()
 	const router = useRouter()
+	const searchParams = useSearchParams() // Get search params
 
 	useEffect(() => {
 		// Redirect if authenticated and not loading
 		if (!loading && isAuthenticated) {
-			router.replace('/profile') // Use replace to avoid adding login page to history
+			const redirectPath = searchParams.get('redirect')
+			if (redirectPath) {
+				router.replace(redirectPath)
+			} else {
+				router.replace('/profile') // Default redirect if no query param
+			}
 		}
-	}, [isAuthenticated, loading, router])
+	}, [isAuthenticated, loading, router, searchParams])
 
 	// Show loading skeleton while checking auth state or redirecting
 	if (loading || isAuthenticated) {

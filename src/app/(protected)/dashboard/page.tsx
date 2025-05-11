@@ -1,100 +1,94 @@
+// @/app/(protected)/dashboard/page.tsx
+'use client'
+
 import React from 'react'
-import PageContainer from '@/components/layout/PageContainer'
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card' // Assuming shadcn card
+import {useAuth} from '@/contexts/AuthContext' // Use the actual AuthContext
+import Link from 'next/link' // Import Link for navigation
 
-// TODO: Fetch actual data for these sections
-const stats = [
-	{title: 'Active Venues', value: '12', change: '+2 since last month'},
-	{title: 'Upcoming Events', value: '5', change: ''},
-	{title: 'Total Staff', value: '45', change: '+5 new hires'},
-	{title: 'Open Alerts', value: '3', change: 'High priority'},
-]
+export default function UserDashboardPage() {
+	const {user, loading, isAuthenticated, isSystemAdmin, userTenants} = useAuth()
 
-const recentActivity = [
-	{id: 1, description: 'New event "Summer Gala" created for "Grand Hall"', time: '2 hours ago'},
-	{id: 2, description: 'Table layout updated for "Riverside Cafe"', time: '5 hours ago'},
-	{id: 3, description: 'User "Alice" added to staff at "Main Arena"', time: '1 day ago'},
-	{id: 4, description: 'Product "Craft Beer" stock updated for "Downtown Pub"', time: '2 days ago'},
-]
-
-const DashboardPage = () => {
-	return (
-		<PageContainer>
-			<h1 className='text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-6'>Dashboard Overview</h1>
-
-			{/* Overview Statistics */}
-			<div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6'>
-				{stats.map((stat) => (
-					<Card key={stat.title}>
-						<CardHeader className='pb-2'>
-							<CardDescription>{stat.title}</CardDescription>
-							<CardTitle className='text-4xl'>{stat.value}</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<p className='text-xs text-muted-foreground'>{stat.change}</p>
-						</CardContent>
-					</Card>
-				))}
-			</div>
-
-			<div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
-				{/* Recent Activity */}
-				<Card className='lg:col-span-2'>
-					<CardHeader>
-						<CardTitle>Recent Activity</CardTitle>
-						<CardDescription>Latest updates across your venues.</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<ul className='space-y-4'>
-							{recentActivity.map((activity) => (
-								<li key={activity.id} className='flex items-start space-x-3'>
-									<div className='flex-shrink-0 pt-1'>
-										{/* Placeholder Icon */}
-										<div className='h-2 w-2 rounded-full bg-blue-500'></div>
-									</div>
-									<div>
-										<p className='text-sm text-gray-800 dark:text-gray-200'>{activity.description}</p>
-										<p className='text-xs text-muted-foreground'>{activity.time}</p>
-									</div>
-								</li>
-							))}
-						</ul>
-						{/* TODO: Add link to full activity log */}
-					</CardContent>
-				</Card>
-
-				{/* Quick Access & Alerts */}
-				<div className='space-y-6'>
-					{/* Quick Access */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Quick Access</CardTitle>
-						</CardHeader>
-						<CardContent className='flex flex-col space-y-2'>
-							{/* TODO: Replace with actual links/buttons */}
-							<button className='text-sm text-blue-600 hover:underline dark:text-blue-400'>Create New Venue</button>
-							<button className='text-sm text-blue-600 hover:underline dark:text-blue-400'>Manage Staff</button>
-							<button className='text-sm text-blue-600 hover:underline dark:text-blue-400'>View Upcoming Events</button>
-							<button className='text-sm text-blue-600 hover:underline dark:text-blue-400'>Go to Settings</button>
-						</CardContent>
-					</Card>
-
-					{/* Alerts */}
-					<Card>
-						<CardHeader>
-							<CardTitle>Alerts & Notifications</CardTitle>
-						</CardHeader>
-						<CardContent>
-							{/* TODO: Display actual alerts */}
-							<p className='text-sm text-red-600 dark:text-red-400'>Low stock warning for Red Wine</p>
-							<p className='text-sm text-orange-500 dark:text-orange-400'>Staff shift conflict detected</p>
-							{/* TODO: Add link to view all alerts */}
-						</CardContent>
-					</Card>
+	if (loading || (!isAuthenticated && !loading)) {
+		// Show loading or if auth check complete and not authenticated (should be handled by layout, but good fallback)
+		return (
+			<div className='flex h-screen items-center justify-center'>
+				<div className='animate-pulse space-y-4'>
+					<div className='h-4 w-[200px] rounded bg-muted'></div>
+					<div className='h-4 w-[160px] rounded bg-muted'></div>
 				</div>
 			</div>
-		</PageContainer>
+		)
+	}
+
+	if (!user) {
+		// This case should ideally be handled by a higher-level auth guard (ProtectedLayout)
+		// redirecting to login if no user is found on a protected route.
+		// If ProtectedLayout is working, this might not be hit often.
+		return <p className='text-center mt-10'>Redirecting to login...</p>
+	}
+
+	return (
+		<div className='container mx-auto p-4 md:p-6'>
+			<h1 className='mb-8 text-3xl font-bold text-gray-800 dark:text-gray-100'>User Dashboard</h1>
+
+			{/* Personal Information Section */}
+			<section className='mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800'>
+				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>Personal Information</h2>
+				<div className='space-y-2 text-gray-700 dark:text-gray-300'>
+					<p>
+						<strong>Name:</strong> {user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.first_name || user.last_name || user.email || 'N/A'}
+					</p>
+					<p>
+						<strong>Email:</strong> {user.email || 'N/A'}
+					</p>
+					<p>
+						<strong>User ID:</strong> {user.id}
+					</p>
+					{isSystemAdmin && <p className='mt-2 rounded-md bg-blue-100 p-2 text-sm text-blue-700 dark:bg-blue-900 dark:text-blue-300'>You have System Administrator privileges.</p>}
+				</div>
+			</section>
+
+			{/* System Administration Section (Conditional) */}
+			{isSystemAdmin && (
+				<section className='mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800'>
+					<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>System Administration</h2>
+					<p className='mb-4 text-gray-600 dark:text-gray-400'>Access global system settings and management tools.</p>
+					<Link href='/admin/dashboard' legacyBehavior>
+						<a className='inline-block rounded-lg bg-indigo-600 px-6 py-3 font-semibold text-white shadow transition-colors hover:bg-indigo-700'>Go to System Admin</a>
+					</Link>
+				</section>
+			)}
+
+			{/* Tenants Management Section */}
+			<section className='mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800'>
+				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>My Tenants</h2>
+				{userTenants && userTenants.length > 0 ? (
+					<div className='grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3'>
+						{userTenants.map((tenant) => (
+							<div key={tenant.tenant_id} className='flex flex-col justify-between rounded-md border bg-gray-50 p-4 transition-all hover:shadow-md dark:border-gray-700 dark:bg-gray-700'>
+								<div>
+									<h3 className='mb-1 text-lg font-semibold text-gray-800 dark:text-gray-100'>{tenant.tenant_name}</h3>
+									<p className='mb-3 text-sm text-gray-500 dark:text-gray-400'>ID: {tenant.tenant_id}</p>
+								</div>
+								<Link href={`/tenant/${tenant.tenant_id}/overview`} legacyBehavior>
+									<a className='mt-auto block w-full rounded-md bg-sky-600 py-2 text-center font-medium text-white transition-colors hover:bg-sky-700'>Manage Tenant</a>
+								</Link>
+							</div>
+						))}
+					</div>
+				) : (
+					<p className='text-gray-500 dark:text-gray-400'>You are not a member of any tenants yet.</p>
+				)}
+			</section>
+
+			{/* Create Tenant Button Section */}
+			<section className='rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800'>
+				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>Create New Tenant</h2>
+				{/* TODO: Implement actual navigation or modal for tenant creation */}
+				<button onClick={() => alert('Tenant creation functionality to be implemented.')} className='rounded-lg bg-green-600 px-6 py-3 font-semibold text-white shadow transition-colors hover:bg-green-700'>
+					Create Tenant
+				</button>
+			</section>
+		</div>
 	)
 }
-
-export default DashboardPage

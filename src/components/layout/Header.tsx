@@ -2,7 +2,6 @@ import React from 'react'
 import {Button} from '@/components/ui/button'
 import {Menu} from 'lucide-react'
 import Breadcrumbs from './Breadcrumbs' // Import Breadcrumbs
-import {TenantSwitcher} from '@/components/tenants/TenantSwitcher' // Import TenantSwitcher
 
 interface HeaderProps {
 	onMenuButtonClick: () => void
@@ -23,9 +22,7 @@ const Header: React.FC<HeaderProps> = ({onMenuButtonClick}) => {
 				</div>
 			</div>
 			{/* Right side: Tenant Switcher and User Profile Section */}
-			<div className='flex items-center space-x-4'>
-				<TenantSwitcher /> {/* Add Tenant Switcher here */}
-			</div>
+			<div className='flex items-center space-x-4'>{/* <TenantSwitcher /> Add Tenant Switcher here */}</div>
 		</header>
 	)
 }

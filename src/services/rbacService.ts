@@ -1,14 +1,16 @@
 import apiClient from "@/lib/apiClient";
 import {
 	RoleListOutput,
-	PermissionListOutput,
+	PermissionListOutput, // Re-added for global getAllPermissions
 	UserRolesOutput,
 	UserRoleInput,
 	RolePermissionsOutput,
-	RolePermissionInput,
+	RolePermissionInput, // Used for global, tenant might use simpler PermissionInput for POST
+	PermissionInput, // For tenant-specific permission assignment
 } from "@/types/rbac";
 
 const RBAC_API_PREFIX = "/rbac"; // apiClient already has /api/v1
+const ADMIN_TENANTS_API_PREFIX = "/admin/tenants";
 
 // --- General RBAC Info ---
 
@@ -67,3 +69,53 @@ export const removePermissionForRole = async (
 	// Domain is assumed to be handled by backend context
 	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${role}/permissions/${object}/${action}`);
 };
+
+// --- Tenant-Specific RBAC Operations ---
+
+// GET /api/v1/admin/tenants/{tenant_id}/users/roles - List roles within a specific tenant
+export const getTenantRoles = async (tenantId: string): Promise<RoleListOutput> => {
+	const response = await apiClient.get(`${ADMIN_TENANTS_API_PREFIX}/${tenantId}/users/roles`);
+	return response.data;
+};
+
+// DELETE /api/v1/admin/tenants/{tenant_id}/rbac/roles/{role_name} - Delete a role within a tenant
+export const deleteTenantRole = async (tenantId: string, roleName: string): Promise<void> => {
+	await apiClient.delete(`${ADMIN_TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}`);
+};
+
+// GET /api/v1/admin/tenants/{tenant_id}/rbac/roles/{role_name}/permissions - List permissions for a specific role within a tenant
+export const getTenantRolePermissions = async (tenantId: string, roleName: string): Promise<RolePermissionsOutput> => {
+	const response = await apiClient.get(`${ADMIN_TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`);
+	// Ensure the response structure matches RolePermissionsOutput, especially the 'role' field.
+	// If the API doesn't return 'role' in the body, we might need to adjust or expect it.
+	// For now, assuming it matches. If not, the hook using this will need to manage the roleName contextually.
+	if (response.data && !response.data.role) {
+		return { ...response.data, role: roleName }; // Add roleName if not present in response
+	}
+	return response.data;
+};
+
+// POST /api/v1/admin/tenants/{tenant_id}/rbac/roles/{role_name}/permissions - Assign a permission to a role within a tenant
+export const assignPermissionToTenantRole = async (
+	tenantId: string,
+	roleName: string,
+	data: PermissionInput, // { object: string, action: string }
+): Promise<void> => {
+	await apiClient.post(`${ADMIN_TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`, data);
+};
+
+// DELETE /api/v1/admin/tenants/{tenant_id}/rbac/roles/{role_name}/permissions/{object}/{action} - Revoke a specific permission
+export const revokePermissionFromTenantRole = async (
+	tenantId: string,
+	roleName: string,
+	object: string,
+	action: string,
+): Promise<void> => {
+	await apiClient.delete(
+		`${ADMIN_TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`,
+	);
+};
+
+// Note: Creating a tenant role might be implicit via assigning the first permission
+// or might require a dedicated endpoint if one exists.
+// The CreateRoleModal will likely use assignPermissionToTenantRole with a new roleName.

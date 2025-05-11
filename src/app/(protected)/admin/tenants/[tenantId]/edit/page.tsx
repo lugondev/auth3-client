@@ -1,33 +1,35 @@
 'use client'
 
+import React, {useEffect} from 'react' // Removed useState
+import {useParams, useRouter} from 'next/navigation'
+import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
+import {useForm, SubmitHandler} from 'react-hook-form' // Removed useWatch
 import {zodResolver} from '@hookform/resolvers/zod'
-import {useForm} from 'react-hook-form'
-import {z} from 'zod'
-import {Button} from '@/components/ui/button'
-import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
-import {Input} from '@/components/ui/input'
-import {Switch} from '@/components/ui/switch'
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
-import {getTenantById, updateTenant} from '@/services/tenantService'
-import {toast} from 'sonner'
-import {useRouter, useParams} from 'next/navigation'
-import Link from 'next/link'
-import {ArrowLeftIcon} from '@radix-ui/react-icons'
-import {useEffect} from 'react'
-import {useBreadcrumbLabelStore} from '@/lib/breadcrumbStore'
-import {AxiosError} from 'axios'
+import * as z from 'zod'
+// import Link from 'next/link' // Removed Link
 
-// Schema for updating, name and is_active are optional
-const tenantUpdateFormSchema = z.object({
-	name: z.string().min(2, {message: 'Tenant name must be at least 2 characters.'}).max(100).optional(),
-	is_active: z.boolean().optional(),
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label'
+import {Switch} from '@/components/ui/switch'
+import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card'
+import {Separator} from '@/components/ui/separator'
+import {Loader2, ArrowLeft} from 'lucide-react'
+
+import {getTenantById, updateTenant as updateTenantService} from '@/services/tenantService'
+import {TenantResponse, UpdateTenantRequest} from '@/types/tenant' // Assuming UpdateTenantRequest is defined
+
+import {useTenantRbac} from '@/hooks/useTenantRbac'
+import {TenantRolesSection} from '@/components/tenants/rbac/TenantRolesSection'
+import {TenantRolePermissionsModal} from '@/components/tenants/rbac/TenantRolePermissionsModal'
+import {TenantCreateRoleModal} from '@/components/tenants/rbac/TenantCreateRoleModal'
+
+const editTenantFormSchema = z.object({
+	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name must be at most 100 characters'),
+	is_active: z.boolean(),
 })
 
-type TenantUpdateFormValues = z.infer<typeof tenantUpdateFormSchema>
-
-const TENANTS_QUERY_KEY = 'tenants'
-const TENANT_DETAIL_QUERY_KEY = 'tenantDetail'
+type EditTenantFormData = z.infer<typeof editTenantFormSchema>
 
 export default function EditTenantPage() {
 	const router = useRouter()
@@ -36,136 +38,158 @@ export default function EditTenantPage() {
 	const queryClient = useQueryClient()
 
 	const {
-		data: tenantData,
+		data: tenant,
 		isLoading: isLoadingTenant,
 		error: tenantError,
-	} = useQuery({
-		queryKey: [TENANT_DETAIL_QUERY_KEY, tenantId],
+	} = useQuery<TenantResponse, Error>({
+		queryKey: ['tenantDetails', tenantId],
 		queryFn: () => getTenantById(tenantId),
-		enabled: !!tenantId, // Only run query if tenantId is available
+		enabled: !!tenantId,
 	})
 
-	const form = useForm<TenantUpdateFormValues>({
-		resolver: zodResolver(tenantUpdateFormSchema),
-		defaultValues: {
-			name: '',
-			is_active: true,
-		},
+	const {
+		register,
+		handleSubmit,
+		reset,
+		setValue,
+		watch, // Added watch from useForm
+		formState: {errors, isSubmitting: isSubmittingForm},
+	} = useForm<EditTenantFormData>({
+		resolver: zodResolver(editTenantFormSchema),
 	})
 
 	useEffect(() => {
-		if (tenantData) {
-			form.reset({
-				name: tenantData.name || '',
-				is_active: tenantData.is_active,
+		if (tenant) {
+			reset({
+				name: tenant.name,
+				is_active: tenant.is_active,
 			})
-			// Update breadcrumb store with tenant name
-			if (tenantData.name) {
-				// Ensure name exists before setting
-				useBreadcrumbLabelStore.getState().setLabel(tenantId, tenantData.name)
-			}
 		}
-	}, [tenantData, form, tenantId]) // Added tenantId to dependency array
+	}, [tenant, reset])
 
-	const updateTenantMutation = useMutation({
-		mutationFn: (values: TenantUpdateFormValues) => updateTenant(tenantId, values),
-		onSuccess: (data) => {
-			toast.success(`Tenant "${data.name}" updated successfully!`)
-			queryClient.invalidateQueries({queryKey: [TENANTS_QUERY_KEY]})
-			queryClient.invalidateQueries({queryKey: [TENANT_DETAIL_QUERY_KEY, tenantId]})
-			router.push('/admin/tenants')
+	const mutation = useMutation({
+		mutationFn: (data: UpdateTenantRequest) => updateTenantService(tenantId, data),
+		onSuccess: (updatedTenant) => {
+			console.log(`Tenant "${updatedTenant.name}" has been updated successfully.`)
+			queryClient.invalidateQueries({queryKey: ['tenantDetails', tenantId]})
+			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']}) // If listed on another page
+			queryClient.invalidateQueries({queryKey: ['ownedTenants']}) // If listed on another page
 		},
-		onError: (error: Error | AxiosError<{message?: string; error?: string}>) => {
-			let errorMessage = 'Failed to update tenant.'
-			let errorDescription = 'Please check the details and try again.'
-			if (error && typeof error === 'object' && 'isAxiosError' in error && error.isAxiosError) {
-				const axiosError = error as AxiosError<{message?: string; error?: string}>
-				errorMessage = axiosError.response?.data?.message || axiosError.message
-				errorDescription = axiosError.response?.data?.error || errorDescription
-			} else if (error && error.message) {
-				errorMessage = error.message
-			}
-			toast.error(errorMessage, {
-				description: errorDescription,
-			})
+		onError: (error: Error) => {
+			console.error('Error Updating Tenant:', error.message)
 		},
 	})
 
-	function onSubmit(values: TenantUpdateFormValues) {
-		// Filter out undefined values so only provided fields are sent
-		const payload: Partial<TenantUpdateFormValues> = {}
-		if (values.name !== undefined && values.name !== tenantData?.name) {
-			payload.name = values.name
-		}
-		if (values.is_active !== undefined && values.is_active !== tenantData?.is_active) {
-			payload.is_active = values.is_active
-		}
-
-		if (Object.keys(payload).length === 0) {
-			toast.info('No changes detected.')
-			return
-		}
-		updateTenantMutation.mutate(payload)
+	const onSubmit: SubmitHandler<EditTenantFormData> = (data) => {
+		mutation.mutate(data)
 	}
 
-	if (isLoadingTenant) return <div className='container mx-auto py-8'>Loading tenant details...</div>
-	if (tenantError) return <div className='container mx-auto py-8'>Error fetching tenant: {tenantError.message}</div>
-	if (!tenantData) return <div className='container mx-auto py-8'>Tenant not found.</div>
+	// --- Tenant RBAC Hook ---
+	const tenantRbac = useTenantRbac(tenantId) // Initialize with tenantId
+
+	// Effect to set tenantId for the hook once it's available
+	useEffect(() => {
+		if (tenantId) {
+			tenantRbac.actions.setTenantId(tenantId)
+		}
+	}, [tenantId, tenantRbac.actions.setTenantId])
+
+	if (isLoadingTenant || tenantRbac.loading.initialRoles) {
+		return (
+			<div className='flex justify-center items-center min-h-screen'>
+				<Loader2 className='h-8 w-8 animate-spin text-primary' />
+				<span className='ml-2 text-lg'>Loading Tenant Details...</span>
+			</div>
+		)
+	}
+
+	if (tenantError) {
+		return (
+			<div className='container mx-auto p-4 text-center'>
+				<p className='text-destructive'>Error loading tenant: {tenantError.message}</p>
+				<Button onClick={() => router.back()} variant='outline' className='mt-4'>
+					Go Back
+				</Button>
+			</div>
+		)
+	}
+
+	if (!tenant) {
+		return (
+			<div className='container mx-auto p-4 text-center'>
+				<p>Tenant not found.</p>
+				<Button onClick={() => router.push('/admin/tenants')} variant='outline' className='mt-4'>
+					Back to Tenants List
+				</Button>
+			</div>
+		)
+	}
+	const watchedIsActive = watch('is_active') // Watch the value for the Switch
 
 	return (
-		<div className='container mx-auto py-8'>
-			<div className='mb-4'>
-				<Link href='/admin/tenants' passHref>
-					<Button variant='outline' size='sm'>
-						<ArrowLeftIcon className='mr-2 h-4 w-4' />
-						Back to Tenants
-					</Button>
-				</Link>
+		<div className='container mx-auto p-4 space-y-8'>
+			<div>
+				<Button variant='outline' size='sm' onClick={() => router.push('/admin/tenants')} className='mb-4'>
+					<ArrowLeft className='mr-2 h-4 w-4' />
+					Back to Tenants
+				</Button>
+				<h1 className='text-3xl font-bold'>Edit Tenant: {tenant.name}</h1>
 			</div>
-			<Card className='max-w-2xl mx-auto'>
+
+			<Card>
 				<CardHeader>
-					<CardTitle>Edit Tenant: {tenantData.name}</CardTitle>
-					<CardDescription>Update the details for this tenant.</CardDescription>
+					<CardTitle>Tenant Details</CardTitle>
+					<CardDescription>{`Update the tenant's name and status.`}</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<Form {...form}>
-						<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
-							<FormField
-								control={form.control}
-								name='name'
-								render={({field}) => (
-									<FormItem>
-										<FormLabel>Tenant Name</FormLabel>
-										<FormControl>
-											<Input placeholder='Acme Corporation' {...field} />
-										</FormControl>
-										<FormDescription>The official name of the tenant or organization.</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-							<FormField
-								control={form.control}
-								name='is_active'
-								render={({field}) => (
-									<FormItem className='flex flex-row items-center justify-between rounded-lg border p-4'>
-										<div className='space-y-0.5'>
-											<FormLabel className='text-base'>Active Status</FormLabel>
-											<FormDescription>Controls whether the tenant is active and accessible.</FormDescription>
-										</div>
-										<FormControl>
-											<Switch checked={field.value} onCheckedChange={field.onChange} />
-										</FormControl>
-									</FormItem>
-								)}
-							/>
-							<Button type='submit' disabled={updateTenantMutation.isPending}>
-								{updateTenantMutation.isPending ? 'Updating...' : 'Save Changes'}
-							</Button>
-						</form>
-					</Form>
+					<form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
+						<div>
+							<Label htmlFor='name'>Tenant Name</Label>
+							<Input id='name' {...register('name')} className='mt-1' />
+							{errors.name && <p className='text-sm text-red-500 mt-1'>{errors.name.message}</p>}
+						</div>
+						<div className='flex items-center space-x-2'>
+							<Switch id='is_active' {...register('is_active')} checked={watchedIsActive} onCheckedChange={(checked) => setValue('is_active', checked)} />
+							<Label htmlFor='is_active'>Active Status</Label>
+						</div>
+						{errors.is_active && <p className='text-sm text-red-500 mt-1'>{errors.is_active.message}</p>}
+
+						<Button type='submit' disabled={isSubmittingForm || mutation.isPending}>
+							{(isSubmittingForm || mutation.isPending) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+							Save Changes
+						</Button>
+					</form>
 				</CardContent>
 			</Card>
+
+			<Separator />
+
+			{/* Tenant RBAC Section */}
+			<TenantRolesSection roles={tenantRbac.roles} loading={tenantRbac.loading} error={tenantRbac.error} selectedRole={tenantRbac.selectedRole} onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal} onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal} onDeleteRole={tenantRbac.actions.handleDeleteTenantRole} />
+
+			{/* Tenant RBAC Modals */}
+			<TenantRolePermissionsModal
+				isOpen={tenantRbac.isRolePermsModalOpen}
+				onClose={tenantRbac.actions.closeRolePermsModal}
+				role={tenantRbac.selectedRole}
+				groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)}
+				loading={tenantRbac.loading}
+				error={tenantRbac.error} // General error for modal operations
+				newPermObject={tenantRbac.newPermObject}
+				newPermAction={tenantRbac.newPermAction}
+				onNewPermObjectChange={tenantRbac.actions.setNewPermObject}
+				onNewPermActionChange={tenantRbac.actions.setNewPermAction}
+				onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole}
+				onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole}
+			/>
+
+			<TenantCreateRoleModal
+				isOpen={tenantRbac.isCreateRoleModalOpen}
+				onClose={tenantRbac.actions.closeCreateRoleModal}
+				loading={tenantRbac.loading}
+				error={tenantRbac.createRoleError} // Specific error for create role
+				onCreateRole={tenantRbac.actions.handleCreateTenantRole}
+			/>
 		</div>
 	)
 }

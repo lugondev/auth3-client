@@ -1,128 +1,83 @@
-'use client' // Needed for usePathname hook
+// @/components/layout/Sidebar.tsx
+'use client'
 
-import React, {useState} from 'react' // Import useState
+import React from 'react'
 import Link from 'next/link'
-import {usePathname} from 'next/navigation'
-import {cn} from '@/lib/utils'
-import {Building, User, Settings, BarChart, LayoutDashboard, ChevronDown, Users, CreditCard, ShieldCheck} from 'lucide-react' // Removed Grid3x3 icon, Added ShieldCheck
-import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '@/components/ui/collapsible' // Import Collapsible
-
-interface NavItem {
-	href?: string // Optional href for parent items
-	label: string
-	icon: React.ElementType
-	children?: NavItem[] // Optional children for collapsible sections
-	disabled?: boolean // Optional disabled state
-}
 
 interface SidebarProps {
-	isOpen: boolean // For mobile state
+	type?: 'system' | 'tenant'
+	tenantId?: string // Only for tenant type
+	tenantName?: string // Only for tenant type
 }
 
-// TODO: Move this to a config file or context later for better management
-const navItems: NavItem[] = [
-	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-	{href: '/admin/tenants', label: 'Tenant Management', icon: Building},
-	{href: '/users', label: 'User Management', icon: Users}, // Added User Management
-	{href: '/admin/rbac', label: 'RBAC Management', icon: ShieldCheck}, // Updated RBAC href to match page location
-	// {href: '/table-management', label: 'Tables/Slots', icon: Grid3x3}, // Removed Table Management Link
-	{href: '/analytics', label: 'Analytics', icon: BarChart, disabled: true}, // Example disabled item
-	{href: '/profile', label: 'Profile', icon: User},
-	{
-		// Collapsible Settings section
-		label: 'Settings',
-		icon: Settings,
-		children: [{href: '/settings/billing', label: 'Billing', icon: CreditCard, disabled: true}],
-	},
+const systemAdminLinks = [
+	{href: '/admin/dashboard', label: 'Dashboard'},
+	{href: '/admin/tenants', label: 'Tenant Management'},
+	{href: '/admin/users', label: 'User Management'},
+	{href: '/admin/roles', label: 'Global Roles & Permissions'}, // Updated label
+	{href: '/admin/logs', label: 'System Logs'}, // Updated label
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({isOpen}) => {
-	const pathname = usePathname()
-	const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
-		// Initialize open sections based on current path
-		const initialOpen: Record<string, boolean> = {}
-		navItems.forEach((item) => {
-			if (item.children && item.children.some((child) => child.href && pathname.startsWith(child.href))) {
-				initialOpen[item.label] = true
-			}
-		})
-		return initialOpen
-	})
+const getTenantAdminLinks = (tenantId: string) => [
+	{href: `/tenant/${tenantId}/overview`, label: 'Overview'},
+	{href: `/tenant/${tenantId}/users`, label: 'Tenant Users'}, // Updated label
+	{href: `/tenant/${tenantId}/roles`, label: 'Tenant Roles & Permissions'}, // Updated label
+	{href: `/tenant/${tenantId}/settings`, label: 'Tenant Settings'}, // Updated label
+]
 
-	const toggleSection = (label: string) => {
-		setOpenSections((prev) => ({...prev, [label]: !prev[label]}))
-	}
+const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
+	const links = (() => {
+		if (type === 'system') {
+			return systemAdminLinks
+		}
+		if (type === 'tenant' && tenantId) {
+			return getTenantAdminLinks(tenantId)
+		}
+		return []
+	})()
+
+	const title = (() => {
+		if (type === 'system') {
+			return 'System Admin'
+		}
+		if (type === 'tenant') {
+			return `Tenant: ${tenantName || 'N/A'}`
+		}
+		return 'Menu' // Default title
+	})()
+
+	// The actual visibility of the sidebar (especially on mobile) is controlled by AppShell.
+	// This component might use `isOpen` for internal styling or animations if needed in the future.
+	// For now, we just ensure the prop is accepted.
+
+	// Tailwind classes for the sidebar container.
+	// The actual visibility (especially on mobile) is controlled by AppShell.
+	// `isOpen` might be used here for conditional styling if needed.
+	const sidebarClasses = `
+    h-full flex flex-col 
+    bg-gray-800 text-white 
+    p-4 space-y-2
+  `
+	// Removed w-64 as width is handled by the parent div in AppShell
 
 	return (
-		<aside className={cn('fixed inset-y-0 left-0 z-30 w-64 transform border-r border-gray-200 bg-white p-4 transition-transform duration-300 ease-in-out dark:border-gray-700 dark:bg-gray-800 md:static md:z-auto md:translate-x-0', isOpen ? 'translate-x-0' : '-translate-x-full')} aria-label='Sidebar'>
-			<div className='mb-8 flex items-center justify-center'>
-				{/* Placeholder Logo/Title - Replace with actual logo if available */}
-				<Link href='/dashboard' className='text-2xl font-semibold text-gray-800 dark:text-gray-100'>
-					Auth System
-				</Link>
-			</div>
-			<nav className='flex-1 space-y-1'>
-				{navItems.map((item) => {
-					const isSectionOpen = openSections[item.label] ?? false
-					// Check if the parent itself or any child is active
-					const isParentActive = (item.href && pathname === item.href) || (item.href && item.href !== '/dashboard' && pathname.startsWith(item.href))
-					const isChildActive = item.children?.some((child) => child.href && pathname.startsWith(child.href)) ?? false
-					const isActive = isParentActive || isChildActive
-
-					return item.children ? (
-						<Collapsible key={item.label} open={isSectionOpen} onOpenChange={() => toggleSection(item.label)} className='space-y-1'>
-							<CollapsibleTrigger asChild>
-								<button className={cn('flex w-full items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isActive ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700', item.disabled && 'cursor-not-allowed opacity-50')} disabled={item.disabled}>
-									<div className='flex items-center'>
-										<item.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400')} aria-hidden='true' />
-										{item.label}
-									</div>
-									<ChevronDown className={cn('h-4 w-4 transform transition-transform duration-200', isSectionOpen ? 'rotate-180' : '')} />
-								</button>
-							</CollapsibleTrigger>
-							<CollapsibleContent className='space-y-1 pl-7'>
-								{item.children.map((child) => {
-									const isChildLinkActive = child.href && pathname.startsWith(child.href)
-									return (
-										<Link
-											key={child.label}
-											// Use '#' if href is missing
-											href={child.href ?? '#'}
-											className={cn('flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isChildLinkActive ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white', child.disabled && 'cursor-not-allowed opacity-50')}
-											aria-disabled={child.disabled}
-											tabIndex={child.disabled ? -1 : undefined}
-											// Prevent navigation for disabled items
-											onClick={(e) => child.disabled && e.preventDefault()}>
-											<child.icon className={cn('mr-3 h-4 w-4 flex-shrink-0', isChildLinkActive ? 'text-indigo-500 dark:text-indigo-300' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-300')} aria-hidden='true' />
-											{child.label}
-										</Link>
-									)
-								})}
-							</CollapsibleContent>
-						</Collapsible>
-					) : (
-						// Render non-collapsible item
-						// Ensure href exists before rendering Link
-						item.href && (
-							<Link
-								key={item.label}
-								href={item.href}
-								aria-disabled={item.disabled}
-								tabIndex={item.disabled ? -1 : undefined}
-								// Prevent navigation for disabled items
-								onClick={(e) => item.disabled && e.preventDefault()}
-								className={cn('flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150 ease-in-out', isActive ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700', item.disabled && 'cursor-not-allowed opacity-50')}>
-								{/* Icon and label now direct children */}
-								<item.icon className={cn('mr-3 h-5 w-5 flex-shrink-0', isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500 dark:group-hover:text-gray-400')} aria-hidden='true' />
-								{item.label}
+		<aside className={sidebarClasses}>
+			<h2 className='text-xl font-semibold mb-4'>{title}</h2>
+			<nav className='flex-grow overflow-y-auto'>
+				{' '}
+				{/* Added flex-grow and overflow for long lists */}
+				<ul>
+					{links.map((link) => (
+						<li key={link.href}>
+							<Link href={link.href} className='block py-2 px-3 hover:bg-gray-700 rounded'>
+								{link.label}
 							</Link>
-						)
-					)
-				})}
+						</li>
+					))}
+				</ul>
 			</nav>
 		</aside>
 	)
 }
 
-// Exporting as named export to match the import suggestion
-export {Sidebar}
+export default Sidebar

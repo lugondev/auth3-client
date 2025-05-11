@@ -1,7 +1,7 @@
 import apiClient from "@/lib/apiClient";
 import {
 	AddUserToTenantRequest,
-	CreateTenantRequest,
+	// CreateTenantRequest, // Removed as it's unused
 	PaginatedTenantsResponse,
 	PaginatedTenantUsersResponse,
 	TenantResponse,
@@ -10,9 +10,16 @@ import {
 	UpdateTenantUserRequest,
 	UserTenantMembershipInfo,
 } from "@/types/tenant";
+import {
+	JoinedTenantsResponse,
+	OwnedTenantsResponse,
+	CreateTenantPayload,
+	CreateTenantResponse,
+	// AllTenantsResponse, // listTenants can be used for this
+} from "@/types/tenantManagement";
 
 // Tenant CRUD operations
-export const createTenant = async (data: CreateTenantRequest): Promise<TenantResponse> => {
+export const createTenant = async (data: CreateTenantPayload): Promise<CreateTenantResponse> => {
 	const response = await apiClient.post(`/api/v1/admin/tenants`, data);
 	return response.data;
 };
@@ -84,3 +91,20 @@ export const listMyTenants = async (): Promise<UserTenantMembershipInfo[]> => {
 
 // It seems the backend handler for ListUserTenantsHandler returns `memberships` which is `[]*UserTenantMembershipInfo`
 // So the response.data should already be UserTenantMembershipInfo[]
+
+// Functions for the new Tenant Management Page
+export const getJoinedTenants = async (params: { limit?: number; offset?: number } = {}): Promise<JoinedTenantsResponse> => {
+	const response = await apiClient.get(`/api/v1/me/tenants`, { params });
+	return response.data;
+};
+
+export const getOwnedTenants = async (params: { limit?: number; offset?: number } = {}): Promise<OwnedTenantsResponse> => {
+	const response = await apiClient.get(`/api/v1/me/tenants/owned`, { params });
+	return response.data;
+};
+
+// The existing `listTenants` function can be used for fetching all tenants for an admin.
+// export const getAllTenantsForAdmin = async (params: { limit?: number; offset?: number } = {}): Promise<AllTenantsResponse> => {
+//   const response = await apiClient.get(`/api/v1/admin/tenants`, { params });
+//   return response.data;
+// };

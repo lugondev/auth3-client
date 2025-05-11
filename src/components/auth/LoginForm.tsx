@@ -239,7 +239,9 @@ export function LoginForm() {
 										form.setValue('tenant_slug', '') // Clear tenant_slug if switching to system login
 									}
 								}}
-								defaultValue={loginType}>
+								value={loginType}>
+								{' '}
+								{/* Changed from defaultValue to value */}
 								<FormControl>
 									<SelectTrigger>
 										<SelectValue placeholder='Select login type' />
