@@ -1,6 +1,7 @@
 'use client'
 
 import {createContext, useContext, useEffect, useState, useCallback, useRef} from 'react'
+import {useRouter} from 'next/navigation' // Added for navigation
 import {GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup, signOut as firebaseSignOut, User as FirebaseUser} from 'firebase/auth'
 import {auth} from '@/lib/firebase'
 import {useLocalStorage} from 'usehooks-ts'
@@ -94,6 +95,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	const [accessToken, setAccessToken] = useLocalStorage<string | null>(ACCESS_TOKEN_KEY, null)
 	const [refreshToken, setRefreshToken] = useLocalStorage<string | null>(REFRESH_TOKEN_KEY, null)
+	const router = useRouter() // Initialize router
 
 	const clearAuthData = useCallback(
 		async (doFirebaseSignOut = true) => {
@@ -119,8 +121,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					console.warn('Error during service logout on clearAuthData:', error)
 				}
 			}
+			// Navigate to login after clearing data
+			// Ensure this runs on the client side, which it should in a 'use client' component
+			router.push('/login')
 		},
-		[setAccessToken, setRefreshToken],
+		[setAccessToken, setRefreshToken, router], // Added router to dependencies
 	)
 
 	const checkSystemAdminStatus = useCallback(async () => {

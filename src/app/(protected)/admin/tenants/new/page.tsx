@@ -1,5 +1,6 @@
 'use client'
 
+import {useEffect} from 'react' // Added useEffect
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useForm} from 'react-hook-form'
 import {z} from 'zod'
@@ -23,7 +24,6 @@ const tenantFormSchema = z.object({
 		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
 			message: 'Slug must be lowercase alphanumeric with optional hyphens and no leading/trailing hyphens.',
 		}),
-	owner_email: z.string().email({message: 'Please enter a valid email address.'}),
 })
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>
@@ -39,9 +39,39 @@ export default function CreateTenantPage() {
 		defaultValues: {
 			name: '',
 			slug: '',
-			owner_email: '',
 		},
+		mode: 'onChange', // Added for better watch performance
 	})
+
+	const {watch, setValue, trigger} = form // Destructure watch and setValue
+	const watchedName = watch('name')
+	const watchedSlug = watch('slug') // Watch slug to prevent overwriting manual input
+
+	// Function to generate slug
+	const generateSlug = (name: string) => {
+		return name
+			.toLowerCase()
+			.trim()
+			.replace(/\s+/g, '-') // Replace spaces with hyphens
+			.replace(/[^\w-]+/g, '') // Remove non-alphanumeric characters except hyphens
+			.replace(/--+/g, '-') // Replace multiple hyphens with a single hyphen
+	}
+
+	useEffect(() => {
+		if (watchedName) {
+			const generatedSlug = generateSlug(watchedName)
+			// Only update if the current slug is empty or was likely auto-generated from a previous name
+			// This prevents overwriting a slug that the user has manually typed or corrected.
+			// A simple check is if the current slug is an empty string or if it's the slugified version of a *previous* name.
+			// For simplicity here, we'll update if the slug is empty or if the new generated slug is different from the current one,
+			// implying the name changed and the slug should reflect that, unless the user has manually set it.
+			// A more robust check might involve storing the "last auto-generated slug".
+			if (watchedSlug === '' || generateSlug(watchedName.slice(0, -1)) === watchedSlug || watchedSlug !== generatedSlug) {
+				setValue('slug', generatedSlug, {shouldValidate: true, shouldDirty: true})
+				trigger('slug') // Trigger validation for slug
+			}
+		}
+	}, [watchedName, setValue, watchedSlug, trigger])
 
 	const createTenantMutation = useMutation({
 		mutationFn: createTenant,
@@ -112,20 +142,6 @@ export default function CreateTenantPage() {
 											<Input placeholder='acme-corp' {...field} />
 										</FormControl>
 										<FormDescription>A unique, URL-friendly identifier (e.g., acme-corp). Lowercase alphanumeric and hyphens only.</FormDescription>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-							<FormField
-								control={form.control}
-								name='owner_email'
-								render={({field}) => (
-									<FormItem>
-										<FormLabel>Owner&apos;s Email</FormLabel>
-										<FormControl>
-											<Input type='email' placeholder='owner@example.com' {...field} />
-										</FormControl>
-										<FormDescription>The email address of the primary owner for this tenant.</FormDescription>
 										<FormMessage />
 									</FormItem>
 								)}

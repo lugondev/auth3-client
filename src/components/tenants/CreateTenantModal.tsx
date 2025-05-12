@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import * as z from 'zod'
@@ -16,7 +16,6 @@ import {CreateTenantPayload} from '@/types/tenantManagement'
 
 const tenantFormSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name must be at most 100 characters'),
-	owner_email: z.string().email('Invalid email address'),
 	slug: z
 		.string()
 		.min(3, 'Slug must be at least 3 characters')
@@ -40,17 +39,39 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 		handleSubmit,
 		formState: {errors, isSubmitting},
 		reset,
+		watch,
+		setValue,
 	} = useForm<TenantFormData>({
 		resolver: zodResolver(tenantFormSchema),
+		mode: 'onChange', // To ensure watch updates correctly and for better UX with validation
 	})
+
+	const nameValue = watch('name')
+
+	const generateSlug = (name: string): string => {
+		if (!name) return ''
+		return name
+			.toLowerCase()
+			.trim()
+			.replace(/\s+/g, '-') // Replace spaces with hyphens
+			.replace(/[^\w-]+/g, '') // Remove all non-word characters except hyphens
+			.replace(/--+/g, '-') // Replace multiple hyphens with a single hyphen
+			.substring(0, 50) // Ensure max length of 50 characters
+	}
+
+	useEffect(() => {
+		if (nameValue) {
+			const slug = generateSlug(nameValue)
+			setValue('slug', slug, {shouldValidate: true, shouldDirty: true})
+		}
+		// else {
+		//  setValue('slug', '', { shouldValidate: false, shouldDirty: true }); // Clear slug if name is cleared
+		// }
+	}, [nameValue, setValue])
 
 	const mutation = useMutation({
 		mutationFn: (data: CreateTenantPayload) => createTenant(data),
 		onSuccess: () => {
-			// toast({
-			// 	title: 'Tenant Created',
-			// 	description: 'The new tenant has been created successfully.',
-			// })
 			console.log('Tenant created successfully') // Placeholder
 			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
 			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
@@ -61,12 +82,6 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 			}
 		},
 		onError: (error: Error) => {
-			// Changed 'any' to 'Error'
-			// toast({
-			// 	title: 'Error',
-			// 	description: error.message || 'Failed to create tenant. Please try again.',
-			// 	variant: 'destructive',
-			// })
 			console.error('Failed to create tenant:', error.message) // Placeholder
 		},
 	})
@@ -88,11 +103,6 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 						<Label htmlFor='name'>Tenant Name</Label>
 						<Input id='name' {...register('name')} placeholder='Acme Corporation' />
 						{errors.name && <p className='text-sm text-red-500 mt-1'>{errors.name.message}</p>}
-					</div>
-					<div>
-						<Label htmlFor='owner_email'>Owner Email</Label>
-						<Input id='owner_email' type='email' {...register('owner_email')} placeholder='owner@example.com' />
-						{errors.owner_email && <p className='text-sm text-red-500 mt-1'>{errors.owner_email.message}</p>}
 					</div>
 					<div>
 						<Label htmlFor='slug'>Tenant Slug</Label>

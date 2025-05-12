@@ -3,6 +3,24 @@
 
 import React from 'react'
 import Link from 'next/link'
+import {
+	LayoutDashboard,
+	Building,
+	Users,
+	ShieldCheck,
+	FileText,
+	LayoutGrid,
+	Users2,
+	Shield,
+	Settings,
+	// Icon as LucideIcon, // No longer needed for direct type definition
+} from 'lucide-react'
+
+interface NavLink {
+	href: string
+	label: string
+	icon: React.ElementType // Correct type for a React component
+}
 
 interface SidebarProps {
 	type?: 'system' | 'tenant'
@@ -10,19 +28,19 @@ interface SidebarProps {
 	tenantName?: string // Only for tenant type
 }
 
-const systemAdminLinks = [
-	{href: '/admin/dashboard', label: 'Dashboard'},
-	{href: '/admin/tenants', label: 'Tenant Management'},
-	{href: '/admin/users', label: 'User Management'},
-	{href: '/admin/roles', label: 'Global Roles & Permissions'}, // Updated label
-	{href: '/admin/logs', label: 'System Logs'}, // Updated label
+const systemAdminLinks: NavLink[] = [
+	{href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/admin/tenants', label: 'Tenant Management', icon: Building},
+	{href: '/admin/users', label: 'User Management', icon: Users},
+	{href: '/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck},
+	{href: '/admin/logs', label: 'System Logs', icon: FileText},
 ]
 
-const getTenantAdminLinks = (tenantId: string) => [
-	{href: `/tenant/${tenantId}/overview`, label: 'Overview'},
-	{href: `/tenant/${tenantId}/users`, label: 'Tenant Users'}, // Updated label
-	{href: `/tenant/${tenantId}/roles`, label: 'Tenant Roles & Permissions'}, // Updated label
-	{href: `/tenant/${tenantId}/settings`, label: 'Tenant Settings'}, // Updated label
+const getTenantAdminLinks = (tenantId: string): NavLink[] => [
+	{href: `/tenant/${tenantId}/overview`, label: 'Overview', icon: LayoutGrid},
+	{href: `/tenant/${tenantId}/users`, label: 'Tenant Users', icon: Users2},
+	{href: `/tenant/${tenantId}/roles`, label: 'Tenant Roles & Permissions', icon: Shield},
+	{href: `/tenant/${tenantId}/settings`, label: 'Tenant Settings', icon: Settings},
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
@@ -67,13 +85,17 @@ const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
 				{' '}
 				{/* Added flex-grow and overflow for long lists */}
 				<ul>
-					{links.map((link) => (
-						<li key={link.href}>
-							<Link href={link.href} className='block py-2 px-3 hover:bg-gray-700 rounded'>
-								{link.label}
-							</Link>
-						</li>
-					))}
+					{links.map((link) => {
+						const IconComponent = link.icon
+						return (
+							<li key={link.href}>
+								<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
+									<IconComponent className='h-5 w-5' />
+									<span>{link.label}</span>
+								</Link>
+							</li>
+						)
+					})}
 				</ul>
 			</nav>
 		</aside>

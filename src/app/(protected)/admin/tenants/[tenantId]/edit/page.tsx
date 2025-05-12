@@ -1,23 +1,23 @@
 'use client'
 
-import React, {useEffect} from 'react' // Removed useState
+import React, {useEffect, useState} from 'react'
 import {useParams, useRouter} from 'next/navigation'
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
-import {useForm, SubmitHandler} from 'react-hook-form' // Removed useWatch
+import {useForm, SubmitHandler} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import * as z from 'zod'
-// import Link from 'next/link' // Removed Link
 
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {Switch} from '@/components/ui/switch'
-import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card'
+import {Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
-import {Loader2, ArrowLeft} from 'lucide-react'
+import {Loader2, ArrowLeft, Trash2} from 'lucide-react'
 
-import {getTenantById, updateTenant as updateTenantService} from '@/services/tenantService'
-import {TenantResponse, UpdateTenantRequest} from '@/types/tenant' // Assuming UpdateTenantRequest is defined
+import {getTenantById, updateTenant as updateTenantService, deleteTenant as deleteTenantService} from '@/services/tenantService'
+import {TenantResponse, UpdateTenantRequest} from '@/types/tenant'
+import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
 import {useTenantRbac} from '@/hooks/useTenantRbac'
 import {TenantRolesSection} from '@/components/tenants/rbac/TenantRolesSection'
@@ -36,6 +36,7 @@ export default function EditTenantPage() {
 	const params = useParams()
 	const tenantId = params.tenantId as string
 	const queryClient = useQueryClient()
+	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 
 	const {
 		data: tenant,
@@ -72,16 +73,35 @@ export default function EditTenantPage() {
 		onSuccess: (updatedTenant) => {
 			console.log(`Tenant "${updatedTenant.name}" has been updated successfully.`)
 			queryClient.invalidateQueries({queryKey: ['tenantDetails', tenantId]})
-			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']}) // If listed on another page
-			queryClient.invalidateQueries({queryKey: ['ownedTenants']}) // If listed on another page
+			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
+			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
 		},
 		onError: (error: Error) => {
 			console.error('Error Updating Tenant:', error.message)
 		},
 	})
 
+	const deleteMutation = useMutation({
+		mutationFn: () => deleteTenantService(tenantId),
+		onSuccess: () => {
+			console.log(`Tenant "${tenant?.name}" has been deleted successfully.`)
+			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
+			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
+			queryClient.removeQueries({queryKey: ['tenantDetails', tenantId]})
+			router.push('/admin/tenants') // Redirect after successful deletion
+		},
+		onError: (error: Error) => {
+			console.error('Error Deleting Tenant:', error.message)
+			// Optionally, show a toast notification for the error
+		},
+	})
+
 	const onSubmit: SubmitHandler<EditTenantFormData> = (data) => {
 		mutation.mutate(data)
+	}
+
+	const handleDeleteConfirm = () => {
+		deleteMutation.mutate()
 	}
 
 	// --- Tenant RBAC Hook ---
@@ -160,6 +180,16 @@ export default function EditTenantPage() {
 						</Button>
 					</form>
 				</CardContent>
+				<CardFooter className='border-t pt-6'>
+					<div className='flex flex-col space-y-2 w-full'>
+						<h3 className='text-lg font-semibold text-destructive'>Danger Zone</h3>
+						<p className='text-sm text-muted-foreground'>Deleting this tenant will permanently remove all its data, including users, roles, and permissions. This action cannot be undone.</p>
+						<Button variant='destructive' onClick={() => setIsDeleteModalOpen(true)} className='self-start' disabled={deleteMutation.isPending}>
+							{deleteMutation.isPending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Trash2 className='mr-2 h-4 w-4' />}
+							Delete Tenant
+						</Button>
+					</div>
+				</CardFooter>
 			</Card>
 
 			<Separator />
@@ -190,6 +220,9 @@ export default function EditTenantPage() {
 				error={tenantRbac.createRoleError} // Specific error for create role
 				onCreateRole={tenantRbac.actions.handleCreateTenantRole}
 			/>
+
+			{/* Delete Tenant Confirmation Modal */}
+			{tenant && <DeleteTenantConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} tenantName={tenant.name} isLoading={deleteMutation.isPending} />}
 		</div>
 	)
 }
