@@ -1,41 +1,108 @@
 // Based on internal/modules/account/domain/dto.go (RBAC Management DTOs)
+import { UserOutput } from '@/lib/apiClient' // Assuming UserOutput is needed for selectedUser
 
 export interface UserRoleInput {
-	userId: string; // uuid.UUID
-	role: string;
+	userId: string // uuid.UUID
+	role: string
 }
 
 export interface RolePermissionInput {
-	role: string;
-	permission: [string, string]; // [object, action]
+	role: string
+	permission: [string, string] // [object, action]
 }
 
 // Not directly used as an API DTO in rbac_handler.go but defined in Go DTOs
 export interface PermissionInput {
-	object: string;
-	action: string;
+	object: string
+	action: string
 }
 
 // RBAC Listing Responses
 
 export interface RoleListOutput {
-	roles: string[];
+	roles: string[]
 }
 
 // Each item is a policy, typically [subject, domain, object, action] or [role, domain, object, action]
 // The Go handler comment says [role, object, action], but Casbin policies can be more complex.
 // For GetAllPermissions, it's likely the full policy string array.
 export interface PermissionListOutput {
-	permissions: string[][];
+	permissions: string[][]
 }
 
 export interface UserRolesOutput {
-	userId: string; // uuid.UUID
-	roles: string[];
+	userId: string // uuid.UUID
+	roles: string[]
 }
 
 // Each item is an [object, action] pair for a specific role (and domain, implicitly)
 export interface RolePermissionsOutput {
-	role: string;
-	permissions: string[][]; // Array of [object, action]
+	role: string
+	permissions: Array<[string, string]> // Array of [object, action] tuples
+}
+
+// --- Types for useRbac Hook ---
+
+export interface RbacLoadingState {
+	initial: boolean
+	userRoles: boolean
+	rolePermissions: boolean
+	action: boolean
+}
+
+export interface RbacState {
+	roles: string[]
+	users: UserOutput[]
+	userRolesMap: Record<string, string[]> // userId -> roles[]
+	rolePermissionsMap: Record<string, Array<[string, string]>> // roleName -> permissions[]
+	loading: RbacLoadingState
+	error: string | null
+	createRoleError: string | null
+	selectedUser: UserOutput | null
+	selectedRole: string | null
+	isUserRolesModalOpen: boolean
+	isRolePermsModalOpen: boolean
+	isCreateRoleModalOpen: boolean
+	newPermObject: string
+	newPermAction: string
+	searchQuery: string
+}
+
+export interface CreateRoleFormValues {
+	roleName: string
+	subject: string // Corresponds to 'object' in permission
+	action: string
+}
+
+// This type is used as a payload for creating a role along with its first permission
+export interface CreateRoleWithPermissionInput {
+	role: string
+	permission: [string, string] // [object, action]
+}
+
+export interface RbacActions {
+	fetchUserRoles: (userId: string) => Promise<void>
+	fetchRolePermissions: (roleName: string) => Promise<void>
+	openUserRolesModal: (user: UserOutput) => void
+	closeUserRolesModal: () => void
+	openRolePermsModal: (roleName: string) => void
+	closeRolePermsModal: () => void
+	openCreateRoleModal: () => void
+	closeCreateRoleModal: () => void
+	handleAddRoleToUser: (userId: string | undefined, roleName: string) => Promise<void>
+	handleRemoveRoleFromUser: (userId: string | undefined, roleName: string) => Promise<void>
+	handleAddPermissionToRole: (roleName: string | null, object: string, action: string) => Promise<void>
+	handleRemovePermissionFromRole: (roleName: string | null, object: string, action: string) => Promise<void>
+	handleCreateRole: (data: CreateRoleFormValues) => Promise<void>
+	setNewPermObject: (value: string) => void
+	setNewPermAction: (value: string) => void
+	setSearchQuery: (value: string) => void
+	setError: (error: string | null) => void
+	clearModalErrors: () => void
+}
+
+export interface UseRbacReturn extends RbacState {
+	actions: RbacActions
+	groupedPermissions: (roleName: string | null) => Record<string, string[]>
+	filteredUsers: UserOutput[]
 }

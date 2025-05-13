@@ -300,7 +300,7 @@ export default function EditTenantPage() {
 					<form onSubmit={handleSubmitTransfer(onCheckEmailSubmit)} className='space-y-4'>
 						<div>
 							<Label htmlFor='transferEmail'>New Owner&#39;s Email</Label>
-							<Input id='transferEmail' type='email' {...registerTransfer('email')} className='mt-1' />
+							<Input id='transferEmail' type='email' {...registerTransfer('email')} className='mt-1' placeholder="new owner's email" />
 							{errorsTransfer.email && <p className='text-sm text-red-500 mt-1'>{errorsTransfer.email.message}</p>}
 						</div>
 						<Button type='submit' disabled={checkEmailMutation.isPending || isSubmittingTransferForm}>

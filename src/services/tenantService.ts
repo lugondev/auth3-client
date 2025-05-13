@@ -20,34 +20,34 @@ import {
 
 // Tenant CRUD operations
 export const createTenant = async (data: CreateTenantPayload): Promise<CreateTenantResponse> => {
-	const response = await apiClient.post(`/api/v1/admin/tenants`, data);
+	const response = await apiClient.post(`/api/v1/tenants`, data);
 	return response.data;
 };
 
 export const getTenantById = async (tenantId: string): Promise<TenantResponse> => {
-	const response = await apiClient.get(`/api/v1/admin/tenants/${tenantId}`);
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}`);
 	return response.data;
 };
 
 export const listTenants = async (limit: number = 10, offset: number = 0): Promise<PaginatedTenantsResponse> => {
-	const response = await apiClient.get(`/api/v1/admin/tenants`, {
+	const response = await apiClient.get(`/api/v1/tenants`, {
 		params: { limit, offset },
 	});
 	return response.data;
 };
 
 export const updateTenant = async (tenantId: string, data: UpdateTenantRequest): Promise<TenantResponse> => {
-	const response = await apiClient.put(`/api/v1/admin/tenants/${tenantId}`, data);
+	const response = await apiClient.put(`/api/v1/tenants/${tenantId}`, data);
 	return response.data;
 };
 
 export const deleteTenant = async (tenantId: string): Promise<void> => {
-	await apiClient.delete(`/api/v1/admin/tenants/${tenantId}`);
+	await apiClient.delete(`/api/v1/tenants/${tenantId}`);
 };
 
 // Tenant User Management
 export const addUserToTenant = async (tenantId: string, data: AddUserToTenantRequest): Promise<TenantUserResponse> => {
-	const response = await apiClient.post(`/api/v1/admin/tenants/${tenantId}/users`, data);
+	const response = await apiClient.post(`/api/v1/tenants/${tenantId}/users`, data);
 	return response.data;
 };
 
@@ -56,14 +56,14 @@ export const listUsersInTenant = async (
 	limit: number = 10,
 	offset: number = 0,
 ): Promise<PaginatedTenantUsersResponse> => {
-	const response = await apiClient.get(`/api/v1/admin/tenants/${tenantId}/users`, {
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/users`, {
 		params: { limit, offset },
 	});
 	return response.data;
 };
 
 export const getTenantUserDetails = async (tenantId: string, userId: string): Promise<TenantUserResponse> => {
-	const response = await apiClient.get(`/api/v1/admin/tenants/${tenantId}/users/${userId}`);
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/users/${userId}`);
 	return response.data;
 };
 
@@ -72,12 +72,12 @@ export const updateUserInTenant = async (
 	userId: string,
 	data: UpdateTenantUserRequest,
 ): Promise<TenantUserResponse> => {
-	const response = await apiClient.put(`/api/v1/admin/tenants/${tenantId}/users/${userId}`, data);
+	const response = await apiClient.put(`/api/v1/tenants/${tenantId}/users/${userId}`, data);
 	return response.data;
 };
 
 export const removeUserFromTenant = async (tenantId: string, userId: string): Promise<void> => {
-	await apiClient.delete(`/api/v1/admin/tenants/${tenantId}/users/${userId}`);
+	await apiClient.delete(`/api/v1/tenants/${tenantId}/users/${userId}`);
 };
 
 // User's own tenant list
@@ -105,7 +105,7 @@ export const getOwnedTenants = async (params: { limit?: number; offset?: number 
 
 // The existing `listTenants` function can be used for fetching all tenants for an admin.
 // export const getAllTenantsForAdmin = async (params: { limit?: number; offset?: number } = {}): Promise<AllTenantsResponse> => {
-//   const response = await apiClient.get(`/api/v1/admin/tenants`, { params });
+//   const response = await apiClient.get(`/api/v1/tenants`, { params });
 //   return response.data;
 // };
 
@@ -119,7 +119,7 @@ export const checkEmailExists = async (email: string): Promise<{ exists: boolean
 
 // Transfer tenant ownership
 export const transferTenantOwnership = async (tenantId: string, newOwnerEmail: string): Promise<void> => {
-	await apiClient.put(`/api/v1/admin/tenants/${tenantId}/transfer-ownership`, {
+	await apiClient.put(`/api/v1/tenants/${tenantId}/transfer-ownership`, {
 		new_owner_email: newOwnerEmail,
 	});
 };

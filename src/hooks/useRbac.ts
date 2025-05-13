@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import apiClient, { UserOutput, PaginatedUsers } from '@/lib/apiClient'
 import {
-	RbacState,
 	RbacActions,
 	UseRbacReturn,
 	RbacLoadingState,
@@ -12,13 +11,46 @@ import {
 	RolePermissionInput,
 	CreateRoleWithPermissionInput,
 	CreateRoleFormValues,
-} from '@/types/rbac' // Import types from the new file
+	RbacState, // Added RbacState import
+} from '@/types/rbac'
+
+// Helper function to extract error messages
+const getErrorMessage = (error: unknown): string => {
+	if (typeof error === 'string') {
+		return error
+	}
+	if (error instanceof Error) {
+		return error.message
+	}
+	// Check for Axios-like error structure
+	if (typeof error === 'object' && error !== null && 'response' in error) {
+		const errResponse = error as { response?: { data?: { error?: string; message?: string } | string } }
+		const data = errResponse.response?.data
+		if (data) {
+			if (typeof data === 'object' && data !== null) {
+				if (typeof data.error === 'string' && data.error) {
+					return data.error
+				}
+				if (typeof data.message === 'string' && data.message) {
+					return data.message
+				}
+			} else if (typeof data === 'string' && data) {
+				return data
+			}
+		}
+	}
+	// Fallback for other object errors that might have a message property
+	if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message: string }).message === 'string') {
+		return (error as { message: string }).message
+	}
+	return 'An unknown error occurred'
+}
 
 // Helper function (can be kept here or moved to utils if used elsewhere)
-const groupPermissionsByObject = (permissions: string[][] | undefined): Record<string, string[]> => {
+const groupPermissionsByObject = (permissions: Array<[string, string]> | undefined): Record<string, string[]> => {
 	if (!permissions) return {}
-	return permissions.reduce((acc, pair) => {
-		if (pair?.length === 2) {
+	return permissions.reduce((acc, pair: [string, string]) => { // Explicitly type pair
+		if (pair?.length === 2) { // This check is technically redundant if pair is [string, string] but safe
 			const [object, action] = pair
 			if (!acc[object]) acc[object] = []
 			if (!acc[object].includes(action)) acc[object].push(action)
@@ -54,15 +86,15 @@ export function useRbac(): UseRbacReturn {
 	const [state, setState] = useState<RbacState>(initialState)
 
 	const setLoading = (loadingState: Partial<RbacLoadingState>) => {
-		setState((prev) => ({ ...prev, loading: { ...prev.loading, ...loadingState } }))
+		setState((prev: RbacState) => ({ ...prev, loading: { ...prev.loading, ...loadingState } }))
 	}
 
 	const setError = (error: string | null) => {
-		setState((prev) => ({ ...prev, error }))
+		setState((prev: RbacState) => ({ ...prev, error }))
 	}
 
 	const setCreateRoleError = (error: string | null) => {
-		setState((prev) => ({ ...prev, createRoleError: error }))
+		setState((prev: RbacState) => ({ ...prev, createRoleError: error }))
 	}
 
 	// --- Data Fetching ---
@@ -71,18 +103,15 @@ export function useRbac(): UseRbacReturn {
 			setLoading({ initial: true })
 			setError(null)
 			try {
-				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/api/v1/rbac/roles'), apiClient.get<PaginatedUsers>('/api/v1/users/search')]) // Assuming /users/search fetches all users for RBAC context
-				setState((prev) => ({
+				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/api/v1/admin/rbac/roles'), apiClient.get<PaginatedUsers>('/api/v1/users/search')])
+				setState((prev: RbacState) => ({
 					...prev,
 					roles: rolesRes.data.roles || [],
 					users: usersRes.data.users || [],
 				}))
 			} catch (err) {
 				console.error('Error fetching initial RBAC data:', err)
-				let errorMessage = 'Unknown error'
-				if (err instanceof Error) errorMessage = err.message
-				else if (typeof err === 'string') errorMessage = err
-				setError(`Failed to load initial data: ${errorMessage}`)
+				setError(`Failed to load initial data: ${getErrorMessage(err)}`)
 			} finally {
 				setLoading({ initial: false })
 			}
@@ -96,20 +125,15 @@ export function useRbac(): UseRbacReturn {
 			setLoading({ userRoles: true })
 			setError(null)
 			try {
-				const res = await apiClient.get<UserRolesOutput>(`/api/v1/rbac/users/${userId}/roles`)
-				setState((prev) => ({
+				const res = await apiClient.get<UserRolesOutput>(`/api/v1/admin/rbac/users/${userId}/roles`)
+				setState((prev: RbacState) => ({
 					...prev,
 					userRolesMap: { ...prev.userRolesMap, [userId]: res.data.roles || [] },
 				}))
 			} catch (err) {
 				console.error(`Error fetching roles for user ${userId}:`, err)
-				let errorMessage = 'Unknown error'
-				if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-					errorMessage = String(err.response.data.error)
-				} else if (err instanceof Error) errorMessage = err.message
-				else if (typeof err === 'string') errorMessage = err
-				setError(`User Roles Error: ${errorMessage}`)
-				setState((prev) => ({
+				setError(`User Roles Error: ${getErrorMessage(err)}`)
+				setState((prev: RbacState) => ({
 					...prev,
 					userRolesMap: { ...prev.userRolesMap, [userId]: [] }, // Set empty on error
 				}))
@@ -126,20 +150,15 @@ export function useRbac(): UseRbacReturn {
 			setLoading({ rolePermissions: true })
 			setError(null)
 			try {
-				const res = await apiClient.get<RolePermissionsOutput>(`/api/v1/rbac/roles/${roleName}/permissions`)
-				setState((prev) => ({
+				const res = await apiClient.get<RolePermissionsOutput>(`/api/v1/admin/rbac/roles/${roleName}/permissions`)
+				setState((prev: RbacState) => ({
 					...prev,
 					rolePermissionsMap: { ...prev.rolePermissionsMap, [roleName]: res.data.permissions || [] },
 				}))
 			} catch (err) {
 				console.error(`Error fetching permissions for role ${roleName}:`, err)
-				let errorMessage = 'Unknown error'
-				if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-					errorMessage = String(err.response.data.error)
-				} else if (err instanceof Error) errorMessage = err.message
-				else if (typeof err === 'string') errorMessage = err
-				setError(`Role Permissions Error: ${errorMessage}`)
-				setState((prev) => ({
+				setError(`Role Permissions Error: ${getErrorMessage(err)}`)
+				setState((prev: RbacState) => ({
 					...prev,
 					rolePermissionsMap: { ...prev.rolePermissionsMap, [roleName]: [] }, // Set empty on error
 				}))
@@ -152,35 +171,35 @@ export function useRbac(): UseRbacReturn {
 
 	// --- Modal Management ---
 	const openUserRolesModal = (user: UserOutput) => {
-		setState((prev) => ({ ...prev, selectedUser: user, isUserRolesModalOpen: true }))
+		setState((prev: RbacState) => ({ ...prev, selectedUser: user, isUserRolesModalOpen: true }))
 		fetchUserRoles(user.id)
 	}
 
 	const closeUserRolesModal = () => {
-		setState((prev) => ({ ...prev, isUserRolesModalOpen: false, selectedUser: null, error: null })) // Clear error on close
+		setState((prev: RbacState) => ({ ...prev, isUserRolesModalOpen: false, selectedUser: null, error: null }))
 	}
 
 	const openRolePermsModal = (roleName: string) => {
-		setState((prev) => ({
+		setState((prev: RbacState) => ({
 			...prev,
 			selectedRole: roleName,
 			isRolePermsModalOpen: true,
-			newPermObject: '', // Reset form
-			newPermAction: '', // Reset form
+			newPermObject: '',
+			newPermAction: '',
 		}))
 		fetchRolePermissions(roleName)
 	}
 
 	const closeRolePermsModal = () => {
-		setState((prev) => ({ ...prev, isRolePermsModalOpen: false, selectedRole: null, error: null })) // Clear error on close
+		setState((prev: RbacState) => ({ ...prev, isRolePermsModalOpen: false, selectedRole: null, error: null }))
 	}
 
 	const openCreateRoleModal = () => {
-		setState((prev) => ({ ...prev, isCreateRoleModalOpen: true, createRoleError: null })) // Clear specific error
+		setState((prev: RbacState) => ({ ...prev, isCreateRoleModalOpen: true, createRoleError: null }))
 	}
 
 	const closeCreateRoleModal = () => {
-		setState((prev) => ({ ...prev, isCreateRoleModalOpen: false, createRoleError: null })) // Clear specific error
+		setState((prev: RbacState) => ({ ...prev, isCreateRoleModalOpen: false, createRoleError: null }))
 	}
 
 	const clearModalErrors = () => {
@@ -195,22 +214,17 @@ export function useRbac(): UseRbacReturn {
 		setError(null)
 		try {
 			const payload: UserRoleInput = { userId, role: roleName }
-			await apiClient.post(`/api/v1/rbac/users/roles`, payload)
-			setState((prev) => ({
+			await apiClient.post(`/api/v1/admin/rbac/users/roles`, payload)
+			setState((prev: RbacState) => ({
 				...prev,
 				userRolesMap: {
 					...prev.userRolesMap,
-					[userId]: [...(prev.userRolesMap[userId] || []), roleName].filter((v, i, a) => a.indexOf(v) === i),
+					[userId]: [...(prev.userRolesMap[userId] || []), roleName],
 				},
 			}))
 		} catch (err) {
 			console.error(`Error adding role ${roleName} to user ${userId}:`, err)
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) errorMessage = err.message
-			else if (typeof err === 'string') errorMessage = err
-			setError(`Failed to add role: ${errorMessage}`)
+			setError(`Failed to add role: ${getErrorMessage(err)}`)
 		} finally {
 			setLoading({ action: false })
 		}
@@ -221,22 +235,17 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.delete(`/api/v1/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`)
-			setState((prev) => ({
+			await apiClient.delete(`/api/v1/admin/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`)
+			setState((prev: RbacState) => ({
 				...prev,
 				userRolesMap: {
 					...prev.userRolesMap,
-					[userId]: (prev.userRolesMap[userId] || []).filter((r) => r !== roleName),
+					[userId]: (prev.userRolesMap[userId] || []).filter((r: string) => r !== roleName),
 				},
 			}))
 		} catch (err) {
 			console.error(`Error removing role ${roleName} from user ${userId}:`, err)
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) errorMessage = err.message
-			else if (typeof err === 'string') errorMessage = err
-			setError(`Failed to remove role: ${errorMessage}`)
+			setError(`Failed to remove role: ${getErrorMessage(err)}`)
 		} finally {
 			setLoading({ action: false })
 		}
@@ -252,29 +261,28 @@ export function useRbac(): UseRbacReturn {
 			return
 		}
 
-		const permission: string[] = [object, action]
+		const permission: [string, string] = [object, action] // Explicitly type as tuple
 		const payload: RolePermissionInput = { role: roleName, permission }
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.post(`/api/v1/rbac/roles/permissions`, payload)
-			setState((prev) => ({
-				...prev,
-				rolePermissionsMap: {
-					...prev.rolePermissionsMap,
-					[roleName]: [...(prev.rolePermissionsMap[roleName] || []), permission].filter((p, i, a) => a.findIndex((p2) => p2[0] === p[0] && p2[1] === p[1]) === i),
-				},
-				newPermObject: '', // Clear input on success
-				newPermAction: '', // Clear input on success
-			}))
+			await apiClient.post(`/api/v1/admin/rbac/roles/permissions`, payload)
+			setState((prev: RbacState) => {
+				const currentPermissions = prev.rolePermissionsMap[roleName as string] || []
+				const newPermissions: Array<[string, string]> = [...currentPermissions, permission]
+				return {
+					...prev,
+					rolePermissionsMap: {
+						...prev.rolePermissionsMap,
+						[roleName as string]: newPermissions,
+					},
+					newPermObject: '',
+					newPermAction: '',
+				}
+			})
 		} catch (err) {
 			console.error(`Error adding permission [${object}, ${action}] to role ${roleName}:`, err)
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) errorMessage = err.message
-			else if (typeof err === 'string') errorMessage = err
-			setError(`Failed to add permission: ${errorMessage}`)
+			setError(`Failed to add permission: ${getErrorMessage(err)}`)
 		} finally {
 			setLoading({ action: false })
 		}
@@ -285,22 +293,17 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.delete(`/api/v1/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`)
-			setState((prev) => ({
+			await apiClient.delete(`/api/v1/admin/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`)
+			setState((prev: RbacState) => ({
 				...prev,
 				rolePermissionsMap: {
 					...prev.rolePermissionsMap,
-					[roleName]: (prev.rolePermissionsMap[roleName] || []).filter((p) => !(p[0] === object && p[1] === action)),
+					[roleName]: (prev.rolePermissionsMap[roleName] || []).filter((p: [string, string]) => !(p[0] === object && p[1] === action)),
 				},
 			}))
 		} catch (err) {
 			console.error(`Error removing permission [${object}, ${action}] from role ${roleName}:`, err)
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) errorMessage = err.message
-			else if (typeof err === 'string') errorMessage = err
-			setError(`Failed to remove permission: ${errorMessage}`)
+			setError(`Failed to remove permission: ${getErrorMessage(err)}`)
 		} finally {
 			setLoading({ action: false })
 		}
@@ -313,30 +316,34 @@ export function useRbac(): UseRbacReturn {
 		const roleName = data.roleName.trim()
 		const subject = data.subject.trim()
 		const action = data.action.trim()
-		const permission = [subject, action]
+
+		if (!roleName || !subject || !action) {
+			setCreateRoleError('Role name, subject, and action cannot be empty.')
+			setLoading({ action: false })
+			return
+		}
+		const permission: [string, string] = [subject, action] // Explicitly type as tuple
 
 		try {
 			const payload: CreateRoleWithPermissionInput = { role: roleName, permission }
-			// Assuming endpoint remains /rbac/roles/permissions for creation based on original code
-			await apiClient.post('/rbac/roles/permissions', payload)
+			// Changed endpoint: Assuming POST to /roles creates a role and can accept initial permissions
+			await apiClient.post('/api/v1/admin/rbac/roles', payload)
 
-			setState((prev) => ({
-				...prev,
-				roles: [...prev.roles, roleName].sort().filter((v, i, a) => a.indexOf(v) === i),
-				rolePermissionsMap: {
-					...prev.rolePermissionsMap,
-					[roleName]: [...(prev.rolePermissionsMap[roleName] || []), permission].filter((p, i, a) => a.findIndex((p2) => p2[0] === p[0] && p2[1] === p[1]) === i),
-				},
-				isCreateRoleModalOpen: false, // Close modal on success
-			}))
+			setState((prev: RbacState) => {
+				const newRolePermissions: Array<[string, string]> = [permission]
+				return {
+					...prev,
+					roles: [...prev.roles, roleName].sort().filter((v: string, i: number, a: string[]) => a.indexOf(v) === i), // Keep roles unique and sorted
+					rolePermissionsMap: {
+						...prev.rolePermissionsMap,
+						[roleName]: newRolePermissions, // Set initial permission for the new role
+					},
+					isCreateRoleModalOpen: false,
+				}
+			})
 		} catch (err) {
 			console.error(`Error creating role "${roleName}":`, err)
-			let errorMessage = 'Unknown error'
-			if (typeof err === 'object' && err !== null && 'response' in err && typeof err.response === 'object' && err.response !== null && 'data' in err.response && typeof err.response.data === 'object' && err.response.data !== null && 'error' in err.response.data) {
-				errorMessage = String(err.response.data.error)
-			} else if (err instanceof Error) errorMessage = err.message
-			else if (typeof err === 'string') errorMessage = err
-			setCreateRoleError(`Failed to create role: ${errorMessage}`)
+			setCreateRoleError(`Failed to create role: ${getErrorMessage(err)}`)
 		} finally {
 			setLoading({ action: false })
 		}
@@ -344,7 +351,7 @@ export function useRbac(): UseRbacReturn {
 
 	// --- Derived State ---
 	const filteredUsers = useMemo(() => {
-		return state.users.filter((user) => (user.first_name + ' ' + user.last_name).toLowerCase().includes(state.searchQuery.toLowerCase()) || user.email.toLowerCase().includes(state.searchQuery.toLowerCase()))
+		return state.users.filter((user: UserOutput) => (user.first_name + ' ' + user.last_name).toLowerCase().includes(state.searchQuery.toLowerCase()) || user.email.toLowerCase().includes(state.searchQuery.toLowerCase()))
 	}, [state.users, state.searchQuery])
 
 	const groupedPermissions = useCallback(
@@ -370,10 +377,10 @@ export function useRbac(): UseRbacReturn {
 		handleAddPermissionToRole,
 		handleRemovePermissionFromRole,
 		handleCreateRole,
-		setNewPermObject: (value: string) => setState((prev) => ({ ...prev, newPermObject: value })),
-		setNewPermAction: (value: string) => setState((prev) => ({ ...prev, newPermAction: value })),
-		setSearchQuery: (value: string) => setState((prev) => ({ ...prev, searchQuery: value })),
-		setError, // Expose setError if needed externally
+		setNewPermObject: (value: string) => setState((prev: RbacState) => ({ ...prev, newPermObject: value })),
+		setNewPermAction: (value: string) => setState((prev: RbacState) => ({ ...prev, newPermAction: value })),
+		setSearchQuery: (value: string) => setState((prev: RbacState) => ({ ...prev, searchQuery: value })),
+		setError,
 		clearModalErrors,
 	}
 
