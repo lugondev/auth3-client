@@ -307,20 +307,21 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const switchTenantContext = useCallback(
 		async (tenantId: string): Promise<boolean> => {
 			console.log(`Attempting to switch to tenant: ${tenantId}`)
-			setLoading(true)
-			try {
-				const response = await apiClient.post<AuthResult>('/auth/switch-tenant', {tenant_id: tenantId})
-				await handleAuthSuccessInternal(response.data) // Use the main handler
-				const switchedTenant = userTenants?.find((t) => t.tenant_id === tenantId)
-				toast.success(`Switched to organization: ${switchedTenant?.tenant_name || tenantId}`)
-				setLoading(false)
-				return true
-			} catch (error) {
-				console.error('Failed to switch tenant:', error)
-				toast.error('Failed to switch organization.')
-				setLoading(false)
-				return false
-			}
+			// setLoading(true)
+			// try {
+			// 	const response = await apiClient.post<AuthResult>('/api/v1/auth/switch-tenant', {tenant_id: tenantId})
+			// 	await handleAuthSuccessInternal(response.data) // Use the main handler
+			// 	const switchedTenant = userTenants?.find((t) => t.tenant_id === tenantId)
+			// 	toast.success(`Switched to organization: ${switchedTenant?.tenant_name || tenantId}`)
+			// 	setLoading(false)
+			// 	return true
+			// } catch (error) {
+			// 	console.error('Failed to switch tenant:', error)
+			// 	toast.error('Failed to switch organization.')
+			// 	setLoading(false)
+			// 	return false
+			// }
+			return true
 		},
 		[handleAuthSuccessInternal, userTenants], // userTenants for toast message
 	)

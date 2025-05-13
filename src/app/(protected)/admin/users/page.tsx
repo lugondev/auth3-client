@@ -8,6 +8,8 @@ import {Button} from '@/components/ui/button'
 import {Table, TableHeader, TableBody, TableRow, TableHead, TableCell} from '@/components/ui/table'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {Label} from '@/components/ui/label'
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
+import {MoreHorizontal} from 'lucide-react'
 
 export default function AdminUsersPage() {
 	const [users, setUsers] = useState<UserOutput[]>([])
@@ -87,6 +89,9 @@ export default function AdminUsersPage() {
 								<TableHead>First Name</TableHead>
 								<TableHead>Last Name</TableHead>
 								<TableHead>Status</TableHead>
+								<TableHead>
+									<span className='sr-only'>Actions</span>
+								</TableHead>
 								{/* Add more columns as needed, e.g., Roles, Created At */}
 							</TableRow>
 						</TableHeader>
@@ -98,6 +103,25 @@ export default function AdminUsersPage() {
 									<TableCell>{user.first_name || 'N/A'}</TableCell>
 									<TableCell>{user.last_name || 'N/A'}</TableCell>
 									<TableCell>{user.status || 'N/A'}</TableCell>
+									<TableCell>
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant='ghost' className='h-8 w-8 p-0'>
+													<span className='sr-only'>Open menu</span>
+													<MoreHorizontal className='h-4 w-4' />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align='end'>
+												<DropdownMenuLabel>Actions</DropdownMenuLabel>
+												<DropdownMenuItem onClick={() => toast.info(`Viewing details for ${user.email}`)}>View Details</DropdownMenuItem>
+												<DropdownMenuSeparator />
+												<DropdownMenuItem onClick={() => toast.info(`Editing user ${user.email}`)}>Edit User</DropdownMenuItem>
+												<DropdownMenuItem onClick={() => toast.warning(`Attempting to delete user ${user.email}`)} className='text-red-600 focus:text-red-600 focus:bg-red-50'>
+													Delete User
+												</DropdownMenuItem>
+											</DropdownMenuContent>
+										</DropdownMenu>
+									</TableCell>
 								</TableRow>
 							))}
 						</TableBody>

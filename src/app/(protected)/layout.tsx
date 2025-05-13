@@ -3,7 +3,7 @@
 import {useAuth} from '@/contexts/AuthContext'
 import {useRouter, usePathname} from 'next/navigation'
 import {useEffect, useState} from 'react'
-// import AppShell from '@/components/layout/AppShell' // AppShell will be rendered by specific layouts like AdminLayout or TenantLayout
+// AppShell import removed - sub-layouts/pages will provide their own.
 
 export default function ProtectedLayout({children}: {children: React.ReactNode}) {
 	const {user, loading, isAuthenticated, isSystemAdmin} = useAuth()
@@ -12,16 +12,16 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 	const [isCheckingAuth, setIsCheckingAuth] = useState(true)
 
 	useEffect(() => {
-		// Wait for auth loading AND system admin status to be determined before making decisions
-		// isSystemAdmin check here is mainly to ensure auth context is fully loaded.
-		// Specific authorization for /admin or /tenant is handled by their respective layouts.
-		if (loading || isSystemAdmin === null) {
+		// If the main AuthContext is still loading, keep showing the skeleton.
+		if (loading) {
 			setIsCheckingAuth(true)
 			return
 		}
 
+		// AuthContext loading is complete. isSystemAdmin should be resolved.
+		// Now, check if the user is authenticated.
 		if (!isAuthenticated || !user) {
-			setIsCheckingAuth(false)
+			setIsCheckingAuth(false) // Finished checking, user is not authenticated.
 			// Redirect to login if not on a public page already
 			if (pathname !== '/login' && pathname !== '/') {
 				// Adjust public routes as needed
@@ -30,10 +30,10 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 			return
 		}
 
-		// If authenticated, allow rendering. Specific route guards will handle further authorization.
-		setIsCheckingAuth(false)
-		console.log(`[ProtectedLayout] User ${user.id} is authenticated. Access granted for path ${pathname}.`)
-	}, [user, loading, isAuthenticated, router, pathname, isSystemAdmin])
+		// If authenticated, allow rendering.
+		setIsCheckingAuth(false) // Finished checking, user is authenticated.
+		console.log(`[ProtectedLayout] User ${user.id} is authenticated. isSystemAdmin: ${isSystemAdmin}. Access granted for path ${pathname}.`)
+	}, [user, loading, isAuthenticated, isSystemAdmin, router, pathname])
 
 	if (isCheckingAuth) {
 		return (
@@ -53,5 +53,11 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 
 	// If authenticated, render children. Specific layouts (AdminLayout, TenantLayout)
 	// or pages themselves will provide their own AppShell.
+	// For general protected routes, we provide a default AppShell here.
+	// AppShell's internal logic will now determine sidebar type based on isSystemAdmin
+	// if no sidebarType prop is passed.
+	// --- UPDATE: AppShell removed from this main protected layout ---
+	// Sub-layouts (like for dashboard, profile, admin) or specific pages
+	// will be responsible for rendering their own AppShell instance.
 	return <>{children}</>
 }

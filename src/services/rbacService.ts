@@ -9,8 +9,8 @@ import {
 	PermissionInput, // For tenant-specific permission assignment
 } from "@/types/rbac";
 
-const RBAC_API_PREFIX = "/rbac"; // apiClient already has /api/v1
-const ADMIN_TENANTS_API_PREFIX = "/admin/tenants";
+const RBAC_API_PREFIX = "/api/v1/rbac"; // apiClient already has /api/v1
+const ADMIN_TENANTS_API_PREFIX = "/api/v1/admin/tenants";
 
 // --- General RBAC Info ---
 

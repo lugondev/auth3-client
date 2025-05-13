@@ -13,6 +13,7 @@ import {
 	Users2,
 	Shield,
 	Settings,
+	UserCircle, // Added for Profile
 	// Icon as LucideIcon, // No longer needed for direct type definition
 } from 'lucide-react'
 
@@ -23,7 +24,7 @@ interface NavLink {
 }
 
 interface SidebarProps {
-	type?: 'system' | 'tenant'
+	type?: 'system' | 'tenant' | 'user' // Added 'user' type
 	tenantId?: string // Only for tenant type
 	tenantName?: string // Only for tenant type
 }
@@ -34,6 +35,11 @@ const systemAdminLinks: NavLink[] = [
 	{href: '/admin/users', label: 'User Management', icon: Users},
 	{href: '/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck},
 	{href: '/admin/logs', label: 'System Logs', icon: FileText},
+]
+
+const userLinks: NavLink[] = [
+	{href: '/profile', label: 'Profile', icon: UserCircle},
+	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
 ]
 
 const getTenantAdminLinks = (tenantId: string): NavLink[] => [
@@ -51,7 +57,16 @@ const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
 		if (type === 'tenant' && tenantId) {
 			return getTenantAdminLinks(tenantId)
 		}
-		return []
+		// If not system or tenant, assume 'user' or default to userLinks
+		// This logic might be refined based on how AppShell determines the type
+		if (type === 'user') {
+			return userLinks
+		}
+		// Fallback for undefined type, or could be more explicit
+		// For now, if not system/tenant, and type is 'user', show userLinks.
+		// If type is undefined, it will currently return [].
+		// Let's make it default to userLinks if not system or tenant.
+		return userLinks // Default to user links if not system or tenant admin
 	})()
 
 	const title = (() => {
@@ -60,6 +75,9 @@ const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
 		}
 		if (type === 'tenant') {
 			return `Tenant: ${tenantName || 'N/A'}`
+		}
+		if (type === 'user') {
+			return 'My Account' // Or some other appropriate title
 		}
 		return 'Menu' // Default title
 	})()
