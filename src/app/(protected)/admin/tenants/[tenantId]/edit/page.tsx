@@ -13,9 +13,15 @@ import {Label} from '@/components/ui/label'
 import {Switch} from '@/components/ui/switch'
 import {Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
-import {Loader2, ArrowLeft, Trash2} from 'lucide-react'
+import {Loader2, ArrowLeft, Trash2, UserCheck, AlertCircle} from 'lucide-react' // Added UserCheck, AlertCircle
 
-import {getTenantById, updateTenant as updateTenantService, deleteTenant as deleteTenantService} from '@/services/tenantService'
+import {
+	getTenantById,
+	updateTenant as updateTenantService,
+	deleteTenant as deleteTenantService,
+	checkEmailExists, // Added
+	transferTenantOwnership, // Added
+} from '@/services/tenantService'
 import {TenantResponse, UpdateTenantRequest} from '@/types/tenant'
 import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
@@ -31,12 +37,21 @@ const editTenantFormSchema = z.object({
 
 type EditTenantFormData = z.infer<typeof editTenantFormSchema>
 
+// Schema for Transfer Ownership Form
+const transferOwnershipFormSchema = z.object({
+	email: z.string().email('Invalid email address'),
+})
+type TransferOwnershipFormData = z.infer<typeof transferOwnershipFormSchema>
+
 export default function EditTenantPage() {
 	const router = useRouter()
 	const params = useParams()
 	const tenantId = params.tenantId as string
 	const queryClient = useQueryClient()
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+
+	// State for Transfer Ownership
+	const [transferEmailCheckResult, setTransferEmailCheckResult] = useState<{email?: string; message: string; isError: boolean} | null>(null)
 
 	const {
 		data: tenant,
@@ -57,6 +72,16 @@ export default function EditTenantPage() {
 		formState: {errors, isSubmitting: isSubmittingForm},
 	} = useForm<EditTenantFormData>({
 		resolver: zodResolver(editTenantFormSchema),
+	})
+
+	// Form for Transfer Ownership
+	const {
+		register: registerTransfer,
+		handleSubmit: handleSubmitTransfer,
+		formState: {errors: errorsTransfer, isSubmitting: isSubmittingTransferForm},
+		reset: resetTransferForm,
+	} = useForm<TransferOwnershipFormData>({
+		resolver: zodResolver(transferOwnershipFormSchema),
 	})
 
 	useEffect(() => {
@@ -96,8 +121,57 @@ export default function EditTenantPage() {
 		},
 	})
 
+	// Mutation for checking email existence
+	const checkEmailMutation = useMutation({
+		mutationFn: async (email: string) => {
+			setTransferEmailCheckResult(null) // Reset previous check result
+			return checkEmailExists(email)
+		},
+		onSuccess: (data) => {
+			if (data.exists) {
+				setTransferEmailCheckResult({email: data.email, message: `User found. Ready to transfer.`, isError: false})
+			} else {
+				setTransferEmailCheckResult({email: '', message: 'User with this email does not exist or cannot be an owner.', isError: true})
+			}
+		},
+		onError: (error: Error) => {
+			setTransferEmailCheckResult({email: '', message: `Error checking email: ${error.message}`, isError: true})
+		},
+	})
+
+	// Mutation for transferring ownership
+	const transferOwnershipMutation = useMutation({
+		mutationFn: (newOwnerUserId: string) => transferTenantOwnership(tenantId, newOwnerUserId),
+		onSuccess: () => {
+			console.log(`Ownership of tenant "${tenant?.name}" has been transferred successfully.`)
+			queryClient.invalidateQueries({queryKey: ['tenantDetails', tenantId]})
+			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
+			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
+			// Optionally, redirect or show a success message to the user
+			// router.push('/admin/tenants'); // Or stay on page and show success
+			setTransferEmailCheckResult({email: '', message: 'Ownership transferred successfully!', isError: false})
+			resetTransferForm() // Clear the email input
+		},
+		onError: (error: Error) => {
+			console.error('Error Transferring Ownership:', error.message)
+			setTransferEmailCheckResult({email: '', message: `Error transferring ownership: ${error.message}`, isError: true})
+		},
+	})
+
 	const onSubmit: SubmitHandler<EditTenantFormData> = (data) => {
 		mutation.mutate(data)
+	}
+
+	const onCheckEmailSubmit: SubmitHandler<TransferOwnershipFormData> = async (data) => {
+		checkEmailMutation.mutate(data.email)
+	}
+
+	const handleTransferOwnership = () => {
+		if (transferEmailCheckResult && transferEmailCheckResult.email && !transferEmailCheckResult.isError) {
+			transferOwnershipMutation.mutate(transferEmailCheckResult.email)
+		} else {
+			setTransferEmailCheckResult({email: '', message: 'Cannot transfer ownership without a valid user.', isError: true})
+		}
 	}
 
 	const handleDeleteConfirm = () => {
@@ -190,6 +264,44 @@ export default function EditTenantPage() {
 						</Button>
 					</div>
 				</CardFooter>
+			</Card>
+
+			<Separator />
+
+			{/* Transfer Tenant Ownership Card */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Transfer Tenant Ownership</CardTitle>
+					<CardDescription>Transfer ownership of this tenant to another user by their email address. The user must already exist in the system.</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<form onSubmit={handleSubmitTransfer(onCheckEmailSubmit)} className='space-y-4'>
+						<div>
+							<Label htmlFor='transferEmail'>New Owner&#39;s Email</Label>
+							<Input id='transferEmail' type='email' {...registerTransfer('email')} className='mt-1' />
+							{errorsTransfer.email && <p className='text-sm text-red-500 mt-1'>{errorsTransfer.email.message}</p>}
+						</div>
+						<Button type='submit' disabled={checkEmailMutation.isPending || isSubmittingTransferForm}>
+							{checkEmailMutation.isPending && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+							Check Email
+						</Button>
+					</form>
+
+					{transferEmailCheckResult && (
+						<div className={`mt-4 p-3 rounded-md flex items-center ${transferEmailCheckResult.isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+							{transferEmailCheckResult.isError ? <AlertCircle className='mr-2 h-5 w-5' /> : <UserCheck className='mr-2 h-5 w-5' />}
+							<p>{transferEmailCheckResult.message}</p>
+						</div>
+					)}
+				</CardContent>
+				{transferEmailCheckResult && !transferEmailCheckResult.isError && transferEmailCheckResult.email && (
+					<CardFooter className='border-t pt-6'>
+						<Button variant='destructive' onClick={handleTransferOwnership} disabled={transferOwnershipMutation.isPending || !transferEmailCheckResult?.email}>
+							{transferOwnershipMutation.isPending && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+							Confirm Transfer Ownership to User
+						</Button>
+					</CardFooter>
+				)}
 			</Card>
 
 			<Separator />

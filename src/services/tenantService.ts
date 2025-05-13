@@ -108,3 +108,18 @@ export const getOwnedTenants = async (params: { limit?: number; offset?: number 
 //   const response = await apiClient.get(`/api/v1/admin/tenants`, { params });
 //   return response.data;
 // };
+
+// Check if email exists
+export const checkEmailExists = async (email: string): Promise<{ exists: boolean; email?: string }> => {
+	const response = await apiClient.get(`/api/v1/users/check-email-exists`, {
+		params: { email },
+	});
+	return response.data;
+};
+
+// Transfer tenant ownership
+export const transferTenantOwnership = async (tenantId: string, newOwnerEmail: string): Promise<void> => {
+	await apiClient.put(`/api/v1/admin/tenants/${tenantId}/transfer-ownership`, {
+		new_owner_email: newOwnerEmail,
+	});
+};
