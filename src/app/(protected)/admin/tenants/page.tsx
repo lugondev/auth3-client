@@ -1,115 +1,78 @@
 'use client'
 
-import React from 'react'
-import {useQuery, useQueryClient} from '@tanstack/react-query'
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {Button} from '@/components/ui/button' // Added Button
-import {getJoinedTenants, getOwnedTenants, listTenants} from '@/services/tenantService'
-import {JoinedTenantsResponse, OwnedTenantsResponse, AllTenantsResponse, JoinedTenantMembership} from '@/types/tenantManagement' // Removed Tenant
+import React, {useState} from 'react'
+import {useQuery} from '@tanstack/react-query'
+import {listTenants} from '@/services/tenantService'
+import {AllTenantsResponse} from '@/types/tenantManagement'
 import {useAuth} from '@/contexts/AuthContext'
-import {CreateTenantModal} from '@/components/tenants/CreateTenantModal' // Added Modal
-import {TenantTable} from '@/components/tenants/TenantTable' // Added TenantTable
+import {TenantTable} from '@/components/tenants/TenantTable'
+import {Button} from '@/components/ui/button'
+import {ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight} from 'lucide-react'
+
+const ITEMS_PER_PAGE = 10
 
 const TenantManagementPage = () => {
+	const [page, setPage] = useState(1)
 	const {user} = useAuth()
-	const queryClient = useQueryClient() // Added for refetching
-
-	// For now, let's assume a way to check if the user is a system admin.
-	// This might come from user.roles, a specific claim in JWT, or a dedicated boolean.
-	// Replace this with your actual admin check logic.
-	const isAdmin = user?.roles?.includes('SystemSuperAdmin') || false // Example check
-
-	const {
-		data: joinedTenantsData,
-		isLoading: isLoadingJoined,
-		error: errorJoined,
-	} = useQuery<JoinedTenantsResponse, Error>({
-		queryKey: ['joinedTenants'],
-		queryFn: () => getJoinedTenants({limit: 10, offset: 0}),
-	})
-
-	const {
-		data: ownedTenantsData,
-		isLoading: isLoadingOwned,
-		error: errorOwned,
-	} = useQuery<OwnedTenantsResponse, Error>({
-		queryKey: ['ownedTenants'],
-		queryFn: () => getOwnedTenants({limit: 10, offset: 0}),
-	})
+	const isAdmin = user?.roles?.includes('SystemSuperAdmin') || false
 
 	const {
 		data: allTenantsData,
 		isLoading: isLoadingAll,
 		error: errorAll,
 	} = useQuery<AllTenantsResponse, Error>({
-		// Changed PaginatedTenantsResponse to AllTenantsResponse
-		queryKey: ['allTenantsForAdmin'],
-		queryFn: () => listTenants(10, 0), // Using existing listTenants
-		enabled: isAdmin, // Only fetch if user is admin
+		queryKey: ['allTenantsForAdmin', page],
+		queryFn: () => listTenants(ITEMS_PER_PAGE, (page - 1) * ITEMS_PER_PAGE),
+		enabled: isAdmin,
 	})
+
+	const totalPages = allTenantsData?.total_pages || 1
+
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage)
+	}
+
+	if (!isAdmin) {
+		return null
+	}
 
 	return (
 		<div className='container mx-auto p-4'>
-			<div className='flex justify-between items-center mb-4'>
-				<h1 className='text-2xl font-bold'>Tenant Management</h1>
-				{isAdmin && ( // Show button only if admin
-					<CreateTenantModal
-						onTenantCreated={() => {
-							queryClient.invalidateQueries({queryKey: ['ownedTenants']})
-							queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
-						}}>
-						<Button>Create New Tenant</Button>
-					</CreateTenantModal>
+			<div className='mb-6'>
+				<h1 className='text-2xl font-bold text-gray-800 dark:text-gray-100'>Tenant Management</h1>
+			</div>
+
+			<div className='mt-4 p-4 border rounded-md dark:border-gray-700 space-y-4'>
+				{isLoadingAll && <p className='text-gray-500 dark:text-gray-400'>Loading tenants...</p>}
+				{errorAll && <p className='text-red-500'>Error loading tenants: {errorAll.message}</p>}
+				{allTenantsData && allTenantsData.tenants && <TenantTable tenants={allTenantsData.tenants} />}
+				{allTenantsData && allTenantsData.tenants?.length === 0 && <p className='text-gray-500 dark:text-gray-400'>No tenants found in the system.</p>}
+
+				{allTenantsData && allTenantsData.tenants && allTenantsData.tenants.length > 0 && (
+					<div className='flex items-center justify-between space-x-2'>
+						<div className='text-sm text-muted-foreground'>
+							Showing {(page - 1) * ITEMS_PER_PAGE + 1} to {Math.min(page * ITEMS_PER_PAGE, allTenantsData.total)} of {allTenantsData.total} entries
+						</div>
+						<div className='flex items-center space-x-2'>
+							<Button variant='outline' size='icon' onClick={() => handlePageChange(1)} disabled={page === 1}>
+								<ChevronsLeft className='h-4 w-4' />
+							</Button>
+							<Button variant='outline' size='icon' onClick={() => handlePageChange(page - 1)} disabled={page === 1}>
+								<ChevronLeft className='h-4 w-4' />
+							</Button>
+							<div className='text-sm font-medium'>
+								Page {page} of {totalPages}
+							</div>
+							<Button variant='outline' size='icon' onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages}>
+								<ChevronRight className='h-4 w-4' />
+							</Button>
+							<Button variant='outline' size='icon' onClick={() => handlePageChange(totalPages)} disabled={page >= totalPages}>
+								<ChevronsRight className='h-4 w-4' />
+							</Button>
+						</div>
+					</div>
 				)}
 			</div>
-			<Tabs defaultValue='joined' className='w-full'>
-				<TabsList>
-					<TabsTrigger value='joined'>Joined Tenants</TabsTrigger>
-					<TabsTrigger value='owned'>My Created Tenants</TabsTrigger>
-					{isAdmin && <TabsTrigger value='all'>All Tenants (Admin)</TabsTrigger>}
-				</TabsList>
-				<TabsContent value='joined'>
-					<div className='mt-4 p-4 border rounded-md'>
-						<h2 className='text-xl font-semibold mb-2'>Tenants I&#39;ve Joined</h2>
-						{isLoadingJoined && <p>Loading joined tenants...</p>}
-						{errorJoined && <p className='text-red-500'>Error loading joined tenants: {errorJoined.message}</p>}
-						{joinedTenantsData && (
-							<ul>
-								{joinedTenantsData.memberships?.length === 0 && <p>You have not joined any tenants yet.</p>}
-								{joinedTenantsData.memberships?.map((membership: JoinedTenantMembership) => (
-									<li key={membership.tenant_id} className='mb-2 p-2 border-b'>
-										<strong>{membership.tenant_name}</strong> ({membership.tenant_slug})
-										<br />
-										Roles: {membership.user_roles.join(', ')} | Status: {membership.user_status}
-										<br />
-										Joined: {new Date(membership.joined_at).toLocaleDateString()} | Active: {membership.tenant_is_active ? 'Yes' : 'No'}
-									</li>
-								))}
-							</ul>
-						)}
-					</div>
-				</TabsContent>
-				<TabsContent value='owned'>
-					<div className='mt-4 p-4 border rounded-md'>
-						<h2 className='text-xl font-semibold mb-2'>Tenants I&#39;ve Created</h2>
-						{isLoadingOwned && <p>Loading owned tenants...</p>}
-						{errorOwned && <p className='text-red-500'>Error loading owned tenants: {errorOwned.message}</p>}
-						{ownedTenantsData && ownedTenantsData.tenants && <TenantTable tenants={ownedTenantsData.tenants} />}
-						{ownedTenantsData && ownedTenantsData.tenants?.length === 0 && <p>You have not created any tenants yet.</p>}
-					</div>
-				</TabsContent>
-				{isAdmin && (
-					<TabsContent value='all'>
-						<div className='mt-4 p-4 border rounded-md'>
-							<h2 className='text-xl font-semibold mb-2'>All System Tenants</h2>
-							{isLoadingAll && <p>Loading all tenants...</p>}
-							{errorAll && <p className='text-red-500'>Error loading all tenants: {errorAll.message}</p>}
-							{allTenantsData && allTenantsData.tenants && <TenantTable tenants={allTenantsData.tenants} />}
-							{allTenantsData && allTenantsData.tenants?.length === 0 && <p>No tenants found in the system.</p>}
-						</div>
-					</TabsContent>
-				)}
-			</Tabs>
 		</div>
 	)
 }

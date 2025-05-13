@@ -3,6 +3,9 @@ import apiClient, {
 	LoginOutput, // <-- Add LoginOutput
 	// Types specific to auth operations:
 	LoginInput,
+	// Passwordless Login
+	VerifyLoginLinkInput, // Added for passwordless
+	RequestLoginLinkInput, // Added for passwordless
 	RegisterInput,
 	ForgotPasswordInput,
 	ResetPasswordInput,
@@ -281,6 +284,37 @@ export const disable2FA = async (data: Disable2FARequest): Promise<void> => {
 		console.log('2FA disabled successfully.');
 	} catch (error) {
 		console.error('Error disabling 2FA:', error);
+		throw error;
+	}
+};
+
+/**
+ * Verifies a login link token for passwordless authentication.
+ * @param data The token from the login link (VerifyLoginLinkInput).
+ * @returns A LoginOutput containing tokens and user data upon success.
+ */
+export const verifyLoginLink = async (data: VerifyLoginLinkInput): Promise<LoginOutput> => {
+	try {
+		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login/verify-link', data);
+		// AuthContext will handle storing tokens and user state
+		return response.data;
+	} catch (error) {
+		console.error('Error verifying login link:', error);
+		throw error;
+	}
+};
+
+/**
+ * Requests a login link to be sent to the user's email for passwordless authentication.
+ * @param data The email and optional tenant slug (RequestLoginLinkInput).
+ * @returns Promise<void>
+ */
+export const requestLoginLink = async (data: RequestLoginLinkInput): Promise<void> => {
+	try {
+		await apiClient.post('/api/v1/auth/login/request-link', data);
+		console.log('Request login link email sent.');
+	} catch (error) {
+		console.error('Error requesting login link:', error);
 		throw error;
 	}
 };

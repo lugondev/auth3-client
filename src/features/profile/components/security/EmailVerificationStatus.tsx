@@ -16,7 +16,7 @@ interface EmailVerificationStatusProps {
 
 const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userData}) => {
 	// Check for the timestamp field
-	const isVerified = !!userData?.email_verified_at
+	const isVerified = !!userData?.is_email_verified
 	const verifiedAt = userData?.email_verified_at ? new Date(userData.email_verified_at) : null
 	const [isResending, setIsResending] = React.useState(false)
 

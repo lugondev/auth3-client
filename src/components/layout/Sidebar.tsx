@@ -14,6 +14,8 @@ import {
 	Shield,
 	Settings,
 	UserCircle, // Added for Profile
+	ChevronDown, // For collapsible icon
+	ChevronRight, // For collapsible icon
 	// Icon as LucideIcon, // No longer needed for direct type definition
 } from 'lucide-react'
 
@@ -21,6 +23,8 @@ interface NavLink {
 	href: string
 	label: string
 	icon: React.ElementType // Correct type for a React component
+	children?: NavLink[]
+	isCollapsible?: boolean
 }
 
 interface SidebarProps {
@@ -37,30 +41,40 @@ const systemAdminLinks: NavLink[] = [
 	{href: '/admin/logs', label: 'System Logs', icon: FileText},
 ]
 
+const adminParentLink: NavLink = {
+	href: '#', // Parent link doesn't navigate directly
+	label: 'Admin',
+	icon: Settings, // Or a more generic admin icon
+	isCollapsible: true,
+	children: systemAdminLinks,
+}
+
 const userLinks: NavLink[] = [
-	{href: '/profile', label: 'Profile', icon: UserCircle},
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/profile', label: 'Profile', icon: UserCircle},
 ]
 
 const getTenantAdminLinks = (tenantId: string): NavLink[] => [
-	{href: `/tenant/${tenantId}/overview`, label: 'Overview', icon: LayoutGrid},
+	{href: `/tenant/${tenantId}/settings`, label: 'Overview', icon: LayoutGrid},
 	{href: `/tenant/${tenantId}/users`, label: 'Tenant Users', icon: Users2},
 	{href: `/tenant/${tenantId}/roles`, label: 'Tenant Roles & Permissions', icon: Shield},
 	{href: `/tenant/${tenantId}/settings`, label: 'Tenant Settings', icon: Settings},
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
+	const [openAdminMenu, setOpenAdminMenu] = React.useState(false)
+
+	const toggleAdminMenu = () => {
+		setOpenAdminMenu(!openAdminMenu)
+	}
+
 	const links = (() => {
 		if (type === 'system') {
-			return systemAdminLinks
+			// Place userLinks first, then the adminParentLink
+			return [...userLinks, adminParentLink]
 		}
 		if (type === 'tenant' && tenantId) {
 			return getTenantAdminLinks(tenantId)
-		}
-		// If not system or tenant, assume 'user' or default to userLinks
-		// This logic might be refined based on how AppShell determines the type
-		if (type === 'user') {
-			return userLinks
 		}
 		// Fallback for undefined type, or could be more explicit
 		// For now, if not system/tenant, and type is 'user', show userLinks.
@@ -105,6 +119,34 @@ const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
 				<ul>
 					{links.map((link) => {
 						const IconComponent = link.icon
+						if (link.isCollapsible) {
+							return (
+								<li key={link.label}>
+									<button onClick={toggleAdminMenu} className='flex items-center justify-between w-full space-x-3 py-2 px-3 hover:bg-gray-700 rounded focus:outline-none'>
+										<div className='flex items-center space-x-3'>
+											<IconComponent className='h-5 w-5' />
+											<span>{link.label}</span>
+										</div>
+										{openAdminMenu ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />}
+									</button>
+									{openAdminMenu && link.children && (
+										<ul className='pl-4 mt-1'>
+											{link.children.map((childLink) => {
+												const ChildIconComponent = childLink.icon
+												return (
+													<li key={childLink.href}>
+														<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
+															<ChildIconComponent className='h-5 w-5' />
+															<span>{childLink.label}</span>
+														</Link>
+													</li>
+												)
+											})}
+										</ul>
+									)}
+								</li>
+							)
+						}
 						return (
 							<li key={link.href}>
 								<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>

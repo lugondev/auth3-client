@@ -254,17 +254,39 @@ export default function EditTenantPage() {
 						</Button>
 					</form>
 				</CardContent>
-				<CardFooter className='border-t pt-6'>
-					<div className='flex flex-col space-y-2 w-full'>
-						<h3 className='text-lg font-semibold text-destructive'>Danger Zone</h3>
-						<p className='text-sm text-muted-foreground'>Deleting this tenant will permanently remove all its data, including users, roles, and permissions. This action cannot be undone.</p>
-						<Button variant='destructive' onClick={() => setIsDeleteModalOpen(true)} className='self-start' disabled={deleteMutation.isPending}>
-							{deleteMutation.isPending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Trash2 className='mr-2 h-4 w-4' />}
-							Delete Tenant
-						</Button>
-					</div>
-				</CardFooter>
 			</Card>
+
+			<Separator />
+
+			{/* Tenant RBAC Section */}
+			<TenantRolesSection roles={tenantRbac.roles} loading={tenantRbac.loading} error={tenantRbac.error} selectedRole={tenantRbac.selectedRole} onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal} onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal} onDeleteRole={tenantRbac.actions.handleDeleteTenantRole} />
+
+			{/* Tenant RBAC Modals */}
+			<TenantRolePermissionsModal
+				isOpen={tenantRbac.isRolePermsModalOpen}
+				onClose={tenantRbac.actions.closeRolePermsModal}
+				role={tenantRbac.selectedRole}
+				groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)}
+				loading={tenantRbac.loading}
+				error={tenantRbac.error} // General error for modal operations
+				newPermObject={tenantRbac.newPermObject}
+				newPermAction={tenantRbac.newPermAction}
+				onNewPermObjectChange={tenantRbac.actions.setNewPermObject}
+				onNewPermActionChange={tenantRbac.actions.setNewPermAction}
+				onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole}
+				onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole}
+			/>
+
+			<TenantCreateRoleModal
+				isOpen={tenantRbac.isCreateRoleModalOpen}
+				onClose={tenantRbac.actions.closeCreateRoleModal}
+				loading={tenantRbac.loading}
+				error={tenantRbac.createRoleError} // Specific error for create role
+				onCreateRole={tenantRbac.actions.handleCreateTenantRole}
+			/>
+
+			{/* Delete Tenant Confirmation Modal */}
+			{tenant && <DeleteTenantConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} tenantName={tenant.name} isLoading={deleteMutation.isPending} />}
 
 			<Separator />
 
@@ -306,35 +328,22 @@ export default function EditTenantPage() {
 
 			<Separator />
 
-			{/* Tenant RBAC Section */}
-			<TenantRolesSection roles={tenantRbac.roles} loading={tenantRbac.loading} error={tenantRbac.error} selectedRole={tenantRbac.selectedRole} onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal} onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal} onDeleteRole={tenantRbac.actions.handleDeleteTenantRole} />
-
-			{/* Tenant RBAC Modals */}
-			<TenantRolePermissionsModal
-				isOpen={tenantRbac.isRolePermsModalOpen}
-				onClose={tenantRbac.actions.closeRolePermsModal}
-				role={tenantRbac.selectedRole}
-				groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)}
-				loading={tenantRbac.loading}
-				error={tenantRbac.error} // General error for modal operations
-				newPermObject={tenantRbac.newPermObject}
-				newPermAction={tenantRbac.newPermAction}
-				onNewPermObjectChange={tenantRbac.actions.setNewPermObject}
-				onNewPermActionChange={tenantRbac.actions.setNewPermAction}
-				onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole}
-				onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole}
-			/>
-
-			<TenantCreateRoleModal
-				isOpen={tenantRbac.isCreateRoleModalOpen}
-				onClose={tenantRbac.actions.closeCreateRoleModal}
-				loading={tenantRbac.loading}
-				error={tenantRbac.createRoleError} // Specific error for create role
-				onCreateRole={tenantRbac.actions.handleCreateTenantRole}
-			/>
-
-			{/* Delete Tenant Confirmation Modal */}
-			{tenant && <DeleteTenantConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} tenantName={tenant.name} isLoading={deleteMutation.isPending} />}
+			{/* Danger Zone Card */}
+			<Card>
+				<CardHeader>
+					<CardTitle className='text-destructive'>Danger Zone</CardTitle>
+					<CardDescription>Actions that can have severe consequences.</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className='flex flex-col space-y-2 w-full'>
+						<p className='text-sm text-muted-foreground'>Deleting this tenant will permanently remove all its data, including users, roles, and permissions. This action cannot be undone.</p>
+						<Button variant='destructive' onClick={() => setIsDeleteModalOpen(true)} className='self-start' disabled={deleteMutation.isPending}>
+							{deleteMutation.isPending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Trash2 className='mr-2 h-4 w-4' />}
+							Delete Tenant
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

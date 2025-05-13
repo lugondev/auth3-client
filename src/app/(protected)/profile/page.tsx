@@ -595,7 +595,8 @@ export default function ProfilePage() {
 								<CardTitle className='text-2xl'>{`${userData.first_name || ''} ${userData.last_name || ''}`.trim()}</CardTitle>
 								<CardDescription>{userData.email}</CardDescription>
 								<div className='text-sm text-muted-foreground mt-1'>
-									<span>Role: {userData.roles?.join(', ') || 'N/A'}</span> |{' '}
+									{!!userData.roles?.length ? <span>Role: {userData.roles?.join(', ')}</span> : <span>Role: User</span>}
+									{' | '}
 									<span>
 										Status: <span className={`capitalize ${userData.status === 'active' ? 'text-green-600' : 'text-yellow-600'}`}>{userData.status}</span>
 									</span>{' '}

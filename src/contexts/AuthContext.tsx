@@ -41,6 +41,7 @@ interface AuthContextType {
 	switchTenant: (tenantId: string) => Promise<boolean>
 	isTwoFactorPending: boolean
 	twoFactorSessionToken: string | null
+	handleAuthSuccess: (authResult: AuthResult) => Promise<void> // Expose this
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -463,6 +464,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const value: AuthContextType = {
 		user,
 		isAuthenticated,
+		handleAuthSuccess: handleAuthSuccessInternal, // Add to context value
 		isSystemAdmin,
 		loading,
 		signInWithGoogle,

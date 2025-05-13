@@ -19,7 +19,7 @@ interface PhoneVerificationProps {
 const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate}) => {
 	const hasPhoneNumber = !!userData?.phone
 	// Check for the timestamp field
-	const isVerified = !!userData?.phone_verified_at
+	const isVerified = !!userData?.is_phone_verified
 	const verifiedAt = userData?.phone_verified_at ? new Date(userData.phone_verified_at) : null
 	const [isRequestingOtp, setIsRequestingOtp] = useState(false)
 	const [isVerifyingOtp, setIsVerifyingOtp] = useState(false)

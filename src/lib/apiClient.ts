@@ -34,6 +34,8 @@ export interface UserOutput {
 	email_verified_at?: string | null; // Reverted back to timestamp
 	phone_verified_at?: string | null; // Reverted back to timestamp
 	is_two_factor_enabled: boolean; // Added for 2FA status
+	is_email_verified: boolean;
+	is_phone_verified: boolean;
 	profile?: UserProfile | null; // Added optional profile field
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
@@ -75,6 +77,15 @@ export interface LoginInput {
 export interface SocialTokenExchangeInput {
 	token: string; // The ID token from the social provider (e.g., Firebase)
 	provider: string; // Added provider field, e.g., "firebase", "google"
+}
+
+export interface VerifyLoginLinkInput {
+	token: string;
+}
+
+export interface RequestLoginLinkInput {
+	email: string;
+	tenant_slug?: string;
 }
 
 export interface ForgotPasswordInput {

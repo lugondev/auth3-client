@@ -232,8 +232,8 @@ export default function RBACManagement() {
 								<SelectItem value='all'>All Statuses</SelectItem>
 								<SelectItem value='active'>Active</SelectItem>
 								<SelectItem value='pending'>Pending</SelectItem>
-								<SelectItem value='inactive'>Inactive</SelectItem>
-								<SelectItem value='blocked'>Blocked</SelectItem>
+								<SelectItem value='suspended'>Suspended</SelectItem>
+								<SelectItem value='deleted'>Deleted</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
