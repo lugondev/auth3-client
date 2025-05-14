@@ -7,7 +7,7 @@ import {useAuth} from '@/contexts/AuthContext' // Import useAuth
 
 interface AppShellProps {
 	children: React.ReactNode
-	sidebarType?: 'system' | 'tenant' | 'user' // Added 'user'
+	sidebarType?: 'system' | 'user' // Added 'user'
 	tenantId?: string
 	tenantName?: string
 }
@@ -19,7 +19,7 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 	const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
 	// Determine the actual sidebar type
-	let actualSidebarType: 'system' | 'tenant' | 'user' | undefined = propSidebarType
+	let actualSidebarType: 'system' | 'user' | undefined = propSidebarType
 
 	if (!propSidebarType && isAuthenticated) {
 		if (isSystemAdmin === true) {
