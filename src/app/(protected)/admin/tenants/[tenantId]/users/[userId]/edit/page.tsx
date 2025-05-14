@@ -23,7 +23,7 @@ import {AxiosError} from 'axios'
 // Roles are comma-separated string, status is one of the allowed values
 const updateUserInTenantRawSchema = z.object({
 	role_names_str: z.string().optional(), // Optional: if not provided, roles are not updated
-	status_in_tenant: z.enum(['active', 'invited', 'suspended', 'disabled']).optional(),
+	status_in_tenant: z.enum(['active', 'invited', 'suspended']).optional(),
 })
 
 // Transformed schema
@@ -86,7 +86,7 @@ export default function EditTenantUserPage() {
 		if (userDetails) {
 			form.reset({
 				role_names_str: userDetails.roles?.join(', ') || '',
-				status_in_tenant: (userDetails.status_in_tenant as 'active' | 'invited' | 'suspended' | 'disabled') || 'active',
+				status_in_tenant: (userDetails.status_in_tenant as 'active' | 'invited' | 'suspended') || 'active',
 			})
 		}
 	}, [userDetails, form])
@@ -227,7 +227,6 @@ export default function EditTenantUserPage() {
 												<SelectItem value='active'>Active</SelectItem>
 												<SelectItem value='invited'>Invited</SelectItem>
 												<SelectItem value='suspended'>Suspended</SelectItem>
-												<SelectItem value='disabled'>Disabled</SelectItem>
 											</SelectContent>
 										</Select>
 										<FormDescription>The user&apos;s status within this specific tenant.</FormDescription>

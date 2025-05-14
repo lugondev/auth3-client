@@ -76,6 +76,15 @@ export const updateUserInTenant = async (
 	return response.data;
 };
 
+export const updateUserRoleInTenant = async (
+	tenantId: string,
+	userId: string,
+	role: string
+): Promise<TenantUserResponse> => {
+	const response = await apiClient.put(`/api/v1/tenants/${tenantId}/users/${userId}/role`, { role });
+	return response.data;
+};
+
 export const removeUserFromTenant = async (tenantId: string, userId: string): Promise<void> => {
 	await apiClient.delete(`/api/v1/tenants/${tenantId}/users/${userId}`);
 };

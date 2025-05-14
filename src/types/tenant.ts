@@ -62,7 +62,7 @@ export interface TenantUserResponse {
 
 export interface UpdateTenantUserRequest {
 	role_names?: string[];
-	status_in_tenant?: string; // "active" | "invited" | "suspended" | "disabled"
+	status_in_tenant?: string; // "active" | "invited" | "suspended"
 }
 
 export interface UserTenantMembershipInfo {

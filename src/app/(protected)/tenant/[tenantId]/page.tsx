@@ -5,8 +5,6 @@ import {useParams, useRouter} from 'next/navigation'
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
 import {SubmitHandler} from 'react-hook-form' // useForm and zodResolver removed
 
-// Button import removed as it's handled by PageHeader or other components
-// Input, Label, Switch removed
 import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card' // CardFooter removed
 import {Separator} from '@/components/ui/separator'
 import {Loader2} from 'lucide-react' // Specific icons like ArrowLeft, Trash2 etc. are in shared components
@@ -30,10 +28,11 @@ import {DeleteTenantSection} from '@/components/tenants/management/DeleteTenantS
 
 interface TenantUsersQueryProps {
 	tenantId: string
+	roles: string[]
 }
 
 // TenantUsersQuery component remains largely the same
-function TenantUsersQuery({tenantId}: TenantUsersQueryProps) {
+function TenantUsersQuery({tenantId, roles}: TenantUsersQueryProps) {
 	const queryClient = useQueryClient()
 	const page = 1
 	const limit = 10
@@ -50,9 +49,50 @@ function TenantUsersQuery({tenantId}: TenantUsersQueryProps) {
 	const updateUserMutation = useMutation({
 		mutationFn: ({userId, isActive}: {userId: string; isActive: boolean}) =>
 			updateUserInTenant(tenantId, userId, {
-				status_in_tenant: isActive ? 'active' : 'disabled',
+				status_in_tenant: isActive ? 'active' : 'suspended',
 			}),
-		onSuccess: () => {
+		onMutate: async ({userId, isActive}) => {
+			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
+			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
+			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
+				if (!old?.users) return old
+				return {
+					...old,
+					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, status_in_tenant: isActive ? 'active' : 'suspended'} : u)),
+				}
+			})
+			return {previousData}
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.previousData) {
+				queryClient.setQueryData(['tenantUsers:', tenantId, 1], context.previousData)
+			}
+		},
+		onSettled: () => {
+			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
+		},
+	})
+
+	const updateUserRoleMutation = useMutation({
+		mutationFn: ({userId, role}: {userId: string; role: string}) => import('@/services/tenantService').then((m) => m.updateUserRoleInTenant(tenantId, userId, role)),
+		onMutate: async ({userId, role}) => {
+			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
+			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
+			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
+				if (!old?.users) return old
+				return {
+					...old,
+					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, roles: [role]} : u)),
+				}
+			})
+			return {previousData}
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.previousData) {
+				queryClient.setQueryData(['tenantUsers:', tenantId, 1], context.previousData)
+			}
+		},
+		onSettled: () => {
 			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
 		},
 	})
@@ -63,13 +103,6 @@ function TenantUsersQuery({tenantId}: TenantUsersQueryProps) {
 			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
 		},
 	})
-
-	const handleUpdateUser = useCallback(
-		(userId: string, isActive: boolean) => {
-			updateUserMutation.mutate({userId, isActive})
-		},
-		[updateUserMutation],
-	)
 
 	const handleRemoveUser = useCallback(
 		(userId: string) => {
@@ -90,7 +123,19 @@ function TenantUsersQuery({tenantId}: TenantUsersQueryProps) {
 		return <div className='text-destructive'>Error loading users: {error.message}</div>
 	}
 
-	return <TenantUsersTable users={usersData?.users || []} onUpdateUser={handleUpdateUser} onRemoveUser={handleRemoveUser} />
+	return (
+		<TenantUsersTable
+			users={usersData?.users || []}
+			roles={roles}
+			onChangeUserRole={(userId, role) => {
+				updateUserRoleMutation.mutate({userId, role})
+			}}
+			onChangeUserStatus={(userId, status) => {
+				updateUserMutation.mutate({userId, isActive: status === 'active'})
+			}}
+			onRemoveUser={handleRemoveUser}
+		/>
+	)
 }
 
 // transferOwnershipFormSchema and TransferOwnershipFormData type removed (handled in TransferTenantOwnershipSection)
@@ -225,7 +270,7 @@ export default function TenantSettingsPage() {
 				</CardHeader>
 				<CardContent>
 					<div className='space-y-4'>
-						<TenantUsersQuery tenantId={tenantId} />
+						<TenantUsersQuery tenantId={tenantId} roles={tenantRbac.roles} />
 					</div>
 				</CardContent>
 			</Card>

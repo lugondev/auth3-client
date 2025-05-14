@@ -597,7 +597,7 @@ export interface TenantUserResponse {
 
 export interface UpdateTenantUserRequest {
 	role_ids?: string[]; // uuid.UUID array, pointer in Go means optional
-	status_in_tenant?: string; // e.g., "active", "invited", "suspended", "disabled"
+	status_in_tenant?: string; // e.g., "active", "invited", "suspended"
 }
 
 // Paginated responses for Tenant resources
