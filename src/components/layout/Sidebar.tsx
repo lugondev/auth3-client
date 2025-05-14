@@ -62,7 +62,7 @@ const getTenantAdminLinks = (tenantId: string): NavLink[] => [
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
-	const [openAdminMenu, setOpenAdminMenu] = React.useState(false)
+	const [openAdminMenu, setOpenAdminMenu] = React.useState(true)
 
 	const toggleAdminMenu = () => {
 		setOpenAdminMenu(!openAdminMenu)

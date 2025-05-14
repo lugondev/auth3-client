@@ -166,6 +166,35 @@ export default function EditTenantUserPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
+					{userDetails && (
+						<div className='mb-8 space-y-3 p-4 border rounded-md bg-slate-50 dark:bg-slate-800'>
+							<h3 className='text-lg font-semibold text-gray-800 dark:text-gray-200'>User Information</h3>
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm'>
+								{userDetails.avatar && (
+									<div className='md:col-span-2 flex items-center space-x-3'>
+										<span className='font-medium text-gray-700 dark:text-gray-300'>Avatar:</span>
+										<img src={userDetails.avatar} alt={`${userDetails.first_name || ''} ${userDetails.last_name || ''}'s avatar`} className='h-16 w-16 rounded-full object-cover border' />
+									</div>
+								)}
+								<div>
+									<span className='font-medium text-gray-700 dark:text-gray-300'>First Name:</span>
+									<span className='ml-2 text-gray-900 dark:text-gray-100'>{userDetails.first_name || 'N/A'}</span>
+								</div>
+								<div>
+									<span className='font-medium text-gray-700 dark:text-gray-300'>Last Name:</span>
+									<span className='ml-2 text-gray-900 dark:text-gray-100'>{userDetails.last_name || 'N/A'}</span>
+								</div>
+								<div>
+									<span className='font-medium text-gray-700 dark:text-gray-300'>Global Status:</span>
+									<span className={`ml-2 px-2.5 py-0.5 text-xs font-semibold rounded-full ${userDetails.global_status === 'active' ? 'bg-green-100 text-green-800 dark:bg-green-700 dark:text-green-100' : userDetails.global_status === 'suspended' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-700 dark:text-yellow-100' : userDetails.global_status === 'invited' ? 'bg-blue-100 text-blue-800 dark:bg-blue-700 dark:text-blue-100' : userDetails.global_status === 'disabled' ? 'bg-red-100 text-red-800 dark:bg-red-700 dark:text-red-100' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100'}`}>{userDetails.global_status ? userDetails.global_status.charAt(0).toUpperCase() + userDetails.global_status.slice(1) : 'N/A'}</span>
+								</div>
+								<div>
+									<span className='font-medium text-gray-700 dark:text-gray-300'>Joined Tenant At:</span>
+									<span className='ml-2 text-gray-900 dark:text-gray-100'>{userDetails.joined_at ? new Date(userDetails.joined_at).toLocaleString() : 'N/A'}</span>
+								</div>
+							</div>
+						</div>
+					)}
 					<Form {...form}>
 						<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-8'>
 							<FormField
@@ -188,7 +217,7 @@ export default function EditTenantUserPage() {
 								render={({field}) => (
 									<FormItem>
 										<FormLabel>Status in Tenant</FormLabel>
-										<Select onValueChange={field.onChange} defaultValue={field.value}>
+										<Select onValueChange={field.onChange} value={field.value}>
 											<FormControl>
 												<SelectTrigger>
 													<SelectValue placeholder='Select status' />

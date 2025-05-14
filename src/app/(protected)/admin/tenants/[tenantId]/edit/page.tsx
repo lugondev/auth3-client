@@ -258,8 +258,15 @@ export default function EditTenantPage() {
 
 			<Separator />
 
-			{/* Tenant RBAC Section */}
-			<TenantRolesSection roles={tenantRbac.roles} loading={tenantRbac.loading} error={tenantRbac.error} selectedRole={tenantRbac.selectedRole} onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal} onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal} onDeleteRole={tenantRbac.actions.handleDeleteTenantRole} />
+			<Card>
+				<CardHeader>
+					<CardTitle>Tenant Role Management</CardTitle>
+					<CardDescription>Define roles and their permissions within this tenant.</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<TenantRolesSection roles={tenantRbac.roles} loading={tenantRbac.loading} error={tenantRbac.error} selectedRole={tenantRbac.selectedRole} onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal} onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal} onDeleteRole={tenantRbac.actions.handleDeleteTenantRole} />
+				</CardContent>
+			</Card>
 
 			{/* Tenant RBAC Modals */}
 			<TenantRolePermissionsModal
