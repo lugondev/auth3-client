@@ -73,7 +73,7 @@ export const removePermissionForRole = async (
 // --- Tenant-Specific RBAC Operations ---
 
 export const getTenantRoles = async (tenantId: string): Promise<RoleListOutput> => {
-	const response = await apiClient.get(`${TENANTS_API_PREFIX}/${tenantId}/users/roles`);
+	const response = await apiClient.get(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles`);
 	return response.data;
 };
 

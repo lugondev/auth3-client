@@ -1,13 +1,6 @@
 // Types for Tenant-Specific RBAC Management
 // Based on types in rbac.ts and adapted for tenant context
 
-import {
-	RoleListOutput,
-	RolePermissionsOutput,
-	PermissionInput, // For assigning a permission
-	// UserOutput, // Not managing users directly within this tenant RBAC hook for roles/perms
-} from '@/types/rbac'; // Re-use existing DTOs where possible
-
 // State for the useTenantRbac hook
 export interface TenantRbacLoadingState {
 	initialRoles: boolean;
