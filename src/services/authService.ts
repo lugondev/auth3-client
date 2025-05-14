@@ -334,13 +334,13 @@ export const resendVerificationEmail = async (): Promise<void> => {
 };
 
 /**
- * Switches the active tenant context for the authenticated user.
+ * Login the active tenant context for the authenticated user.
  * @param tenantId The ID of the tenant to switch to.
  * @returns An AuthResult containing new tokens for the selected tenant context.
  */
-export const switchTenantContext = async (tenantId: string): Promise<AuthResult> => {
+export const loginTenantContext = async (tenantId: string): Promise<AuthResult> => {
 	try {
-		const response = await apiClient.post<AuthResult>('/api/v1/auth/switch-tenant', { tenant_id: tenantId });
+		const response = await apiClient.post<AuthResult>('/api/v1/auth/login-tenant', { tenant_id: tenantId });
 		// The AuthContext will use this AuthResult to update tokens and user state.
 		console.log('Tenant context switched successfully.');
 		return response.data;

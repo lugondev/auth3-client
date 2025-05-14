@@ -18,6 +18,8 @@ import {TenantUsersTable} from '@/components/tenants/TenantUsersTable'
 import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
 import {useTenantRbac} from '@/hooks/useTenantRbac'
+import {useAuth} from '@/contexts/AuthContext'
+import {loginTenantContext} from '@/services/authService'
 import {TenantRolesSection} from '@/components/tenants/rbac/TenantRolesSection'
 import {TenantRolePermissionsModal} from '@/components/tenants/rbac/TenantRolePermissionsModal'
 import {TenantCreateRoleModal} from '@/components/tenants/rbac/TenantCreateRoleModal'
@@ -99,12 +101,29 @@ function TenantUsersQuery({tenantId}: TenantUsersQueryProps) {
 // transferOwnershipFormSchema and TransferOwnershipFormData type removed (handled in TransferTenantOwnershipSection)
 
 export default function TenantSettingsPage() {
-	// Renamed component for clarity
 	const router = useRouter()
 	const params = useParams()
 	const tenantId = params.tenantId as string
 	const queryClient = useQueryClient()
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+	const {handleAuthSuccess} = useAuth()
+	const tenantRbac = useTenantRbac(tenantId)
+	const [loginTenantDone, setLoginTenantDone] = useState(false)
+
+	useEffect(() => {
+		if (tenantId && tenantRbac && Array.isArray(tenantRbac.roles) && !tenantRbac.roles.includes('admin') && !loginTenantDone) {
+			// Not admin, login-tenant
+			loginTenantContext(tenantId)
+				.then((authResult) => {
+					handleAuthSuccess(authResult)
+					setLoginTenantDone(true)
+				})
+				.catch(() => {
+					setLoginTenantDone(true)
+				})
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tenantId, tenantRbac.roles, loginTenantDone, handleAuthSuccess])
 
 	// State for transferEmailCheckResult removed (handled in TransferTenantOwnershipSection)
 
@@ -151,11 +170,6 @@ export default function TenantSettingsPage() {
 		},
 	})
 
-	// Transfer ownership logic is now within TransferTenantOwnershipSection
-	// checkEmailMutation and transferOwnershipMutation are removed.
-	// State for transferEmailCheckResult is removed.
-	// onCheckEmailSubmit and handleTransferOwnership are removed.
-
 	const handleUpdateTenantSubmit: SubmitHandler<EditTenantFormData> = (data) => {
 		updateTenantMutation.mutate(data)
 	}
@@ -163,9 +177,6 @@ export default function TenantSettingsPage() {
 	const handleDeleteConfirm = () => {
 		deleteTenantMutation.mutate()
 	}
-
-	// --- Tenant RBAC Hook ---
-	const tenantRbac = useTenantRbac(tenantId)
 
 	useEffect(() => {
 		if (tenantId) {
