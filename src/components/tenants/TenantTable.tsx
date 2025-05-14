@@ -24,6 +24,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants}) => {
 				<TableRow>
 					<TableHead>Name</TableHead>
 					<TableHead>Slug</TableHead>
+					<TableHead>Owner Email</TableHead>
 					<TableHead>Status</TableHead>
 					<TableHead className='text-right'>Actions</TableHead>
 				</TableRow>
@@ -33,6 +34,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants}) => {
 					<TableRow key={tenant.id}>
 						<TableCell className='font-medium'>{tenant.name}</TableCell>
 						<TableCell>{tenant.slug}</TableCell>
+						<TableCell>{tenant.owner?.email || 'N/A'}</TableCell>
 						<TableCell>
 							<Badge variant={tenant.is_active ? 'default' : 'destructive'}>{tenant.is_active ? 'Active' : 'Inactive'}</Badge>
 						</TableCell>

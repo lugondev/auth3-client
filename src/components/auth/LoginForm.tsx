@@ -7,7 +7,6 @@ import {Button} from '@/components/ui/button'
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form' // Added FormDescription
 import {Input} from '@/components/ui/input'
 import {InputOTP, InputOTPGroup, InputOTPSlot} from '@/components/ui/input-otp' // Import InputOTP
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select' // Import Select components
 import {useAuth} from '@/contexts/AuthContext'
 import {useState} from 'react'
 import {Verify2FARequest} from '@/lib/apiClient' // Import Verify2FARequest type
@@ -15,7 +14,6 @@ import {Verify2FARequest} from '@/lib/apiClient' // Import Verify2FARequest type
 const formSchema = z.object({
 	email: z.string().email({message: 'Invalid email address.'}),
 	password: z.string().min(6, {message: 'Password must be at least 6 characters.'}),
-	tenant_slug: z.string().optional(), // Add tenant_slug as an optional field
 })
 
 // Schema for the 2FA code
@@ -29,7 +27,6 @@ export function LoginForm() {
 	const {signInWithEmail, verifyTwoFactorCode, isTwoFactorPending, twoFactorSessionToken} = useAuth()
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	const [loginType, setLoginType] = useState<'system' | 'tenant'>('system') // State for login type
 	// Removed local state for twoFactorSessionToken as it's now read from context
 
 	// Form for email/password
@@ -38,7 +35,6 @@ export function LoginForm() {
 		defaultValues: {
 			email: '',
 			password: '',
-			tenant_slug: '',
 		},
 	})
 
@@ -47,13 +43,9 @@ export function LoginForm() {
 		setError(null)
 		console.log('Attempting email/password sign in with:', values)
 
-		const payload: {email: string; password: string; tenant_slug?: string} = {
+		const payload: {email: string; password: string} = {
 			email: values.email,
 			password: values.password,
-		}
-
-		if (loginType === 'tenant' && values.tenant_slug) {
-			payload.tenant_slug = values.tenant_slug
 		}
 
 		try {
@@ -100,7 +92,6 @@ export function LoginForm() {
 		},
 	})
 
-	// Handler for 2FA form submission
 	// Handler for 2FA form submission
 	async function onTwoFactorSubmit(values: z.infer<typeof twoFactorSchema>) {
 		setLoading(true)
@@ -223,57 +214,6 @@ export function LoginForm() {
 						</FormItem>
 					)}
 				/>
-
-				{/* Tenant Selection */}
-				<FormField
-					control={form.control}
-					name='tenant_slug' // This field in the form is just for validation if needed, actual value comes from loginType and input
-					render={() => (
-						// We don't use field directly from here for the Select
-						<FormItem>
-							<FormLabel>Login Type</FormLabel>
-							<Select
-								onValueChange={(value: 'system' | 'tenant') => {
-									setLoginType(value)
-									if (value === 'system') {
-										form.setValue('tenant_slug', '') // Clear tenant_slug if switching to system login
-									}
-								}}
-								value={loginType}>
-								{' '}
-								{/* Changed from defaultValue to value */}
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder='Select login type' />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									<SelectItem value='system'>Login to System (No Tenant)</SelectItem>
-									<SelectItem value='tenant'>Login with Tenant Slug</SelectItem>
-								</SelectContent>
-							</Select>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
-				{loginType === 'tenant' && (
-					<FormField
-						control={form.control}
-						name='tenant_slug'
-						render={({field}) => (
-							<FormItem>
-								<FormLabel>Tenant Slug</FormLabel>
-								<FormControl>
-									<Input placeholder='your-tenant-slug' {...field} />
-								</FormControl>
-								<FormDescription>Enter the slug of the tenant you want to log into.</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-				)}
-				{/* End Tenant Selection */}
 
 				{error && <p className='text-sm text-red-500'>{error}</p>}
 				<Button type='submit' className='w-full' disabled={loading}>

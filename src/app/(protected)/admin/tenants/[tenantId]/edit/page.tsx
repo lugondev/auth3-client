@@ -232,27 +232,69 @@ export default function EditTenantPage() {
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Tenant Details</CardTitle>
-					<CardDescription>{`Update the tenant's name and status.`}</CardDescription>
+					<CardTitle>Tenant Information</CardTitle>
+					<CardDescription>{`View and update tenant details.`}</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
-						<div>
-							<Label htmlFor='name'>Tenant Name</Label>
-							<Input id='name' {...register('name')} className='mt-1' />
-							{errors.name && <p className='text-sm text-red-500 mt-1'>{errors.name.message}</p>}
+					<div className='grid gap-4 pb-6 border-b'>
+						<div className='grid grid-cols-2 gap-4'>
+							<div>
+								<Label>Tenant ID</Label>
+								<p className='text-sm text-muted-foreground font-mono'>{tenant.id}</p>
+							</div>
+							<div>
+								<Label>Slug</Label>
+								<p className='text-sm text-muted-foreground'>{tenant.slug}</p>
+							</div>
 						</div>
-						<div className='flex items-center space-x-2'>
-							<Switch id='is_active' {...register('is_active')} checked={watchedIsActive} onCheckedChange={(checked) => setValue('is_active', checked)} />
-							<Label htmlFor='is_active'>Active Status</Label>
+						<div className='grid grid-cols-2 gap-4'>
+							<div>
+								<Label>Created At</Label>
+								<p className='text-sm text-muted-foreground'>
+									{new Date(tenant.created_at).toLocaleDateString('en-US', {
+										year: 'numeric',
+										month: 'long',
+										day: 'numeric',
+										hour: '2-digit',
+										minute: '2-digit',
+									})}
+								</p>
+							</div>
+							<div>
+								<Label>Last Updated</Label>
+								<p className='text-sm text-muted-foreground'>
+									{new Date(tenant.updated_at).toLocaleDateString('en-US', {
+										year: 'numeric',
+										month: 'long',
+										day: 'numeric',
+										hour: '2-digit',
+										minute: '2-digit',
+									})}
+								</p>
+							</div>
 						</div>
-						{errors.is_active && <p className='text-sm text-red-500 mt-1'>{errors.is_active.message}</p>}
+					</div>
 
-						<Button type='submit' disabled={isSubmittingForm || mutation.isPending}>
-							{(isSubmittingForm || mutation.isPending) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-							Save Changes
-						</Button>
-					</form>
+					<div className='pt-6'>
+						<h3 className='text-lg font-semibold mb-4'>Edit Tenant Details</h3>
+						<form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
+							<div>
+								<Label htmlFor='name'>Tenant Name</Label>
+								<Input id='name' {...register('name')} className='mt-1' />
+								{errors.name && <p className='text-sm text-red-500 mt-1'>{errors.name.message}</p>}
+							</div>
+							<div className='flex items-center space-x-2'>
+								<Switch id='is_active' {...register('is_active')} checked={watchedIsActive} onCheckedChange={(checked) => setValue('is_active', checked)} />
+								<Label htmlFor='is_active'>Active Status</Label>
+							</div>
+							{errors.is_active && <p className='text-sm text-red-500 mt-1'>{errors.is_active.message}</p>}
+
+							<Button type='submit' disabled={isSubmittingForm || mutation.isPending}>
+								{(isSubmittingForm || mutation.isPending) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
+								Save Changes
+							</Button>
+						</form>
+					</div>
 				</CardContent>
 			</Card>
 

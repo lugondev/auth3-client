@@ -319,9 +319,19 @@ export const requestLoginLink = async (data: RequestLoginLinkInput): Promise<voi
 	}
 };
 
-// --- TODO: Email Verification Resend ---
-// Add a function here if a backend endpoint for resending verification emails exists or is added.
-// export const resendVerificationEmail = async (): Promise<void> => { ... };
+/**
+ * Resends the email verification link to the authenticated user's email.
+ * @returns Promise<void>
+ */
+export const resendVerificationEmail = async (): Promise<void> => {
+	try {
+		await apiClient.post('/api/v1/auth/email/resend-verify');
+		console.log('Verification email resent successfully.');
+	} catch (error) {
+		console.error('Error resending verification email:', error);
+		throw error;
+	}
+};
 
 /**
  * Switches the active tenant context for the authenticated user.

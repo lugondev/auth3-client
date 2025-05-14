@@ -15,7 +15,6 @@ import axios, {AxiosError} from 'axios' // Import axios and AxiosError
 
 const passwordlessLoginSchema = z.object({
 	email: z.string().email({message: 'Invalid email address.'}),
-	tenantSlug: z.string().optional(), // Optional tenant slug
 })
 
 type PasswordlessLoginValues = z.infer<typeof passwordlessLoginSchema>
@@ -33,7 +32,6 @@ export function PasswordlessLoginForm({onLinkSent}: PasswordlessLoginFormProps) 
 		resolver: zodResolver(passwordlessLoginSchema),
 		defaultValues: {
 			email: '',
-			tenantSlug: '',
 		},
 	})
 
@@ -45,7 +43,6 @@ export function PasswordlessLoginForm({onLinkSent}: PasswordlessLoginFormProps) 
 		try {
 			await requestLoginLink({
 				email: values.email,
-				tenant_slug: values.tenantSlug || undefined, // Pass undefined if empty
 			})
 			setSuccessMessage(`A login link has been sent to ${values.email}. Please check your inbox.`)
 			if (onLinkSent) {
@@ -82,11 +79,6 @@ export function PasswordlessLoginForm({onLinkSent}: PasswordlessLoginFormProps) 
 						<Label htmlFor='email'>Email</Label>
 						<Input id='email' type='email' placeholder='name@example.com' {...form.register('email')} disabled={isLoading} />
 						{form.formState.errors.email && <p className='text-sm text-red-600'>{form.formState.errors.email.message}</p>}
-					</div>
-					<div className='space-y-2'>
-						<Label htmlFor='tenantSlug'>Organization Slug (Optional)</Label>
-						<Input id='tenantSlug' type='text' placeholder='your-organization' {...form.register('tenantSlug')} disabled={isLoading} />
-						{form.formState.errors.tenantSlug && <p className='text-sm text-red-600'>{form.formState.errors.tenantSlug.message}</p>}
 					</div>
 					{error && (
 						<Alert variant='destructive'>

@@ -7,11 +7,10 @@ import {Badge} from '@/components/ui/badge'
 import {AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
 import {format} from 'date-fns' // Import date-fns format function
-// import { resendVerificationEmail } from '@/services/authService' // TODO: Uncomment when service function exists
+import {resendVerificationEmail} from '@/services/authService' // TODO: Uncomment when service function exists
 
 interface EmailVerificationStatusProps {
 	userData: UserOutput | null
-	// onUpdate: (updatedUser: UserOutput) => void; // May not be needed if status updates via full user refresh
 }
 
 const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userData}) => {
@@ -23,9 +22,8 @@ const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userDa
 	const handleResendVerification = async () => {
 		setIsResending(true)
 		try {
-			// await resendVerificationEmail();
-			toast.info('Verification email resend request sent (placeholder).') // Placeholder message
-			// Optionally: Add logic to prevent rapid resends
+			await resendVerificationEmail()
+			toast.info('Verification email resent. Please check your inbox.')
 		} catch (error: unknown) {
 			console.error('Error resending verification email:', error)
 			const message = error instanceof Error ? error.message : 'Failed to resend verification email.'
@@ -58,8 +56,6 @@ const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userDa
 					{isResending ? 'Sending...' : 'Resend Verification Email'}
 				</Button>
 			)}
-			{/* TODO: Add a note if the resend function isn't implemented yet */}
-			<p className='text-xs text-muted-foreground pt-2'>(Note: Resend functionality is currently a placeholder.)</p>
 		</div>
 	)
 }

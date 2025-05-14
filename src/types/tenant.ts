@@ -11,6 +11,11 @@ export interface TenantResponse {
 	name: string;
 	slug: string;
 	owner_user_id: string; // uuid.UUID
+	owner?: {
+		email: string;
+		first_name: string | null;
+		last_name: string | null;
+	}; // Added owner information to match backend response
 	is_active: boolean;
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
