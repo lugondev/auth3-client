@@ -4,7 +4,6 @@ import React, {useEffect, useState, useCallback} from 'react'
 import {useParams, useRouter} from 'next/navigation'
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
 import {SubmitHandler} from 'react-hook-form' // useForm and zodResolver removed
-// z import removed
 
 // Button import removed as it's handled by PageHeader or other components
 // Input, Label, Switch removed
@@ -18,8 +17,6 @@ import {TenantUsersTable} from '@/components/tenants/TenantUsersTable'
 import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
 import {useTenantRbac} from '@/hooks/useTenantRbac'
-import {useAuth} from '@/contexts/AuthContext'
-import {loginTenantContext} from '@/services/authService'
 import {TenantRolesSection} from '@/components/tenants/rbac/TenantRolesSection'
 import {TenantRolePermissionsModal} from '@/components/tenants/rbac/TenantRolePermissionsModal'
 import {TenantCreateRoleModal} from '@/components/tenants/rbac/TenantCreateRoleModal'
@@ -30,8 +27,6 @@ import {TenantStaticInfo} from '@/components/tenants/management/TenantStaticInfo
 import {TenantDetailsForm, EditTenantFormData} from '@/components/tenants/management/TenantDetailsForm' // Import EditTenantFormData
 import {TransferTenantOwnershipSection} from '@/components/tenants/management/TransferTenantOwnershipSection'
 import {DeleteTenantSection} from '@/components/tenants/management/DeleteTenantSection'
-
-// editTenantFormSchema and local EditTenantFormData type definition removed
 
 interface TenantUsersQueryProps {
 	tenantId: string
@@ -48,7 +43,7 @@ function TenantUsersQuery({tenantId}: TenantUsersQueryProps) {
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ['tenantUsers', tenantId, page],
+		queryKey: ['tenantUsers:', tenantId, page],
 		queryFn: () => listUsersInTenant(tenantId, limit, (page - 1) * limit),
 	})
 
@@ -106,26 +101,7 @@ export default function TenantSettingsPage() {
 	const tenantId = params.tenantId as string
 	const queryClient = useQueryClient()
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-	const {handleAuthSuccess} = useAuth()
 	const tenantRbac = useTenantRbac(tenantId)
-	const [loginTenantDone, setLoginTenantDone] = useState(false)
-
-	useEffect(() => {
-		if (tenantId && tenantRbac && Array.isArray(tenantRbac.roles) && !tenantRbac.roles.includes('admin') && !loginTenantDone) {
-			// Not admin, login-tenant
-			loginTenantContext(tenantId)
-				.then((authResult) => {
-					handleAuthSuccess(authResult)
-					setLoginTenantDone(true)
-				})
-				.catch(() => {
-					setLoginTenantDone(true)
-				})
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [tenantId, tenantRbac.roles, loginTenantDone, handleAuthSuccess])
-
-	// State for transferEmailCheckResult removed (handled in TransferTenantOwnershipSection)
 
 	const {
 		data: tenant,
@@ -137,17 +113,12 @@ export default function TenantSettingsPage() {
 		enabled: !!tenantId,
 	})
 
-	// useForm for EditTenantFormData is now within TenantDetailsForm
-	// useEffect for resetting form is also within TenantDetailsForm
-	// useForm for TransferOwnershipFormData removed
-
 	const updateTenantMutation = useMutation({
 		// Renamed from 'mutation'
 		mutationFn: (data: UpdateTenantRequest) => updateTenantService(tenantId, data),
 		onSuccess: (updatedTenant) => {
 			console.log(`Tenant "${updatedTenant.name}" has been updated successfully.`)
 			queryClient.invalidateQueries({queryKey: ['tenantDetails', tenantId]})
-			// queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']}) // This might not be relevant for a tenant-specific page
 			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
 		},
 		onError: (error: Error) => {
@@ -156,14 +127,12 @@ export default function TenantSettingsPage() {
 	})
 
 	const deleteTenantMutation = useMutation({
-		// Renamed from 'deleteMutation'
 		mutationFn: () => deleteTenantService(tenantId),
 		onSuccess: () => {
 			console.log(`Tenant "${tenant?.name}" has been deleted successfully.`)
-			// queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
 			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
 			queryClient.removeQueries({queryKey: ['tenantDetails', tenantId]})
-			router.push('/dashboard') // Redirect to dashboard or a relevant page for tenants
+			router.push('/dashboard')
 		},
 		onError: (error: Error) => {
 			console.error('Error Deleting Tenant:', error.message)
@@ -248,10 +217,6 @@ export default function TenantSettingsPage() {
 
 			<Separator />
 
-			<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
-
-			<Separator />
-
 			{/* Tenant Users Management */}
 			<Card>
 				<CardHeader>
@@ -264,6 +229,10 @@ export default function TenantSettingsPage() {
 					</div>
 				</CardContent>
 			</Card>
+
+			<Separator />
+
+			<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
 
 			<Separator />
 

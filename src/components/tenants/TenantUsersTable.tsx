@@ -36,13 +36,13 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, onRemo
 						<TableCell>{user.email}</TableCell>
 						<TableCell>{user.roles.join(', ')}</TableCell>
 						<TableCell>
-							<Badge variant={user.status_in_tenant === 'active' ? 'default' : 'destructive'}>{user.status_in_tenant}</Badge>
+							<Badge variant={user.status_in_tenant !== 'suspended' ? 'default' : 'destructive'}>{user.status_in_tenant}</Badge>
 						</TableCell>
 						<TableCell className='text-right space-x-2'>
 							{onUpdateUser && (
 								<Button variant='outline' size='sm' onClick={() => onUpdateUser(user.user_id, user.status_in_tenant !== 'active')}>
 									{user.status_in_tenant === 'active' ? <UserX className='h-4 w-4 mr-2' /> : <UserCheck className='h-4 w-4 mr-2' />}
-									{user.status_in_tenant === 'active' ? 'Deactivate' : 'Activate'}
+									{user.status_in_tenant !== 'suspended' ? 'Deactivate' : 'Activate'}
 								</Button>
 							)}
 							{onRemoveUser && (

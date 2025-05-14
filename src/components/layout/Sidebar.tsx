@@ -9,9 +9,6 @@ import {
 	Users,
 	ShieldCheck,
 	FileText,
-	LayoutGrid,
-	Users2,
-	Shield,
 	Settings,
 	UserCircle, // Added for Profile
 	ChevronDown, // For collapsible icon
@@ -28,7 +25,7 @@ interface NavLink {
 }
 
 interface SidebarProps {
-	type?: 'system' | 'tenant' | 'user' // Added 'user' type
+	type?: 'system' | 'user' // Added 'user' type
 	tenantId?: string // Only for tenant type
 	tenantName?: string // Only for tenant type
 }
@@ -54,14 +51,7 @@ const userLinks: NavLink[] = [
 	{href: '/profile', label: 'Profile', icon: UserCircle},
 ]
 
-const getTenantAdminLinks = (tenantId: string): NavLink[] => [
-	{href: `/tenant/${tenantId}/settings`, label: 'Overview', icon: LayoutGrid},
-	{href: `/tenant/${tenantId}/users`, label: 'Tenant Users', icon: Users2},
-	{href: `/tenant/${tenantId}/roles`, label: 'Tenant Roles & Permissions', icon: Shield},
-	{href: `/tenant/${tenantId}/settings`, label: 'Tenant Settings', icon: Settings},
-]
-
-const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
+const Sidebar: React.FC<SidebarProps> = ({type}) => {
 	const [openAdminMenu, setOpenAdminMenu] = React.useState(true)
 
 	const toggleAdminMenu = () => {
@@ -72,9 +62,6 @@ const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
 		if (type === 'system') {
 			// Place userLinks first, then the adminParentLink
 			return [...userLinks, adminParentLink]
-		}
-		if (type === 'tenant' && tenantId) {
-			return getTenantAdminLinks(tenantId)
 		}
 		// Fallback for undefined type, or could be more explicit
 		// For now, if not system/tenant, and type is 'user', show userLinks.
@@ -87,9 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, tenantId, tenantName}) => {
 		if (type === 'system') {
 			return 'System Admin'
 		}
-		if (type === 'tenant') {
-			return `Tenant: ${tenantName || 'N/A'}`
-		}
+
 		if (type === 'user') {
 			return 'My Account' // Or some other appropriate title
 		}
