@@ -3,7 +3,6 @@
 import {useAuth} from '@/contexts/AuthContext'
 import {useRouter, usePathname} from 'next/navigation'
 import {useEffect, useState} from 'react'
-// AppShell import removed - sub-layouts/pages will provide their own.
 
 export default function ProtectedLayout({children}: {children: React.ReactNode}) {
 	const {user, loading, isAuthenticated, isSystemAdmin} = useAuth()
@@ -51,13 +50,5 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 		return null // Or a more specific non-authenticated loading/message
 	}
 
-	// If authenticated, render children. Specific layouts (AdminLayout, TenantLayout)
-	// or pages themselves will provide their own AppShell.
-	// For general protected routes, we provide a default AppShell here.
-	// AppShell's internal logic will now determine sidebar type based on isSystemAdmin
-	// if no sidebarType prop is passed.
-	// --- UPDATE: AppShell removed from this main protected layout ---
-	// Sub-layouts (like for dashboard, profile, admin) or specific pages
-	// will be responsible for rendering their own AppShell instance.
 	return <>{children}</>
 }

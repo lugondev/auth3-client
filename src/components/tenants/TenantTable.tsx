@@ -10,10 +10,10 @@ import {Edit, Users} from 'lucide-react' // Removed Eye
 
 interface TenantTableProps {
 	tenants: Tenant[]
-	// isAdmin?: boolean // Could be used to conditionally show/hide actions if needed elsewhere
+	isAdmin?: boolean // Could be used to conditionally show/hide actions if needed elsewhere
 }
 
-export const TenantTable: React.FC<TenantTableProps> = ({tenants}) => {
+export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	if (!tenants || tenants.length === 0) {
 		return <p>No tenants to display.</p>
 	}
@@ -24,7 +24,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants}) => {
 				<TableRow>
 					<TableHead>Name</TableHead>
 					<TableHead>Slug</TableHead>
-					<TableHead>Owner Email</TableHead>
+					{isAdmin && <TableHead>Owner Email</TableHead>}
 					<TableHead>Status</TableHead>
 					<TableHead className='text-right'>Actions</TableHead>
 				</TableRow>
@@ -34,33 +34,35 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants}) => {
 					<TableRow key={tenant.id}>
 						<TableCell className='font-medium'>{tenant.name}</TableCell>
 						<TableCell>{tenant.slug}</TableCell>
-						<TableCell>{tenant.owner?.email || 'N/A'}</TableCell>
+						{isAdmin && <TableCell>{tenant.owner?.email || 'N/A'}</TableCell>}
 						<TableCell>
 							<Badge variant={tenant.is_active ? 'default' : 'destructive'}>{tenant.is_active ? 'Active' : 'Inactive'}</Badge>
 						</TableCell>
-						<TableCell className='text-right space-x-2'>
-							<Button variant='outline' size='sm' asChild>
-								<Link href={`/admin/tenants/${tenant.id}/edit`}>
-									<Edit className='h-4 w-4 mr-2' />
-									Edit
-								</Link>
-							</Button>
-							<Button variant='outline' size='sm' asChild>
-								<Link href={`/admin/tenants/${tenant.id}/users`}>
-									<Users className='h-4 w-4 mr-2' />
-									Manage Users
-								</Link>
-							</Button>
-							{/* Optional: A general view link if you have a details page */}
-							{/*
-              <Button variant="outline" size="sm" asChild>
-                <Link href={`/admin/tenants/${tenant.id}`}>
-                  <Eye className="h-4 w-4 mr-2" />
-                  View
-                </Link>
-              </Button>
-              */}
-						</TableCell>
+						{isAdmin ? (
+							<TableCell className='text-right space-x-2'>
+								<Button variant='outline' size='sm' asChild>
+									<Link href={`/admin/tenants/${tenant.id}/edit`}>
+										<Edit className='h-4 w-4 mr-2' />
+										Edit
+									</Link>
+								</Button>
+								<Button variant='outline' size='sm' asChild>
+									<Link href={`/admin/tenants/${tenant.id}/users`}>
+										<Users className='h-4 w-4 mr-2' />
+										Manage Users
+									</Link>
+								</Button>
+							</TableCell>
+						) : (
+							<TableCell className='text-right space-x-2'>
+								<Button variant='outline' size='sm' asChild>
+									<Link href={`/tenant/${tenant.id}`}>
+										<Edit className='h-4 w-4 mr-2' />
+										Management
+									</Link>
+								</Button>
+							</TableCell>
+						)}
 					</TableRow>
 				))}
 			</TableBody>

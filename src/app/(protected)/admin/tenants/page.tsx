@@ -45,7 +45,7 @@ const TenantManagementPage = () => {
 			<div className='mt-4 p-4 border rounded-md dark:border-gray-700 space-y-4'>
 				{isLoadingAll && <p className='text-gray-500 dark:text-gray-400'>Loading tenants...</p>}
 				{errorAll && <p className='text-red-500'>Error loading tenants: {errorAll.message}</p>}
-				{allTenantsData && allTenantsData.tenants && <TenantTable tenants={allTenantsData.tenants} />}
+				{allTenantsData && allTenantsData.tenants && <TenantTable tenants={allTenantsData.tenants} isAdmin={true} />}
 				{allTenantsData && allTenantsData.tenants?.length === 0 && <p className='text-gray-500 dark:text-gray-400'>No tenants found in the system.</p>}
 
 				{allTenantsData && allTenantsData.tenants && allTenantsData.tenants.length > 0 && (

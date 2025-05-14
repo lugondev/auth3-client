@@ -3,26 +3,23 @@
 import React, {useEffect, useState} from 'react'
 import {useParams, useRouter} from 'next/navigation'
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
-import {useForm, SubmitHandler} from 'react-hook-form'
-import {zodResolver} from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import {SubmitHandler} from 'react-hook-form' // useForm removed as it's in TenantDetailsForm
+// z import removed
 
-import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
-import {Label} from '@/components/ui/label'
-import {Switch} from '@/components/ui/switch'
-import {Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter} from '@/components/ui/card'
+// Button removed as it's no longer directly used here
+// Input, Label, Switch removed (now in TenantDetailsForm)
+import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card' // CardFooter removed
 import {Separator} from '@/components/ui/separator'
-import {Loader2, ArrowLeft, Trash2, UserCheck, AlertCircle} from 'lucide-react' // Added UserCheck, AlertCircle
+import {Loader2} from 'lucide-react' // ArrowLeft, Trash2, UserCheck, AlertCircle removed (in shared components)
 
 import {
 	getTenantById,
 	updateTenant as updateTenantService,
 	deleteTenant as deleteTenantService,
-	checkEmailExists, // Added
-	transferTenantOwnership, // Added
+	// checkEmailExists, // Moved to TransferTenantOwnershipSection
+	// transferTenantOwnership, // Moved to TransferTenantOwnershipSection
 } from '@/services/tenantService'
-import {TenantResponse, UpdateTenantRequest} from '@/types/tenant'
+import {TenantResponse, UpdateTenantRequest} from '@/types/tenant' // EditTenantFormData will be imported from form component
 import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
 import {useTenantRbac} from '@/hooks/useTenantRbac'
@@ -30,18 +27,14 @@ import {TenantRolesSection} from '@/components/tenants/rbac/TenantRolesSection'
 import {TenantRolePermissionsModal} from '@/components/tenants/rbac/TenantRolePermissionsModal'
 import {TenantCreateRoleModal} from '@/components/tenants/rbac/TenantCreateRoleModal'
 
-const editTenantFormSchema = z.object({
-	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name must be at most 100 characters'),
-	is_active: z.boolean(),
-})
+// Import new shared components
+import {PageHeader} from '@/components/layout/PageHeader'
+import {TenantStaticInfo} from '@/components/tenants/management/TenantStaticInfo'
+import {TenantDetailsForm, EditTenantFormData} from '@/components/tenants/management/TenantDetailsForm' // Import EditTenantFormData
+import {TransferTenantOwnershipSection} from '@/components/tenants/management/TransferTenantOwnershipSection'
+import {DeleteTenantSection} from '@/components/tenants/management/DeleteTenantSection'
 
-type EditTenantFormData = z.infer<typeof editTenantFormSchema>
-
-// Schema for Transfer Ownership Form
-const transferOwnershipFormSchema = z.object({
-	email: z.string().email('Invalid email address'),
-})
-type TransferOwnershipFormData = z.infer<typeof transferOwnershipFormSchema>
+// Local EditTenantFormData type definition removed
 
 export default function EditTenantPage() {
 	const router = useRouter()
@@ -49,9 +42,6 @@ export default function EditTenantPage() {
 	const tenantId = params.tenantId as string
 	const queryClient = useQueryClient()
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-
-	// State for Transfer Ownership
-	const [transferEmailCheckResult, setTransferEmailCheckResult] = useState<{email?: string; message: string; isError: boolean} | null>(null)
 
 	const {
 		data: tenant,
@@ -63,37 +53,11 @@ export default function EditTenantPage() {
 		enabled: !!tenantId,
 	})
 
-	const {
-		register,
-		handleSubmit,
-		reset,
-		setValue,
-		watch, // Added watch from useForm
-		formState: {errors, isSubmitting: isSubmittingForm},
-	} = useForm<EditTenantFormData>({
-		resolver: zodResolver(editTenantFormSchema),
-	})
+	// useForm for EditTenantFormData is now within TenantDetailsForm
+	// useEffect for resetting form is also within TenantDetailsForm
 
-	// Form for Transfer Ownership
-	const {
-		register: registerTransfer,
-		handleSubmit: handleSubmitTransfer,
-		formState: {errors: errorsTransfer, isSubmitting: isSubmittingTransferForm},
-		reset: resetTransferForm,
-	} = useForm<TransferOwnershipFormData>({
-		resolver: zodResolver(transferOwnershipFormSchema),
-	})
-
-	useEffect(() => {
-		if (tenant) {
-			reset({
-				name: tenant.name,
-				is_active: tenant.is_active,
-			})
-		}
-	}, [tenant, reset])
-
-	const mutation = useMutation({
+	const updateTenantMutation = useMutation({
+		// Renamed from 'mutation' for clarity
 		mutationFn: (data: UpdateTenantRequest) => updateTenantService(tenantId, data),
 		onSuccess: (updatedTenant) => {
 			console.log(`Tenant "${updatedTenant.name}" has been updated successfully.`)
@@ -106,7 +70,8 @@ export default function EditTenantPage() {
 		},
 	})
 
-	const deleteMutation = useMutation({
+	const deleteTenantMutation = useMutation({
+		// Renamed from 'deleteMutation'
 		mutationFn: () => deleteTenantService(tenantId),
 		onSuccess: () => {
 			console.log(`Tenant "${tenant?.name}" has been deleted successfully.`)
@@ -117,76 +82,30 @@ export default function EditTenantPage() {
 		},
 		onError: (error: Error) => {
 			console.error('Error Deleting Tenant:', error.message)
-			// Optionally, show a toast notification for the error
 		},
 	})
 
-	// Mutation for checking email existence
-	const checkEmailMutation = useMutation({
-		mutationFn: async (email: string) => {
-			setTransferEmailCheckResult(null) // Reset previous check result
-			return checkEmailExists(email)
-		},
-		onSuccess: (data) => {
-			if (data.exists) {
-				setTransferEmailCheckResult({email: data.email, message: `User found. Ready to transfer.`, isError: false})
-			} else {
-				setTransferEmailCheckResult({email: '', message: 'User with this email does not exist or cannot be an owner.', isError: true})
-			}
-		},
-		onError: (error: Error) => {
-			setTransferEmailCheckResult({email: '', message: `Error checking email: ${error.message}`, isError: true})
-		},
-	})
+	// Transfer ownership logic is now within TransferTenantOwnershipSection
+	// checkEmailMutation and transferOwnershipMutation are removed from here.
+	// State for transferEmailCheckResult is removed.
+	// onCheckEmailSubmit and handleTransferOwnership are removed.
 
-	// Mutation for transferring ownership
-	const transferOwnershipMutation = useMutation({
-		mutationFn: (newOwnerUserId: string) => transferTenantOwnership(tenantId, newOwnerUserId),
-		onSuccess: () => {
-			console.log(`Ownership of tenant "${tenant?.name}" has been transferred successfully.`)
-			queryClient.invalidateQueries({queryKey: ['tenantDetails', tenantId]})
-			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
-			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
-			// Optionally, redirect or show a success message to the user
-			// router.push('/admin/tenants'); // Or stay on page and show success
-			setTransferEmailCheckResult({email: '', message: 'Ownership transferred successfully!', isError: false})
-			resetTransferForm() // Clear the email input
-		},
-		onError: (error: Error) => {
-			console.error('Error Transferring Ownership:', error.message)
-			setTransferEmailCheckResult({email: '', message: `Error transferring ownership: ${error.message}`, isError: true})
-		},
-	})
-
-	const onSubmit: SubmitHandler<EditTenantFormData> = (data) => {
-		mutation.mutate(data)
-	}
-
-	const onCheckEmailSubmit: SubmitHandler<TransferOwnershipFormData> = async (data) => {
-		checkEmailMutation.mutate(data.email)
-	}
-
-	const handleTransferOwnership = () => {
-		if (transferEmailCheckResult && transferEmailCheckResult.email && !transferEmailCheckResult.isError) {
-			transferOwnershipMutation.mutate(transferEmailCheckResult.email)
-		} else {
-			setTransferEmailCheckResult({email: '', message: 'Cannot transfer ownership without a valid user.', isError: true})
-		}
+	const handleUpdateTenantSubmit: SubmitHandler<EditTenantFormData> = (data) => {
+		updateTenantMutation.mutate(data)
 	}
 
 	const handleDeleteConfirm = () => {
-		deleteMutation.mutate()
+		deleteTenantMutation.mutate()
 	}
 
 	// --- Tenant RBAC Hook ---
-	const tenantRbac = useTenantRbac(tenantId) // Initialize with tenantId
+	const tenantRbac = useTenantRbac(tenantId)
 
-	// Effect to set tenantId for the hook once it's available
 	useEffect(() => {
 		if (tenantId) {
 			tenantRbac.actions.setTenantId(tenantId)
 		}
-	}, [tenantId, tenantRbac.actions.setTenantId])
+	}, [tenantId, tenantRbac.actions.setTenantId]) // tenantRbac.actions.setTenantId dependency might be stable, review if needed
 
 	if (isLoadingTenant || tenantRbac.loading.initialRoles) {
 		return (
@@ -200,10 +119,7 @@ export default function EditTenantPage() {
 	if (tenantError) {
 		return (
 			<div className='container mx-auto p-4 text-center'>
-				<p className='text-destructive'>Error loading tenant: {tenantError.message}</p>
-				<Button onClick={() => router.back()} variant='outline' className='mt-4'>
-					Go Back
-				</Button>
+				<PageHeader title='Error' description={tenantError.message} backButton={{text: 'Go Back', onClick: () => router.back()}} />
 			</div>
 		)
 	}
@@ -211,89 +127,25 @@ export default function EditTenantPage() {
 	if (!tenant) {
 		return (
 			<div className='container mx-auto p-4 text-center'>
-				<p>Tenant not found.</p>
-				<Button onClick={() => router.push('/admin/tenants')} variant='outline' className='mt-4'>
-					Back to Tenants List
-				</Button>
+				<PageHeader title='Tenant Not Found' description='The requested tenant could not be found.' backButton={{text: 'Back to Tenants List', href: '/admin/tenants'}} />
 			</div>
 		)
 	}
-	const watchedIsActive = watch('is_active') // Watch the value for the Switch
 
 	return (
 		<div className='container mx-auto p-4 space-y-8'>
-			<div>
-				<Button variant='outline' size='sm' onClick={() => router.push('/admin/tenants')} className='mb-4'>
-					<ArrowLeft className='mr-2 h-4 w-4' />
-					Back to Tenants
-				</Button>
-				<h1 className='text-3xl font-bold'>Edit Tenant: {tenant.name}</h1>
-			</div>
+			<PageHeader title={`Edit Tenant: ${tenant.name}`} backButton={{text: 'Back to Tenants', href: '/admin/tenants'}} />
 
 			<Card>
 				<CardHeader>
 					<CardTitle>Tenant Information</CardTitle>
-					<CardDescription>{`View and update tenant details.`}</CardDescription>
+					<CardDescription>View and update tenant details.</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<div className='grid gap-4 pb-6 border-b'>
-						<div className='grid grid-cols-2 gap-4'>
-							<div>
-								<Label>Tenant ID</Label>
-								<p className='text-sm text-muted-foreground font-mono'>{tenant.id}</p>
-							</div>
-							<div>
-								<Label>Slug</Label>
-								<p className='text-sm text-muted-foreground'>{tenant.slug}</p>
-							</div>
-						</div>
-						<div className='grid grid-cols-2 gap-4'>
-							<div>
-								<Label>Created At</Label>
-								<p className='text-sm text-muted-foreground'>
-									{new Date(tenant.created_at).toLocaleDateString('en-US', {
-										year: 'numeric',
-										month: 'long',
-										day: 'numeric',
-										hour: '2-digit',
-										minute: '2-digit',
-									})}
-								</p>
-							</div>
-							<div>
-								<Label>Last Updated</Label>
-								<p className='text-sm text-muted-foreground'>
-									{new Date(tenant.updated_at).toLocaleDateString('en-US', {
-										year: 'numeric',
-										month: 'long',
-										day: 'numeric',
-										hour: '2-digit',
-										minute: '2-digit',
-									})}
-								</p>
-							</div>
-						</div>
-					</div>
-
+					<TenantStaticInfo tenant={tenant} />
 					<div className='pt-6'>
 						<h3 className='text-lg font-semibold mb-4'>Edit Tenant Details</h3>
-						<form onSubmit={handleSubmit(onSubmit)} className='space-y-6'>
-							<div>
-								<Label htmlFor='name'>Tenant Name</Label>
-								<Input id='name' {...register('name')} className='mt-1' />
-								{errors.name && <p className='text-sm text-red-500 mt-1'>{errors.name.message}</p>}
-							</div>
-							<div className='flex items-center space-x-2'>
-								<Switch id='is_active' {...register('is_active')} checked={watchedIsActive} onCheckedChange={(checked) => setValue('is_active', checked)} />
-								<Label htmlFor='is_active'>Active Status</Label>
-							</div>
-							{errors.is_active && <p className='text-sm text-red-500 mt-1'>{errors.is_active.message}</p>}
-
-							<Button type='submit' disabled={isSubmittingForm || mutation.isPending}>
-								{(isSubmittingForm || mutation.isPending) && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-								Save Changes
-							</Button>
-						</form>
+						<TenantDetailsForm tenant={tenant} onSubmit={handleUpdateTenantSubmit} isSubmitting={updateTenantMutation.isPending} />
 					</div>
 				</CardContent>
 			</Card>
@@ -311,88 +163,20 @@ export default function EditTenantPage() {
 			</Card>
 
 			{/* Tenant RBAC Modals */}
-			<TenantRolePermissionsModal
-				isOpen={tenantRbac.isRolePermsModalOpen}
-				onClose={tenantRbac.actions.closeRolePermsModal}
-				role={tenantRbac.selectedRole}
-				groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)}
-				loading={tenantRbac.loading}
-				error={tenantRbac.error} // General error for modal operations
-				newPermObject={tenantRbac.newPermObject}
-				newPermAction={tenantRbac.newPermAction}
-				onNewPermObjectChange={tenantRbac.actions.setNewPermObject}
-				onNewPermActionChange={tenantRbac.actions.setNewPermAction}
-				onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole}
-				onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole}
-			/>
+			<TenantRolePermissionsModal isOpen={tenantRbac.isRolePermsModalOpen} onClose={tenantRbac.actions.closeRolePermsModal} role={tenantRbac.selectedRole} groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)} loading={tenantRbac.loading} error={tenantRbac.error} newPermObject={tenantRbac.newPermObject} newPermAction={tenantRbac.newPermAction} onNewPermObjectChange={tenantRbac.actions.setNewPermObject} onNewPermActionChange={tenantRbac.actions.setNewPermAction} onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole} onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole} />
 
-			<TenantCreateRoleModal
-				isOpen={tenantRbac.isCreateRoleModalOpen}
-				onClose={tenantRbac.actions.closeCreateRoleModal}
-				loading={tenantRbac.loading}
-				error={tenantRbac.createRoleError} // Specific error for create role
-				onCreateRole={tenantRbac.actions.handleCreateTenantRole}
-			/>
+			<TenantCreateRoleModal isOpen={tenantRbac.isCreateRoleModalOpen} onClose={tenantRbac.actions.closeCreateRoleModal} loading={tenantRbac.loading} error={tenantRbac.createRoleError} onCreateRole={tenantRbac.actions.handleCreateTenantRole} />
 
 			{/* Delete Tenant Confirmation Modal */}
-			{tenant && <DeleteTenantConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} tenantName={tenant.name} isLoading={deleteMutation.isPending} />}
+			{tenant && <DeleteTenantConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} tenantName={tenant.name} isLoading={deleteTenantMutation.isPending} />}
 
 			<Separator />
 
-			{/* Transfer Tenant Ownership Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Transfer Tenant Ownership</CardTitle>
-					<CardDescription>Transfer ownership of this tenant to another user by their email address. The user must already exist in the system.</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<form onSubmit={handleSubmitTransfer(onCheckEmailSubmit)} className='space-y-4'>
-						<div>
-							<Label htmlFor='transferEmail'>New Owner&#39;s Email</Label>
-							<Input id='transferEmail' type='email' {...registerTransfer('email')} className='mt-1' placeholder="new owner's email" />
-							{errorsTransfer.email && <p className='text-sm text-red-500 mt-1'>{errorsTransfer.email.message}</p>}
-						</div>
-						<Button type='submit' disabled={checkEmailMutation.isPending || isSubmittingTransferForm}>
-							{checkEmailMutation.isPending && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-							Check Email
-						</Button>
-					</form>
-
-					{transferEmailCheckResult && (
-						<div className={`mt-4 p-3 rounded-md flex items-center ${transferEmailCheckResult.isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-							{transferEmailCheckResult.isError ? <AlertCircle className='mr-2 h-5 w-5' /> : <UserCheck className='mr-2 h-5 w-5' />}
-							<p>{transferEmailCheckResult.message}</p>
-						</div>
-					)}
-				</CardContent>
-				{transferEmailCheckResult && !transferEmailCheckResult.isError && transferEmailCheckResult.email && (
-					<CardFooter className='border-t pt-6'>
-						<Button variant='destructive' onClick={handleTransferOwnership} disabled={transferOwnershipMutation.isPending || !transferEmailCheckResult?.email}>
-							{transferOwnershipMutation.isPending && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-							Confirm Transfer Ownership to User
-						</Button>
-					</CardFooter>
-				)}
-			</Card>
+			<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
 
 			<Separator />
 
-			{/* Danger Zone Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle className='text-destructive'>Danger Zone</CardTitle>
-					<CardDescription>Actions that can have severe consequences.</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div className='flex flex-col space-y-2 w-full'>
-						<p className='text-sm text-muted-foreground'>Deleting this tenant will permanently remove all its data, including users, roles, and permissions. This action cannot be undone.</p>
-						<Button variant='destructive' onClick={() => setIsDeleteModalOpen(true)} className='self-start' disabled={deleteMutation.isPending}>
-							{deleteMutation.isPending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : <Trash2 className='mr-2 h-4 w-4' />}
-							Delete Tenant
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
+			<DeleteTenantSection tenant={tenant} onDeleteInitiated={() => setIsDeleteModalOpen(true)} isDeleting={deleteTenantMutation.isPending} />
 		</div>
 	)
 }

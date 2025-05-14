@@ -27,8 +27,6 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 		} else if (isSystemAdmin === false) {
 			actualSidebarType = 'user'
 		}
-		// If isSystemAdmin is null (still loading), actualSidebarType remains undefined,
-		// and Sidebar component will default to userLinks.
 	}
 
 	// If auth is loading, or user is not authenticated, we might not want to show the sidebar,

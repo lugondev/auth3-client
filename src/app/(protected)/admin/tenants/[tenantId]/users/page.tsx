@@ -1,19 +1,20 @@
 'use client'
 
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
-import {PlusCircledIcon, DotsHorizontalIcon, ArrowLeftIcon} from '@radix-ui/react-icons'
+import {PlusCircledIcon, DotsHorizontalIcon} from '@radix-ui/react-icons' // ArrowLeftIcon removed
 import {Button} from '@/components/ui/button'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {Badge} from '@/components/ui/badge'
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {Card, CardContent} from '@/components/ui/card' // CardHeader, CardDescription, CardTitle removed
 import {listUsersInTenant, removeUserFromTenant, getTenantById} from '@/services/tenantService'
 import {TenantUserResponse} from '@/types/tenant'
 import {toast} from 'sonner'
 import Link from 'next/link'
-import {useState} from 'react' // Removed useEffect
-import {useParams} from 'next/navigation' // Removed useRouter
+import {useState} from 'react'
+import {useParams} from 'next/navigation'
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle} from '@/components/ui/alert-dialog'
+import {PageHeader} from '@/components/layout/PageHeader' // Import PageHeader
 import {AxiosError} from 'axios'
 
 const TENANT_USERS_QUERY_KEY = 'tenantUsers'
@@ -82,31 +83,21 @@ export default function TenantUsersPage() {
 	const totalPages = data?.total_pages || 0
 	const tenantName = tenantData?.name || 'Tenant'
 
+	const pageActions = (
+		<Link href={`/admin/tenants/${tenantId}/users/add`} passHref>
+			<Button>
+				<PlusCircledIcon className='mr-2 h-4 w-4' /> Add User
+			</Button>
+		</Link>
+	)
+
 	return (
 		<div className='container mx-auto py-8'>
-			<div className='mb-4'>
-				<Link href='/admin/tenants' passHref>
-					<Button variant='outline' size='sm'>
-						<ArrowLeftIcon className='mr-2 h-4 w-4' />
-						Back to Tenants
-					</Button>
-				</Link>
-			</div>
+			<PageHeader title={`Users in ${tenantName}`} description='Manage users and their roles within this tenant.' backButton={{text: 'Back to Tenants', href: '/admin/tenants'}} actions={pageActions} />
 			<Card>
-				<CardHeader>
-					<div className='flex items-center justify-between'>
-						<div>
-							<CardTitle>Users in {tenantName}</CardTitle>
-							<CardDescription>Manage users and their roles within this tenant.</CardDescription>
-						</div>
-						<Link href={`/admin/tenants/${tenantId}/users/add`} passHref>
-							<Button>
-								<PlusCircledIcon className='mr-2 h-4 w-4' /> Add User
-							</Button>
-						</Link>
-					</div>
-				</CardHeader>
+				{/* Empty CardHeader removed as its content is now handled by PageHeader */}
 				<CardContent>
+					{/* The Table and its content remain the same */}
 					<Table>
 						<TableHeader>
 							<TableRow>
