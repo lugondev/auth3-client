@@ -10,6 +10,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Label} from '@/components/ui/label'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {MoreHorizontal} from 'lucide-react'
+import Link from 'next/link'
 
 export default function AdminUsersPage() {
 	const [users, setUsers] = useState<UserOutput[]>([])
@@ -113,9 +114,17 @@ export default function AdminUsersPage() {
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align='end'>
 												<DropdownMenuLabel>Actions</DropdownMenuLabel>
-												<DropdownMenuItem onClick={() => toast.info(`Viewing details for ${user.email}`)}>View Details</DropdownMenuItem>
+												<Link href={`/admin/users/${user.id}`} passHref>
+													<DropdownMenuItem asChild>
+														<span>View Details</span>
+													</DropdownMenuItem>
+												</Link>
 												<DropdownMenuSeparator />
-												<DropdownMenuItem onClick={() => toast.info(`Editing user ${user.email}`)}>Edit User</DropdownMenuItem>
+												<Link href={`/admin/users/${user.id}/edit`} passHref>
+													<DropdownMenuItem asChild>
+														<span>Edit User</span>
+													</DropdownMenuItem>
+												</Link>
 												<DropdownMenuItem onClick={() => toast.warning(`Attempting to delete user ${user.email}`)} className='text-red-600 focus:text-red-600 focus:bg-red-50'>
 													Delete User
 												</DropdownMenuItem>

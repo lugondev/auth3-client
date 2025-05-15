@@ -7,6 +7,7 @@ import apiClient, {
 	UpdatePasswordResponse, // Added based on handler
 	PaginatedUsers,
 	UserSearchQuery,
+	UpdateUserRequest, // Added for updateUser function
 } from '@/lib/apiClient';
 
 /**
@@ -20,6 +21,23 @@ export const getCurrentUser = async (): Promise<UserOutput> => {
 		return response.data;
 	} catch (error) {
 		console.error('Error fetching current user:', error);
+		throw error;
+	}
+};
+
+/**
+ * Updates a user's information by their ID.
+ * Corresponds to UpdateUser in user_handler.go (assuming such a handler exists for admin)
+ * @param userId The ID of the user to update.
+ * @param data The data to update (UpdateUserRequest).
+ * @returns The updated UserOutput data.
+ */
+export const updateUser = async (userId: string, data: UpdateUserRequest): Promise<UserOutput> => {
+	try {
+		const response = await apiClient.patch<UserOutput>(`/api/v1/users/${userId}`, data);
+		return response.data;
+	} catch (error) {
+		console.error(`Error updating user ${userId}:`, error);
 		throw error;
 	}
 };

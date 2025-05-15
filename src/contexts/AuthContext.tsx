@@ -199,7 +199,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			if (appUser) {
 				// Schedule refresh using the stable function passed to setTimeout
-				scheduleTokenRefreshInternal(authResult.access_token)
+				scheduleTokenRefreshInternal(authResult.refresh_token || authResult.access_token)
 			}
 		},
 		[setAccessToken, setRefreshToken, checkSystemAdminStatus, fetchUserTenantsInternal, userTenants],

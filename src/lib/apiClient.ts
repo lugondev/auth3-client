@@ -146,6 +146,15 @@ export interface UpdateUserInput {
 	status?: UserStatus; // Make optional for partial updates
 }
 
+// Added for user update requests
+export interface UpdateUserRequest {
+	first_name?: string;
+	last_name?: string;
+	phone?: string;
+	status?: UserStatus; // Updated based on user feedback
+	// Add other fields that can be updated via the API
+}
+
 export interface UpdateProfileInput {
 	bio?: string;
 	date_of_birth?: string | null; // Use string for date input, backend parses

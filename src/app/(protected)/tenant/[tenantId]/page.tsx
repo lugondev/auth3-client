@@ -277,11 +277,16 @@ export default function TenantSettingsPage() {
 
 			<Separator />
 
-			<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
+			{/* Only show ownership transfer and danger zone for tenant owners */}
+			{tenantRbac.roles.includes('TenantOwner') && (
+				<>
+					<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
 
-			<Separator />
+					<Separator />
 
-			<DeleteTenantSection tenant={tenant} onDeleteInitiated={() => setIsDeleteModalOpen(true)} isDeleting={deleteTenantMutation.isPending} />
+					<DeleteTenantSection tenant={tenant} onDeleteInitiated={() => setIsDeleteModalOpen(true)} isDeleting={deleteTenantMutation.isPending} />
+				</>
+			)}
 		</div>
 	)
 }
