@@ -7,12 +7,14 @@ import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, A
 import {Loader2, Trash2} from 'lucide-react'
 import {TenantUserResponse} from '@/types/tenant'
 
+type TenantUserStatus = 'active' | 'suspended' | 'pending' | 'invited'
+
 interface TenantUsersTableProps {
 	users: TenantUserResponse[]
 	roles: string[]
 	onRemoveUser?: (userId: string) => void
 	onChangeUserRole?: (userId: string, role: string) => void
-	onChangeUserStatus?: (userId: string, status: 'active' | 'suspended') => void
+	onChangeUserStatus?: (userId: string, status: TenantUserStatus) => void
 }
 
 export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles, onRemoveUser, onChangeUserRole, onChangeUserStatus}) => {
@@ -34,7 +36,7 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles,
 	const handleConfirmDelete = async () => {
 		if (selectedUser && onRemoveUser) {
 			setLoading(true)
-			await onRemoveUser(selectedUser.user_id)
+			onRemoveUser(selectedUser.user_id)
 			setLocalUsers((prev) => prev.filter((u) => u.user_id !== selectedUser.user_id))
 			setLoading(false)
 			setConfirmOpen(false)
@@ -76,8 +78,10 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles,
 								</select>
 							</TableCell>
 							<TableCell>
-								<select className='border rounded px-2 py-1' value={user.status_in_tenant} onChange={(e) => onChangeUserStatus && onChangeUserStatus(user.user_id, e.target.value as 'active' | 'suspended')} disabled={!onChangeUserStatus}>
+								<select className='border rounded px-2 py-1' value={user.status_in_tenant} onChange={(e) => onChangeUserStatus && onChangeUserStatus(user.user_id, e.target.value as TenantUserStatus)} disabled={!onChangeUserStatus}>
 									<option value='active'>active</option>
+									<option value='pending'>pending</option>
+									<option value='invited'>invited</option>
 									<option value='suspended'>suspended</option>
 								</select>
 							</TableCell>

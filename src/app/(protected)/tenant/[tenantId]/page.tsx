@@ -47,18 +47,18 @@ function TenantUsersQuery({tenantId, roles}: TenantUsersQueryProps) {
 	})
 
 	const updateUserMutation = useMutation({
-		mutationFn: ({userId, isActive}: {userId: string; isActive: boolean}) =>
+		mutationFn: ({userId, status}: {userId: string; status: string}) =>
 			updateUserInTenant(tenantId, userId, {
-				status_in_tenant: isActive ? 'active' : 'suspended',
+				status_in_tenant: status,
 			}),
-		onMutate: async ({userId, isActive}) => {
+		onMutate: async ({userId, status}) => {
 			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
 			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
 			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
 				if (!old?.users) return old
 				return {
 					...old,
-					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, status_in_tenant: isActive ? 'active' : 'suspended'} : u)),
+					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, status_in_tenant: status} : u)),
 				}
 			})
 			return {previousData}
@@ -131,7 +131,7 @@ function TenantUsersQuery({tenantId, roles}: TenantUsersQueryProps) {
 				updateUserRoleMutation.mutate({userId, role})
 			}}
 			onChangeUserStatus={(userId, status) => {
-				updateUserMutation.mutate({userId, isActive: status === 'active'})
+				updateUserMutation.mutate({userId, status})
 			}}
 			onRemoveUser={handleRemoveUser}
 		/>
