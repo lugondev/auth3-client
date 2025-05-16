@@ -25,6 +25,7 @@ import {TenantStaticInfo} from '@/components/tenants/management/TenantStaticInfo
 import {TenantDetailsForm, EditTenantFormData} from '@/components/tenants/management/TenantDetailsForm' // Import EditTenantFormData
 import {TransferTenantOwnershipSection} from '@/components/tenants/management/TransferTenantOwnershipSection'
 import {DeleteTenantSection} from '@/components/tenants/management/DeleteTenantSection'
+import {useAuth} from '@/contexts/AuthContext'
 
 interface TenantUsersQueryProps {
 	tenantId: string
@@ -147,6 +148,7 @@ export default function TenantSettingsPage() {
 	const queryClient = useQueryClient()
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
 	const tenantRbac = useTenantRbac(tenantId)
+	const {user} = useAuth()
 
 	const {
 		data: tenant,
@@ -278,7 +280,7 @@ export default function TenantSettingsPage() {
 			<Separator />
 
 			{/* Only show ownership transfer and danger zone for tenant owners */}
-			{tenantRbac.roles.includes('TenantOwner') && (
+			{user?.roles?.includes('TenantOwner') && (
 				<>
 					<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
 

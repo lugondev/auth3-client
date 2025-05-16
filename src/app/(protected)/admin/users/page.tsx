@@ -1,10 +1,11 @@
 'use client'
 
-import React, {useEffect, useState} from 'react'
+import React, {useEffect, useState, useCallback} from 'react'
 import {searchUsers} from '@/services/userService'
-import {UserOutput, PaginatedUsers} from '@/lib/apiClient' // Assuming UserOutput is the correct type for individual users
+import {UserOutput, PaginatedUsers, UserStatus, UserSearchQuery} from '@/lib/apiClient' // Assuming UserOutput is the correct type for individual users
 import {toast} from 'sonner'
 import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
 import {Table, TableHeader, TableBody, TableRow, TableHead, TableCell} from '@/components/ui/table'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {Label} from '@/components/ui/label'
@@ -21,30 +22,42 @@ export default function AdminUsersPage() {
 	const [totalPages, setTotalPages] = useState(0)
 	const [totalUsers, setTotalUsers] = useState(0)
 
-	useEffect(() => {
-		const fetchUsers = async () => {
-			setLoading(true)
-			setError(null)
-			try {
-				const result: PaginatedUsers = await searchUsers({page_size: pageSize, page: currentPage})
-				setUsers(result.users || [])
-				setTotalPages(result.total_pages || 0)
-				setTotalUsers(result.total || 0)
-				if ((result.users || []).length === 0 && currentPage === 1) {
-					toast.info('No users found in the system.')
-				}
-			} catch (err) {
-				console.error('Failed to fetch system users:', err)
-				const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.'
-				setError(errorMessage)
-				toast.error(`Failed to load users: ${errorMessage}`)
-			} finally {
-				setLoading(false)
-			}
-		}
+	// Filter state
+	const [searchQuery, setSearchQuery] = useState('')
+	const [filterStatus, setFilterStatus] = useState<UserStatus | ''>('')
+	const [filterRoleName, setFilterRoleName] = useState('')
 
+	const fetchUsers = useCallback(async () => {
+		setLoading(true)
+		setError(null)
+		try {
+			const query: UserSearchQuery = {
+				page_size: pageSize,
+				page: currentPage,
+				query: searchQuery || undefined, // Only include if not empty
+				status: filterStatus || undefined, // Only include if not empty
+				role_name: filterRoleName || undefined, // Only include if not empty
+			}
+			const result: PaginatedUsers = await searchUsers(query)
+			setUsers(result.users || [])
+			setTotalPages(result.total_pages || 0)
+			setTotalUsers(result.total || 0)
+			if ((result.users || []).length === 0 && currentPage === 1 && !searchQuery && !filterStatus && !filterRoleName) {
+				toast.info('No users found in the system.')
+			}
+		} catch (err) {
+			console.error('Failed to fetch system users:', err)
+			const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.'
+			setError(errorMessage)
+			toast.error(`Failed to load users: ${errorMessage}`)
+		} finally {
+			setLoading(false)
+		}
+	}, [currentPage, pageSize, searchQuery, filterStatus, filterRoleName])
+
+	useEffect(() => {
 		fetchUsers()
-	}, [currentPage, pageSize])
+	}, [fetchUsers])
 
 	const handlePreviousPage = () => {
 		setCurrentPage((prev) => Math.max(prev - 1, 1))
@@ -53,6 +66,14 @@ export default function AdminUsersPage() {
 	const handleNextPage = () => {
 		setCurrentPage((prev) => Math.min(prev + 1, totalPages))
 	}
+
+	const handleFilterSearch = () => {
+		setCurrentPage(1) // Reset to first page on new search
+		fetchUsers() // Trigger fetch with current filter state
+	}
+
+	// Assuming UserStatus is an enum or union type available in apiClient
+	const userStatuses: UserStatus[] = ['active', 'pending', 'suspended', 'deleted'] // Example statuses, replace with actual enum/union values
 
 	if (loading && users.length === 0) {
 		// Show initial loading only if no users are displayed yet
@@ -76,12 +97,45 @@ export default function AdminUsersPage() {
 	return (
 		<div>
 			<h1 className='text-2xl font-semibold mb-4'>System Users</h1>
+
+			{/* Filter Section */}
+			<div className='mb-4 p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4'>
+				<div>
+					<Label htmlFor='searchQuery'>Search Query</Label>
+					<Input id='searchQuery' placeholder='Search by email, name...' value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+				</div>
+				<div>
+					<Label htmlFor='filterStatus'>Status</Label>
+					<Select value={filterStatus} onValueChange={(value: string) => setFilterStatus(value !== 'all' ? (value as UserStatus) : '')}>
+						<SelectTrigger id='filterStatus'>
+							<SelectValue placeholder='Select status' />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value='all'>All Statuses</SelectItem>
+							{userStatuses.map((status) => (
+								<SelectItem key={status} value={status}>
+									{status.charAt(0).toUpperCase() + status.slice(1)}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+				<div>
+					<Label htmlFor='filterRoleName'>Role Name</Label>
+					<Input id='filterRoleName' placeholder='Enter role name' value={filterRoleName} onChange={(e) => setFilterRoleName(e.target.value)} />
+				</div>
+				<div className='md:col-span-3 flex justify-end'>
+					<Button onClick={handleFilterSearch} disabled={loading}>
+						Apply Filters
+					</Button>
+				</div>
+			</div>
+
 			{users.length === 0 && !loading ? (
-				<p className='text-muted-foreground'>No users found in the system.</p>
+				<p className='text-muted-foreground'>No users found matching the criteria.</p>
 			) : (
 				<div className='mt-4 rounded-md border'>
 					{' '}
-					{/* shadcn/ui table is often wrapped in a bordered div */}
 					<Table>
 						<TableHeader>
 							<TableRow>
@@ -93,7 +147,6 @@ export default function AdminUsersPage() {
 								<TableHead>
 									<span className='sr-only'>Actions</span>
 								</TableHead>
-								{/* Add more columns as needed, e.g., Roles, Created At */}
 							</TableRow>
 						</TableHeader>
 						<TableBody>

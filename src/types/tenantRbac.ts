@@ -57,3 +57,7 @@ export interface CreateTenantRoleFormValues {
 	subject: string; // e.g., 'article', 'document'
 	action: string; // e.g., 'read', 'write'
 }
+
+export interface TenantPermission {
+	permissions: string[];
+}

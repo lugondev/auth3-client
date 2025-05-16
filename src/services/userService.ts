@@ -26,6 +26,23 @@ export const getCurrentUser = async (): Promise<UserOutput> => {
 };
 
 /**
+ * Updates a user's status by their ID.
+ * Corresponds to UpdateUserStatus in user_handler.go (assuming such a handler exists)
+ * @param userId The ID of the user to update.
+ * @param status The new status for the user (UserStatus).
+ * @returns The updated UserOutput data.
+ */
+export const updateUserStatus = async (userId: string, status: string): Promise<UserOutput> => {
+	try {
+		const response = await apiClient.patch<UserOutput>(`/api/v1/users/${userId}/status`, { status });
+		return response.data;
+	} catch (error) {
+		console.error(`Error updating user status ${userId}:`, error);
+		throw error;
+	}
+};
+
+/**
  * Updates a user's information by their ID.
  * Corresponds to UpdateUser in user_handler.go (assuming such a handler exists for admin)
  * @param userId The ID of the user to update.

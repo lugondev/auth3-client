@@ -11,7 +11,7 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 // --- Start: Backend Type Definitions ---
 
 // Based on internal/modules/account/domain/models.go
-export type UserStatus = "active" | "pending" | "blocked" | "inactive";
+export type UserStatus = "active" | "pending" | "suspended" | "deleted";
 
 // Based on internal/modules/account/domain/role.go
 // Assuming Permission is a string for simplicity, adjust if it's more complex
@@ -206,7 +206,7 @@ export interface PaginatedUsers {
 export interface UserSearchQuery {
 	query?: string;
 	status?: UserStatus;
-	role_id?: string; // uuid.UUID
+	role_name?: string; // uuid.UUID
 	page?: number;
 	page_size?: number;
 }

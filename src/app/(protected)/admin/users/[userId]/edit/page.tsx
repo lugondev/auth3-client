@@ -1,8 +1,8 @@
 'use client'
 
 import React, {useEffect, useState} from 'react'
-import {useParams, useRouter} from 'next/navigation'
-import {getUserById, updateUser} from '@/services/userService' // Assuming service functions exist
+import {useParams} from 'next/navigation'
+import {getUserById, updateUserStatus} from '@/services/userService' // Assuming service functions exist
 import {UserOutput, UpdateUserRequest, UserStatus} from '@/lib/apiClient' // Assuming necessary types and adding UserStatus
 import {toast} from 'sonner'
 import {Card, CardHeader, CardTitle, CardContent, CardFooter} from '@/components/ui/card'
@@ -14,7 +14,6 @@ import {Select, SelectTrigger, SelectValue, SelectContent, SelectItem} from '@/c
 
 export default function EditUserPage() {
 	const params = useParams()
-	const router = useRouter()
 	const userId = params.userId as string
 
 	const [user, setUser] = useState<UserOutput | null>(null)
@@ -75,14 +74,15 @@ export default function EditUserPage() {
 		setSaving(true)
 		setError(null)
 		try {
-			await updateUser(userId, formData) // Assuming this function exists
-			toast.success('User updated successfully!')
-			router.push(`/admin/users/${userId}`) // Redirect to details page after saving
+			// Only update status using the new endpoint
+			await updateUserStatus(userId, formData.status as string)
+			toast.success('User status updated successfully!')
+			// No redirect needed, stay on the edit page to allow other edits if necessary
 		} catch (err) {
-			console.error(`Failed to update user ${userId}:`, err)
+			console.error(`Failed to update user status ${userId}:`, err)
 			const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.'
 			setError(errorMessage)
-			toast.error(`Failed to update user: ${errorMessage}`)
+			toast.error(`Failed to update user status: ${errorMessage}`)
 		} finally {
 			setSaving(false)
 		}
