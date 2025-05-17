@@ -325,9 +325,9 @@ export function useRbac(): UseRbacReturn {
 		const permission: [string, string] = [subject, action] // Explicitly type as tuple
 
 		try {
-			const payload: CreateRoleWithPermissionInput = { role: roleName, permission }
+			const payload: CreateRoleWithPermissionInput = { role: roleName, permissions: [permission] }
 			// Changed endpoint: Assuming POST to /roles creates a role and can accept initial permissions
-			await apiClient.post('/api/v1/admin/rbac/roles', payload)
+			await apiClient.post('/api/v1/admin/rbac/roles/permissions', payload)
 
 			setState((prev: RbacState) => {
 				const newRolePermissions: Array<[string, string]> = [permission]

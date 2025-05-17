@@ -77,7 +77,7 @@ export interface CreateRoleFormValues {
 // This type is used as a payload for creating a role along with its first permission
 export interface CreateRoleWithPermissionInput {
 	role: string
-	permission: [string, string] // [object, action]
+	permissions: [string, string][] // [object, action][]
 }
 
 export interface RbacActions {

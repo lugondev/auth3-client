@@ -70,6 +70,10 @@ export const removePermissionForRole = async (
 	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${role}/permissions/${object}/${action}`);
 };
 
+export const deleteRole = async (roleName: string): Promise<void> => {
+	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(roleName)}`);
+};
+
 // --- Tenant-Specific RBAC Operations ---
 
 export const getTenantRoles = async (tenantId: string): Promise<RoleListOutput> => {

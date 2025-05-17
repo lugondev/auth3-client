@@ -8,14 +8,11 @@ import {UserRolesModal} from '@/components/rbac/modals/UserRolesModal'
 import {RolePermissionsModal} from '@/components/rbac/modals/RolePermissionsModal'
 import {CreateRoleModal} from '@/components/rbac/modals/CreateRoleModal'
 
-// Imports from users/page.tsx for UserTable integration
 import apiClient, {UserOutput, PaginatedUsers, UserSearchQuery, UserStatus} from '@/lib/apiClient'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
-// Removed unused DropdownMenu imports
 import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
-// Removed unused DotsHorizontalIcon import
 import {useDebounce} from 'use-debounce'
 import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
 
@@ -31,7 +28,7 @@ const initialUserFilters: Omit<UserSearchQuery, 'role_id' | 'role_name'> = {
 export default function RBACManagement() {
 	// --- State from useRbac (Roles, Permissions, Modals) ---
 	const {
-		roles,
+		roles: rbacRoles,
 		userRolesMap, // Keep for displaying roles in table/modal if needed
 		rolePermissionsMap,
 		loading: rbacLoading, // Rename to avoid conflict
@@ -48,6 +45,11 @@ export default function RBACManagement() {
 		groupedPermissions,
 		// Remove user-related state managed below: users, searchQuery, filteredUsers
 	} = useRbac()
+
+	const [roles, setRoles] = useState<string[]>(rbacRoles)
+	useEffect(() => {
+		setRoles(rbacRoles)
+	}, [rbacRoles])
 
 	// --- State for UserTable (Pagination, Filtering, Data) ---
 	const [users, setUsers] = useState<UserOutput[]>([])
@@ -192,14 +194,12 @@ export default function RBACManagement() {
 	return (
 		<div className='p-6 space-y-8'>
 			<h1 className='text-3xl font-bold'>Role-Based Access Control</h1>
-
 			{pageError && (
 				<div className='p-4 text-center text-destructive bg-destructive/10 border border-destructive rounded-md'>
 					<h2 className='text-lg font-semibold mb-2'>Error</h2>
 					<p>{errorMessage}</p>
 				</div>
 			)}
-
 			{/* Roles Section (from useRbac) */}
 			<RolesSection
 				roles={roles}
@@ -208,8 +208,10 @@ export default function RBACManagement() {
 				selectedRole={selectedRole}
 				onOpenCreateRoleModal={actions.openCreateRoleModal}
 				onOpenRolePermsModal={actions.openRolePermsModal}
+				onDeleteRole={async (roleName: string) => {
+					setRoles((prev) => prev.filter((r) => r !== roleName))
+				}}
 			/>
-
 			{/* Users Section (using UserTable) */}
 			<Card>
 				<CardHeader>
@@ -258,7 +260,6 @@ export default function RBACManagement() {
 					/>
 				</CardContent>
 			</Card>
-
 			{/* --- Modals (from useRbac) --- */}
 			<UserRolesModal
 				isOpen={isUserRolesModalOpen}
@@ -271,7 +272,6 @@ export default function RBACManagement() {
 				onAddRole={actions.handleAddRoleToUser}
 				onRemoveRole={actions.handleRemoveRoleFromUser}
 			/>
-
 			<RolePermissionsModal
 				isOpen={isRolePermsModalOpen}
 				onClose={actions.closeRolePermsModal}
@@ -287,7 +287,6 @@ export default function RBACManagement() {
 				onAddPermission={actions.handleAddPermissionToRole}
 				onRemovePermission={actions.handleRemovePermissionFromRole}
 			/>
-
 			<CreateRoleModal
 				isOpen={isCreateRoleModalOpen}
 				onClose={actions.closeCreateRoleModal}

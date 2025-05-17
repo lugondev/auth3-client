@@ -4,7 +4,7 @@ import { OwnedTenantsResponse, JoinedTenantsResponse } from '@/types/tenantManag
 import { TenantPermission } from '@/types/tenantRbac'; // Import the new type
 
 export const listTenants = async (limit: number = 10, offset: number = 0): Promise<PaginatedTenantsResponse> => {
-	const response = await apiClient.get(`/api/v1/tenants`, {
+	const response = await apiClient.get(`/api/v1/tenants/list`, {
 		params: { limit, offset },
 	});
 	return response.data;
@@ -78,7 +78,7 @@ export const updateUserInTenant = async (
 };
 
 export const getTenantPermissions = async (tenantId: string): Promise<TenantPermission> => {
-	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/me/permissions`);
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/permissions`);
 	return response.data; // Assuming the response data matches the TenantPermission type
 };
 
@@ -97,7 +97,7 @@ export const removeUserFromTenant = async (tenantId: string, userId: string): Pr
 
 // Check if email exists
 export const checkEmailExists = async (email: string): Promise<{ exists: boolean; email?: string }> => {
-	const response = await apiClient.get(`/api/v1/users/check-email-exists`, {
+	const response = await apiClient.get(`/api/v1/users/is-email-exists`, {
 		params: { email },
 	});
 	return response.data;
