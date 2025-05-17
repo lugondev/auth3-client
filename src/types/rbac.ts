@@ -8,7 +8,7 @@ export interface UserRoleInput {
 
 export interface RolePermissionInput {
 	role: string
-	permission: [string, string] // [object, action]
+	permissions: [string, string][] // [object, action][]
 }
 
 // Not directly used as an API DTO in rbac_handler.go but defined in Go DTOs

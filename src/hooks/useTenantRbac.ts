@@ -175,7 +175,7 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await assignPermissionToTenantRole(state.tenantId, roleName, payload)
+			await assignPermissionToTenantRole(state.tenantId, roleName, [payload])
 			setState((prev) => ({
 				...prev,
 				rolePermissionsMap: {
@@ -238,7 +238,7 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 		try {
 			// Create role by assigning its first permission
 			const permissionPayload: PermissionInput = { object: firstPermissionObject, action: firstPermissionAction }
-			await assignPermissionToTenantRole(state.tenantId, roleName, permissionPayload)
+			await assignPermissionToTenantRole(state.tenantId, roleName, [permissionPayload])
 
 			setState((prev) => ({
 				...prev,

@@ -262,7 +262,7 @@ export function useRbac(): UseRbacReturn {
 		}
 
 		const permission: [string, string] = [object, action] // Explicitly type as tuple
-		const payload: RolePermissionInput = { role: roleName, permission }
+		const payload: RolePermissionInput = { role: roleName, permissions: [permission] }
 		setLoading({ action: true })
 		setError(null)
 		try {
