@@ -48,6 +48,7 @@ const adminParentLink: NavLink = {
 
 const userLinks: NavLink[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/tenant-management', label: 'Organizations', icon: Building},
 	{href: '/profile', label: 'Profile', icon: UserCircle},
 ]
 
