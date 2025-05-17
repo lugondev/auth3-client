@@ -725,13 +725,20 @@ export interface TableSearchQuery extends BaseSearchQuery {
 }
 
 
-// --- End: Venue Module Type Definitions ---
+function generateUUID() {
+	return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+		const r = Math.random() * 16 | 0;
+		const v = c === 'x' ? r : (r & 0x3 | 0x8);
+		return v.toString(16);
+	});
+}
 
 
 const apiClient = axios.create({
 	baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1',
 	headers: {
 		'Content-Type': 'application/json',
+		'X-Request-ID': generateUUID(),
 	},
 	withCredentials: true,
 });

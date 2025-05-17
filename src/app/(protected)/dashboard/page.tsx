@@ -181,6 +181,12 @@ export default function UserDashboardPage() {
 													<strong className='text-gray-800 dark:text-gray-100'>{membership.tenant_name}</strong> <span className='text-sm text-gray-500 dark:text-gray-400'>({membership.tenant_slug})</span>
 													<br />
 													<span className='text-sm text-gray-600 dark:text-gray-300'>
+														<i>
+															<small>{membership.tenant_id}</small>
+														</i>
+													</span>
+													<br />
+													<span className='text-sm text-gray-600 dark:text-gray-300'>
 														Roles: {membership.user_roles.join(', ')} | Status: {membership.user_status}
 													</span>
 													<br />
