@@ -129,15 +129,6 @@ export interface Disable2FARequest {
 	code?: string; // Optional: Current TOTP code
 }
 
-// Based on internal/modules/account/domain/social_dto.go
-// Assuming SocialLoginInput might be needed if using direct social routes
-export interface SocialLoginInput {
-	provider: string; // e.g., "google", "facebook"
-	code?: string;     // Authorization code from provider redirect
-	id_token?: string; // ID token (if applicable, e.g., Google Sign-In)
-	// Add other fields as needed based on the specific social provider flow
-}
-
 // Input DTOs for User operations (Keep existing)
 export interface UpdateUserInput {
 	first_name?: string;
