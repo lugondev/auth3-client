@@ -135,7 +135,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			return
 		}
 		try {
-			const response = await apiClient.get<{is_system_admin: boolean}>('/api/v1/users/me/is-system-admin')
+			const response = await apiClient.get<{is_system_admin: boolean}>('/api/v1/auth/me/is-system-admin')
 			setIsSystemAdmin(response.data.is_system_admin)
 			console.log('System admin status fetched:', response.data.is_system_admin)
 		} catch (error) {
