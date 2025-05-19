@@ -110,9 +110,12 @@ export const getTenantRolePermissions = async (tenantId: string, roleName: strin
 export const assignPermissionToTenantRole = async (
 	tenantId: string,
 	roleName: string,
-	data: PermissionInput[], // [{ object: string, action: string }]
+	data: PermissionInput[],
 ): Promise<void> => {
-	await apiClient.post(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`, data);
+	await apiClient.post(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles/permissions`, {
+		permissions: data,
+		role: roleName,
+	});
 };
 
 export const revokePermissionFromTenantRole = async (
