@@ -44,7 +44,6 @@ export default function RBACManagement() {
 		newPermAction,
 		actions, // Keep RBAC actions
 		groupedPermissions,
-		// Remove user-related state managed below: users, searchQuery, filteredUsers
 	} = useRbac()
 
 	const [selectedDomain, setSelectedDomain] = useState<'tenant' | 'global'>('tenant')
@@ -93,6 +92,9 @@ export default function RBACManagement() {
 				setCurrentPage(response.data.page)
 			}
 			setPageSize(response.data.page_size)
+
+			// Fetch roles for each user in the current page
+			await Promise.all(response.data.users.map((user) => actions.fetchUserRoles(user.id)))
 		} catch (err: unknown) {
 			let message = 'Failed to fetch users'
 			if (err instanceof Error) message = err.message
