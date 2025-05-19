@@ -22,8 +22,8 @@ const initialUserFilters: Omit<UserSearchQuery, 'role_id' | 'role_name'> = {
 	// Role filter removed for RBAC page
 	query: '',
 	status: undefined,
-	page: 1,
-	page_size: 10,
+	offset: 1,
+	limit: 10,
 }
 
 export default function RBACManagement() {
@@ -57,8 +57,8 @@ export default function RBACManagement() {
 	const [userLoading, setUserLoading] = useState(true) // Separate loading state for users
 	const [userError, setUserError] = useState<string | null>(null) // Separate error state for users
 	const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({})
-	const [currentPage, setCurrentPage] = useState(initialUserFilters.page || 1)
-	const [pageSize, setPageSize] = useState(initialUserFilters.page_size || 10)
+	const [currentPage, setCurrentPage] = useState(initialUserFilters.offset || 1)
+	const [pageSize, setPageSize] = useState(initialUserFilters.limit || 10)
 	const [totalPages, setTotalPages] = useState(0)
 	const [totalUsers, setTotalUsers] = useState(0)
 	const [userFilters, setUserFilters] = useState(initialUserFilters)
@@ -71,8 +71,8 @@ export default function RBACManagement() {
 		setSelectedRows({}) // Reset selections
 
 		const queryParams: UserSearchQuery = {
-			page: currentPage,
-			page_size: pageSize,
+			offset: currentPage,
+			limit: pageSize,
 			query: debouncedQuery || undefined,
 			status: userFilters.status || undefined,
 		}

@@ -198,8 +198,8 @@ export interface UserSearchQuery {
 	query?: string;
 	status?: UserStatus;
 	role_name?: string; // uuid.UUID
-	page?: number;
-	page_size?: number;
+	offset?: number;
+	limit?: number;
 }
 
 // Type for UpdatePasswordResponse in user_handler.go

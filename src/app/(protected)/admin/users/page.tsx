@@ -32,8 +32,8 @@ export default function AdminUsersPage() {
 		setError(null)
 		try {
 			const query: UserSearchQuery = {
-				page_size: pageSize,
-				page: currentPage,
+				limit: pageSize,
+				offset: currentPage,
 				query: searchQuery || undefined, // Only include if not empty
 				status: filterStatus || undefined, // Only include if not empty
 				role_name: filterRoleName || undefined, // Only include if not empty
@@ -101,11 +101,9 @@ export default function AdminUsersPage() {
 			{/* Filter Section */}
 			<div className='mb-4 p-4 border rounded-md grid grid-cols-1 md:grid-cols-3 gap-4'>
 				<div>
-					<Label htmlFor='searchQuery'>Search Query</Label>
 					<Input id='searchQuery' placeholder='Search by email, name...' value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
 				</div>
 				<div>
-					<Label htmlFor='filterStatus'>Status</Label>
 					<Select value={filterStatus} onValueChange={(value: string) => setFilterStatus(value !== 'all' ? (value as UserStatus) : '')}>
 						<SelectTrigger id='filterStatus'>
 							<SelectValue placeholder='Select status' />
@@ -121,7 +119,6 @@ export default function AdminUsersPage() {
 					</Select>
 				</div>
 				<div>
-					<Label htmlFor='filterRoleName'>Role Name</Label>
 					<Input id='filterRoleName' placeholder='Enter role name' value={filterRoleName} onChange={(e) => setFilterRoleName(e.target.value)} />
 				</div>
 				<div className='md:col-span-3 flex justify-end'>
