@@ -1,14 +1,15 @@
 'use client'
 
-import {useEffect, useState} from 'react'
+import {useEffect, useState, useRef, ChangeEvent} from 'react'
 import {useAuth} from '@/contexts/AuthContext'
-import {getCurrentUser, updateCurrentUser, updateCurrentUserProfile, updateCurrentUserPassword} from '@/services/userService'
+import {getCurrentUser, updateCurrentUser, updateCurrentUserProfile, updateCurrentUserPassword, updateUserAvatar} from '@/services/userService' // Changed to updateUserAvatar
 import {UserOutput, UserProfile, UpdateUserInput, UpdateProfileInput, UpdatePasswordInput} from '@/lib/apiClient' // Ensure these types match your generated client
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Skeleton} from '@/components/ui/skeleton'
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Button} from '@/components/ui/button'
+import {UploadCloudIcon} from 'lucide-react'
 import {Input} from '@/components/ui/input'
 import {Textarea} from '@/components/ui/textarea'
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
@@ -510,6 +511,9 @@ export default function ProfilePage() {
 	const [profileData, setProfileData] = useState<UserProfile | null>(null)
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+	const [isAvatarHovered, setIsAvatarHovered] = useState(false)
+	const fileInputRef = useRef<HTMLInputElement>(null)
+	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
 	// Fetch data on mount
 	useEffect(() => {
@@ -553,9 +557,38 @@ export default function ProfilePage() {
 		setProfileData(updatedProfile)
 	}
 
+	const handleAvatarFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0]
+		if (file && userData) {
+			setIsUploadingAvatar(true)
+			// formData is not needed here as updateUserAvatar expects a File object directly
+
+			try {
+				// Assuming updateUserAvatar returns the updated user or at least the new avatar URL
+				const updatedUser = await updateUserAvatar(file) // Changed to pass file directly
+				setUserData((prevData) => ({
+					...prevData!,
+					avatar: updatedUser.avatar, // Adjust based on actual response structure
+				}))
+				toast.success('Avatar updated successfully!')
+			} catch (err: unknown) {
+				console.error('Error uploading avatar:', err)
+				const message = err instanceof Error ? err.message : 'Failed to upload avatar.'
+				toast.error(`Upload failed: ${message}`)
+			} finally {
+				setIsUploadingAvatar(false)
+				// Reset file input value to allow selecting the same file again if needed
+				if (fileInputRef.current) {
+					fileInputRef.current.value = ''
+				}
+			}
+		}
+	}
+
 	return (
 		<div className='container mx-auto p-4 space-y-6'>
 			<h1 className='text-3xl font-bold'>User Profile</h1>
+			<input type='file' ref={fileInputRef} onChange={handleAvatarFileSelect} accept='image/*' style={{display: 'none'}} />
 
 			{isLoading ? (
 				<Card>
@@ -587,10 +620,19 @@ export default function ProfilePage() {
 					{/* User Header Section */}
 					<Card>
 						<CardHeader className='flex flex-row items-center space-x-4'>
-							<Avatar className='h-16 w-16'>
-								<AvatarImage src={userData.avatar || undefined} alt='User Avatar' />
-								<AvatarFallback>{getInitials(userData.first_name, userData.last_name, userData.email)}</AvatarFallback>
-							</Avatar>
+							<div className='relative h-16 w-16' onMouseEnter={() => setIsAvatarHovered(true)} onMouseLeave={() => setIsAvatarHovered(false)}>
+								<Avatar className='h-16 w-16'>
+									<AvatarImage src={userData.avatar || undefined} alt='User Avatar' />
+									<AvatarFallback>{getInitials(userData.first_name, userData.last_name, userData.email)}</AvatarFallback>
+								</Avatar>
+								{isAvatarHovered && (
+									<div className='absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full cursor-pointer'>
+										<Button variant='ghost' size='icon' className='text-white hover:text-gray-200' onClick={() => fileInputRef.current?.click()} disabled={isUploadingAvatar}>
+											{isUploadingAvatar ? <div className='h-5 w-5 animate-spin rounded-full border-b-2 border-white'></div> : <UploadCloudIcon className='h-6 w-6' />}
+										</Button>
+									</div>
+								)}
+							</div>
 							<div className='flex-grow'>
 								<CardTitle className='text-2xl'>{`${userData.first_name || ''} ${userData.last_name || ''}`.trim()}</CardTitle>
 								<CardDescription>{userData.email}</CardDescription>
