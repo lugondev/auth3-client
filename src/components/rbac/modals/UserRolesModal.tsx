@@ -6,13 +6,13 @@ import {Checkbox} from '@/components/ui/checkbox'
 import {Label} from '@/components/ui/label'
 import {ScrollArea} from '@/components/ui/scroll-area'
 import {Loader2} from 'lucide-react'
-import {RbacLoadingState} from '@/types/rbac'
+import {RbacLoadingState, Role} from '@/types/rbac'
 
 interface UserRolesModalProps {
 	isOpen: boolean
 	onClose: () => void
 	user: UserOutput | null
-	roles: string[] // All available roles
+	roles: Role[] // All available roles
 	userRolesMap: Record<string, string[]> // Map of userId to their assigned roles
 	loading: RbacLoadingState // Pass relevant loading states (userRoles, action)
 	error: string | null
@@ -46,32 +46,34 @@ export const UserRolesModal: React.FC<UserRolesModalProps> = ({isOpen, onClose, 
 								{roles.length === 0 ? (
 									<p className='text-sm text-muted-foreground italic p-2'>No roles defined in the system.</p>
 								) : (
-									roles.map((roleName) => {
-										const isAssigned = assignedRoles.includes(roleName)
-										return (
-											<div key={roleName} className='flex items-center justify-between p-1'>
-												<Label htmlFor={`role-${user.id}-${roleName}`} className='flex-1 cursor-pointer'>
-													{roleName}
-												</Label>
-												<Checkbox
-													id={`role-${user.id}-${roleName}`}
-													checked={isAssigned}
-													onCheckedChange={(checked: boolean | 'indeterminate') => {
-														// Ensure checked is boolean before calling handlers
-														if (typeof checked === 'boolean') {
-															if (checked) {
-																onAddRole(user.id, roleName)
-															} else {
-																onRemoveRole(user.id, roleName)
+									roles
+										.filter((role) => role.domain == 'global')
+										.map((role) => {
+											const isAssigned = assignedRoles.includes(role.name)
+											return (
+												<div key={role.name} className='flex items-center justify-between p-1'>
+													<Label htmlFor={`role-${user.id}-${role.name}`} className='flex-1 cursor-pointer'>
+														{role.name}
+													</Label>
+													<Checkbox
+														id={`role-${user.id}-${role.name}`}
+														checked={isAssigned}
+														onCheckedChange={(checked: boolean | 'indeterminate') => {
+															// Ensure checked is boolean before calling handlers
+															if (typeof checked === 'boolean') {
+																if (checked) {
+																	onAddRole(user.id, role.name)
+																} else {
+																	onRemoveRole(user.id, role.name)
+																}
 															}
-														}
-													}}
-													disabled={loading.action} // Disable checkbox during add/remove actions
-													aria-label={`Assign role ${roleName}`}
-												/>
-											</div>
-										)
-									})
+														}}
+														disabled={loading.action} // Disable checkbox during add/remove actions
+														aria-label={`Assign role ${role.name}`}
+													/>
+												</div>
+											)
+										})
 								)}
 							</div>
 						</ScrollArea>

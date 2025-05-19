@@ -6,7 +6,9 @@ import {
 	UserRoleInput,
 	RolePermissionsOutput,
 	RolePermissionInput, // Used for global, tenant might use simpler PermissionInput for POST
-	PermissionInput, // For tenant-specific permission assignment
+	PermissionInput,
+	Role, // For tenant-specific permission assignment
+	CreateRoleFormValues,
 } from "@/types/rbac";
 
 const RBAC_API_PREFIX = "/api/v1/admin/rbac"; // apiClient already has /api/v1
@@ -61,6 +63,15 @@ export const addPermissionForRole = async (data: RolePermissionInput): Promise<v
 	await apiClient.post(`${RBAC_API_PREFIX}/roles/permissions`, data);
 };
 
+export const createRole = async (data: CreateRoleFormValues): Promise<void> => {
+	const payload = {
+		role: data.roleName,
+		domain: data.domain,
+		permissions: [[data.subject, data.action]]
+	};
+	await apiClient.post(`${RBAC_API_PREFIX}/roles/permissions/${data.domain}`, payload);
+};
+
 export const removePermissionForRole = async (
 	role: string,
 	object: string,
@@ -70,8 +81,8 @@ export const removePermissionForRole = async (
 	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${role}/permissions/${object}/${action}`);
 };
 
-export const deleteRole = async (roleName: string): Promise<void> => {
-	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(roleName)}`);
+export const deleteRole = async (role: Role): Promise<void> => {
+	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(role.name)}/${role.domain}`);
 };
 
 // --- Tenant-Specific RBAC Operations ---

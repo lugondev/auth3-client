@@ -2,7 +2,6 @@
 import { UserOutput } from '@/lib/apiClient' // Assuming UserOutput is needed for selectedUser
 
 export interface UserRoleInput {
-	userId: string // uuid.UUID
 	role: string
 }
 
@@ -18,9 +17,13 @@ export interface PermissionInput {
 }
 
 // RBAC Listing Responses
+export interface RoleOutput {
+	global: string[]
+	tenant: string[]
+}
 
 export interface RoleListOutput {
-	roles: string[]
+	roles: RoleOutput
 }
 
 // Each item is a policy, typically [subject, domain, object, action] or [role, domain, object, action]
@@ -50,8 +53,13 @@ export interface RbacLoadingState {
 	action: boolean
 }
 
+export interface Role {
+	name: string
+	domain: string
+}
+
 export interface RbacState {
-	roles: string[]
+	roles: Role[]
 	users: UserOutput[]
 	userRolesMap: Record<string, string[]> // userId -> roles[]
 	rolePermissionsMap: Record<string, Array<[string, string]>> // roleName -> permissions[]
@@ -59,7 +67,7 @@ export interface RbacState {
 	error: string | null
 	createRoleError: string | null
 	selectedUser: UserOutput | null
-	selectedRole: string | null
+	selectedRole: Role | null
 	isUserRolesModalOpen: boolean
 	isRolePermsModalOpen: boolean
 	isCreateRoleModalOpen: boolean
@@ -70,28 +78,31 @@ export interface RbacState {
 
 export interface CreateRoleFormValues {
 	roleName: string
-	subject: string // Corresponds to 'object' in permission
+	domain: 'global' | 'tenant'
+	subject: string
 	action: string
 }
 
 // This type is used as a payload for creating a role along with its first permission
 export interface CreateRoleWithPermissionInput {
+	domain: 'global' | 'tenant'
 	role: string
 	permissions: [string, string][] // [object, action][]
 }
 
+
 export interface RbacActions {
 	fetchUserRoles: (userId: string) => Promise<void>
-	fetchRolePermissions: (roleName: string) => Promise<void>
+	fetchRolePermissions: (role: Role) => Promise<void>
 	openUserRolesModal: (user: UserOutput) => void
 	closeUserRolesModal: () => void
-	openRolePermsModal: (roleName: string) => void
+	openRolePermsModal: (role: Role) => void
 	closeRolePermsModal: () => void
 	openCreateRoleModal: () => void
 	closeCreateRoleModal: () => void
 	handleAddRoleToUser: (userId: string | undefined, roleName: string) => Promise<void>
 	handleRemoveRoleFromUser: (userId: string | undefined, roleName: string) => Promise<void>
-	handleAddPermissionToRole: (roleName: string | null, object: string, action: string) => Promise<void>
+	handleAddPermissionToRole: (roleName: string | null, object: string, action: string, domain: string) => Promise<void>
 	handleRemovePermissionFromRole: (roleName: string | null, object: string, action: string) => Promise<void>
 	handleCreateRole: (data: CreateRoleFormValues) => Promise<void>
 	setNewPermObject: (value: string) => void
@@ -103,6 +114,6 @@ export interface RbacActions {
 
 export interface UseRbacReturn extends RbacState {
 	actions: RbacActions
-	groupedPermissions: (roleName: string | null) => Record<string, string[]>
+	groupedPermissions: (role: Role | null) => Record<string, string[]>
 	filteredUsers: UserOutput[]
 }

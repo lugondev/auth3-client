@@ -6,12 +6,16 @@ import {Button} from '@/components/ui/button'
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose} from '@/components/ui/dialog'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {Loader2} from 'lucide-react'
 import {CreateRoleFormValues, RbacLoadingState} from '@/types/rbac'
 
 // Define Zod schema for the create role form
 const createRoleSchema = z.object({
 	roleName: z.string().min(1, {message: 'Role name cannot be empty'}).max(50, {message: 'Role name too long'}),
+	domain: z.enum(['global', 'tenant'], {
+		required_error: 'Please select a domain',
+	}),
 	subject: z.string().min(1, {message: 'Subject cannot be empty'}).max(50, {message: 'Subject too long'}),
 	action: z.string().min(1, {message: 'Action cannot be empty'}).max(50, {message: 'Action too long'}),
 })
@@ -22,12 +26,14 @@ interface CreateRoleModalProps {
 	loading: RbacLoadingState // Pass relevant loading state (action)
 	error: string | null // Specific error for create role
 	onCreateRole: (data: CreateRoleFormValues) => Promise<void> // Use the specific type
+	defaultDomain?: 'tenant' | 'global'
 }
 
-export const CreateRoleModal: React.FC<CreateRoleModalProps> = ({isOpen, onClose, loading, error, onCreateRole}) => {
+export const CreateRoleModal: React.FC<CreateRoleModalProps> = ({isOpen, onClose, loading, error, onCreateRole, defaultDomain = 'tenant'}) => {
 	const {
 		register,
 		handleSubmit,
+		setValue,
 		formState: {errors},
 		reset,
 	} = useForm<CreateRoleFormValues>({
@@ -42,14 +48,16 @@ export const CreateRoleModal: React.FC<CreateRoleModalProps> = ({isOpen, onClose
 	// Reset form when modal opens or closes
 	useEffect(() => {
 		if (isOpen) {
-			reset({roleName: '', subject: '*', action: '.*'}) // Reset with defaults when opening
+			reset()
+			setValue('roleName', '')
+			setValue('subject', '*')
+			setValue('action', '.*')
+			setValue('domain', defaultDomain) // Set initial domain when opening
 		}
-	}, [isOpen, reset])
+	}, [isOpen, reset, setValue, defaultDomain])
 
 	const onSubmit: SubmitHandler<CreateRoleFormValues> = async (data) => {
 		await onCreateRole(data)
-		// No need to close modal here, the hook's handleCreateRole will manage it on success
-		// Resetting is handled by the useEffect hook when isOpen changes
 	}
 
 	return (
@@ -61,6 +69,7 @@ export const CreateRoleModal: React.FC<CreateRoleModalProps> = ({isOpen, onClose
 				</DialogHeader>
 				{/* Use form element with onSubmit */}
 				<form id='create-role-form' onSubmit={handleSubmit(onSubmit)} className='grid gap-4 py-4'>
+					{/* Role Name Input */}
 					<div className='grid grid-cols-4 items-center gap-4'>
 						<Label htmlFor='roleName' className='text-right'>
 							Role Name
@@ -68,6 +77,25 @@ export const CreateRoleModal: React.FC<CreateRoleModalProps> = ({isOpen, onClose
 						<div className='col-span-3'>
 							<Input id='roleName' className='w-full' placeholder='e.g., editor' {...register('roleName')} disabled={loading.action} />
 							{errors.roleName && <p className='text-sm text-destructive mt-1'>{errors.roleName.message}</p>}
+						</div>
+					</div>
+
+					{/* Domain Selection */}
+					<div className='grid grid-cols-4 items-center gap-4'>
+						<Label htmlFor='domain' className='text-right'>
+							Domain
+						</Label>
+						<div className='col-span-3'>
+							<Select defaultValue={defaultDomain} onValueChange={(value) => setValue('domain', value as 'tenant' | 'global')} disabled={loading.action}>
+								<SelectTrigger>
+									<SelectValue placeholder='Select domain' />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value='tenant'>Tenant</SelectItem>
+									<SelectItem value='global'>Global</SelectItem>
+								</SelectContent>
+							</Select>
+							{errors.domain && <p className='text-sm text-destructive mt-1'>{errors.domain.message}</p>}
 						</div>
 					</div>
 					{/* Subject Input */}

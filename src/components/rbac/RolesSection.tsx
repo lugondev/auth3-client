@@ -1,25 +1,25 @@
 import React, {useState} from 'react'
 import {Button} from '@/components/ui/button'
 import {Loader2} from 'lucide-react'
-import {RbacLoadingState} from '@/types/rbac'
+import {RbacLoadingState, Role} from '@/types/rbac'
 import {deleteRole} from '@/services/rbacService'
 
 interface RolesSectionProps {
-	roles: string[]
+	roles: Role[]
 	loading: RbacLoadingState
 	error: string | null
-	selectedRole: string | null
+	selectedRole: Role | null
 	onOpenCreateRoleModal: () => void
-	onOpenRolePermsModal: (roleName: string) => void
-	onDeleteRole: (roleName: string) => void
+	onOpenRolePermsModal: (role: Role) => void
+	onDeleteRole: (role: Role) => void
 }
 
 export const RolesSection: React.FC<RolesSectionProps> = ({roles, loading, error, selectedRole, onOpenCreateRoleModal, onOpenRolePermsModal, onDeleteRole}) => {
-	const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+	const [deleteTarget, setDeleteTarget] = useState<Role | null>(null)
 	const [confirming, setConfirming] = useState(false)
 
-	const handleDelete = (roleName: string) => {
-		setDeleteTarget(roleName)
+	const handleDelete = (role: Role) => {
+		setDeleteTarget(role)
 		setConfirming(true)
 	}
 
@@ -60,22 +60,26 @@ export const RolesSection: React.FC<RolesSectionProps> = ({roles, loading, error
 					<table className='min-w-full bg-card rounded-lg shadow-sm'>
 						<thead>
 							<tr>
-								<th className='px-4 py-2 text-left'>Role Name</th>
-								<th className='px-4 py-2 text-left'>Actions</th>
+								<th className='px-4 py-2 text-left'>Role</th>
+								<th className='px-4 py-2 text-left'>Domain</th>
+								<th className='px-4 py-2 text-center'>Actions</th>
 							</tr>
 						</thead>
 						<tbody>
-							{roles.map((roleName) => (
-								<tr key={roleName} className='border-b last:border-b-0'>
-									<td className='px-4 py-2 font-medium truncate' title={roleName}>
-										{roleName}
+							{roles.map((role) => (
+								<tr key={role.name + '-' + role.domain} className='border-b last:border-b-0'>
+									<td className='px-4 py-2 font-medium truncate' title={role.name}>
+										{role.name}
+									</td>
+									<td className='px-4 py-2 font-medium truncate' title={role.domain}>
+										{role.domain}
 									</td>
 									<td className='px-4 py-2 flex gap-2'>
-										<Button variant='outline' size='sm' onClick={() => onOpenRolePermsModal(roleName)} disabled={loading.rolePermissions && selectedRole === roleName}>
-											{loading.rolePermissions && selectedRole === roleName ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
+										<Button variant='outline' size='sm' onClick={() => onOpenRolePermsModal(role)} disabled={loading.rolePermissions && selectedRole?.name === role.name && selectedRole?.domain === role.domain}>
+											{loading.rolePermissions && selectedRole?.name === role.name && selectedRole?.domain === role.domain ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
 											Manage Permissions
 										</Button>
-										<Button variant='destructive' size='sm' onClick={() => handleDelete(roleName)} disabled={loading.action}>
+										<Button variant='destructive' size='sm' onClick={() => handleDelete(role)} disabled={loading.action}>
 											Delete
 										</Button>
 									</td>
@@ -92,7 +96,7 @@ export const RolesSection: React.FC<RolesSectionProps> = ({roles, loading, error
 					<div className='bg-white dark:bg-card rounded-lg shadow-lg p-6 w-full max-w-sm'>
 						<h3 className='text-lg font-semibold mb-2'>Confirm Delete</h3>
 						<p className='mb-4'>
-							Are you sure you want to delete role <span className='font-bold'>{deleteTarget}</span>?
+							Are you sure you want to delete role <span className='font-bold'>{deleteTarget?.name}</span>?
 						</p>
 						<div className='flex justify-end gap-2'>
 							<Button variant='outline' onClick={handleCancelDelete} disabled={loading.action}>

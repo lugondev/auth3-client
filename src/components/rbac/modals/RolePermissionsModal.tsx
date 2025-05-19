@@ -5,12 +5,12 @@ import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {ScrollArea} from '@/components/ui/scroll-area'
 import {Loader2, X} from 'lucide-react'
-import {RbacLoadingState} from '@/types/rbac'
+import {RbacLoadingState, Role} from '@/types/rbac'
 
 interface RolePermissionsModalProps {
 	isOpen: boolean
 	onClose: () => void
-	role: string | null
+	role: Role | null
 	rolePermissionsMap: Record<string, string[][]> // roleName -> permissions[][]
 	groupedPermissions: Record<string, string[]> // Pre-grouped permissions for the selected role
 	loading: RbacLoadingState // Pass relevant loading states (rolePermissions, action)
@@ -19,8 +19,8 @@ interface RolePermissionsModalProps {
 	newPermAction: string
 	onNewPermObjectChange: (value: string) => void
 	onNewPermActionChange: (value: string) => void
-	onAddPermission: (roleName: string | null, object: string, action: string) => void
-	onRemovePermission: (roleName: string | null, object: string, action: string) => void
+	onAddPermission: (roleName: string | null, object: string, action: string, domain: string) => void
+	onRemovePermission: (roleName: string | null, object: string, action: string, domain: string) => void
 }
 
 export const RolePermissionsModal: React.FC<RolePermissionsModalProps> = ({
@@ -40,14 +40,14 @@ export const RolePermissionsModal: React.FC<RolePermissionsModalProps> = ({
 }) => {
 	if (!role) return null
 
-	const permissionsExist = rolePermissionsMap[role] && rolePermissionsMap[role].length > 0
+	const permissionsExist = rolePermissionsMap[role.name] && rolePermissionsMap[role.name].length > 0
 	const modalError = error && (error.startsWith('Failed to add permission:') || error.startsWith('Failed to remove permission:') || error === 'Object and Action cannot be empty.') ? error : null
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onClose}>
 			<DialogContent className='sm:max-w-[600px]'>
 				<DialogHeader>
-					<DialogTitle>Manage Permissions for Role: {role}</DialogTitle>
+					<DialogTitle>Manage Permissions for Role: {role.name}</DialogTitle>
 					<DialogDescription>Add or remove permissions (object-action pairs) for this role.</DialogDescription>
 				</DialogHeader>
 				{loading.rolePermissions ? (
@@ -67,7 +67,7 @@ export const RolePermissionsModal: React.FC<RolePermissionsModalProps> = ({
 								<Label htmlFor={`new-perm-action-${role}`}>Action</Label>
 								<Input id={`new-perm-action-${role}`} placeholder='e.g., read or .*' value={newPermAction} onChange={(e) => onNewPermActionChange(e.target.value)} disabled={loading.action} />
 							</div>
-							<Button onClick={() => onAddPermission(role, newPermObject, newPermAction)} disabled={loading.action || !newPermObject || !newPermAction}>
+							<Button onClick={() => onAddPermission(role.name, newPermObject, newPermAction, role.domain)} disabled={loading.action || !newPermObject || !newPermAction}>
 								{loading.action ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
 								Add
 							</Button>
@@ -89,7 +89,7 @@ export const RolePermissionsModal: React.FC<RolePermissionsModalProps> = ({
 													<span className='text-sm'>
 														<span className='font-medium text-muted-foreground'>action:</span> {action}
 													</span>
-													<Button variant='ghost' size='icon' className='h-6 w-6 text-muted-foreground hover:text-destructive' onClick={() => onRemovePermission(role, object, action)} disabled={loading.action} aria-label={`Remove permission ${action} on ${object}`}>
+													<Button variant='ghost' size='icon' className='h-6 w-6 text-muted-foreground hover:text-destructive' onClick={() => onRemovePermission(role.name, object, action, role.domain)} disabled={loading.action} aria-label={`Remove permission ${action} on ${object}`}>
 														<X className='h-4 w-4' />
 													</Button>
 												</div>

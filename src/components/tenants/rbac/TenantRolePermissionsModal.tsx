@@ -13,7 +13,6 @@ interface TenantRolePermissionsModalProps {
 	isOpen: boolean
 	onClose: () => void
 	role: string | null
-	// rolePermissionsMap: Record<string, string[][]> // Not strictly needed if groupedPermissions is reliable
 	groupedPermissions: Record<string, string[]> // Pre-grouped permissions for the selected role
 	loading: TenantRbacLoadingState
 	error: string | null

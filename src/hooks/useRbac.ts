@@ -9,10 +9,11 @@ import {
 	UserRoleInput,
 	RolePermissionsOutput,
 	RolePermissionInput,
-	CreateRoleWithPermissionInput,
 	CreateRoleFormValues,
-	RbacState, // Added RbacState import
+	RbacState,
+	Role,
 } from '@/types/rbac'
+import { createRole } from '@/services/rbacService'
 
 // Helper function to extract error messages
 const getErrorMessage = (error: unknown): string => {
@@ -104,9 +105,19 @@ export function useRbac(): UseRbacReturn {
 			setError(null)
 			try {
 				const [rolesRes, usersRes] = await Promise.all([apiClient.get<RoleListOutput>('/api/v1/admin/rbac/roles'), apiClient.get<PaginatedUsers>('/api/v1/users/search')])
+				const { global, tenant } = rolesRes.data.roles || {
+					global: [],
+					tenant: [],
+				}
 				setState((prev: RbacState) => ({
 					...prev,
-					roles: rolesRes.data.roles || [],
+					roles: [...global.map(r => ({
+						name: r,
+						domain: 'global',
+					})), ...tenant.map(r => ({
+						name: r,
+						domain: 'tenant',
+					}))],
 					users: usersRes.data.users || [],
 				}))
 			} catch (err) {
@@ -145,22 +156,22 @@ export function useRbac(): UseRbacReturn {
 	)
 
 	const fetchRolePermissions = useCallback(
-		async (roleName: string) => {
-			if (state.rolePermissionsMap[roleName]) return
+		async (role: Role) => {
+			if (state.rolePermissionsMap[role.name]) return
 			setLoading({ rolePermissions: true })
 			setError(null)
 			try {
-				const res = await apiClient.get<RolePermissionsOutput>(`/api/v1/admin/rbac/roles/${roleName}/permissions`)
+				const res = await apiClient.get<RolePermissionsOutput>(`/api/v1/admin/rbac/roles/${role.name}/permissions/${role.domain}`)
 				setState((prev: RbacState) => ({
 					...prev,
-					rolePermissionsMap: { ...prev.rolePermissionsMap, [roleName]: res.data.permissions || [] },
+					rolePermissionsMap: { ...prev.rolePermissionsMap, [role.name]: res.data.permissions || [] },
 				}))
 			} catch (err) {
-				console.error(`Error fetching permissions for role ${roleName}:`, err)
+				console.error(`Error fetching permissions for role ${role.name}:`, err)
 				setError(`Role Permissions Error: ${getErrorMessage(err)}`)
 				setState((prev: RbacState) => ({
 					...prev,
-					rolePermissionsMap: { ...prev.rolePermissionsMap, [roleName]: [] }, // Set empty on error
+					rolePermissionsMap: { ...prev.rolePermissionsMap, [role.name]: [] }, // Set empty on error
 				}))
 			} finally {
 				setLoading({ rolePermissions: false })
@@ -179,15 +190,15 @@ export function useRbac(): UseRbacReturn {
 		setState((prev: RbacState) => ({ ...prev, isUserRolesModalOpen: false, selectedUser: null, error: null }))
 	}
 
-	const openRolePermsModal = (roleName: string) => {
+	const openRolePermsModal = (role: Role) => {
 		setState((prev: RbacState) => ({
 			...prev,
-			selectedRole: roleName,
+			selectedRole: role,
 			isRolePermsModalOpen: true,
 			newPermObject: '',
 			newPermAction: '',
 		}))
-		fetchRolePermissions(roleName)
+		fetchRolePermissions(role)
 	}
 
 	const closeRolePermsModal = () => {
@@ -213,8 +224,8 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			const payload: UserRoleInput = { userId, role: roleName }
-			await apiClient.post(`/api/v1/admin/rbac/users/roles`, payload)
+			const payload: UserRoleInput = { role: roleName }
+			await apiClient.post(`/api/v1/admin/rbac/users/${userId}/roles`, payload)
 			setState((prev: RbacState) => ({
 				...prev,
 				userRolesMap: {
@@ -251,7 +262,7 @@ export function useRbac(): UseRbacReturn {
 		}
 	}
 
-	const handleAddPermissionToRole = async (roleName: string | null, object: string, action: string) => {
+	const handleAddPermissionToRole = async (roleName: string | null, object: string, action: string, domain: string) => {
 		if (!roleName || !object || !action) {
 			setError('Object and Action cannot be empty.')
 			return
@@ -266,7 +277,7 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await apiClient.post(`/api/v1/admin/rbac/roles/permissions`, payload)
+			await apiClient.post(`/api/v1/admin/rbac/roles/permissions/${domain}`, payload)
 			setState((prev: RbacState) => {
 				const currentPermissions = prev.rolePermissionsMap[roleName as string] || []
 				const newPermissions: Array<[string, string]> = [...currentPermissions, permission]
@@ -313,30 +324,32 @@ export function useRbac(): UseRbacReturn {
 		setLoading({ action: true })
 		setCreateRoleError(null)
 		setError(null)
+
 		const roleName = data.roleName.trim()
 		const subject = data.subject.trim()
 		const action = data.action.trim()
+		const domain = data.domain
 
 		if (!roleName || !subject || !action) {
 			setCreateRoleError('Role name, subject, and action cannot be empty.')
 			setLoading({ action: false })
 			return
 		}
-		const permission: [string, string] = [subject, action] // Explicitly type as tuple
 
 		try {
-			const payload: CreateRoleWithPermissionInput = { role: roleName, permissions: [permission] }
-			// Changed endpoint: Assuming POST to /roles creates a role and can accept initial permissions
-			await apiClient.post('/api/v1/admin/rbac/roles/permissions', payload)
+			await createRole(data)
 
 			setState((prev: RbacState) => {
-				const newRolePermissions: Array<[string, string]> = [permission]
+				const newRolePermissions: Array<[string, string]> = [[subject, action]]
 				return {
 					...prev,
-					roles: [...prev.roles, roleName].sort().filter((v: string, i: number, a: string[]) => a.indexOf(v) === i), // Keep roles unique and sorted
+					roles: [...prev.roles, {
+						name: roleName,
+						domain,
+					}].sort().filter((v: Role, i: number, a: Role[]) => a.indexOf(v) === i), // Keep roles unique and sorted
 					rolePermissionsMap: {
 						...prev.rolePermissionsMap,
-						[roleName]: newRolePermissions, // Set initial permission for the new role
+						[roleName]: newRolePermissions,
 					},
 					isCreateRoleModalOpen: false,
 				}
@@ -355,9 +368,9 @@ export function useRbac(): UseRbacReturn {
 	}, [state.users, state.searchQuery])
 
 	const groupedPermissions = useCallback(
-		(roleName: string | null) => {
-			if (!roleName) return {}
-			return groupPermissionsByObject(state.rolePermissionsMap[roleName])
+		(role: Role | null) => {
+			if (!role) return {}
+			return groupPermissionsByObject(state.rolePermissionsMap[role.name])
 		},
 		[state.rolePermissionsMap],
 	)

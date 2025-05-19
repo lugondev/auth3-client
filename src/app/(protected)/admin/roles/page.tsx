@@ -15,6 +15,7 @@ import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {useDebounce} from 'use-debounce'
 import {UserTable, ColumnDefinition} from '@/components/users/UserTable'
+import {Role} from '@/types/rbac'
 
 // Define initial filter state for users section
 const initialUserFilters: Omit<UserSearchQuery, 'role_id' | 'role_name'> = {
@@ -46,7 +47,8 @@ export default function RBACManagement() {
 		// Remove user-related state managed below: users, searchQuery, filteredUsers
 	} = useRbac()
 
-	const [roles, setRoles] = useState<string[]>(rbacRoles)
+	const [selectedDomain, setSelectedDomain] = useState<'tenant' | 'global'>('tenant')
+	const [roles, setRoles] = useState<Role[]>(rbacRoles)
 	useEffect(() => {
 		setRoles(rbacRoles)
 	}, [rbacRoles])
@@ -74,7 +76,6 @@ export default function RBACManagement() {
 			page_size: pageSize,
 			query: debouncedQuery || undefined,
 			status: userFilters.status || undefined,
-			// role_id or role_name filter is omitted here
 		}
 
 		Object.keys(queryParams).forEach((key) => queryParams[key as keyof typeof queryParams] === undefined && delete queryParams[key as keyof typeof queryParams])
@@ -200,15 +201,26 @@ export default function RBACManagement() {
 					<p>{errorMessage}</p>
 				</div>
 			)}
+
+			{/* Domain Tabs */}
+			<div className='flex space-x-4 border-b border-gray-200'>
+				<button onClick={() => setSelectedDomain('tenant')} className={`pb-2 px-4 ${selectedDomain === 'tenant' ? 'border-b-2 border-primary text-primary font-semibold' : 'text-gray-500'}`}>
+					Tenant Roles
+				</button>
+				<button onClick={() => setSelectedDomain('global')} className={`pb-2 px-4 ${selectedDomain === 'global' ? 'border-b-2 border-primary text-primary font-semibold' : 'text-gray-500'}`}>
+					Global Roles
+				</button>
+			</div>
+
 			{/* Roles Section (from useRbac) */}
 			<RolesSection
-				roles={roles}
-				loading={rbacLoading} // Use rbacLoading state
-				error={rbacError} // Use rbacError state
+				roles={roles.filter((role) => role.domain === selectedDomain)}
+				loading={rbacLoading}
+				error={rbacError}
 				selectedRole={selectedRole}
 				onOpenCreateRoleModal={actions.openCreateRoleModal}
 				onOpenRolePermsModal={actions.openRolePermsModal}
-				onDeleteRole={async (roleName: string) => {
+				onDeleteRole={async (roleName: Role) => {
 					setRoles((prev) => prev.filter((r) => r !== roleName))
 				}}
 			/>
@@ -293,6 +305,7 @@ export default function RBACManagement() {
 				loading={rbacLoading} // Use rbacLoading state
 				error={createRoleError} // Use specific create role error
 				onCreateRole={actions.handleCreateRole}
+				defaultDomain={selectedDomain}
 			/>
 		</div>
 	)
