@@ -93,8 +93,8 @@ export default function RBACManagement() {
 			}
 			setPageSize(response.data.page_size)
 
-			// Fetch roles for each user in the current page
-			await Promise.all(response.data.users.map((user) => actions.fetchUserRoles(user.id)))
+			// Fetch roles for all users in the current page at once
+			await actions.fetchUsersRoles(response.data.users.map((user) => user.id))
 		} catch (err: unknown) {
 			let message = 'Failed to fetch users'
 			if (err instanceof Error) message = err.message

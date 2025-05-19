@@ -92,6 +92,7 @@ export interface CreateRoleWithPermissionInput {
 
 
 export interface RbacActions {
+	fetchUsersRoles: (userIds: string[]) => Promise<void>
 	fetchUserRoles: (userId: string) => Promise<void>
 	fetchRolePermissions: (role: Role) => Promise<void>
 	openUserRolesModal: (user: UserOutput) => void

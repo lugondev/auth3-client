@@ -130,6 +130,33 @@ export function useRbac(): UseRbacReturn {
 		fetchInitialData()
 	}, [])
 
+	const fetchUsersRoles = useCallback(
+		async (userIds: string[]) => {
+			setLoading({ userRoles: true })
+			setError(null)
+			try {
+				const res = await apiClient.post<Array<{ userId: string, roles: string[] }>>(
+					'/api/v1/admin/rbac/users/roles',
+					{ userIds }
+				)
+
+				const newUserRolesMap = res.data.reduce((acc, user) => {
+					acc[user.userId] = user.roles
+					return acc
+				}, {} as Record<string, string[]>)
+
+				setState((prev: RbacState) => ({
+					...prev,
+					userRolesMap: { ...prev.userRolesMap, ...newUserRolesMap },
+				}))
+			} catch (err) {
+				console.error('Error fetching roles for users:', err)
+				setError(`Users Roles Error: ${getErrorMessage(err)}`)
+			} finally {
+				setLoading({ userRoles: false })
+			}
+		}, [])
+
 	const fetchUserRoles = useCallback(
 		async (userId: string) => {
 			if (state.userRolesMap[userId]) return
@@ -377,6 +404,7 @@ export function useRbac(): UseRbacReturn {
 
 	// --- Actions Object ---
 	const actions: RbacActions = {
+		fetchUsersRoles,
 		fetchUserRoles,
 		fetchRolePermissions,
 		openUserRolesModal,
