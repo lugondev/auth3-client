@@ -20,7 +20,6 @@ import {toast} from 'sonner'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {CalendarIcon} from 'lucide-react'
 import {Calendar} from '@/components/ui/calendar'
-import {format} from 'date-fns'
 import {cn} from '@/lib/utils'
 import {Checkbox} from '@/components/ui/checkbox'
 
@@ -442,7 +441,15 @@ function ProfileDetailsForm({profileData, onSubmitSuccess}: ProfileDetailsFormPr
 								<PopoverTrigger asChild>
 									<FormControl>
 										<Button variant={'outline'} className={cn('w-[240px] pl-3 text-left font-normal', !field.value && 'text-muted-foreground')}>
-											{field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+											{field.value ? (
+												field.value.toLocaleDateString('en-US', {
+													year: 'numeric',
+													month: 'long',
+													day: 'numeric',
+												})
+											) : (
+												<span>Pick a date</span>
+											)}
 											<CalendarIcon className='ml-auto h-4 w-4 opacity-50' />
 										</Button>
 									</FormControl>

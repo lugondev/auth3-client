@@ -7,7 +7,6 @@ import {Badge} from '@/components/ui/badge'
 import {InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from '@/components/ui/input-otp'
 import {AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
-import {format} from 'date-fns' // Import date-fns format function
 import {requestPhoneVerification, verifyPhone} from '@/services/authService'
 import {Label} from '@/components/ui/label' // Added Label import
 
@@ -107,7 +106,7 @@ const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate
 				<>
 					{isVerified && verifiedAt ? (
 						<p className='text-sm text-muted-foreground'>
-							Your phone number ({userData?.phone}) was verified on {format(verifiedAt, 'PPP p')}. {/* Format: Jan 1, 2023 12:00 PM */}
+							Your phone number ({userData?.phone}) was verified on {new Intl.DateTimeFormat('en-US', {year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric'}).format(verifiedAt)}. {/* Format: January 1, 2023, 12:00 PM */}
 						</p>
 					) : (
 						<p className='text-sm text-muted-foreground'>Your phone number ({userData?.phone}) is not verified.</p>

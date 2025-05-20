@@ -6,7 +6,6 @@ import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
-import {format} from 'date-fns' // Import date-fns format function
 import {resendVerificationEmail} from '@/services/authService' // TODO: Uncomment when service function exists
 
 interface EmailVerificationStatusProps {
@@ -46,7 +45,7 @@ const EmailVerificationStatus: React.FC<EmailVerificationStatusProps> = ({userDa
 			</div>
 			{isVerified && verifiedAt ? (
 				<p className='text-sm text-muted-foreground'>
-					Your email address ({userData?.email}) was verified on {format(verifiedAt, 'PPP p')}. {/* Format: Jan 1, 2023 12:00 PM */}
+					Your email address ({userData?.email}) was verified on {new Intl.DateTimeFormat('en-US', {year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric'}).format(verifiedAt)}. {/* Format: January 1, 2023, 12:00 PM */}
 				</p>
 			) : (
 				<p className='text-sm text-muted-foreground'>Your email address ({userData?.email}) is not verified. Please check your inbox for the verification link.</p>
