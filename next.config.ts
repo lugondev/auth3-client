@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    ppr: "incremental"
+    ppr: false, // Disable PPR for this app
   },
   images: {
     remotePatterns: [
