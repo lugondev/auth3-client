@@ -68,7 +68,7 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 		}
 		setStage('verifying') // Keep stage as verifying, maybe add loading state within
 		setErrorMessage(null)
-		const payload: Verify2FARequest = {code: otp}
+		const payload: Verify2FARequest = {code: otp, two_factor_session_token: ''}
 		try {
 			const response = await enable2FA(payload)
 			setRecoveryCodes(response.recovery_codes)
@@ -77,7 +77,7 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 			// Refresh user data in parent
 			if (onUpdate) {
 				// Ideally fetch fresh user data, for now signal update
-				onUpdate({...userData!, two_factor_enabled: true}) // Assume update locally first
+				onUpdate({...userData!, is_two_factor_enabled: true}) // Assume update locally first
 			}
 		} catch (error: unknown) {
 			console.error('Error enabling 2FA:', error)
@@ -122,7 +122,7 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 			setStage('idle')
 			// Refresh user data in parent
 			if (onUpdate) {
-				onUpdate({...userData!, two_factor_enabled: false}) // Assume update locally first
+				onUpdate({...userData!, is_two_factor_enabled: false}) // Assume update locally first
 			}
 			// Clear sensitive fields
 			setDisablePassword('')

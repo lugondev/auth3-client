@@ -85,7 +85,7 @@ export default function ManageUserRolesPage() {
 			toast.error('No user selected.')
 			return
 		}
-		addRoleMutation.mutate({userId: currentUserId, role: values.roleName})
+		addRoleMutation.mutate({role: values.roleName})
 		addRoleForm.reset()
 	}
 

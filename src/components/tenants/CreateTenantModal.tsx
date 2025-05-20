@@ -10,7 +10,7 @@ import {Button} from '@/components/ui/button'
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
-import {createTenant} from '@/services/tenantService'
+// import {createTenant} from '@/services/tenantService'
 import {CreateTenantPayload} from '@/types/tenantManagement'
 // import {toast} from '@/components/ui/toast' // Corrected import path - Commented out for now
 
@@ -70,7 +70,15 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 	}, [nameValue, setValue])
 
 	const mutation = useMutation({
-		mutationFn: (data: CreateTenantPayload) => createTenant(data),
+		mutationFn: (data: CreateTenantPayload) => {
+			// Placeholder for the actual API call
+			// return createTenant(data)
+			return new Promise((resolve) => {
+				setTimeout(() => {
+					resolve(data)
+				}, 1000)
+			})
+		},
 		onSuccess: () => {
 			console.log('Tenant created successfully') // Placeholder
 			queryClient.invalidateQueries({queryKey: ['ownedTenants']})

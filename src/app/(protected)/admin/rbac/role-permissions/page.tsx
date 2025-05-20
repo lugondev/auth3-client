@@ -83,7 +83,7 @@ export default function ManageRolePermissionsPage() {
 			toast.error('No role selected.')
 			return
 		}
-		addPermissionMutation.mutate({role: selectedRole, permission: [values.object, values.action]})
+		addPermissionMutation.mutate({role: selectedRole, permissions: [[values.object, values.action]]})
 		addPermissionForm.reset()
 	}
 
@@ -116,7 +116,7 @@ export default function ManageRolePermissionsPage() {
 						</SelectTrigger>
 						<SelectContent>
 							{allRolesData?.roles &&
-								allRolesData.roles.map((role) => (
+								allRolesData.roles.global.map((role) => (
 									<SelectItem key={role} value={role}>
 										{role}
 									</SelectItem>

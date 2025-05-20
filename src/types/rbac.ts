@@ -26,6 +26,10 @@ export interface RoleListOutput {
 	roles: RoleOutput
 }
 
+export interface RoleListTenantOutput {
+	roles: string[]
+}
+
 // Each item is a policy, typically [subject, domain, object, action] or [role, domain, object, action]
 // The Go handler comment says [role, object, action], but Casbin policies can be more complex.
 // For GetAllPermissions, it's likely the full policy string array.

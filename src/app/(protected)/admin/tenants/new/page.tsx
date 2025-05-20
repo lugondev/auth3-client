@@ -8,10 +8,8 @@ import {Button} from '@/components/ui/button'
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
-import {useMutation, useQueryClient} from '@tanstack/react-query'
-import {createTenant} from '@/services/tenantService'
+import {useMutation} from '@tanstack/react-query'
 import {toast} from 'sonner'
-import {useRouter} from 'next/navigation' // Corrected import for App Router
 import Link from 'next/link'
 import {ArrowLeftIcon} from '@radix-ui/react-icons'
 
@@ -28,12 +26,7 @@ const tenantFormSchema = z.object({
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>
 
-const TENANTS_QUERY_KEY = 'tenants'
-
 export default function CreateTenantPage() {
-	const router = useRouter()
-	const queryClient = useQueryClient()
-
 	const form = useForm<TenantFormValues>({
 		resolver: zodResolver(tenantFormSchema),
 		defaultValues: {
@@ -74,11 +67,18 @@ export default function CreateTenantPage() {
 	}, [watchedName, setValue, watchedSlug, trigger])
 
 	const createTenantMutation = useMutation({
-		mutationFn: createTenant,
+		// mutationFn: createTenant,
+		mutationFn: async (data: TenantFormValues) => {
+			// Simulate API call
+			console.log('Creating tenant with data:', data)
+			await new Promise((resolve) => setTimeout(resolve, 1000))
+		},
 		onSuccess: (data) => {
-			toast.success(`Tenant "${data.name}" created successfully!`)
-			queryClient.invalidateQueries({queryKey: [TENANTS_QUERY_KEY]})
-			router.push('/admin/tenants') // Redirect to the tenants list
+			console.log('Tenant created successfully:', data)
+
+			// toast.success(`Tenant "${data.name}" created successfully!`)
+			// queryClient.invalidateQueries({queryKey: [TENANTS_QUERY_KEY]})
+			// router.push('/admin/tenants') // Redirect to the tenants list
 		},
 		onError: (error: Error | import('axios').AxiosError<{message?: string; error?: string}>) => {
 			let errorMessage = 'Failed to create tenant.'

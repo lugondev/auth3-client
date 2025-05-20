@@ -9,6 +9,7 @@ import {
 	PermissionInput,
 	Role, // For tenant-specific permission assignment
 	CreateRoleFormValues,
+	RoleListTenantOutput,
 } from "@/types/rbac";
 
 const RBAC_API_PREFIX = "/api/v1/admin/rbac"; // apiClient already has /api/v1
@@ -87,7 +88,7 @@ export const deleteRole = async (role: Role): Promise<void> => {
 
 // --- Tenant-Specific RBAC Operations ---
 
-export const getTenantRoles = async (tenantId: string): Promise<RoleListOutput> => {
+export const getTenantRoles = async (tenantId: string): Promise<RoleListTenantOutput> => {
 	const response = await apiClient.get(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles`);
 	return response.data;
 };

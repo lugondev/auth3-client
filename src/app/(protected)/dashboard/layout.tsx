@@ -5,7 +5,7 @@ import AppShell from '@/components/layout/AppShell'
 import {useAuth} from '@/contexts/AuthContext'
 
 export default function DashboardLayout({children}: {children: React.ReactNode}) {
-	const {isSystemAdmin, loading: authLoading, currentTenantId, userTenants} = useAuth()
+	const {isSystemAdmin, loading: authLoading} = useAuth()
 
 	// Wait for auth loading to complete before deciding sidebar type
 	if (authLoading || isSystemAdmin === null) {
@@ -23,24 +23,13 @@ export default function DashboardLayout({children}: {children: React.ReactNode})
 	// - If system admin and not in a specific tenant context, show system sidebar.
 	// - If in a tenant context (currentTenantId is set), show tenant sidebar.
 	// - Otherwise (e.g. regular user not in a tenant yet), no specific admin sidebar.
-	let sidebarType: 'system' | 'tenant' | undefined = undefined
-	let tenantIdForSidebar: string | undefined = undefined
-	let tenantNameForSidebar: string | undefined = undefined
+	let sidebarType: 'system' | 'user' | undefined = undefined
 
-	if (currentTenantId && userTenants) {
-		const currentTenantDetails = userTenants.find((t) => t.tenant_id === currentTenantId)
-		if (currentTenantDetails) {
-			sidebarType = 'tenant'
-			tenantIdForSidebar = currentTenantId
-			tenantNameForSidebar = currentTenantDetails.tenant_name
-		}
-	} else if (isSystemAdmin) {
+	if (isSystemAdmin) {
 		sidebarType = 'system'
+	} else {
+		sidebarType = 'user'
 	}
 
-	return (
-		<AppShell sidebarType={sidebarType} tenantId={tenantIdForSidebar} tenantName={tenantNameForSidebar}>
-			{children}
-		</AppShell>
-	)
+	return <AppShell sidebarType={sidebarType}>{children}</AppShell>
 }

@@ -64,9 +64,9 @@ export default function RbacOverviewPage() {
 					<CardContent>
 						{rolesError ? (
 							<p className='text-red-500'>Error fetching roles: {rolesError.message}</p>
-						) : rolesData?.roles && rolesData.roles.length > 0 ? (
+						) : rolesData?.roles && rolesData.roles.global.length > 0 ? (
 							<ul className='list-disc pl-5 space-y-1'>
-								{rolesData.roles.map((role) => (
+								{rolesData.roles.global.map((role) => (
 									<li key={role}>{role}</li>
 								))}
 							</ul>
