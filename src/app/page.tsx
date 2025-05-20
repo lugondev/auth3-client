@@ -10,6 +10,8 @@ import {Separator} from '@/components/ui/separator'
 import {Skeleton} from '@/components/ui/skeleton' // Import Skeleton for loading state
 import Link from 'next/link' // <-- Import Link
 
+export const experimental_ppr = true
+
 export default function Home() {
 	const {isAuthenticated, loading} = useAuth()
 	const router = useRouter()
