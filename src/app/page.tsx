@@ -1,4 +1,4 @@
-'use client' // Make it a client component
+'use client'
 
 import {useEffect} from 'react'
 import {useRouter} from 'next/navigation'
@@ -7,8 +7,8 @@ import {LoginButtons} from '@/components/auth/LoginButtons'
 import {LoginForm} from '@/components/auth/LoginForm'
 import {Card, CardHeader, CardTitle, CardDescription, CardContent} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
-import {Skeleton} from '@/components/ui/skeleton' // Import Skeleton for loading state
-import Link from 'next/link' // <-- Import Link
+import {Skeleton} from '@/components/ui/skeleton'
+import Link from 'next/link'
 
 export const experimental_ppr = true
 
