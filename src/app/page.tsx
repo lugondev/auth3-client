@@ -17,7 +17,7 @@ export default function Home() {
 	useEffect(() => {
 		// Redirect if authenticated and not loading
 		if (!loading && isAuthenticated) {
-			router.replace('/profile') // Use replace to avoid adding login page to history
+			router.replace('dashboard/profile') // Use replace to avoid adding login page to history
 		}
 	}, [isAuthenticated, loading, router])
 

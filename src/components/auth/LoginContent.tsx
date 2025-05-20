@@ -23,7 +23,7 @@ export function LoginContent() {
 			if (redirectPath) {
 				router.replace(redirectPath)
 			} else {
-				router.replace('/profile')
+				router.replace('/dashboard/profile')
 			}
 		}
 	}, [isAuthenticated, loading, router, searchParams])

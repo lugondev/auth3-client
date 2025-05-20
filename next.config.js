@@ -9,7 +9,9 @@ const nextConfig = {
 				pathname: '/**',
 			},
 		]
-	}
+	},
+	poweredByHeader: false,
+	reactStrictMode: true,
 };
 
 module.exports = nextConfig;

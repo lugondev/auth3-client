@@ -47,7 +47,7 @@ export function AuthStatus() {
 					</div>
 				</DropdownMenuLabel>
 				<DropdownMenuSeparator />
-				<Link href='/profile' passHref>
+				<Link href='/dashboard/profile' passHref>
 					<DropdownMenuItem>Profile</DropdownMenuItem>
 				</Link>
 				<DropdownMenuSeparator />

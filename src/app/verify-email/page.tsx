@@ -1,4 +1,4 @@
-'use client' // Required for using useSearchParams
+'use client'
 
 import {VerifyEmailHandler} from '@/components/auth/VerifyEmailHandler'
 import {useSearchParams} from 'next/navigation'

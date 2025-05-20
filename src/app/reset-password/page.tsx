@@ -1,4 +1,4 @@
-'use client' // Required for using useSearchParams
+'use client'
 
 import {ResetPasswordForm} from '@/components/auth/ResetPasswordForm'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'

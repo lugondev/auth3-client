@@ -31,11 +31,11 @@ interface SidebarProps {
 }
 
 const systemAdminLinks: NavLink[] = [
-	{href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-	{href: '/admin/tenants', label: 'Tenant Management', icon: Building},
-	{href: '/admin/users', label: 'User Management', icon: Users},
-	{href: '/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck},
-	{href: '/admin/logs', label: 'System Logs', icon: FileText},
+	{href: '/dashboard/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/dashboard/admin/tenants', label: 'Tenant Management', icon: Building},
+	{href: '/dashboard/admin/users', label: 'User Management', icon: Users},
+	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck},
+	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText},
 ]
 
 const adminParentLink: NavLink = {
@@ -48,8 +48,8 @@ const adminParentLink: NavLink = {
 
 const userLinks: NavLink[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-	{href: '/tenant-management', label: 'Organizations', icon: Building},
-	{href: '/profile', label: 'Profile', icon: UserCircle},
+	{href: '/dashboard/tenant-management', label: 'Organizations', icon: Building},
+	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle},
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({type}) => {

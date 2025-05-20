@@ -1,4 +1,5 @@
-import type {Metadata} from 'next'
+'use client'
+
 import {Inter} from 'next/font/google'
 import './globals.css'
 import {AuthProvider} from '@/components/providers/AuthProvider'
@@ -13,11 +14,6 @@ const inter = Inter({
 	subsets: ['latin'],
 	variable: '--font-inter',
 })
-
-export const metadata: Metadata = {
-	title: 'Auth3 Management', // Updated Title
-	description: 'Management System', // Updated Description
-}
 
 export default function RootLayout({
 	children,

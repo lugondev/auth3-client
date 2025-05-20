@@ -1,3 +1,4 @@
+'use client'
 import {LoginContent} from '@/components/auth/LoginContent'
 import {Suspense} from 'react'
 
