@@ -47,24 +47,79 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Authentication Features
 
-- Sign in with Google
-- Protected routes (/)
-- Authentication status in header
+- Sign in with Google and Email/Password
+- Protected routes under /(protected)/*
+- Authentication status management
 - Automatic redirection for unauthenticated users
+- Password reset functionality
+- Email verification
+- Two-factor authentication with login verification
+- Logout handling
 
 ## Project Structure
 
-- `src/lib/firebase.ts` - Firebase configuration and initialization
-- `src/contexts/AuthContext.tsx` - Authentication context provider
-- `src/components/providers/AuthProvider.tsx` - Client-side Auth provider wrapper
-- `src/components/auth/AuthStatus.tsx` - Authentication status component
-- `src/app/(protected)/page.tsx` - Example protected route
+```
+src/
+├── app/                      # Next.js app router pages
+│   ├── (protected)/         # Protected routes
+│   ├── login/              # Authentication pages
+│   ├── register/
+│   ├── forgot-password/
+│   ├── reset-password/
+│   ├── verify-email/
+│   └── verify-login/       # 2FA verification
+├── components/
+│   ├── auth/              # Authentication components
+│   ├── layout/            # Layout components
+│   ├── providers/         # Context providers
+│   ├── rbac/             # Role-based access control
+│   ├── tenants/          # Tenant management
+│   └── ui/               # Shared UI components
+├── contexts/
+│   └── AuthContext.tsx    # Authentication context
+├── hooks/                 # Custom React hooks
+├── lib/
+│   ├── apiClient.ts      # API client configuration
+│   ├── firebase.ts       # Firebase configuration
+│   └── utils.ts          # Utility functions
+├── services/             # API services
+└── types/                # TypeScript type definitions
+```
+
+## Features
+
+- Role-Based Access Control (RBAC)
+- Multi-tenant support
+- System admin functionality
+- Staff management
+- User profile management
+- Breadcrumb navigation
+- Responsive UI components with shadcn/ui
 
 ## Contributing
 
-1. Make sure to set up your Firebase configuration in `.env`
-2. Install dependencies with `bun install`
-3. Run the development server with `bun run dev`
-4. Make your changes
-5. Test your changes
-6. Submit a pull request
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Set up your Firebase configuration in `.env`
+4. Install dependencies:
+   ```bash
+   bun install
+   ```
+5. Run the development server:
+   ```bash
+   bun run dev
+   ```
+6. Make your changes
+7. Test thoroughly
+8. Commit your changes (`git commit -m 'Add some amazing feature'`)
+9. Push to the branch (`git push origin feature/amazing-feature`)
+10. Open a Pull Request
+
+## Development Guidelines
+
+- Keep components small and focused
+- Follow the established project structure
+- Use TypeScript for type safety
+- Add appropriate documentation for new features
+- Ensure code passes linting and type checking
+- Test your changes across different browsers
