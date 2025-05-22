@@ -84,7 +84,7 @@ export default function TenantUsersPage() {
 	const tenantName = tenantData?.name || 'Tenant'
 
 	const pageActions = (
-		<Link href={`/admin/tenants/${tenantId}/users/add`} passHref>
+		<Link href={`/dashboard/admin/tenants/${tenantId}/users/add`} passHref>
 			<Button>
 				<PlusCircledIcon className='mr-2 h-4 w-4' /> Add User
 			</Button>
@@ -139,7 +139,7 @@ export default function TenantUsersPage() {
 												</DropdownMenuTrigger>
 												<DropdownMenuContent align='end'>
 													<DropdownMenuLabel>Actions</DropdownMenuLabel>
-													<Link href={`/admin/tenants/${tenantId}/users/${user.user_id}/edit`} passHref>
+													<Link href={`/dashboard/admin/tenants/${tenantId}/users/${user.user_id}/edit`} passHref>
 														<DropdownMenuItem>Edit User Roles/Status</DropdownMenuItem>
 													</Link>
 													<DropdownMenuSeparator />

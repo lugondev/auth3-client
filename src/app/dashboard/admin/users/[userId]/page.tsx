@@ -3,7 +3,7 @@
 import React, {useEffect, useState} from 'react'
 import {useParams} from 'next/navigation'
 import {getUserById} from '@/services/userService' // Assuming a service function exists to fetch a single user
-import {UserOutput} from '@/lib/apiClient'
+import {UserOutput} from '@/types/user'
 import {toast} from 'sonner'
 import {Card, CardHeader, CardTitle, CardDescription, CardContent} from '@/components/ui/card'
 import {Label} from '@/components/ui/label'
@@ -129,7 +129,7 @@ export default function UserDetailsPage() {
 				</CardContent>
 			</Card>
 			<div className='mt-4'>
-				<Link href={`/admin/users/${user.id}/edit`} passHref>
+				<Link href={`/dashboard/admin/users/${user.id}/edit`} passHref>
 					<Button>Edit User</Button>
 				</Link>
 			</div>

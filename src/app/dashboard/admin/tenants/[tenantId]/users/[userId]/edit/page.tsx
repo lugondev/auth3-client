@@ -97,7 +97,7 @@ export default function EditTenantUserPage() {
 			toast.success(`User ${data.email} updated successfully in tenant.`)
 			queryClient.invalidateQueries({queryKey: [TENANT_USERS_QUERY_KEY, tenantId]})
 			queryClient.invalidateQueries({queryKey: [TENANT_USER_DETAIL_QUERY_KEY, tenantId, userId]})
-			router.push(`/admin/tenants/${tenantId}/users`)
+			router.push(`/dashboard/admin/tenants/${tenantId}/users`)
 		},
 		onError: (error: Error | AxiosError<{message?: string; error?: string}>) => {
 			let errorMessage = 'Failed to update user in tenant.'
@@ -151,7 +151,7 @@ export default function EditTenantUserPage() {
 	return (
 		<div className='container mx-auto py-8'>
 			<div className='mb-4'>
-				<Link href={`/admin/tenants/${tenantId}/users`} passHref>
+				<Link href={`/dashboard/admin/tenants/${tenantId}/users`} passHref>
 					<Button variant='outline' size='sm'>
 						<ArrowLeftIcon className='mr-2 h-4 w-4' />
 						Back to Users in {tenantName}

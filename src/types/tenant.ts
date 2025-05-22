@@ -82,3 +82,79 @@ export interface PaginatedTenantUsersResponse {
 	offset: number;
 	total_pages: number;
 }
+
+export interface CreateTenantRequest {
+	name: string;
+	slug: string;
+	owner_email: string;
+}
+
+export interface TenantResponse {
+	id: string; // uuid.UUID
+	name: string;
+	slug: string;
+	owner_user_id: string; // uuid.UUID
+	is_active: boolean;
+	created_at: string; // time.Time
+	updated_at: string; // time.Time
+}
+
+export interface UpdateTenantRequest {
+	name?: string;
+	is_active?: boolean;
+}
+
+export interface MinimalTenantInfo {
+	id: string; // uuid.UUID
+	name: string;
+	slug: string;
+}
+
+export interface AddUserToTenantRequest {
+	email: string;
+	role_ids: string[]; // uuid.UUID array
+}
+
+export interface TenantUserResponse {
+	user_id: string; // uuid.UUID
+	email: string;
+	first_name: string;
+	last_name: string;
+	avatar?: string;
+	status_in_tenant: string; // e.g., "active", "invited"
+	global_status: string;    // e.g., "active", "pending"
+	roles: string[];          // Role names
+	joined_at: string;        // time.Time
+}
+
+export interface UpdateTenantUserRequest {
+	role_ids?: string[]; // uuid.UUID array, pointer in Go means optional
+	status_in_tenant?: string; // e.g., "active", "invited", "suspended"
+}
+
+// Paginated responses for Tenant resources
+export interface PaginatedTenants {
+	tenants: TenantResponse[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface PaginatedTenantUsers {
+	users: TenantUserResponse[];
+	total: number;
+	page: number;
+	page_size: number;
+	total_pages: number;
+}
+
+export interface UserTenantMembershipInfo {
+	tenant_id: string;
+	tenant_name: string;
+	tenant_slug: string;
+	tenant_is_active: boolean;
+	user_roles: string[];
+	user_status: string;
+	joined_at: string;
+}

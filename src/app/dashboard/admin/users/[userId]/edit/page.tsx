@@ -3,7 +3,7 @@
 import React, {useEffect, useState} from 'react'
 import {useParams} from 'next/navigation'
 import {getUserById, updateUserStatus} from '@/services/userService' // Assuming service functions exist
-import {UserOutput, UpdateUserRequest, UserStatus} from '@/lib/apiClient' // Assuming necessary types and adding UserStatus
+import {UserOutput, UpdateUserRequest, UserStatus} from '@/types/user' // Assuming necessary types and adding UserStatus
 import {toast} from 'sonner'
 import {Card, CardHeader, CardTitle, CardContent, CardFooter} from '@/components/ui/card'
 import {Label} from '@/components/ui/label'
@@ -150,7 +150,7 @@ export default function EditUserPage() {
 						</div>
 						{/* Add more editable fields here */}
 						<CardFooter className='flex justify-between p-0 pt-4'>
-							<Link href={`/admin/users/${user.id}`} passHref>
+							<Link href={`/dashboard/admin/users/${user.id}`} passHref>
 								<Button variant='outline'>Cancel</Button>
 							</Link>
 							<Button type='submit' disabled={saving}>

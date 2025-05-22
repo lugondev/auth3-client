@@ -2,7 +2,7 @@
 
 import React, {useEffect, useState, useCallback} from 'react'
 import {searchUsers} from '@/services/userService'
-import {UserOutput, PaginatedUsers, UserStatus, UserSearchQuery} from '@/lib/apiClient' // Assuming UserOutput is the correct type for individual users
+import {UserOutput, PaginatedUsers, UserStatus, UserSearchQuery} from '@/types/user' // Assuming UserOutput is the correct type for individual users
 import {toast} from 'sonner'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -164,13 +164,13 @@ export default function AdminUsersPage() {
 											</DropdownMenuTrigger>
 											<DropdownMenuContent align='end'>
 												<DropdownMenuLabel>Actions</DropdownMenuLabel>
-												<Link href={`/admin/users/${user.id}`} passHref>
+												<Link href={`/dashboard/admin/users/${user.id}`} passHref>
 													<DropdownMenuItem asChild>
 														<span>View Details</span>
 													</DropdownMenuItem>
 												</Link>
 												<DropdownMenuSeparator />
-												<Link href={`/admin/users/${user.id}/edit`} passHref>
+												<Link href={`/dashboard/admin/users/${user.id}/edit`} passHref>
 													<DropdownMenuItem asChild>
 														<span>Edit User</span>
 													</DropdownMenuItem>

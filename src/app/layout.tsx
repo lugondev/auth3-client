@@ -1,5 +1,6 @@
 'use client'
 
+import '@/lib/telemetry' // Initialize OpenTelemetry
 import {Inter} from 'next/font/google'
 import './globals.css'
 import {AuthProvider} from '@/components/providers/AuthProvider'

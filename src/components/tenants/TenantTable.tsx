@@ -72,13 +72,13 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 							{isAdmin ? (
 								<TableCell className='text-right space-x-2'>
 									<Button variant='outline' size='sm' asChild>
-										<Link href={`/admin/tenants/${tenant.id}/edit`}>
+										<Link href={`/dashboard/admin/tenants/${tenant.id}/edit`}>
 											<Edit className='h-4 w-4 mr-2' />
 											Edit
 										</Link>
 									</Button>
 									<Button variant='outline' size='sm' asChild>
-										<Link href={`/admin/tenants/${tenant.id}/users`}>
+										<Link href={`/dashboard/admin/tenants/${tenant.id}/users`}>
 											<Users className='h-4 w-4 mr-2' />
 											Manage Users
 										</Link>
