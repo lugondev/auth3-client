@@ -31,7 +31,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 		try {
 			const authResult = await loginTenantContext(tenantId)
 			await handleAuthSuccess(authResult)
-			router.push(`/tenant/${tenantId}`)
+			router.push(`/dashboard/tenant/${tenantId}`)
 		} catch (error) {
 			// Optionally handle error (e.g., toast)
 			console.error('Failed to login tenant context:', error) // Updated error message

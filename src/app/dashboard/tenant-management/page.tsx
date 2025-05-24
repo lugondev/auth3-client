@@ -64,7 +64,7 @@ export default function TenantManagementPage() {
 		try {
 			const authResult = await loginTenantContext(tenantId)
 			await handleAuthSuccess(authResult)
-			router.push(`/tenant/${tenantId}`)
+			router.push(`/dashboard/tenant/${tenantId}`)
 		} catch (error) {
 			console.error('Failed to login tenant context:', error)
 		} finally {
