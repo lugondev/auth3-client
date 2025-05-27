@@ -6,7 +6,6 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/c
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {getAllRoles, getAllPermissions} from '@/services/rbacService'
 import Link from 'next/link'
-// import {Separator} from '@/components/ui/separator' // Removed unused import
 
 const ALL_ROLES_QUERY_KEY = 'allRoles'
 const ALL_PERMISSIONS_QUERY_KEY = 'allPermissions'

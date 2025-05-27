@@ -16,7 +16,6 @@ function generateUUID() {
 	});
 }
 
-
 const apiClient = axios.create({
 	baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1',
 	headers: {
@@ -47,8 +46,10 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
 // Request Interceptor: Add JWT to headers
 apiClient.interceptors.request.use(
 	(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-		// Read access token directly from localStorage
-		const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY)?.replaceAll('"', "");
+		// Only access localStorage on client side
+		const accessToken = typeof window !== 'undefined'
+			? localStorage.getItem(ACCESS_TOKEN_KEY)?.replaceAll('"', "")
+			: null;
 
 		const skipAuth = config.headers?.['__skipAuthRefresh'] === 'true';
 		if (accessToken && !skipAuth) {
@@ -97,8 +98,10 @@ apiClient.interceptors.response.use(
 			originalRequest._retry = true;
 			isRefreshing = true;
 
-			// Read refresh token directly from localStorage
-			const currentRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)?.replaceAll('"', "");
+			// Read refresh token directly from localStorage (only on client side)
+			const currentRefreshToken = typeof window !== 'undefined'
+				? localStorage.getItem(REFRESH_TOKEN_KEY)?.replaceAll('"', "")
+				: null;
 
 			if (!currentRefreshToken) {
 				console.log('Interceptor: No refresh token found, redirecting to login.');
@@ -163,7 +166,35 @@ apiClient.interceptors.response.use(
 
 export default apiClient;
 
-
-// NOTE: Removed redundant interface definitions at the end as they are now defined at the top.
-// Interfaces like Venue, CreateVenueInput, etc., should be moved to a separate file
-// (e.g., src/services/venueService.ts or src/types/venue.ts) if they grow complex.
+// Re-export types from @/types/user for convenience
+export type {
+	UserOutput,
+	UserProfile,
+	UpdateUserInput,
+	UpdateProfileInput,
+	UpdatePasswordInput,
+	UpdatePasswordResponse,
+	PaginatedUsers,
+	UserSearchQuery,
+	UpdateUserRequest,
+	UserStatus,
+	AuthResult,
+	AuthResponse,
+	LoginOutput,
+	RegisterInput,
+	LoginInput,
+	SocialTokenExchangeInput,
+	VerifyLoginLinkInput,
+	RequestLoginLinkInput,
+	ForgotPasswordInput,
+	ResetPasswordInput,
+	EmailVerificationOutput,
+	VerifyPhoneInput,
+	Generate2FAResponse,
+	Verify2FARequest,
+	TwoFactorRecoveryCodesResponse,
+	Disable2FARequest,
+	UserPreferences,
+	RoleResponse,
+	Permission
+} from '@/types/user';

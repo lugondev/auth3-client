@@ -8,7 +8,8 @@ import {useLocalStorage} from 'usehooks-ts'
 import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin} from '@/services/authService'
 import apiClient from '@/lib/apiClient'
 import {jwtDecode} from 'jwt-decode'
-import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, LoginOutput, Verify2FARequest, UserTenantMembershipInfo} from '@/lib/apiClient'
+import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, LoginOutput, Verify2FARequest} from '@/lib/apiClient'
+import {UserTenantMembershipInfo} from '@/types/tenant'
 import {toast} from 'sonner'
 import {JoinedTenantsResponse} from '@/types/tenantManagement' // Import the correct response type
 

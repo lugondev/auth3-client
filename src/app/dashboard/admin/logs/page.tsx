@@ -1,7 +1,5 @@
 'use client'
 
-import React from 'react'
-
 export default function AdminLogsPage() {
 	// TODO: Implement system log viewing capabilities
 	// This requires a backend API endpoint to fetch system logs.

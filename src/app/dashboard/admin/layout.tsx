@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import AppShell from '@/components/layout/AppShell'
 import {useSystemAdminGuard} from '@/hooks/useSystemAdminGuard'
 
 export default function AdminLayout({children}: {children: React.ReactNode}) {

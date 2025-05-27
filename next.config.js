@@ -12,6 +12,9 @@ const nextConfig = {
 	},
 	poweredByHeader: false,
 	reactStrictMode: true,
+	serverExternalPackages: ['@opentelemetry/sdk-trace-web'],
+	experimental: {
+	},
 };
 
 module.exports = nextConfig;
