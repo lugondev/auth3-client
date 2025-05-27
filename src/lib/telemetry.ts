@@ -6,15 +6,22 @@ import { ZoneContextManager } from '@opentelemetry/context-zone';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 // 1. Create a Resource properly - simplified approach
-import { Resource } from '@opentelemetry/resources';
+const Resource = require('@opentelemetry/resources').Resource;
 
 // 2. Create a Span Processor and Exporter
 const consoleExporter = new ConsoleSpanExporter();
 const spanProcessor = new SimpleSpanProcessor(consoleExporter);
 
-// 3. Create a Web Tracer Provider with span processors passed during instantiation
+// 3. Create a Resource
+const resource = new Resource({
+	attributes: {
+		'service.name': 'authentication-system-web',
+	},
+});
+
+// 4. Create a Web Tracer Provider with span processors passed during instantiation
 const provider = new WebTracerProvider({
-	// resource: resource,
+	resource: resource,
 	spanProcessors: [spanProcessor], // Pass processors during instantiation
 });
 
