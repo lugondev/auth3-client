@@ -1,3 +1,5 @@
+'use client'
+
 import React, {useState} from 'react'
 import apiClient from '@/lib/apiClient'
 import {useRouter} from 'next/router'

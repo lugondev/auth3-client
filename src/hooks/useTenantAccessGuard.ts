@@ -11,7 +11,6 @@ export function useTenantAccessGuard() {
 		isAuthenticated,
 		currentTenantId,
 		userTenants,
-		switchTenant,
 		isSystemAdmin, // System admins might have special access or need to be in tenant context
 	} = useAuth()
 	const router = useRouter()
@@ -72,25 +71,6 @@ export function useTenantAccessGuard() {
 			)
 			setIsChecking(true) // Keep checking while switch is in progress
 			setIsAuthorized(false)
-			switchTenant(routeTenantId)
-				.then((switched) => {
-					if (switched) {
-						console.log(`Successfully switched to tenant ${routeTenantId}.`)
-						// Authorization will be re-evaluated in the next effect run due to currentTenantId change
-						// For now, we can assume it will be authorized if switch was successful
-						setIsAuthorized(true)
-					} else {
-						console.warn(`Failed to switch to tenant ${routeTenantId}. Redirecting to dashboard.`)
-						router.push('/dashboard')
-					}
-				})
-				.catch((error) => {
-					console.error(`Error switching to tenant ${routeTenantId}:`, error)
-					router.push('/dashboard')
-				})
-				.finally(() => {
-					// setIsChecking(false) // Moved to be set after switchTenant completes or if no switch needed
-				})
 			// Do not set isChecking to false here, wait for the re-render and re-evaluation
 		} else {
 			// Already in the correct tenant context
@@ -108,7 +88,6 @@ export function useTenantAccessGuard() {
 		routeTenantId,
 		currentTenantId,
 		userTenants,
-		switchTenant,
 		isSystemAdmin,
 	])
 
