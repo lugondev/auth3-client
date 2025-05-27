@@ -70,6 +70,19 @@ export default function UserDashboardPage() {
 					</CardContent>
 				</Card>
 			)}
+			{isSystemAdmin && (
+				<Card className='mb-8'>
+					<CardHeader>
+						<CardTitle className='text-2xl font-semibold text-gray-700 dark:text-gray-200'>OAuth2 Management</CardTitle>
+					</CardHeader>
+					<CardContent>
+						<p className='mb-4 text-gray-600 dark:text-gray-400'>Manage OAuth2 clients and settings.</p>
+						<Button asChild variant='default' size='lg'>
+							<Link href='/dashboard/oauth2'>Go to OAuth2 Management</Link>
+						</Button>
+					</CardContent>
+				</Card>
+			)}
 		</div>
 	)
 }

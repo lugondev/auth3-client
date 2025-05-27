@@ -39,7 +39,6 @@ interface AuthContextType {
 	register: (data: RegisterInput) => Promise<void>
 	logout: () => Promise<void>
 	fetchUserTenants: () => Promise<void> // Exposed for potential manual refresh
-	switchTenant: (tenantId: string) => Promise<boolean>
 	isTwoFactorPending: boolean
 	twoFactorSessionToken: string | null
 	handleAuthSuccess: (authResult: AuthResult) => Promise<void> // Expose this
@@ -305,39 +304,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		checkAuthStatus()
 	}, [checkAuthStatus])
 
-	// Moved switchTenantContext definition earlier
-	const switchTenantContext = useCallback(
-		async (tenantId: string): Promise<boolean> => {
-			console.log(`Attempting to switch to tenant: ${tenantId}`)
-			// setLoading(true)
-			// try {
-			// 	const response = await apiClient.post<AuthResult>('/api/v1/auth/switch-tenant', {tenant_id: tenantId})
-			// 	await handleAuthSuccessInternal(response.data) // Use the main handler
-			// 	const switchedTenant = userTenants?.find((t) => t.tenant_id === tenantId)
-			// 	toast.success(`Switched to organization: ${switchedTenant?.tenant_name || tenantId}`)
-			// 	setLoading(false)
-			// 	return true
-			// } catch (error) {
-			// 	console.error('Failed to switch tenant:', error)
-			// 	toast.error('Failed to switch organization.')
-			// 	setLoading(false)
-			// 	return false
-			// }
-			return true
-		},
-		[handleAuthSuccessInternal, userTenants], // userTenants for toast message
-	)
-
-	// useEffect for auto-switching tenant if only one exists and no currentTenantId
-	useEffect(() => {
-		// This effect handles auto-switching to a tenant if the user has exactly one tenant
-		// and no current tenant context is active.
-		if (switchTenantContext && userTenants && userTenants.length === 1 && !currentTenantId && !loading && isAuthenticated) {
-			console.log('Auto-switching to single tenant via useEffect...')
-			switchTenantContext(userTenants[0].tenant_id)
-		}
-	}, [userTenants, currentTenantId, loading, isAuthenticated, switchTenantContext]) // Added switchTenantContext
-
 	const handleSocialSignIn = useCallback(
 		async (provider: GoogleAuthProvider | FacebookAuthProvider | OAuthProvider) => {
 			setLoading(true)
@@ -477,7 +443,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		register,
 		logout,
 		fetchUserTenants: fetchUserTenantsInternal, // Expose the internal fetcher
-		switchTenant: switchTenantContext, // Expose the newly defined switchTenant
 		currentTenantId,
 		userTenants,
 		isTwoFactorPending,

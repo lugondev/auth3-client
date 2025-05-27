@@ -1,25 +1,23 @@
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { SimpleSpanProcessor, ConsoleSpanExporter } from '@opentelemetry/sdk-trace-web';
+'use client'
+
+import { WebTracerProvider, SimpleSpanProcessor, InMemorySpanExporter } from '@opentelemetry/sdk-trace-web';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
 import { ZoneContextManager } from '@opentelemetry/context-zone';
 import { trace, SpanStatusCode } from '@opentelemetry/api';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 
-// 1. Create a Resource properly - simplified approach
-const Resource = require('@opentelemetry/resources').Resource;
 
-// 2. Create a Span Processor and Exporter
-const consoleExporter = new ConsoleSpanExporter();
-const spanProcessor = new SimpleSpanProcessor(consoleExporter);
+// Create a Span Processor and Exporter
+const exporter = new InMemorySpanExporter();
+const spanProcessor = new SimpleSpanProcessor(exporter);
 
-// 3. Create a Resource
-const resource = new Resource({
-	attributes: {
-		'service.name': 'authentication-system-web',
-	},
+// Create a Resource
+const resource = resourceFromAttributes({
+	'service.name': 'auth3-web',
 });
 
-// 4. Create a Web Tracer Provider with span processors passed during instantiation
+// Create a Web Tracer Provider with span processors passed during instantiation
 const provider = new WebTracerProvider({
 	resource: resource,
 	spanProcessors: [spanProcessor], // Pass processors during instantiation

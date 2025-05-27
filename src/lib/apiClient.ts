@@ -164,7 +164,7 @@ apiClient.interceptors.response.use(
 	}
 );
 
-export default apiClient;
+export { apiClient as default };
 
 // Re-export types from @/types/user for convenience
 export type {

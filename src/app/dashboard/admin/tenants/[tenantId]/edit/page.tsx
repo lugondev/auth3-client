@@ -12,13 +12,7 @@ import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/compo
 import {Separator} from '@/components/ui/separator'
 import {Loader2} from 'lucide-react' // ArrowLeft, Trash2, UserCheck, AlertCircle removed (in shared components)
 
-import {
-	getTenantById,
-	updateTenant as updateTenantService,
-	deleteTenant as deleteTenantService,
-	// checkEmailExists, // Moved to TransferTenantOwnershipSection
-	// transferTenantOwnership, // Moved to TransferTenantOwnershipSection
-} from '@/services/tenantService'
+import {getTenantById, updateTenant as updateTenantService, deleteTenant as deleteTenantService} from '@/services/tenantService'
 import {TenantResponse, UpdateTenantRequest} from '@/types/tenant' // EditTenantFormData will be imported from form component
 import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
@@ -33,8 +27,6 @@ import {TenantStaticInfo} from '@/components/tenants/management/TenantStaticInfo
 import {TenantDetailsForm, EditTenantFormData} from '@/components/tenants/management/TenantDetailsForm' // Import EditTenantFormData
 import {TransferTenantOwnershipSection} from '@/components/tenants/management/TransferTenantOwnershipSection'
 import {DeleteTenantSection} from '@/components/tenants/management/DeleteTenantSection'
-
-// Local EditTenantFormData type definition removed
 
 export default function EditTenantPage() {
 	const router = useRouter()
@@ -105,7 +97,7 @@ export default function EditTenantPage() {
 		if (tenantId) {
 			tenantRbac.actions.setTenantId(tenantId)
 		}
-	}, [tenantId, tenantRbac.actions.setTenantId]) // tenantRbac.actions.setTenantId dependency might be stable, review if needed
+	}, [tenantId])
 
 	if (isLoadingTenant || tenantRbac.loading.initialRoles) {
 		return (

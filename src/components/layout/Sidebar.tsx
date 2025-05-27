@@ -13,6 +13,8 @@ import {
 	UserCircle, // Added for Profile
 	ChevronDown, // For collapsible icon
 	ChevronRight, // For collapsible icon
+	KeyRound, // OAuth2 icon
+	ListChecks, // OAuth2 list icon
 	// Icon as LucideIcon, // No longer needed for direct type definition
 } from 'lucide-react'
 
@@ -36,6 +38,16 @@ const systemAdminLinks: NavLink[] = [
 	{href: '/dashboard/admin/users', label: 'User Management', icon: Users},
 	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck},
 	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText},
+	{
+		href: '/dashboard/oauth2',
+		label: 'OAuth2 Management',
+		icon: KeyRound,
+		isCollapsible: true,
+		children: [
+			{href: '#', label: 'Client List', icon: ListChecks},
+			{href: '/dashboard/oauth2/create', label: 'Create Client', icon: KeyRound},
+		],
+	},
 ]
 
 const adminParentLink: NavLink = {
