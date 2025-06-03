@@ -9,9 +9,7 @@ import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serv
 import apiClient from '@/lib/apiClient'
 import {jwtDecode} from 'jwt-decode'
 import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, LoginOutput, Verify2FARequest} from '@/lib/apiClient'
-import {UserTenantMembershipInfo} from '@/types/tenant'
 import {toast} from 'sonner'
-import {JoinedTenantsResponse} from '@/types/tenantManagement' // Import the correct response type
 
 interface AppUser {
 	id: string
@@ -90,6 +88,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false)
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+	const scheduleTokenRefreshRef = useRef<((token: string) => void) | null>(null)
 
 	const [accessToken, setAccessToken] = useLocalStorage<string | null>(ACCESS_TOKEN_KEY, null)
 	const [refreshToken, setRefreshToken] = useLocalStorage<string | null>(REFRESH_TOKEN_KEY, null)
@@ -158,13 +157,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			console.log('Authentication successful, state updated (including admin and tenant status).')
 
-			if (appUser) {
-				// Schedule refresh using the stable function passed to setTimeout
-				scheduleTokenRefreshInternal(authResult.refresh_token || authResult.access_token)
+			if (appUser && scheduleTokenRefreshRef.current) {
+				// Schedule refresh using the ref to avoid circular dependency
+				scheduleTokenRefreshRef.current(authResult.refresh_token || authResult.access_token)
 			}
 		},
 		[setAccessToken, setRefreshToken, checkSystemAdminStatus],
-	) // scheduleTokenRefreshInternal will be defined soon
+	)
 
 	const handleScheduledRefreshInternal = useCallback(async () => {
 		console.log('Attempting scheduled token refresh (internal)...')
@@ -183,7 +182,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			toast.error('Session expired. Please log in again.')
 			await clearAuthData()
 		}
-	}, [refreshToken, handleAuthSuccessInternal, clearAuthData, serviceRefreshToken])
+	}, [refreshToken, handleAuthSuccessInternal, clearAuthData])
 
 	const scheduleTokenRefreshInternal = useCallback(
 		(currentToken: string) => {
@@ -205,6 +204,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		},
 		[handleScheduledRefreshInternal],
 	)
+
+	// Assign the function to the ref so it can be accessed by handleAuthSuccessInternal
+	scheduleTokenRefreshRef.current = scheduleTokenRefreshInternal
 
 	// Now that scheduleTokenRefreshInternal is defined, update handleAuthSuccessInternal's dependencies
 	// This is tricky. The ideal way is to pass the refresh scheduler to handleAuthSuccessInternal or use refs.
@@ -228,7 +230,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						setCurrentTenantId(null)
 					}
 					console.log('User authenticated from stored access token.')
-					scheduleTokenRefreshInternal(accessToken)
+					if (scheduleTokenRefreshRef.current) {
+						scheduleTokenRefreshRef.current(accessToken)
+					}
 				} else {
 					console.log('Access token invalid/expired, attempting refresh...')
 					if (refreshToken) {
@@ -255,7 +259,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [accessToken, refreshToken, clearAuthData, handleAuthSuccessInternal, checkSystemAdminStatus, scheduleTokenRefreshInternal])
+	}, [accessToken, refreshToken, clearAuthData, handleAuthSuccessInternal, checkSystemAdminStatus])
 
 	useEffect(() => {
 		checkAuthStatus()
