@@ -4,7 +4,6 @@ import React, {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {listTenants} from '@/services/tenantService'
 import {AllTenantsResponse} from '@/types/tenantManagement'
-import {useAuth} from '@/contexts/AuthContext'
 import {TenantTable} from '@/components/tenants/TenantTable'
 import {Button} from '@/components/ui/button'
 import {ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight} from 'lucide-react'
@@ -13,8 +12,6 @@ const ITEMS_PER_PAGE = 10
 
 const TenantManagementPage = () => {
 	const [page, setPage] = useState(1)
-	const {user} = useAuth()
-	const isAdmin = user?.roles?.includes('SystemSuperAdmin') || false
 
 	const {
 		data: allTenantsData,
@@ -23,17 +20,12 @@ const TenantManagementPage = () => {
 	} = useQuery<AllTenantsResponse, Error>({
 		queryKey: ['allTenantsForAdmin', page],
 		queryFn: () => listTenants(ITEMS_PER_PAGE, (page - 1) * ITEMS_PER_PAGE),
-		enabled: isAdmin,
 	})
 
 	const totalPages = allTenantsData?.total_pages || 1
 
 	const handlePageChange = (newPage: number) => {
 		setPage(newPage)
-	}
-
-	if (!isAdmin) {
-		return null
 	}
 
 	return (

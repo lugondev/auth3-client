@@ -29,7 +29,6 @@ interface AuthContextType {
 	isSystemAdmin: boolean | null // null: unknown, true/false: known
 	loading: boolean
 	currentTenantId: string | null
-	userTenants: UserTenantMembershipInfo[] | null
 	signInWithGoogle: () => Promise<void>
 	signInWithFacebook: () => Promise<void>
 	signInWithApple: () => Promise<void>
@@ -38,7 +37,6 @@ interface AuthContextType {
 	verifyTwoFactorCode: (data: Verify2FARequest) => Promise<{success: boolean; error?: unknown}>
 	register: (data: RegisterInput) => Promise<void>
 	logout: () => Promise<void>
-	fetchUserTenants: () => Promise<void> // Exposed for potential manual refresh
 	isTwoFactorPending: boolean
 	twoFactorSessionToken: string | null
 	handleAuthSuccess: (authResult: AuthResult) => Promise<void> // Expose this
@@ -89,7 +87,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [loading, setLoading] = useState(true)
 	const [isAuthenticated, setIsAuthenticated] = useState(false)
 	const [currentTenantId, setCurrentTenantId] = useState<string | null>(null)
-	const [userTenants, setUserTenants] = useState<UserTenantMembershipInfo[] | null>(null)
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false)
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -110,7 +107,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			setIsAuthenticated(false)
 			setIsSystemAdmin(null) // Reset system admin status
 			setCurrentTenantId(null)
-			setUserTenants(null)
 			setIsTwoFactorPending(false)
 			setTwoFactorSessionToken(null)
 			delete apiClient.defaults.headers.Authorization
@@ -144,31 +140,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}, [])
 
-	const fetchUserTenantsInternal = useCallback(async () => {
-		if (!apiClient.defaults.headers.Authorization) return // Guard against no auth token
-		console.log('Fetching user tenants internal...')
-		try {
-			// Use JoinedTenantsResponse which expects a "memberships" array
-			const response = await apiClient.get<JoinedTenantsResponse>('/api/v1/me/tenants')
-			const tenants = response.data.memberships // Access the memberships array
-			setUserTenants(tenants || null) // Set tenants, ensure it's null if memberships is undefined
-			console.log('User tenants fetched: ', tenants)
-
-			// Log conditions for auto-switch or prompt, but don't call switchTenant here
-			if (tenants && tenants.length === 1 && !currentTenantId) {
-				console.log('User has one tenant, auto-switch will be attempted by useEffect.')
-			} else if (tenants && tenants.length > 0 && !currentTenantId) {
-				console.log('User has multiple tenants, UI should prompt for selection.')
-			} else if ((!tenants || tenants.length === 0) && !currentTenantId) {
-				console.log('User has no tenants, operating in global context or needs to create/join.')
-			}
-		} catch (error) {
-			console.error('Failed to fetch user tenants:', error)
-			toast.error('Could not load your organizations.')
-			setUserTenants(null)
-		}
-	}, [currentTenantId]) // Removed direct call to switchTenant, so its dependency is not needed here.
-
 	const handleAuthSuccessInternal = useCallback(
 		async (authResult: AuthResult) => {
 			setAccessToken(authResult.access_token)
@@ -185,16 +156,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			await checkSystemAdminStatus() // Fetch system admin status
 
-			if (appUser?.tenant_id) {
-				setCurrentTenantId(appUser.tenant_id)
-				if (!userTenants || userTenants.length === 0) {
-					// Check state directly
-					await fetchUserTenantsInternal()
-				}
-			} else {
-				setCurrentTenantId(null)
-				await fetchUserTenantsInternal()
-			}
 			console.log('Authentication successful, state updated (including admin and tenant status).')
 
 			if (appUser) {
@@ -202,7 +163,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				scheduleTokenRefreshInternal(authResult.refresh_token || authResult.access_token)
 			}
 		},
-		[setAccessToken, setRefreshToken, checkSystemAdminStatus, fetchUserTenantsInternal, userTenants],
+		[setAccessToken, setRefreshToken, checkSystemAdminStatus],
 	) // scheduleTokenRefreshInternal will be defined soon
 
 	const handleScheduledRefreshInternal = useCallback(async () => {
@@ -265,10 +226,6 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						setCurrentTenantId(decodedUser.tenant_id)
 					} else {
 						setCurrentTenantId(null)
-						if (!userTenants) {
-							// Check state directly
-							await fetchUserTenantsInternal()
-						}
 					}
 					console.log('User authenticated from stored access token.')
 					scheduleTokenRefreshInternal(accessToken)
@@ -298,7 +255,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [accessToken, refreshToken, clearAuthData, handleAuthSuccessInternal, userTenants, fetchUserTenantsInternal, checkSystemAdminStatus, scheduleTokenRefreshInternal])
+	}, [accessToken, refreshToken, clearAuthData, handleAuthSuccessInternal, checkSystemAdminStatus, scheduleTokenRefreshInternal])
 
 	useEffect(() => {
 		checkAuthStatus()
@@ -442,9 +399,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		verifyTwoFactorCode,
 		register,
 		logout,
-		fetchUserTenants: fetchUserTenantsInternal, // Expose the internal fetcher
 		currentTenantId,
-		userTenants,
 		isTwoFactorPending,
 		twoFactorSessionToken,
 	}
