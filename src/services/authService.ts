@@ -171,8 +171,23 @@ export const refreshToken = async (currentRefreshToken: string): Promise<AuthRes
 		// Caller (e.g., AuthContext) is responsible for storing response.data.auth
 		console.log('refreshToken service: Token refresh API call successful.');
 		return response.data;
-	} catch (error) {
+	} catch (error: Error | unknown) {
 		console.error('refreshToken service: Error during token refresh API call:', error);
+
+		// Handle 401 Unauthorized - clear tokens and redirect to login
+		if ((error as { response?: { status: number } })?.response?.status === 401) {
+			console.log('refreshToken service: 401 error detected, clearing tokens and redirecting to login');
+
+			// Clear tokens from localStorage
+			localStorage.removeItem('accessToken');
+			localStorage.removeItem('refreshToken');
+
+			// Redirect to login page
+			if (typeof window !== 'undefined') {
+				window.location.href = '/login';
+			}
+		}
+
 		// Re-throw the error so the caller (e.g., AuthContext) can handle it,
 		// potentially by logging the user out.
 		throw error;

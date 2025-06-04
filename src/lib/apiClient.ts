@@ -76,11 +76,13 @@ apiClient.interceptors.response.use(
 
 		// Use status code from response if available, otherwise check error message potentially
 		const statusCode = error.response?.status;
+		console.log("statusCode: ", statusCode);
+		console.log("originalRequest url: ", originalRequest.url);
 
 		// Check if it's a 401 error, not a refresh token failure itself, and not already retried
 		// Backend refresh endpoint is /auth/refresh
-		if (statusCode === 401 && originalRequest.url !== '/auth/refresh' && !originalRequest._retry) {
-
+		if (statusCode === 401 && !originalRequest.url?.includes('/auth/refresh') && !originalRequest._retry) {
+			console.log("refresh: ", isRefreshing);
 			if (isRefreshing) {
 				return new Promise((resolve, reject) => {
 					failedQueue.push({ resolve, reject });
@@ -154,6 +156,18 @@ apiClient.interceptors.response.use(
 				isRefreshing = false;
 			}
 		}
+
+		// if (statusCode === 401 && originalRequest.url?.includes('/auth/refresh')) {
+		// 	// Clear tokens from localStorage
+		// 	localStorage.removeItem('accessToken');
+		// 	localStorage.removeItem('refreshToken');
+
+		// 	// Redirect to login page
+		// 	if (typeof window !== 'undefined') {
+		// 		window.location.href = '/login';
+		// 	}
+		// 	return Promise.reject(error); // Reject the original request after triggering redirect
+		// }
 
 		// Log details for non-401 or already retried errors
 		console.error('API call error:', error.response?.data || error.message);

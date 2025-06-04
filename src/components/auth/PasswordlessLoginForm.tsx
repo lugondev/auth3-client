@@ -21,9 +21,10 @@ type PasswordlessLoginValues = z.infer<typeof passwordlessLoginSchema>
 
 interface PasswordlessLoginFormProps {
 	onLinkSent?: (email: string) => void // Callback after link is sent
+	oauth2Params?: Record<string, string> | null
 }
 
-export function PasswordlessLoginForm({onLinkSent}: PasswordlessLoginFormProps) {
+export function PasswordlessLoginForm({onLinkSent, oauth2Params}: PasswordlessLoginFormProps) {
 	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -39,6 +40,11 @@ export function PasswordlessLoginForm({onLinkSent}: PasswordlessLoginFormProps) 
 		setIsLoading(true)
 		setError(null)
 		setSuccessMessage(null)
+
+		// Store OAuth2 parameters if present
+		if (oauth2Params) {
+			sessionStorage.setItem('oauth2_params', JSON.stringify(oauth2Params))
+		}
 
 		try {
 			await requestLoginLink({

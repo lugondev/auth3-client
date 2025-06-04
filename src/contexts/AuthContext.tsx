@@ -157,6 +157,30 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			console.log('Authentication successful, state updated (including admin and tenant status).')
 
+			// Check for OAuth2 parameters and redirect if present
+			const storedOAuth2Params = sessionStorage.getItem('oauth2_params')
+			if (storedOAuth2Params) {
+				try {
+					const oauth2Params = JSON.parse(storedOAuth2Params)
+					// Clear the stored parameters
+					sessionStorage.removeItem('oauth2_params')
+					// Construct the authorization URL with parameters
+					const authUrl = new URL('/api/v1/oauth2/authorize', window.location.origin)
+					Object.entries(oauth2Params).forEach(([key, value]) => {
+						if (typeof value === 'string') {
+							authUrl.searchParams.set(key, value)
+						}
+					})
+					// Redirect to the authorization endpoint
+					window.location.href = authUrl.toString()
+					return // Exit early to prevent normal redirect
+				} catch (error) {
+					console.error('Error parsing OAuth2 parameters:', error)
+					// Clear invalid parameters and continue with normal flow
+					sessionStorage.removeItem('oauth2_params')
+				}
+			}
+
 			if (appUser && scheduleTokenRefreshRef.current) {
 				// Schedule refresh using the ref to avoid circular dependency
 				scheduleTokenRefreshRef.current(authResult.refresh_token || authResult.access_token)
