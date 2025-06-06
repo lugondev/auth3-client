@@ -60,6 +60,68 @@ export const authorize = async (
   return apiClient.get(`${baseURL}/authorize?${params.toString()}`);
 };
 
+// New function for authenticated OAuth2 authorization
+export const authorizeAuthenticated = async (
+  oauth2Params: Record<string, string>
+): Promise<{ code: string; state?: string }> => {
+  const response = await apiClient.post(`${baseURL}/authorize`, oauth2Params);
+  return response.data;
+};
+
+// Helper function to generate PKCE parameters
+export const generatePKCE = async (): Promise<{ codeVerifier: string; codeChallenge: string }> => {
+  const codeVerifier = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32))))
+    .replace(/[+/]/g, (c) => (c === '+' ? '-' : '_'))
+    .replace(/=/g, '');
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(codeVerifier);
+
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
+    .replace(/[+/]/g, (c_1) => (c_1 === '+' ? '-' : '_'))
+    .replace(/=/g, '');
+
+  return { codeVerifier, codeChallenge };
+};
+
+// Complete OAuth2 authorization flow for authenticated users
+export const handleOAuth2Authorization = async (
+  oauth2Params: Record<string, string>,
+  originalRedirectUri: string
+): Promise<string> => {
+  let updatedParams: Record<string, string> = { ...oauth2Params, redirect_uri: originalRedirectUri };
+
+  // Generate PKCE parameters if not provided
+  if (!oauth2Params.code_challenge && oauth2Params.response_type === 'code') {
+    const { codeVerifier, codeChallenge } = await generatePKCE();
+
+    // Store code verifier for later use
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('oauth2_code_verifier', codeVerifier);
+      sessionStorage.setItem('oauth2_code_challenge', codeChallenge);
+    }
+
+    updatedParams = {
+      ...updatedParams,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    };
+  }
+
+  // Call API POST to authorize endpoint
+  const { code, state } = await authorizeAuthenticated(updatedParams);
+
+  // Build redirect URL with code and state
+  const redirectUrl = new URL(originalRedirectUri);
+  redirectUrl.searchParams.set('code', code);
+  if (state) {
+    redirectUrl.searchParams.set('state', state);
+  }
+
+  return redirectUrl.toString();
+};
+
 export const token = async (
   grant_type: string,
   code?: string,

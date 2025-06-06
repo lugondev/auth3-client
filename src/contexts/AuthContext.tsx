@@ -38,6 +38,7 @@ interface AuthContextType {
 	isTwoFactorPending: boolean
 	twoFactorSessionToken: string | null
 	handleAuthSuccess: (authResult: AuthResult) => Promise<void> // Expose this
+	signInWithOAuth2Code: (code: string, state?: string | null) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -165,7 +166,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					// Clear the stored parameters
 					sessionStorage.removeItem('oauth2_params')
 					// Construct the authorization URL with parameters
-					const authUrl = new URL('/api/v1/oauth2/authorize', window.location.origin)
+					const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
+					const authUrl = new URL('/api/v1/oauth2/authorize', baseUrl)
 					Object.entries(oauth2Params).forEach(([key, value]) => {
 						if (typeof value === 'string') {
 							authUrl.searchParams.set(key, value)
@@ -411,6 +413,66 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		toast.success('Successfully signed out.')
 	}, [clearAuthData])
 
+	const signInWithOAuth2Code = useCallback(
+		async (code: string, state?: string | null) => {
+			setLoading(true)
+			try {
+				// Get PKCE code verifier from sessionStorage
+				const codeVerifier = sessionStorage.getItem('oauth2_code_verifier')
+
+				// Prepare token exchange request
+				const tokenData = {
+					grant_type: 'authorization_code',
+					code,
+					client_id: process.env.NEXT_PUBLIC_OAUTH2_CLIENT_ID || 'public-client',
+					redirect_uri: process.env.NEXT_PUBLIC_OAUTH2_REDIRECT_URI || 'http://localhost:3000/auth/callback',
+					...(codeVerifier && {code_verifier: codeVerifier}),
+					...(state && {state}),
+				}
+
+				// Exchange authorization code for tokens using the correct endpoint
+				const response = await apiClient.post('/api/v1/oauth2/token', tokenData, {
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded',
+					},
+					transformRequest: [
+						(data) => {
+							return Object.keys(data)
+								.map((key) => `${encodeURIComponent(key)}=${encodeURIComponent(data[key])}`)
+								.join('&')
+						},
+					],
+				})
+
+				const {access_token, refresh_token} = response.data
+				if (!access_token) {
+					throw new Error('No access token received')
+				}
+
+				// Clean up PKCE parameters
+				sessionStorage.removeItem('oauth2_code_verifier')
+				sessionStorage.removeItem('oauth2_code_challenge')
+
+				// Handle successful authentication
+				await handleAuthSuccessInternal({
+					access_token,
+					refresh_token,
+				})
+
+				toast.success('Successfully authenticated!')
+			} catch (error) {
+				console.error('OAuth2 code exchange failed:', error)
+				// Clean up on error
+				sessionStorage.removeItem('oauth2_code_verifier')
+				sessionStorage.removeItem('oauth2_code_challenge')
+				throw error
+			} finally {
+				setLoading(false)
+			}
+		},
+		[handleAuthSuccessInternal],
+	)
+
 	// const valueRef = useRef<AuthContextType | null>(null); // Removed as direct dependency is used
 
 	const value: AuthContextType = {
@@ -430,6 +492,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		currentTenantId,
 		isTwoFactorPending,
 		twoFactorSessionToken,
+		signInWithOAuth2Code,
 	}
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
