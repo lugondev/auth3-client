@@ -35,30 +35,32 @@ export function LoginContent() {
 		return Object.keys(params).length > 0 ? params : null
 	}, [searchParams])
 
-	// Handle OAuth2 authorization flow
+	// Handle post-login redirect only
 	useEffect(() => {
 		if (loading) {
 			console.log('LoginContent: Still loading, skipping redirect logic')
 			return
 		}
 
-		// Reset redirect error when starting new redirect attempt
-		setRedirectError(null)
+		// Only redirect if user just became authenticated (not on initial load)
+		// This prevents immediate redirect when user visits login page with query params
+		if (isAuthenticated) {
+			// Reset redirect error when starting new redirect attempt
+			setRedirectError(null)
 
-		console.log('LoginContent useEffect:', {
-			isAuthenticated,
-			loading,
-			oauth2Params: !!oauth2Params,
-			oauth2ParamsDetails: oauth2Params,
-			hasRedirectParam: !!searchParams.get('redirect'),
-			currentUrl: window.location.href,
-			appUrl: process.env.NEXT_PUBLIC_APP_URL,
-			origin: window.location.origin,
-		})
+			console.log('LoginContent useEffect:', {
+				isAuthenticated,
+				loading,
+				oauth2Params: !!oauth2Params,
+				oauth2ParamsDetails: oauth2Params,
+				hasRedirectParam: !!searchParams.get('redirect'),
+				currentUrl: window.location.href,
+				appUrl: process.env.NEXT_PUBLIC_APP_URL,
+				origin: window.location.origin,
+			})
 
-		if (oauth2Params && oauth2Params.client_id && oauth2Params.redirect_uri) {
-			// If user is already authenticated, proceed with OAuth2 authorization
-			if (isAuthenticated) {
+			if (oauth2Params && oauth2Params.client_id && oauth2Params.redirect_uri) {
+				// Handle OAuth2 authorization flow after successful login
 				console.log('LoginContent: Authenticated user with OAuth2 params, redirecting to authorization')
 
 				// Check if redirect_uri points back to login page to prevent loop
@@ -90,13 +92,8 @@ export function LoginContent() {
 					})
 				return
 			}
-			// If not authenticated, continue with login flow
-			console.log('LoginContent: Not authenticated, showing login form for OAuth2 flow')
-			return
-		}
 
-		// Regular authentication flow
-		if (isAuthenticated) {
+			// Regular authentication flow - redirect to dashboard or specified redirect path
 			console.log('LoginContent: Authenticated user, redirecting to dashboard or redirect path')
 			setIsRedirecting(true)
 			const redirectPath = searchParams.get('redirect')
@@ -137,8 +134,8 @@ export function LoginContent() {
 		)
 	}
 
-	// Show redirect loading for OAuth2 flow
-	if (isRedirecting || (isAuthenticated && oauth2Params && !redirectError)) {
+	// Show redirect loading only when actively redirecting
+	if (isRedirecting) {
 		return (
 			<div className='flex min-h-screen items-center justify-center'>
 				<div className='text-center'>
@@ -173,17 +170,8 @@ export function LoginContent() {
 		)
 	}
 
-	// If authenticated but no OAuth2 params, redirect will happen in useEffect
-	if (isAuthenticated) {
-		return (
-			<div className='flex min-h-screen items-center justify-center'>
-				<div className='text-center'>
-					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4'></div>
-					<p className='text-muted-foreground'>Redirecting to dashboard...</p>
-				</div>
-			</div>
-		)
-	}
+	// If authenticated and no query params, show login form (user can stay on login page)
+	// Redirect only happens after successful login action, not on page load
 
 	return (
 		<div className='flex min-h-screen items-center justify-center'>

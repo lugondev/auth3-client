@@ -88,6 +88,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [currentTenantId, setCurrentTenantId] = useState<string | null>(null)
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false)
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
+	const [isInitialLoad, setIsInitialLoad] = useState(true)
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const scheduleTokenRefreshRef = useRef<((token: string) => void) | null>(null)
 
@@ -96,7 +97,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const router = useRouter() // Initialize router
 
 	const clearAuthData = useCallback(
-		async (doFirebaseSignOut = true) => {
+		async (doFirebaseSignOut = true, shouldRedirect = true) => {
 			if (refreshTimeoutRef.current) {
 				clearTimeout(refreshTimeoutRef.current)
 				refreshTimeoutRef.current = null
@@ -118,11 +119,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					console.warn('Error during service logout on clearAuthData:', error)
 				}
 			}
-			// Navigate to login after clearing data
-			// Ensure this runs on the client side, which it should in a 'use client' component
-			router.push('/login')
+			// Only redirect if explicitly requested and not during initial load
+			if (shouldRedirect && !isInitialLoad) {
+				// Ensure this runs on the client side, which it should in a 'use client' component
+				router.push('/login')
+			}
 		},
-		[setAccessToken, setRefreshToken, router], // Added router to dependencies
+		[setAccessToken, setRefreshToken, router, isInitialLoad], // Added isInitialLoad to dependencies
 	)
 
 	const checkSystemAdminStatus = useCallback(async () => {
@@ -268,22 +271,23 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 							console.log('User authenticated after initial token refresh.')
 						} catch (refreshError) {
 							console.error('Error during initial token refresh:', refreshError)
-							await clearAuthData()
+							await clearAuthData(true, false) // Don't redirect during initial load
 						}
 					} else {
 						console.log('No refresh token available.')
-						await clearAuthData()
+						await clearAuthData(true, false) // Don't redirect during initial load
 					}
 				}
 			} else {
 				console.log('No stored access token.')
-				await clearAuthData(false) // Don't sign out of firebase if no token was found initially
+				await clearAuthData(false, false) // Don't sign out of firebase and don't redirect during initial load
 			}
 		} catch (error) {
 			console.error('Error during initial auth status check:', error)
-			await clearAuthData()
+			await clearAuthData(true, false) // Don't redirect during initial load
 		} finally {
 			setLoading(false)
+			setIsInitialLoad(false) // Mark initial load as complete
 		}
 	}, [accessToken, refreshToken, clearAuthData, handleAuthSuccessInternal, checkSystemAdminStatus])
 
