@@ -1,6 +1,6 @@
-# Next.js Frontend with Firebase Authentication
+# Auth3 Frontend
 
-This is the frontend application built with Next.js and Firebase Authentication.
+A Next.js frontend application with Firebase Authentication, RBAC, and multi-tenancy features.
 
 ## Setup Firebase
 
@@ -47,7 +47,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Authentication Features
 
-- Sign in with Google and Email/Password
+- Sign in with Google, Email/Password, and Passwordless login
 - Protected routes under /(protected)/*
 - Authentication status management
 - Automatic redirection for unauthenticated users
@@ -61,27 +61,13 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ```
 src/
 ├── app/                      # Next.js app router pages
-│   ├── (protected)/         # Protected routes
-│   ├── login/              # Authentication pages
-│   ├── register/
-│   ├── forgot-password/
-│   ├── reset-password/
-│   ├── verify-email/
-│   └── verify-login/       # 2FA verification
 ├── components/
-│   ├── auth/              # Authentication components
-│   ├── layout/            # Layout components
-│   ├── providers/         # Context providers
-│   ├── rbac/             # Role-based access control
-│   ├── tenants/          # Tenant management
-│   └── ui/               # Shared UI components
 ├── contexts/
 │   └── AuthContext.tsx    # Authentication context
+├── features/
 ├── hooks/                 # Custom React hooks
 ├── lib/
-│   ├── apiClient.ts      # API client configuration
-│   ├── firebase.ts       # Firebase configuration
-│   └── utils.ts          # Utility functions
+├── middleware.ts
 ├── services/             # API services
 └── types/                # TypeScript type definitions
 ```
@@ -91,7 +77,6 @@ src/
 - Role-Based Access Control (RBAC)
 - Multi-tenant support
 - System admin functionality
-- Staff management
 - User profile management
 - Breadcrumb navigation
 - Responsive UI components with shadcn/ui
