@@ -179,36 +179,3 @@ apiClient.interceptors.response.use(
 );
 
 export { apiClient as default };
-
-// Re-export types from @/types/user for convenience
-export type {
-	UserOutput,
-	UserProfile,
-	UpdateUserInput,
-	UpdateProfileInput,
-	UpdatePasswordInput,
-	UpdatePasswordResponse,
-	PaginatedUsers,
-	UserSearchQuery,
-	UpdateUserRequest,
-	UserStatus,
-	AuthResult,
-	AuthResponse,
-	LoginOutput,
-	RegisterInput,
-	LoginInput,
-	SocialTokenExchangeInput,
-	VerifyLoginLinkInput,
-	RequestLoginLinkInput,
-	ForgotPasswordInput,
-	ResetPasswordInput,
-	EmailVerificationOutput,
-	VerifyPhoneInput,
-	Generate2FAResponse,
-	Verify2FARequest,
-	TwoFactorRecoveryCodesResponse,
-	Disable2FARequest,
-	UserPreferences,
-	RoleResponse,
-	Permission
-} from '@/types/user';

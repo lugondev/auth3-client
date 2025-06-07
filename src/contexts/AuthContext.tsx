@@ -8,7 +8,7 @@ import {useLocalStorage} from 'usehooks-ts'
 import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin} from '@/services/authService'
 import apiClient from '@/lib/apiClient'
 import {jwtDecode} from 'jwt-decode'
-import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, LoginOutput, Verify2FARequest} from '@/lib/apiClient'
+import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, LoginOutput, Verify2FARequest} from '@/types/user'
 import {toast} from 'sonner'
 
 interface AppUser {
