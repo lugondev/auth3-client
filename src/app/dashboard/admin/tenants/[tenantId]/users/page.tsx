@@ -1,7 +1,7 @@
 'use client'
 
 import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
-import {PlusCircledIcon, DotsHorizontalIcon} from '@radix-ui/react-icons' // ArrowLeftIcon removed
+import {DotsHorizontalIcon} from '@radix-ui/react-icons' // ArrowLeftIcon removed
 import {Button} from '@/components/ui/button'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
@@ -83,13 +83,7 @@ export default function TenantUsersPage() {
 	const totalPages = data?.total_pages || 0
 	const tenantName = tenantData?.name || 'Tenant'
 
-	const pageActions = (
-		<Link href={`/dashboard/admin/tenants/${tenantId}/users/add`} passHref>
-			<Button>
-				<PlusCircledIcon className='mr-2 h-4 w-4' /> Add User
-			</Button>
-		</Link>
-	)
+	const pageActions = <Link href={`#`} passHref></Link>
 
 	return (
 		<div className='container mx-auto py-8'>

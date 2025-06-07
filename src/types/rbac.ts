@@ -1,5 +1,5 @@
 // Based on internal/modules/account/domain/dto.go (RBAC Management DTOs)
-import { UserOutput } from '@/lib/apiClient' // Assuming UserOutput is needed for selectedUser
+import { UserOutput } from '@/types/user'
 
 export interface UserRoleInput {
 	role: string
@@ -28,6 +28,7 @@ export interface RoleListOutput {
 
 export interface RoleListTenantOutput {
 	roles: string[]
+	default_roles: string[]
 }
 
 // Each item is a policy, typically [subject, domain, object, action] or [role, domain, object, action]

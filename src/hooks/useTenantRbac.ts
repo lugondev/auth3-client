@@ -79,7 +79,7 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 			const rolesRes = await getTenantRoles(tenantId)
 			setState((prev) => ({
 				...prev,
-				roles: rolesRes.roles || [],
+				roles: [...rolesRes.roles, ...rolesRes.default_roles],
 				rolePermissionsMap: {}, // Reset permissions when roles are refetched for a new tenant
 			}))
 		} catch (err) {
