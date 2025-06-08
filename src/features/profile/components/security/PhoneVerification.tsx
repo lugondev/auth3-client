@@ -1,7 +1,7 @@
 'use client'
 
 import React, {useState} from 'react'
-import {UserOutput, VerifyPhoneInput} from '@/lib/apiClient'
+import {UserOutput, VerifyPhoneInput} from '@/types/user'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from '@/components/ui/input-otp'

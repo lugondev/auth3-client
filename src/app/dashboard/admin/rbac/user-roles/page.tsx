@@ -44,7 +44,7 @@ export default function ManageUserRolesPage() {
 	})
 
 	const addRoleMutation = useMutation({
-		mutationFn: (data: UserRoleInput) => addRoleForUser(data),
+		mutationFn: (data: UserRoleInput) => addRoleForUser(currentUserId || '', data),
 		onSuccess: () => {
 			toast.success('Role added successfully.')
 			queryClient.invalidateQueries({queryKey: [USER_ROLES_QUERY_KEY, currentUserId]})

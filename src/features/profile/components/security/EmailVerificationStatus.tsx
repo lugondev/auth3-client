@@ -1,7 +1,7 @@
 'use client'
 
 import React from 'react'
-import {UserOutput} from '@/lib/apiClient'
+import {UserOutput} from '@/types/user'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {AlertCircle, CheckCircle} from 'lucide-react'

@@ -1,5 +1,4 @@
 import React from 'react'
-import {UserOutput} from '@/lib/apiClient'
 import {Button} from '@/components/ui/button'
 import {Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose} from '@/components/ui/dialog'
 import {Checkbox} from '@/components/ui/checkbox'
@@ -7,6 +6,7 @@ import {Label} from '@/components/ui/label'
 import {ScrollArea} from '@/components/ui/scroll-area'
 import {Loader2} from 'lucide-react'
 import {RbacLoadingState, Role} from '@/types/rbac'
+import {UserOutput} from '@/types/user'
 
 interface UserRolesModalProps {
 	isOpen: boolean

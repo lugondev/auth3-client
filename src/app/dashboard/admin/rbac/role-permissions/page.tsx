@@ -44,13 +44,13 @@ export default function ManageRolePermissionsPage() {
 		queryKey: [ROLE_PERMISSIONS_QUERY_KEY, selectedRole],
 		queryFn: () => {
 			if (!selectedRole) return Promise.resolve(null)
-			return getPermissionsForRole(selectedRole)
+			return getPermissionsForRole(selectedRole, 'global')
 		},
 		enabled: !!selectedRole,
 	})
 
 	const addPermissionMutation = useMutation({
-		mutationFn: (data: RolePermissionInput) => addPermissionForRole(data),
+		mutationFn: (data: RolePermissionInput) => addPermissionForRole('global', data),
 		onSuccess: () => {
 			toast.success('Permission added to role successfully.')
 			queryClient.invalidateQueries({queryKey: [ROLE_PERMISSIONS_QUERY_KEY, selectedRole]})

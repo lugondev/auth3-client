@@ -1,4 +1,5 @@
-import apiClient, {
+import apiClient from '@/lib/apiClient';
+import {
 	UserOutput,
 	UserProfile,
 	UpdateUserInput,
@@ -8,7 +9,7 @@ import apiClient, {
 	PaginatedUsers,
 	UserSearchQuery,
 	UpdateUserRequest, // Added for updateUser function
-} from '@/lib/apiClient';
+} from '@/types/user';
 
 /**
  * Fetches the currently authenticated user's basic information.

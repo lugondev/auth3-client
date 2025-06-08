@@ -3,7 +3,7 @@
 import {useEffect, useState, useRef, ChangeEvent} from 'react'
 import {useAuth} from '@/contexts/AuthContext'
 import {getCurrentUser, updateCurrentUser, updateCurrentUserProfile, updateCurrentUserPassword, updateUserAvatar} from '@/services/userService' // Changed to updateUserAvatar
-import {UserOutput, UserProfile, UpdateUserInput, UpdateProfileInput, UpdatePasswordInput} from '@/lib/apiClient' // Ensure these types match your generated client
+import {UserOutput, UserProfile, UpdateUserInput, UpdateProfileInput, UpdatePasswordInput} from '@/types/user' // Ensure these types match your generated client
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Skeleton} from '@/components/ui/skeleton'
 import {Avatar, AvatarFallback, AvatarImage} from '@/components/ui/avatar'

@@ -95,6 +95,57 @@ export interface CreateRoleWithPermissionInput {
 	permissions: [string, string][] // [object, action][]
 }
 
+// --- Tenant Role Types ---
+
+export interface TenantRoleInput {
+	name: string
+	description?: string
+	permissions: [string, string][] // [object, action][]
+}
+
+export interface TenantRoleOutput {
+	name: string
+	description: string
+	permissions: [string, string][] // [object, action][]
+	created_by: string // uuid
+	created_at: string
+	updated_at: string
+}
+
+export interface TenantRoleListOutput {
+	custom_roles: string[]
+	default_roles: string[]
+}
+
+// --- Tenant User Types ---
+
+export interface TenantUserResponse {
+	user_id: string // uuid.UUID
+	email: string
+	first_name: string
+	last_name: string
+	avatar?: string
+	status_in_tenant: string // Status from TenantUser table (e.g., "active", "invited")
+	global_status: string // Status from global User table (e.g., "active", "pending")
+	roles: string[] // Role names within this tenant
+	joined_at: string // ISO date string
+}
+
+export interface TenantUserRoleInput {
+	role: string
+}
+
+// --- Bulk User Roles Types ---
+
+export interface BulkUserRolesInput {
+	userIds: string[] // uuid[]
+}
+
+export interface BulkUserRolesResponse {
+	userId: string // uuid
+	roles: string[]
+}
+
 
 export interface RbacActions {
 	fetchUsersRoles: (userIds: string[]) => Promise<void>

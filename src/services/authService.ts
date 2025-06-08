@@ -1,4 +1,5 @@
-import apiClient, {
+import apiClient from '@/lib/apiClient';
+import {
 	AuthResponse,
 	LoginOutput, // <-- Add LoginOutput
 	// Types specific to auth operations:
@@ -19,7 +20,7 @@ import apiClient, {
 	TwoFactorRecoveryCodesResponse,
 	Disable2FARequest,
 	AuthResult, // Explicitly import AuthResult
-} from '@/lib/apiClient';
+} from '@/types/user';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
 

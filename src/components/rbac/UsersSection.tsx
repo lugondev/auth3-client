@@ -1,5 +1,5 @@
 import React from 'react'
-import {UserOutput} from '@/lib/apiClient'
+import {UserOutput} from '@/types/user'
 import {Input} from '@/components/ui/input'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'

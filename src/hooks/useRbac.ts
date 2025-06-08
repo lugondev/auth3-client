@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import apiClient, { UserOutput, PaginatedUsers } from '@/lib/apiClient'
+import apiClient from '@/lib/apiClient'
+import { UserOutput, PaginatedUsers } from '@/types/user'
 import {
 	RbacActions,
 	UseRbacReturn,

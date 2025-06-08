@@ -9,7 +9,7 @@ import {Input} from '@/components/ui/input'
 import {InputOTP, InputOTPGroup, InputOTPSlot} from '@/components/ui/input-otp' // Import InputOTP
 import {useAuth} from '@/contexts/AuthContext'
 import {useState} from 'react'
-import {Verify2FARequest} from '@/lib/apiClient' // Import Verify2FARequest type
+import {Verify2FARequest} from '@/types/user'
 
 const formSchema = z.object({
 	email: z.string().email({message: 'Invalid email address.'}),

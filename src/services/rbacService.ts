@@ -1,19 +1,24 @@
 import apiClient from "@/lib/apiClient";
 import {
 	RoleListOutput,
-	PermissionListOutput, // Re-added for global getAllPermissions
+	PermissionListOutput,
 	UserRolesOutput,
 	UserRoleInput,
 	RolePermissionsOutput,
-	RolePermissionInput, // Used for global, tenant might use simpler PermissionInput for POST
-	PermissionInput,
-	Role, // For tenant-specific permission assignment
+	RolePermissionInput,
+	Role,
 	CreateRoleFormValues,
-	RoleListTenantOutput,
+	TenantRoleInput,
+	TenantRoleOutput,
+	TenantRoleListOutput,
+	TenantUserRoleInput,
+	TenantUserResponse,
+	BulkUserRolesInput,
+	BulkUserRolesResponse,
 } from "@/types/rbac";
 
-const RBAC_API_PREFIX = "/api/v1/admin/rbac"; // apiClient already has /api/v1
-const TENANTS_API_PREFIX = "/api/v1/tenants";
+const RBAC_API_PREFIX = "/api/v1/admin/rbac";
+const TENANT_API_PREFIX = "/api/v1/tenant";
 
 // --- General RBAC Info ---
 
@@ -28,40 +33,104 @@ export const getAllPermissions = async (): Promise<PermissionListOutput> => {
 };
 
 // --- User Role Management ---
-// The 'domain' parameter corresponds to tenantId or a global placeholder.
-// It's passed as a query parameter for GET or part of the context/implicit for POST/DELETE in backend.
-// For simplicity, we might need to adjust how domain is passed if it's not a query param for GETs.
-// The Go handler for GetRolesForUser uses `getDomainFromLocals(c)`, implying it's not a direct query param.
-// Let's assume for now the backend handles domain contextually based on the authenticated user or tenant middleware.
-// If explicit domain passing is needed for GETs, API needs adjustment or we pass it via headers/custom logic.
 
 export const getRolesForUser = async (userId: string): Promise<UserRolesOutput> => {
-	// Domain is assumed to be handled by backend context (e.g., tenant middleware)
 	const response = await apiClient.get(`${RBAC_API_PREFIX}/users/${userId}/roles`);
 	return response.data;
 };
 
-export const addRoleForUser = async (data: UserRoleInput): Promise<void> => {
-	// Domain is assumed to be handled by backend context
-	await apiClient.post(`${RBAC_API_PREFIX}/users/roles`, data);
+export const addRoleForUser = async (userId: string, data: UserRoleInput): Promise<void> => {
+	await apiClient.post(`${RBAC_API_PREFIX}/users/${userId}/roles`, data);
 };
 
 export const removeRoleForUser = async (userId: string, role: string): Promise<void> => {
-	// Domain is assumed to be handled by backend context
 	await apiClient.delete(`${RBAC_API_PREFIX}/users/${userId}/roles/${role}`);
+};
+
+export const getRolesForUsers = async (data: BulkUserRolesInput): Promise<BulkUserRolesResponse[]> => {
+	const response = await apiClient.post(`${RBAC_API_PREFIX}/users/roles`, data);
+	return response.data;
+};
+
+// --- Tenant Role Management ---
+
+export const getTenantRoles = async (tenantId: string): Promise<TenantRoleListOutput> => {
+	const response = await apiClient.get(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles`);
+	return response.data;
+};
+
+export const createTenantRole = async (tenantId: string, data: TenantRoleInput): Promise<TenantRoleOutput> => {
+	const response = await apiClient.post(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles`, data);
+	return response.data;
+};
+
+export const updateTenantRole = async (tenantId: string, roleName: string, data: TenantRoleInput): Promise<TenantRoleOutput> => {
+	const response = await apiClient.put(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}`, data);
+	return response.data;
+};
+
+export const deleteTenantRole = async (tenantId: string, roleName: string): Promise<void> => {
+	await apiClient.delete(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}`);
+};
+
+// --- Tenant Role Permission Management ---
+
+export const getTenantRolePermissions = async (tenantId: string, roleName: string): Promise<PermissionListOutput> => {
+	const response = await apiClient.get(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`);
+	return response.data;
+};
+
+export const assignPermissionToTenantRole = async (
+	tenantId: string,
+	data: {
+		role: string;
+		permissions: { object: string; action: string }[];
+	}
+): Promise<void> => {
+	await apiClient.post(`${TENANT_API_PREFIX}s/${tenantId}/rbac/roles/permissions`, data);
+};
+
+export const revokePermissionFromTenantRole = async (
+	tenantId: string,
+	roleName: string,
+	object: string,
+	action: string
+): Promise<void> => {
+	await apiClient.delete(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`);
+};
+
+// --- Tenant User Role Assignment ---
+
+export const getTenantUserRoles = async (tenantId: string, userId: string): Promise<TenantUserResponse[]> => {
+	const response = await apiClient.get(`${TENANT_API_PREFIX}/${tenantId}/users/${userId}`);
+	return response.data;
+};
+
+export const assignRoleToTenantUser = async (
+	tenantId: string,
+	userId: string,
+	data: TenantUserRoleInput
+): Promise<void> => {
+	await apiClient.post(`${TENANT_API_PREFIX}/${tenantId}/users/${userId}/roles`, data);
+};
+
+export const revokeRoleFromTenantUser = async (
+	tenantId: string,
+	userId: string,
+	roleName: string
+): Promise<void> => {
+	await apiClient.delete(`${TENANT_API_PREFIX}/${tenantId}/users/${userId}/roles/${encodeURIComponent(roleName)}`);
 };
 
 // --- Role Permission Management ---
 
-export const getPermissionsForRole = async (role: string): Promise<RolePermissionsOutput> => {
-	// Domain is assumed to be handled by backend context
-	const response = await apiClient.get(`${RBAC_API_PREFIX}/roles/${role}/permissions`);
+export const getPermissionsForRole = async (role: string, domain: string): Promise<RolePermissionsOutput> => {
+	const response = await apiClient.get(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(role)}/permissions/${domain}`);
 	return response.data;
 };
 
-export const addPermissionForRole = async (data: RolePermissionInput): Promise<void> => {
-	// Domain is assumed to be handled by backend context
-	await apiClient.post(`${RBAC_API_PREFIX}/roles/permissions`, data);
+export const addPermissionForRole = async (domain: string, data: RolePermissionInput): Promise<void> => {
+	await apiClient.post(`${RBAC_API_PREFIX}/roles/permissions/${domain}`, data);
 };
 
 export const createRole = async (data: CreateRoleFormValues): Promise<void> => {
@@ -76,56 +145,11 @@ export const createRole = async (data: CreateRoleFormValues): Promise<void> => {
 export const removePermissionForRole = async (
 	role: string,
 	object: string,
-	action: string,
+	action: string
 ): Promise<void> => {
-	// Domain is assumed to be handled by backend context
-	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${role}/permissions/${object}/${action}`);
+	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(role)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`);
 };
 
 export const deleteRole = async (role: Role): Promise<void> => {
 	await apiClient.delete(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(role.name)}/${role.domain}`);
-};
-
-// --- Tenant-Specific RBAC Operations ---
-
-export const getTenantRoles = async (tenantId: string): Promise<RoleListTenantOutput> => {
-	const response = await apiClient.get(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles`);
-	return response.data;
-};
-
-export const deleteTenantRole = async (tenantId: string, roleName: string): Promise<void> => {
-	await apiClient.delete(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}`);
-};
-
-export const getTenantRolePermissions = async (tenantId: string, roleName: string): Promise<RolePermissionsOutput> => {
-	const response = await apiClient.get(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`);
-	// Ensure the response structure matches RolePermissionsOutput, especially the 'role' field.
-	// If the API doesn't return 'role' in the body, we might need to adjust or expect it.
-	// For now, assuming it matches. If not, the hook using this will need to manage the roleName contextually.
-	if (response.data && !response.data.role) {
-		return { ...response.data, role: roleName }; // Add roleName if not present in response
-	}
-	return response.data;
-};
-
-export const assignPermissionToTenantRole = async (
-	tenantId: string,
-	roleName: string,
-	data: PermissionInput[],
-): Promise<void> => {
-	await apiClient.post(`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles/permissions`, {
-		permissions: data,
-		role: roleName,
-	});
-};
-
-export const revokePermissionFromTenantRole = async (
-	tenantId: string,
-	roleName: string,
-	object: string,
-	action: string,
-): Promise<void> => {
-	await apiClient.delete(
-		`${TENANTS_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions/${encodeURIComponent(object)}/${encodeURIComponent(action)}`,
-	);
 };

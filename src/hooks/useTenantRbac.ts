@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-// import apiClient from '@/lib/apiClient' // Not directly used, API calls are in rbacService
 import {
 	getTenantRoles,
+	deleteTenantRole,
 	getTenantRolePermissions,
 	assignPermissionToTenantRole,
 	revokePermissionFromTenantRole,
-	deleteTenantRole,
 } from '@/services/rbacService'
 import {
 	TenantRbacState,
@@ -79,7 +78,7 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 			const rolesRes = await getTenantRoles(tenantId)
 			setState((prev) => ({
 				...prev,
-				roles: [...rolesRes.roles, ...rolesRes.default_roles],
+				roles: [...rolesRes.custom_roles, ...rolesRes.default_roles],
 				rolePermissionsMap: {}, // Reset permissions when roles are refetched for a new tenant
 			}))
 		} catch (err) {
@@ -175,7 +174,10 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 		setLoading({ action: true })
 		setError(null)
 		try {
-			await assignPermissionToTenantRole(state.tenantId, roleName, [payload])
+			await assignPermissionToTenantRole(state.tenantId, {
+				role: roleName,
+				permissions: [payload],
+			})
 			setState((prev) => ({
 				...prev,
 				rolePermissionsMap: {
@@ -238,7 +240,10 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 		try {
 			// Create role by assigning its first permission
 			const permissionPayload: PermissionInput = { object: firstPermissionObject, action: firstPermissionAction }
-			await assignPermissionToTenantRole(state.tenantId, roleName, [permissionPayload])
+			await assignPermissionToTenantRole(state.tenantId, {
+				role: roleName,
+				permissions: [permissionPayload],
+			})
 
 			setState((prev) => ({
 				...prev,

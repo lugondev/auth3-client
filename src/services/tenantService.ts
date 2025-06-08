@@ -1,7 +1,8 @@
 import apiClient from '@/lib/apiClient';
 import { AddUserToTenantRequest, PaginatedTenantsResponse, PaginatedTenantUsersResponse, TenantResponse, TenantUserResponse, UpdateTenantRequest, UpdateTenantUserRequest } from '@/types/tenant';
 import { OwnedTenantsResponse, JoinedTenantsResponse } from '@/types/tenantManagement';
-import { TenantPermission } from '@/types/tenantRbac'; // Import the new type
+import { TenantPermission } from '@/types/tenantRbac';
+import { TenantRoleInput, TenantRoleOutput, TenantRoleListOutput } from '@/types/rbac';
 
 export const listTenants = async (limit: number = 10, offset: number = 0): Promise<PaginatedTenantsResponse> => {
 	const response = await apiClient.get(`/api/v1/tenants/list`, {
@@ -108,4 +109,75 @@ export const transferTenantOwnership = async (tenantId: string, newOwnerEmail: s
 	await apiClient.put(`/api/v1/tenants/${tenantId}/transfer-ownership`, {
 		new_owner_email: newOwnerEmail,
 	});
-}
+};
+
+// --- Tenant Role Management ---
+
+/**
+ * Gets all roles (template and custom) for a specific tenant
+ */
+export const getAllTenantRoles = async (tenantId: string): Promise<TenantRoleListOutput> => {
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/roles`);
+	return response.data;
+};
+
+/**
+ * Creates a new custom role for a tenant
+ */
+export const createTenantRole = async (tenantId: string, data: TenantRoleInput): Promise<TenantRoleOutput> => {
+	const response = await apiClient.post(`/api/v1/tenants/${tenantId}/roles`, data);
+	return response.data;
+};
+
+/**
+ * Updates a custom tenant role (template roles cannot be modified)
+ */
+export const updateTenantRole = async (
+	tenantId: string,
+	roleId: string,
+	data: TenantRoleInput
+): Promise<TenantRoleOutput> => {
+	const response = await apiClient.put(`/api/v1/tenants/${tenantId}/roles/${roleId}`, data);
+	return response.data;
+};
+
+/**
+ * Deletes a custom tenant role (template roles cannot be deleted)
+ */
+export const deleteTenantRole = async (tenantId: string, roleId: string): Promise<void> => {
+	await apiClient.delete(`/api/v1/tenants/${tenantId}/roles/${roleId}`);
+};
+
+/**
+ * Applies a role template to a tenant
+ */
+export const applyTemplateToTenant = async (
+	tenantId: string,
+	templateId: string
+): Promise<void> => {
+	await apiClient.post(`/api/v1/tenants/${tenantId}/roles/apply-template`, { template_id: templateId });
+};
+
+/**
+ * Gets a specific tenant role by ID
+ */
+export const getTenantRoleById = async (tenantId: string, roleId: string): Promise<TenantRoleOutput> => {
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/roles/${roleId}`);
+	return response.data;
+};
+
+/**
+ * Gets only template roles for a tenant
+ */
+export const getTenantTemplateRoles = async (tenantId: string): Promise<TenantRoleOutput[]> => {
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/roles?template_only=true`);
+	return response.data.template_roles || [];
+};
+
+/**
+ * Gets only custom roles for a tenant
+ */
+export const getTenantCustomRoles = async (tenantId: string): Promise<TenantRoleOutput[]> => {
+	const response = await apiClient.get(`/api/v1/tenants/${tenantId}/roles?custom_only=true`);
+	return response.data.custom_roles || [];
+};

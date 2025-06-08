@@ -2,7 +2,7 @@
 
 import React, {useState} from 'react'
 import Image from 'next/image'
-import {UserOutput, Verify2FARequest, Disable2FARequest} from '@/lib/apiClient'
+import {UserOutput, Verify2FARequest, Disable2FARequest} from '@/types/user'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {Input} from '@/components/ui/input' // Needed for disable password
