@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionContext';
@@ -69,14 +69,20 @@ export function usePermissionGuard(options: PermissionGuardOptions = {}): Permis
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [error, setError] = useState<string | null>(null);
 
-	// Build permission and role arrays
-	const permissionChecks: string[] = [];
-	if (permission) permissionChecks.push(permission);
-	if (permissions.length > 0) permissionChecks.push(...permissions);
+	// Build permission and role arrays using useMemo for optimization
+	const permissionChecks = useMemo(() => {
+		const checks: string[] = [];
+		if (permission) checks.push(permission);
+		if (permissions.length > 0) checks.push(...permissions);
+		return checks;
+	}, [permission, permissions]);
 
-	const roleChecks: string[] = [];
-	if (role) roleChecks.push(role);
-	if (roles.length > 0) roleChecks.push(...roles);
+	const roleChecks = useMemo(() => {
+		const checks: string[] = [];
+		if (role) checks.push(role);
+		if (roles.length > 0) checks.push(...roles);
+		return checks;
+	}, [role, roles]);
 
 	// Check access function
 	const checkAccess = useCallback(async (): Promise<boolean> => {

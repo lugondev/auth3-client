@@ -152,6 +152,7 @@ export async function middleware(request: NextRequest) {
 		pathname.startsWith('/dashboard/access-denied') ||
 		pathname.startsWith('/dashboard/unauthorized') ||
 		pathname.startsWith('/dashboard/loading-permissions') ||
+		pathname.startsWith('/dashboard/tenant-management') ||
 		pathname.startsWith('/api') ||
 		pathname.startsWith('/_next') ||
 		pathname === '/favicon.ico' ||
