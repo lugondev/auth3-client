@@ -16,9 +16,18 @@ interface PermissionContextType {
 	error: string | null
 	hasPermission: (permission: string) => boolean
 	hasRole: (role: string) => boolean
+	hasAnyPermission: (permissions: string[]) => boolean
+	hasAllPermissions: (permissions: string[]) => boolean
+	hasAnyRole: (roles: string[]) => boolean
+	hasAllRoles: (roles: string[]) => boolean
 	checkPermission: (object: string, action: string) => Promise<boolean>
+	checkPermissions: (permissions: string[]) => Promise<Record<string, boolean>>
 	refreshPermissions: () => Promise<void>
 	clearCache: () => void
+	isSystemAdmin: () => boolean
+	isTenantAdmin: () => boolean
+	getUserPermissions: () => Permission[]
+	getUserRoles: () => string[]
 }
 
 interface PermissionCache {
@@ -188,6 +197,64 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 		[roles, isAuthenticated],
 	)
 
+	// Check if user has any of the specified permissions
+	const hasAnyPermission = useCallback(
+		(permissionList: string[]): boolean => {
+			if (!permissionList || permissionList.length === 0 || !isAuthenticated) return false
+			return permissionList.some(permission => hasPermission(permission))
+		},
+		[hasPermission, isAuthenticated],
+	)
+
+	// Check if user has all of the specified permissions
+	const hasAllPermissions = useCallback(
+		(permissionList: string[]): boolean => {
+			if (!permissionList || permissionList.length === 0 || !isAuthenticated) return false
+			return permissionList.every(permission => hasPermission(permission))
+		},
+		[hasPermission, isAuthenticated],
+	)
+
+	// Check if user has any of the specified roles
+	const hasAnyRole = useCallback(
+		(roleList: string[]): boolean => {
+			if (!roleList || roleList.length === 0 || !isAuthenticated) return false
+			return roleList.some(role => hasRole(role))
+		},
+		[hasRole, isAuthenticated],
+	)
+
+	// Check if user has all of the specified roles
+	const hasAllRoles = useCallback(
+		(roleList: string[]): boolean => {
+			if (!roleList || roleList.length === 0 || !isAuthenticated) return false
+			return roleList.every(role => hasRole(role))
+		},
+		[hasRole, isAuthenticated],
+	)
+
+	// Check if user is system admin
+	const isSystemAdmin = useCallback((): boolean => {
+		if (!isAuthenticated) return false
+		return hasRole('SystemSuperAdmin') || hasRole('SystemAdmin') || hasPermission('*.*')
+	}, [hasRole, hasPermission, isAuthenticated])
+
+	// Check if user is tenant admin
+	const isTenantAdmin = useCallback((): boolean => {
+		if (!isAuthenticated || !currentTenantId) return false
+		return hasRole('TenantAdmin') || hasRole('Admin') || hasPermission('tenant.*')
+	}, [hasRole, hasPermission, isAuthenticated, currentTenantId])
+
+	// Get user permissions (for debugging/display)
+	const getUserPermissions = useCallback((): Permission[] => {
+		return [...permissions]
+	}, [permissions])
+
+	// Get user roles (for debugging/display)
+	const getUserRoles = useCallback((): string[] => {
+		return [...roles]
+	}, [roles])
+
 	// Dynamic permission check via API
 	const checkPermission = useCallback(
 		async (object: string, action: string): Promise<boolean> => {
@@ -200,15 +267,80 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				const hasLocal = permissions.some((p) => p.object === object && p.action === action)
 				if (hasLocal) return true
 
-				// If not in cache, make API call (this would require a check permission endpoint)
-				// For now, return false if not in cached permissions
-				return false
+				// If not in cache, make API call to backend check endpoint
+				const endpoint = currentTenantId 
+					? `/api/v1/tenants/${currentTenantId}/rbac/check`
+					: '/api/v1/rbac/check'
+				
+				const response = await apiClient.get(endpoint, {
+					params: { object, action }
+				})
+				
+				return response.data?.hasPermission || false
 			} catch (error) {
 				console.error('Permission check failed:', error)
 				return false
 			}
 		},
-		[permissions, isAuthenticated, user?.id],
+		[permissions, isAuthenticated, user?.id, currentTenantId],
+	)
+
+	// Bulk permission check via API
+	const checkPermissions = useCallback(
+		async (permissionList: string[]): Promise<Record<string, boolean>> => {
+			if (!permissionList || permissionList.length === 0 || !isAuthenticated || !user?.id) {
+				return {}
+			}
+
+			const results: Record<string, boolean> = {}
+
+			try {
+				// First check local cache for all permissions
+				const uncachedPermissions: string[] = []
+				
+				permissionList.forEach(permission => {
+					const hasLocal = hasPermission(permission)
+					if (hasLocal) {
+						results[permission] = true
+					} else {
+						uncachedPermissions.push(permission)
+					}
+				})
+
+				// If all permissions are cached, return results
+				if (uncachedPermissions.length === 0) {
+					return results
+				}
+
+				// Make API call for uncached permissions
+				const endpoint = currentTenantId 
+					? `/api/v1/tenants/${currentTenantId}/rbac/check-bulk`
+					: '/api/v1/rbac/check-bulk'
+				
+				const response = await apiClient.post(endpoint, {
+					permissions: uncachedPermissions
+				})
+				
+				const apiResults = response.data?.results || {}
+				
+				// Merge API results with cached results
+				uncachedPermissions.forEach(permission => {
+					results[permission] = apiResults[permission] || false
+				})
+				
+				return results
+			} catch (error) {
+				console.error('Bulk permission check failed:', error)
+				// Return false for all uncached permissions on error
+				permissionList.forEach(permission => {
+					if (!(permission in results)) {
+						results[permission] = false
+					}
+				})
+				return results
+			}
+		},
+		[hasPermission, isAuthenticated, user?.id, currentTenantId],
 	)
 
 	// Load permissions on mount and when dependencies change
@@ -248,9 +380,18 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 		error,
 		hasPermission,
 		hasRole,
+		hasAnyPermission,
+		hasAllPermissions,
+		hasAnyRole,
+		hasAllRoles,
 		checkPermission,
+		checkPermissions,
 		refreshPermissions,
 		clearCache,
+		isSystemAdmin,
+		isTenantAdmin,
+		getUserPermissions,
+		getUserRoles,
 	}
 
 	return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>

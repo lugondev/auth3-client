@@ -5,12 +5,12 @@ import Link from 'next/link'
 import {useRouter} from 'next/navigation'
 import {Tenant} from '@/types/tenantManagement'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
-import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {Edit, Users} from 'lucide-react'
 import {loginTenantContext} from '@/services/authService'
 import {useAuth} from '@/contexts/AuthContext'
 import {Loader2} from 'lucide-react'
+import {PermissionButton, PermissionTooltip} from '@/components/permissions'
 
 interface TenantTableProps {
 	tenants: Tenant[]
@@ -71,25 +71,29 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 							</TableCell>
 							{isAdmin ? (
 								<TableCell className='text-right space-x-2'>
-									<Button variant='outline' size='sm' asChild>
-										<Link href={`/dashboard/admin/tenants/${tenant.id}/edit`}>
-											<Edit className='h-4 w-4 mr-2' />
-											Edit
-										</Link>
-									</Button>
-									<Button variant='outline' size='sm' asChild>
-										<Link href={`/dashboard/admin/tenants/${tenant.id}/users`}>
-											<Users className='h-4 w-4 mr-2' />
-											Manage Users
-										</Link>
-									</Button>
+									<PermissionTooltip permission='admin:tenants:update'>
+										<PermissionButton variant='outline' size='sm' permission='admin:tenants:update' hideWhenNoAccess={false} asChild>
+											<Link href={`/dashboard/admin/tenants/${tenant.id}/edit`}>
+												<Edit className='h-4 w-4 mr-2' />
+												Edit
+											</Link>
+										</PermissionButton>
+									</PermissionTooltip>
+									<PermissionTooltip permission='admin:tenants:users:read'>
+										<PermissionButton variant='outline' size='sm' permission='admin:tenants:users:read' hideWhenNoAccess={false} asChild>
+											<Link href={`/dashboard/admin/tenants/${tenant.id}/users`}>
+												<Users className='h-4 w-4 mr-2' />
+												Manage Users
+											</Link>
+										</PermissionButton>
+									</PermissionTooltip>
 								</TableCell>
 							) : (
 								<TableCell className='text-right space-x-2'>
-									<Button variant='outline' size='sm' onClick={() => handleTenantManagement(tenant.id)}>
+									<PermissionButton variant='outline' size='sm' permission='tenant:manage' onClick={() => handleTenantManagement(tenant.id)}>
 										<Edit className='h-4 w-4 mr-2' />
 										Management
-									</Button>
+									</PermissionButton>
 								</TableCell>
 							)}
 						</TableRow>

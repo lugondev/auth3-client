@@ -13,6 +13,7 @@ import {Edit, Trash2, Key, Globe, Lock, Unlock, Calendar, Plus, X} from 'lucide-
 import {useForm} from 'react-hook-form'
 import apiClient from '@/lib/apiClient'
 import OAuth2ClientForm from './OAuth2ClientForm'
+import {PermissionButton, PermissionTooltip} from '@/components/permissions'
 
 const OAuth2ClientList: React.FC = () => {
 	const [clients, setClients] = useState<ClientInfo[]>([])
@@ -237,18 +238,22 @@ const OAuth2ClientList: React.FC = () => {
 							</CardHeader>
 							<CardContent className='pt-0'>
 								<div className='flex gap-2'>
-									<Button asChild size='sm' variant='outline' className='flex-1'>
-										<Link href={`/dashboard/oauth2/${client.client_id}/edit`}>
-											<Edit className='mr-1.5 h-3 w-3' />
-											Edit
-										</Link>
-									</Button>
-									<Button asChild size='sm' variant='outline' className='flex-1'>
-										<Link href={`/dashboard/oauth2/${client.client_id}/delete`}>
-											<Trash2 className='mr-1.5 h-3 w-3' />
-											Delete
-										</Link>
-									</Button>
+									<PermissionTooltip permission='admin:oauth2:update'>
+										<PermissionButton asChild size='sm' variant='outline' className='flex-1' permission='admin:oauth2:update' hideWhenNoAccess={false}>
+											<Link href={`/dashboard/oauth2/${client.client_id}/edit`}>
+												<Edit className='mr-1.5 h-3 w-3' />
+												Edit
+											</Link>
+										</PermissionButton>
+									</PermissionTooltip>
+									<PermissionTooltip permission='admin:oauth2:delete'>
+										<PermissionButton asChild size='sm' variant='outline' className='flex-1' permission='admin:oauth2:delete' hideWhenNoAccess={false}>
+											<Link href={`/dashboard/oauth2/${client.client_id}/delete`}>
+												<Trash2 className='mr-1.5 h-3 w-3' />
+												Delete
+											</Link>
+										</PermissionButton>
+									</PermissionTooltip>
 								</div>
 							</CardContent>
 						</Card>

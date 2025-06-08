@@ -110,6 +110,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			setCurrentTenantId(null)
 			setIsTwoFactorPending(false)
 			setTwoFactorSessionToken(null)
+			
+			// Clear cookies
+			document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+			document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+			
 			delete apiClient.defaults.headers.Authorization
 
 			if (doFirebaseSignOut) {
@@ -146,12 +151,19 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const handleAuthSuccessInternal = useCallback(
 		async (authResult: AuthResult) => {
 			setAccessToken(authResult.access_token)
-			if (authResult.refresh_token) {
-				setRefreshToken(authResult.refresh_token)
-			} else {
-				setRefreshToken(null)
-			}
-			apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
+		if (authResult.refresh_token) {
+			setRefreshToken(authResult.refresh_token)
+		} else {
+			setRefreshToken(null)
+		}
+		
+		// Set cookies for middleware
+		document.cookie = `accessToken=${authResult.access_token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+		if (authResult.refresh_token) {
+			document.cookie = `refreshToken=${authResult.refresh_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
+		}
+		
+		apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
 
 			const appUser = decodeToken(authResult.access_token)
 			setUser(appUser)
@@ -247,6 +259,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		try {
 			if (accessToken) {
 				apiClient.defaults.headers.Authorization = `Bearer ${accessToken}`
+				// Set cookie for middleware
+				document.cookie = `accessToken=${accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+				if (refreshToken) {
+					document.cookie = `refreshToken=${refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
+				}
+				
 				const decodedUser = decodeToken(accessToken)
 				if (decodedUser) {
 					setUser(decodedUser)
@@ -435,7 +453,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				}
 
 				// Exchange authorization code for tokens using the correct endpoint
-				const response = await apiClient.post('/api/v1/oauth2/token', tokenData, {
+				const response = await apiClient.post<{access_token: string; refresh_token?: string}>('/api/v1/oauth2/token', tokenData, {
 					headers: {
 						'Content-Type': 'application/x-www-form-urlencoded',
 					},

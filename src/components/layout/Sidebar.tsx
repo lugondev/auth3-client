@@ -15,9 +15,11 @@ import {
 	ChevronRight, // For collapsible icon
 	KeyRound, // OAuth2 icon
 	ListChecks, // OAuth2 list icon
-	// Icon as LucideIcon, // No longer needed for direct type definition
+	Lock, // For disabled items
 } from 'lucide-react'
-import {PermissionGuard} from '@/components/permissions'
+import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
+import {cn} from '@/lib/utils'
+import {usePermissions} from '@/contexts/PermissionContext'
 
 interface NavLink {
 	href: string
@@ -70,9 +72,28 @@ const userLinks: NavLink[] = [
 
 const Sidebar: React.FC<SidebarProps> = ({type}) => {
 	const [openAdminMenu, setOpenAdminMenu] = React.useState(true)
+	const {hasPermission, hasRole} = usePermissions()
 
 	const toggleAdminMenu = () => {
 		setOpenAdminMenu(!openAdminMenu)
+	}
+
+	// Check if user has access to a nav link
+	const hasAccess = (link: NavLink): boolean => {
+		if (link.permission && !hasPermission(link.permission)) return false
+		if (link.role && !hasRole(link.role)) return false
+		return true
+	}
+
+	// Get tooltip message for disabled links
+	const getTooltipMessage = (link: NavLink): string => {
+		if (link.permission && !hasPermission(link.permission)) {
+			return `Requires permission: ${link.permission}`
+		}
+		if (link.role && !hasRole(link.role)) {
+			return `Requires role: ${link.role}`
+		}
+		return ''
 	}
 
 	const links = (() => {
@@ -119,70 +140,91 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 				{' '}
 				{/* Added flex-grow and overflow for long lists */}
 				<ul>
-					{links.map((link) => {
-					const IconComponent = link.icon
-					const linkContent = (
-						<>
-							{link.isCollapsible ? (
-								<li key={link.label}>
-									<button onClick={toggleAdminMenu} className='flex items-center justify-between w-full space-x-3 py-2 px-3 hover:bg-gray-700 rounded focus:outline-none'>
-										<div className='flex items-center space-x-3'>
-											<IconComponent className='h-5 w-5' />
-											<span>{link.label}</span>
-										</div>
-										{openAdminMenu ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />}
-									</button>
-									{openAdminMenu && link.children && (
-										<ul className='pl-4 mt-1'>
-											{link.children.map((childLink) => {
-												const ChildIconComponent = childLink.icon
-												const childContent = (
-													<li key={childLink.href}>
-														<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
-															<ChildIconComponent className='h-5 w-5' />
-															<span>{childLink.label}</span>
-														</Link>
-													</li>
-												)
-												return childLink.permission || childLink.role ? (
-													<PermissionGuard
-														key={childLink.href}
-														permission={childLink.permission}
-														role={childLink.role}
-													>
-														{childContent}
-													</PermissionGuard>
-												) : (
-													childContent
-												)
-											})}
-										</ul>
-									)}
-								</li>
-							) : (
-								<li key={link.href}>
-									<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
-										<IconComponent className='h-5 w-5' />
-										<span>{link.label}</span>
-									</Link>
-								</li>
-							)}
-						</>
-					)
+					{links.map((link, linkIndex) => {
+						const IconComponent = link.icon
+						const hasLinkAccess = hasAccess(link)
+						const tooltipMessage = getTooltipMessage(link)
+						const linkKey = link.href !== '#' ? link.href : `${link.label}-${linkIndex}`
 
-					// Wrap with PermissionGuard if permission or role is specified
-					return link.permission || link.role ? (
-						<PermissionGuard
-							key={link.href || link.label}
-							permission={link.permission}
-							role={link.role}
-						>
-							{linkContent}
-						</PermissionGuard>
-					) : (
-						linkContent
-					)
-				})}
+						const linkContent = (
+							<>
+								{link.isCollapsible ? (
+									<li>
+										<button onClick={toggleAdminMenu} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none', hasLinkAccess ? 'hover:bg-gray-700 text-white' : 'text-gray-500 cursor-not-allowed')} disabled={!hasLinkAccess}>
+											<div className='flex items-center space-x-3'>
+												{hasLinkAccess ? <IconComponent className='h-5 w-5' /> : <Lock className='h-5 w-5' />}
+												<span>{link.label}</span>
+											</div>
+											{hasLinkAccess && (openAdminMenu ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
+										</button>
+										{openAdminMenu && link.children && hasLinkAccess && (
+											<ul className='pl-4 mt-1'>
+												{link.children.map((childLink, childIndex) => {
+													const ChildIconComponent = childLink.icon
+													const hasChildAccess = hasAccess(childLink)
+													const childTooltipMessage = getTooltipMessage(childLink)
+													const childKey = childLink.href !== '#' ? childLink.href : `${childLink.label}-${childIndex}`
+
+													const childContent = (
+														<li>
+															{hasChildAccess ? (
+																<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white'>
+																	<ChildIconComponent className='h-5 w-5' />
+																	<span>{childLink.label}</span>
+																</Link>
+															) : (
+																<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed'>
+																	<Lock className='h-5 w-5' />
+																	<span>{childLink.label}</span>
+																</div>
+															)}
+														</li>
+													)
+
+													return childTooltipMessage ? (
+														<Tooltip key={childKey}>
+															<TooltipTrigger asChild>{childContent}</TooltipTrigger>
+															<TooltipContent>
+																<p>{childTooltipMessage}</p>
+															</TooltipContent>
+														</Tooltip>
+													) : (
+														<React.Fragment key={childKey}>{childContent}</React.Fragment>
+													)
+												})}
+											</ul>
+										)}
+									</li>
+								) : (
+									<li>
+										{hasLinkAccess ? (
+											<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white'>
+												<IconComponent className='h-5 w-5' />
+												<span>{link.label}</span>
+											</Link>
+										) : (
+											<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed'>
+												<Lock className='h-5 w-5' />
+												<span>{link.label}</span>
+											</div>
+										)}
+									</li>
+								)}
+							</>
+						)
+
+						// Wrap with tooltip if access is denied
+						return tooltipMessage ? (
+							<Tooltip key={linkKey}>
+								<TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+								<TooltipContent>
+									<p>{tooltipMessage}</p>
+								</TooltipContent>
+							</Tooltip>
+						) : (
+							<React.Fragment key={linkKey}>{linkContent}</React.Fragment>
+						)
+					})}
 				</ul>
 			</nav>
 		</aside>

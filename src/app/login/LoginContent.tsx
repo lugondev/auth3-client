@@ -95,15 +95,27 @@ export function LoginContent() {
 
 			// Regular authentication flow - redirect to dashboard or specified redirect path
 			console.log('LoginContent: Authenticated user, redirecting to dashboard or redirect path')
-			setIsRedirecting(true)
-			const redirectPath = searchParams.get('redirect')
-			if (redirectPath) {
-				router.replace(redirectPath)
-			} else {
-				router.replace('/dashboard/profile')
+			
+			// Only set redirecting state if not already redirecting to prevent loops
+			if (!isRedirecting) {
+				setIsRedirecting(true)
+				const redirectPath = searchParams.get('redirect')
+				
+				// Add timeout to reset redirecting state if redirect fails
+				setTimeout(() => {
+					setIsRedirecting(false)
+					setRedirectError('Redirect timeout. Please try again.')
+				}, 5000)
+				
+				if (redirectPath) {
+					router.replace(redirectPath)
+				} else {
+					router.replace('/dashboard/profile')
+				}
 			}
+			return
 		}
-	}, [isAuthenticated, loading, router, oauth2Params, searchParams])
+	}, [isAuthenticated, loading, router, oauth2Params, searchParams, isRedirecting])
 
 	// Add timeout for OAuth2 redirect to prevent infinite loading
 	useEffect(() => {
@@ -170,8 +182,7 @@ export function LoginContent() {
 		)
 	}
 
-	// If authenticated and no query params, show login form (user can stay on login page)
-	// Redirect only happens after successful login action, not on page load
+
 
 	return (
 		<div className='flex min-h-screen items-center justify-center'>
