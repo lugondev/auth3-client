@@ -5,7 +5,8 @@ import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/compo
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {Alert, AlertDescription} from '@/components/ui/alert'
-import {PermissionButton, PermissionGuard, PermissionTooltip, ShowWithPermission, HideWithPermission, useConditionalAccess} from '@/components/permissions'
+import {PermissionButton} from '@/components/guards'
+import {PermissionGuard, PermissionTooltip, ShowWithPermission, HideWithPermission, useConditionalAccess} from '@/components/permissions'
 import {Shield, Lock, Unlock, Eye, EyeOff, Edit, Trash2, Plus, Settings, Users, Building, Info, CheckCircle, XCircle} from 'lucide-react'
 import {usePermissions} from '@/contexts/PermissionContext'
 import {useAuth} from '@/contexts/AuthContext'
@@ -114,7 +115,7 @@ export default function EnhancedPermissionsDemoPage() {
 					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
 						{demoPermissions.map((permission) => (
 							<PermissionTooltip key={permission} permission={permission}>
-								<PermissionButton permission={permission} variant='outline' size='sm' className='w-full justify-start' hideWhenNoAccess={false} onClick={() => alert(`Clicked: ${permission}`)}>
+								<PermissionButton permission={permission} variant='outline' size='sm' className='w-full justify-start' onClick={() => alert(`Clicked: ${permission}`)}>
 									<Lock className='mr-2 h-4 w-4' />
 									{permission}
 								</PermissionButton>
@@ -216,28 +217,28 @@ export default function EnhancedPermissionsDemoPage() {
 				<CardContent>
 					<div className='flex flex-wrap gap-3'>
 						<PermissionTooltip permission='admin:users:create'>
-							<PermissionButton permission='admin:users:create' variant='default' hideWhenNoAccess={false}>
+							<PermissionButton permission='admin:users:create' variant='default'>
 								<Plus className='mr-2 h-4 w-4' />
 								Create User
 							</PermissionButton>
 						</PermissionTooltip>
 
 						<PermissionTooltip permission='admin:users:update'>
-							<PermissionButton permission='admin:users:update' variant='outline' hideWhenNoAccess={false}>
+							<PermissionButton permission='admin:users:update' variant='outline'>
 								<Edit className='mr-2 h-4 w-4' />
 								Edit User
 							</PermissionButton>
 						</PermissionTooltip>
 
 						<PermissionTooltip permission='admin:users:delete'>
-							<PermissionButton permission='admin:users:delete' variant='destructive' hideWhenNoAccess={false}>
+							<PermissionButton permission='admin:users:delete' variant='destructive'>
 								<Trash2 className='mr-2 h-4 w-4' />
 								Delete User
 							</PermissionButton>
 						</PermissionTooltip>
 
 						<PermissionTooltip permission='admin:tenants:create'>
-							<PermissionButton permission='admin:tenants:create' variant='secondary' hideWhenNoAccess={false}>
+							<PermissionButton permission='admin:tenants:create' variant='secondary'>
 								<Building className='mr-2 h-4 w-4' />
 								Create Tenant
 							</PermissionButton>
@@ -256,7 +257,7 @@ export default function EnhancedPermissionsDemoPage() {
 					<div>
 						<h4 className='font-medium mb-2'>Requires ALL admin permissions (AND logic)</h4>
 						<PermissionTooltip permissions={['admin:users:read', 'admin:users:create', 'admin:users:update']} requireAll={true}>
-							<PermissionButton permissions={['admin:users:read', 'admin:users:create', 'admin:users:update']} requireAll={true} variant='outline' hideWhenNoAccess={false}>
+							<PermissionButton permissions={['admin:users:read', 'admin:users:create', 'admin:users:update']} requireAll={true} variant='outline'>
 								Full User Management
 							</PermissionButton>
 						</PermissionTooltip>
@@ -265,7 +266,7 @@ export default function EnhancedPermissionsDemoPage() {
 					<div>
 						<h4 className='font-medium mb-2'>Requires ANY admin permission (OR logic)</h4>
 						<PermissionTooltip permissions={['admin:users:read', 'admin:tenants:read', 'admin:oauth2:read']} requireAll={false}>
-							<PermissionButton permissions={['admin:users:read', 'admin:tenants:read', 'admin:oauth2:read']} requireAll={false} variant='outline' hideWhenNoAccess={false}>
+							<PermissionButton permissions={['admin:users:read', 'admin:tenants:read', 'admin:oauth2:read']} requireAll={false} variant='outline'>
 								Any Admin Access
 							</PermissionButton>
 						</PermissionTooltip>
@@ -276,7 +277,7 @@ export default function EnhancedPermissionsDemoPage() {
 						<div className='flex gap-2'>
 							{demoRoles.map((role) => (
 								<PermissionTooltip key={role} role={role}>
-									<PermissionButton role={role} variant='outline' size='sm' hideWhenNoAccess={false}>
+									<PermissionButton role={role} variant='outline' size='sm'>
 										{role.replace('_', ' ').toUpperCase()}
 									</PermissionButton>
 								</PermissionTooltip>

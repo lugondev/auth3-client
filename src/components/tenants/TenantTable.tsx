@@ -10,7 +10,8 @@ import {Edit, Users} from 'lucide-react'
 import {loginTenantContext} from '@/services/authService'
 import {useAuth} from '@/contexts/AuthContext'
 import {Loader2} from 'lucide-react'
-import {PermissionButton, PermissionTooltip} from '@/components/permissions'
+import {PermissionButton} from '@/components/guards'
+import {PermissionTooltip} from '@/components/permissions'
 
 interface TenantTableProps {
 	tenants: Tenant[]
@@ -72,7 +73,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 							{isAdmin ? (
 								<TableCell className='text-right space-x-2'>
 									<PermissionTooltip permission='admin:tenants:update'>
-										<PermissionButton variant='outline' size='sm' permission='admin:tenants:update' hideWhenNoAccess={false} asChild>
+										<PermissionButton variant='outline' size='sm' permission='admin:tenants:update' asChild>
 											<Link href={`/dashboard/admin/tenants/${tenant.id}/edit`}>
 												<Edit className='h-4 w-4 mr-2' />
 												Edit
@@ -80,7 +81,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 										</PermissionButton>
 									</PermissionTooltip>
 									<PermissionTooltip permission='admin:tenants:users:read'>
-										<PermissionButton variant='outline' size='sm' permission='admin:tenants:users:read' hideWhenNoAccess={false} asChild>
+										<PermissionButton variant='outline' size='sm' permission='admin:tenants:users:read' asChild>
 											<Link href={`/dashboard/admin/tenants/${tenant.id}/users`}>
 												<Users className='h-4 w-4 mr-2' />
 												Manage Users

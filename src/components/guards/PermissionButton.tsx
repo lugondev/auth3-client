@@ -47,10 +47,10 @@ interface AccessCheckResult {
 export function PermissionButton({children, permission, permissions, role, roles, requireAll = false, requireTenant = false, tenantId, allowSystemAdmin = true, hideOnDenied = false, showTooltip = true, customTooltip, loadingText, disabledText, forceDisabled = false, onAccessDenied, onPermissionCheck, onClick, ...buttonProps}: PermissionButtonProps) {
 	const {isAuthenticated, user, currentTenantId} = useAuth()
 	const {hasPermission, hasRole, hasAnyPermission, hasAllPermissions, hasAnyRole, hasAllRoles, isSystemAdmin, loading, error} = usePermissions()
-	
+
 	// Use a stable check for system admin to prevent hydration mismatches
 	const [isSystemAdminStable, setIsSystemAdminStable] = React.useState<boolean | null>(null)
-	
+
 	React.useEffect(() => {
 		if (!loading && isAuthenticated) {
 			setIsSystemAdminStable(isSystemAdmin())
@@ -247,34 +247,59 @@ export function TenantActionButton({children, ...props}: Omit<PermissionButtonPr
 }
 
 // Specialized buttons for common actions
-export function CreateButton(props: Omit<PermissionButtonProps, 'permission'>) {
+export function CreateButton(props: Omit<PermissionButtonProps, 'permission'> & {resource?: string}) {
+	const permission = props.resource ? `${props.resource}.create` : '*.create'
 	return (
-		<PermissionButton permission='*.create' {...props}>
+		<PermissionButton permission={permission} {...props}>
 			{props.children || 'Create'}
 		</PermissionButton>
 	)
 }
 
-export function EditButton(props: Omit<PermissionButtonProps, 'permission'>) {
+export function EditButton(props: Omit<PermissionButtonProps, 'permission'> & {resource?: string}) {
+	const permission = props.resource ? `${props.resource}.update` : '*.update'
 	return (
-		<PermissionButton permission='*.update' {...props}>
+		<PermissionButton permission={permission} {...props}>
 			{props.children || 'Edit'}
 		</PermissionButton>
 	)
 }
 
-export function DeleteButton(props: Omit<PermissionButtonProps, 'permission'>) {
+export function DeleteButton(props: Omit<PermissionButtonProps, 'permission'> & {resource?: string}) {
+	const permission = props.resource ? `${props.resource}.delete` : '*.delete'
 	return (
-		<PermissionButton permission='*.delete' {...props}>
+		<PermissionButton permission={permission} {...props}>
 			{props.children || 'Delete'}
 		</PermissionButton>
 	)
 }
 
-export function ViewButton(props: Omit<PermissionButtonProps, 'permission'>) {
+export function ViewButton(props: Omit<PermissionButtonProps, 'permission'> & {resource?: string}) {
+	const permission = props.resource ? `${props.resource}.read` : '*.read'
 	return (
-		<PermissionButton permission='*.read' {...props}>
+		<PermissionButton permission={permission} {...props}>
 			{props.children || 'View'}
 		</PermissionButton>
 	)
+}
+
+// Admin button with multiple role support
+export function AdminButton(props: Omit<PermissionButtonProps, 'roles'>) {
+	return (
+		<PermissionButton roles={['admin', 'system_admin', 'SystemSuperAdmin']} allowSystemAdmin={true} customTooltip={props.customTooltip || 'Admin access required'} {...props}>
+			{props.children}
+		</PermissionButton>
+	)
+}
+
+// Simple wrapper for basic use cases (compatible with permissions/PermissionButton API)
+export interface SimplePermissionButtonProps extends Omit<PermissionButtonProps, 'showTooltip' | 'allowSystemAdmin' | 'hideOnDenied'> {
+	hideWhenNoAccess?: boolean
+	showLoadingState?: boolean
+	disabledTooltip?: string
+	checkPermissionOnClick?: boolean
+}
+
+export function SimplePermissionButton({hideWhenNoAccess = false, showLoadingState = true, disabledTooltip, ...props}: SimplePermissionButtonProps) {
+	return <PermissionButton {...props} hideOnDenied={hideWhenNoAccess} showTooltip={false} allowSystemAdmin={true} customTooltip={disabledTooltip} loadingText={showLoadingState ? 'Loading...' : undefined} />
 }

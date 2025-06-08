@@ -16,15 +16,8 @@ export {
   usePermissionGuard
 } from './PermissionGuard'
 
-// Permission Button Components
-export {
-  PermissionButton,
-  CreateButton,
-  EditButton,
-  DeleteButton,
-  ViewButton,
-  AdminButton
-} from './PermissionButton'
+// Permission Button Components - REMOVED
+// Use @/components/guards/PermissionButton instead
 
 // Permission Tooltip Components
 export {

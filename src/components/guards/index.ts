@@ -31,6 +31,8 @@ export {
 	EditButton,
 	DeleteButton,
 	ViewButton,
+	AdminButton,
+	SimplePermissionButton,
 } from './PermissionButton';
 
 // HOCs
@@ -49,4 +51,4 @@ export {
 // Re-export types for convenience
 export type { PermissionGuardProps } from './PermissionGuard';
 export type { RoleGuardProps } from './RoleGuard';
-export type { PermissionButtonProps } from './PermissionButton';
+export type { PermissionButtonProps, SimplePermissionButtonProps } from './PermissionButton';

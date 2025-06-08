@@ -1,8 +1,8 @@
-/* eslint-disable react/no-unescaped-entities */
 'use client'
 
 import React from 'react'
-import {PermissionGuard, PermissionButton, CreateButton, EditButton, DeleteButton, ViewButton, AdminButton, usePermissions, usePermissionCheck} from '@/components/permissions'
+import {PermissionButton, CreateButton, EditButton, DeleteButton, ViewButton, AdminButton} from '@/components/guards'
+import {PermissionGuard, usePermissions, usePermissionCheck} from '@/components/permissions'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Badge} from '@/components/ui/badge'
 import {Separator} from '@/components/ui/separator'
