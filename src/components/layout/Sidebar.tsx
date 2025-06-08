@@ -17,6 +17,7 @@ import {
 	ListChecks, // OAuth2 list icon
 	// Icon as LucideIcon, // No longer needed for direct type definition
 } from 'lucide-react'
+import {PermissionGuard} from '@/components/permissions'
 
 interface NavLink {
 	href: string
@@ -24,6 +25,8 @@ interface NavLink {
 	icon: React.ElementType // Correct type for a React component
 	children?: NavLink[]
 	isCollapsible?: boolean
+	permission?: string // Permission required to view this link
+	role?: string // Role required to view this link
 }
 
 interface SidebarProps {
@@ -33,19 +36,20 @@ interface SidebarProps {
 }
 
 const systemAdminLinks: NavLink[] = [
-	{href: '/dashboard/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-	{href: '/dashboard/admin/tenants', label: 'Tenant Management', icon: Building},
-	{href: '/dashboard/admin/users', label: 'User Management', icon: Users},
-	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck},
-	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText},
+	{href: '/dashboard/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'admin:dashboard:read'},
+	{href: '/dashboard/admin/tenants', label: 'Tenant Management', icon: Building, permission: 'admin:tenants:read'},
+	{href: '/dashboard/admin/users', label: 'User Management', icon: Users, permission: 'admin:users:read'},
+	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck, permission: 'admin:roles:read'},
+	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText, permission: 'admin:logs:read'},
 	{
 		href: '/dashboard/oauth2',
 		label: 'OAuth2 Management',
 		icon: KeyRound,
 		isCollapsible: true,
+		permission: 'admin:oauth2:read',
 		children: [
-			{href: '#', label: 'Client List', icon: ListChecks},
-			{href: '/dashboard/oauth2/create', label: 'Create Client', icon: KeyRound},
+			{href: '#', label: 'Client List', icon: ListChecks, permission: 'admin:oauth2:read'},
+			{href: '/dashboard/oauth2/create', label: 'Create Client', icon: KeyRound, permission: 'admin:oauth2:create'},
 		],
 	},
 ]
@@ -116,9 +120,10 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 				{/* Added flex-grow and overflow for long lists */}
 				<ul>
 					{links.map((link) => {
-						const IconComponent = link.icon
-						if (link.isCollapsible) {
-							return (
+					const IconComponent = link.icon
+					const linkContent = (
+						<>
+							{link.isCollapsible ? (
 								<li key={link.label}>
 									<button onClick={toggleAdminMenu} className='flex items-center justify-between w-full space-x-3 py-2 px-3 hover:bg-gray-700 rounded focus:outline-none'>
 										<div className='flex items-center space-x-3'>
@@ -131,7 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 										<ul className='pl-4 mt-1'>
 											{link.children.map((childLink) => {
 												const ChildIconComponent = childLink.icon
-												return (
+												const childContent = (
 													<li key={childLink.href}>
 														<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
 															<ChildIconComponent className='h-5 w-5' />
@@ -139,21 +144,45 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 														</Link>
 													</li>
 												)
+												return childLink.permission || childLink.role ? (
+													<PermissionGuard
+														key={childLink.href}
+														permission={childLink.permission}
+														role={childLink.role}
+													>
+														{childContent}
+													</PermissionGuard>
+												) : (
+													childContent
+												)
 											})}
 										</ul>
 									)}
 								</li>
-							)
-						}
-						return (
-							<li key={link.href}>
-								<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
-									<IconComponent className='h-5 w-5' />
-									<span>{link.label}</span>
-								</Link>
-							</li>
-						)
-					})}
+							) : (
+								<li key={link.href}>
+									<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded'>
+										<IconComponent className='h-5 w-5' />
+										<span>{link.label}</span>
+									</Link>
+								</li>
+							)}
+						</>
+					)
+
+					// Wrap with PermissionGuard if permission or role is specified
+					return link.permission || link.role ? (
+						<PermissionGuard
+							key={link.href || link.label}
+							permission={link.permission}
+							role={link.role}
+						>
+							{linkContent}
+						</PermissionGuard>
+					) : (
+						linkContent
+					)
+				})}
 				</ul>
 			</nav>
 		</aside>
