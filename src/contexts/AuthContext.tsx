@@ -2,18 +2,17 @@
 
 import {createContext, useContext, useEffect, useState, useCallback, useRef} from 'react'
 import {useRouter} from 'next/navigation'
-import {GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup, signOut as firebaseSignOut, User as FirebaseUser} from 'firebase/auth'
+import {GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup} from 'firebase/auth'
 import {auth} from '@/lib/firebase'
-import {useLocalStorage} from 'usehooks-ts'
 import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin} from '@/services/authService'
 import apiClient from '@/lib/apiClient'
 import {jwtDecode} from 'jwt-decode'
-import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, LoginOutput, Verify2FARequest} from '@/types/user'
+import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, Verify2FARequest} from '@/types/user'
 import {toast} from 'sonner'
-import { AuthContextType } from '@/types/auth'
-import { AppUser, ContextMode, ContextSwitchOptions, ContextSwitchResult } from '@/types/dual-context'
-import { tokenManager } from '@/lib/token-storage'
-import { contextManager } from '@/lib/context-manager'
+import {AuthContextType} from '@/types/auth'
+import {AppUser, ContextMode, ContextSwitchOptions, ContextSwitchResult} from '@/types/dual-context'
+import {tokenManager} from '@/lib/token-storage'
+import {contextManager} from '@/lib/context-manager'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -62,21 +61,21 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false)
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
 	const [isInitialLoad, setIsInitialLoad] = useState(true)
-	
+
 	// Dual context state
 	const [currentMode, setCurrentMode] = useState<ContextMode>('global')
 	const [globalContext, setGlobalContext] = useState<{
 		user: AppUser | null
 		isAuthenticated: boolean
 		tenantId: string | null
-	}>({ user: null, isAuthenticated: false, tenantId: null })
+	}>({user: null, isAuthenticated: false, tenantId: null})
 	const [tenantContext, setTenantContext] = useState<{
 		user: AppUser | null
 		isAuthenticated: boolean
 		tenantId: string | null
-	}>({ user: null, isAuthenticated: false, tenantId: null })
+	}>({user: null, isAuthenticated: false, tenantId: null})
 	const [isTransitioning, setIsTransitioning] = useState(false)
-	
+
 	const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 	const scheduleTokenRefreshRef = useRef<((token: string) => void) | null>(null)
 
@@ -94,15 +93,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				clearTimeout(refreshTimeoutRef.current)
 				refreshTimeoutRef.current = null
 			}
-			
+
 			const targetContext = context || currentMode
-			
+
 			// Clear tokens for specific context
 			tokenManager.clearTokens(targetContext)
-			
+
 			// Clear context state
 			contextManager.clearContextState(targetContext)
-			
+
 			// Update UI state based on context
 			if (targetContext === 'global' || targetContext === currentMode) {
 				setUser(null)
@@ -111,19 +110,19 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setCurrentTenantId(null)
 				setIsTwoFactorPending(false)
 				setTwoFactorSessionToken(null)
-				
+
 				// Clear cookies
 				document.cookie = 'accessToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
 				document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-				
+
 				delete apiClient.defaults.headers.Authorization
 			}
-			
+
 			// Update context states
 			if (targetContext === 'global') {
-				setGlobalContext({ user: null, isAuthenticated: false, tenantId: null })
+				setGlobalContext({user: null, isAuthenticated: false, tenantId: null})
 			} else if (targetContext === 'tenant') {
-				setTenantContext({ user: null, isAuthenticated: false, tenantId: null })
+				setTenantContext({user: null, isAuthenticated: false, tenantId: null})
 			}
 
 			if (doFirebaseSignOut) {
@@ -133,7 +132,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					console.warn('Error during service logout on clearAuthData:', error)
 				}
 			}
-			
+
 			if (shouldRedirect && !isInitialLoad) {
 				// Store current path for redirect after login (except for login/register pages)
 				const currentPath = window.location.pathname
@@ -146,36 +145,39 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		[currentMode, router, isInitialLoad],
 	)
 
-	const checkSystemAdminStatus = useCallback(async (context?: ContextMode) => {
-		const activeContext = context || currentMode
-		const tokens = tokenManager.getTokens(activeContext)
-		
-		if (!tokens.accessToken) {
-			setIsSystemAdmin(false)
-			return
-		}
-		
-		try {
-			// Temporarily set auth header for this request
-			const originalAuth = apiClient.defaults.headers.Authorization
-			apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
-			
-			const response = await apiClient.get<{is_system_admin: boolean}>('/api/v1/auth/me/is-system-admin')
-			setIsSystemAdmin(response.data.is_system_admin)
-			
-			// Restore original auth header
-			if (originalAuth) {
-				apiClient.defaults.headers.Authorization = originalAuth
-			} else {
-				delete apiClient.defaults.headers.Authorization
+	const checkSystemAdminStatus = useCallback(
+		async (context?: ContextMode) => {
+			const activeContext = context || currentMode
+			const tokens = tokenManager.getTokens(activeContext)
+
+			if (!tokens.accessToken) {
+				setIsSystemAdmin(false)
+				return
 			}
-			
-			console.log('System admin status fetched:', response.data.is_system_admin)
-		} catch (error) {
-			console.error('Failed to fetch system admin status:', error)
-			setIsSystemAdmin(false)
-		}
-	}, [currentMode])
+
+			try {
+				// Temporarily set auth header for this request
+				const originalAuth = apiClient.defaults.headers.Authorization
+				apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
+
+				const response = await apiClient.get<{is_system_admin: boolean}>('/api/v1/auth/me/is-system-admin')
+				setIsSystemAdmin(response.data.is_system_admin)
+
+				// Restore original auth header
+				if (originalAuth) {
+					apiClient.defaults.headers.Authorization = originalAuth
+				} else {
+					delete apiClient.defaults.headers.Authorization
+				}
+
+				console.log('System admin status fetched:', response.data.is_system_admin)
+			} catch (error) {
+				console.error('Failed to fetch system admin status:', error)
+				setIsSystemAdmin(false)
+			}
+		},
+		[currentMode],
+	)
 
 	const updateContextState = useCallback((context: ContextMode, user: AppUser | null, isAuth: boolean, tenantId?: string | null) => {
 		const tokens = tokenManager.getTokens(context)
@@ -186,31 +188,31 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			tokens,
 			isAuthenticated: isAuth,
 			tenantId: tenantId || user?.tenant_id || null,
-			lastUpdated: Date.now()
+			lastUpdated: Date.now(),
 		}
-		
+
 		contextManager.setContextState(context, contextState)
-		
+
 		if (context === 'global') {
-			setGlobalContext({ user, isAuthenticated: isAuth, tenantId: tenantId || user?.tenant_id || null })
+			setGlobalContext({user, isAuthenticated: isAuth, tenantId: tenantId || user?.tenant_id || null})
 		} else if (context === 'tenant') {
-			setTenantContext({ user, isAuthenticated: isAuth, tenantId: tenantId || user?.tenant_id || null })
+			setTenantContext({user, isAuthenticated: isAuth, tenantId: tenantId || user?.tenant_id || null})
 		}
 	}, [])
 
 	const handleAuthSuccessInternal = useCallback(
 		async (authResult: AuthResult, preserveContext = false) => {
-			const targetContext = preserveContext ? currentMode : (authResult.access_token && decodeToken(authResult.access_token)?.tenant_id ? 'tenant' : 'global')
-			
+			const targetContext = preserveContext ? currentMode : authResult.access_token && decodeToken(authResult.access_token)?.tenant_id ? 'tenant' : 'global'
+
 			// Store tokens in appropriate context
 			tokenManager.setTokens(targetContext, authResult.access_token, authResult.refresh_token || null)
-			
+
 			// Set cookies for middleware
 			document.cookie = `accessToken=${authResult.access_token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
 			if (authResult.refresh_token) {
 				document.cookie = `refreshToken=${authResult.refresh_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
 			}
-			
+
 			apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
 
 			const appUser = decodeToken(authResult.access_token)
@@ -219,16 +221,16 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setUser(appUser)
 				setIsAuthenticated(true)
 				setCurrentTenantId(appUser.tenant_id || null)
-				
+
 				// Update context state
 				updateContextState(targetContext, appUser, true)
-				
+
 				// Switch to appropriate context if not preserving
 				if (!preserveContext) {
 					setCurrentMode(targetContext)
 					contextManager.setCurrentMode(targetContext)
 				}
-				
+
 				await checkSystemAdminStatus(targetContext)
 			}
 
@@ -281,36 +283,39 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	)
 
 	// Context switching methods
-	const switchToTenant = useCallback(async (tenantId: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
-		setIsTransitioning(true)
-		try {
-			const result = await contextManager.switchContext('tenant', tenantId, options)
-			if (result.success) {
-				setCurrentMode('tenant')
-				
-				// Load tenant context state
-				const tenantState = contextManager.getContextState('tenant')
-				if (tenantState) {
-					setUser(tenantState.user)
-					setIsAuthenticated(tenantState.isAuthenticated)
-					setCurrentTenantId(tenantState.tenantId)
-					
-					// Update API client with tenant tokens
-					const tenantTokens = tokenManager.getTokens('tenant')
-					if (tenantTokens.accessToken) {
-						apiClient.defaults.headers.Authorization = `Bearer ${tenantTokens.accessToken}`
+	const switchToTenant = useCallback(
+		async (tenantId: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
+			setIsTransitioning(true)
+			try {
+				const result = await contextManager.switchContext('tenant', tenantId, options)
+				if (result.success) {
+					setCurrentMode('tenant')
+
+					// Load tenant context state
+					const tenantState = contextManager.getContextState('tenant')
+					if (tenantState) {
+						setUser(tenantState.user)
+						setIsAuthenticated(tenantState.isAuthenticated)
+						setCurrentTenantId(tenantState.tenantId)
+
+						// Update API client with tenant tokens
+						const tenantTokens = tokenManager.getTokens('tenant')
+						if (tenantTokens.accessToken) {
+							apiClient.defaults.headers.Authorization = `Bearer ${tenantTokens.accessToken}`
+						}
 					}
+
+					toast.success(`Switched to tenant context: ${tenantId}`)
+				} else {
+					toast.error(result.error || 'Failed to switch to tenant context')
 				}
-				
-				toast.success(`Switched to tenant context: ${tenantId}`)
-			} else {
-				toast.error(result.error || 'Failed to switch to tenant context')
+				return result
+			} finally {
+				setIsTransitioning(false)
 			}
-			return result
-		} finally {
-			setIsTransitioning(false)
-		}
-	}, [currentMode])
+		},
+		[currentMode],
+	)
 
 	const switchToGlobal = useCallback(async (options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
 		setIsTransitioning(true)
@@ -318,21 +323,21 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const result = await contextManager.switchContext('global', undefined, options)
 			if (result.success) {
 				setCurrentMode('global')
-				
+
 				// Load global context state
 				const globalState = contextManager.getContextState('global')
 				if (globalState) {
 					setUser(globalState.user)
 					setIsAuthenticated(globalState.isAuthenticated)
 					setCurrentTenantId(globalState.tenantId)
-					
+
 					// Update API client with global tokens
 					const globalTokens = tokenManager.getTokens('global')
 					if (globalTokens.accessToken) {
 						apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
 					}
 				}
-				
+
 				toast.success('Switched to global context')
 			} else {
 				toast.error(result.error || 'Failed to switch to global context')
@@ -343,13 +348,16 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}, [])
 
-	const switchContext = useCallback(async (mode: ContextMode, tenantId?: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
-		if (mode === 'tenant') {
-			return switchToTenant(tenantId!, options)
-		} else {
-			return switchToGlobal(options)
-		}
-	}, [switchToTenant, switchToGlobal])
+	const switchContext = useCallback(
+		async (mode: ContextMode, tenantId?: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
+			if (mode === 'tenant') {
+				return switchToTenant(tenantId!, options)
+			} else {
+				return switchToGlobal(options)
+			}
+		},
+		[switchToTenant, switchToGlobal],
+	)
 
 	const rollbackContext = useCallback(async (): Promise<ContextSwitchResult> => {
 		setIsTransitioning(true)
@@ -372,21 +380,24 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		return currentMode === 'auto' ? (currentTenantId ? 'tenant' : 'global') : currentMode
 	}, [currentMode, currentTenantId])
 
-	const canSwitchToTenant = useCallback((tenantId: string): boolean => {
-		return contextManager.canSwitchToTenant(tenantId, user || undefined)
-	}, [user])
+	const canSwitchToTenant = useCallback(
+		(tenantId: string): boolean => {
+			return contextManager.canSwitchToTenant(tenantId, user || undefined)
+		},
+		[user],
+	)
 
 	// Token refresh logic
 	const handleScheduledRefreshInternal = useCallback(async () => {
 		console.log('Attempting scheduled token refresh (internal)...')
 		const currentTokens = tokenManager.getTokens(currentMode)
-		
+
 		if (!currentTokens.refreshToken) {
 			console.log('No refresh token available for scheduled refresh.')
 			await clearAuthData()
 			return
 		}
-		
+
 		try {
 			const refreshResponse = await serviceRefreshToken(currentTokens.refreshToken)
 			await handleAuthSuccessInternal(refreshResponse.auth, true) // Preserve current context
@@ -425,26 +436,26 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		setLoading(true)
 		try {
 			const currentTokens = tokenManager.getTokens(currentMode)
-			
+
 			if (currentTokens.accessToken) {
 				apiClient.defaults.headers.Authorization = `Bearer ${currentTokens.accessToken}`
 				document.cookie = `accessToken=${currentTokens.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
 				if (currentTokens.refreshToken) {
 					document.cookie = `refreshToken=${currentTokens.refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
 				}
-				
+
 				const decodedUser = decodeToken(currentTokens.accessToken)
 				if (decodedUser) {
 					setUser(decodedUser)
 					setIsAuthenticated(true)
 					setCurrentTenantId(decodedUser.tenant_id || null)
-					
+
 					// Update context state
 					updateContextState(currentMode, decodedUser, true)
-					
+
 					await checkSystemAdminStatus()
 					console.log('User authenticated from stored access token.')
-					
+
 					if (scheduleTokenRefreshRef.current) {
 						scheduleTokenRefreshRef.current(currentTokens.accessToken)
 					}
@@ -494,7 +505,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const provider = new GoogleAuthProvider()
 			const result = await signInWithPopup(auth, provider)
 			const idToken = await result.user.getIdToken()
-			const exchangeData: SocialTokenExchangeInput = { provider: 'google', id_token: idToken }
+			const exchangeData: SocialTokenExchangeInput = {provider: 'google', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
 			await handleAuthSuccessInternal(response.auth)
 			toast.success('Successfully signed in with Google!')
@@ -513,7 +524,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const provider = new FacebookAuthProvider()
 			const result = await signInWithPopup(auth, provider)
 			const idToken = await result.user.getIdToken()
-			const exchangeData: SocialTokenExchangeInput = { provider: 'facebook', id_token: idToken }
+			const exchangeData: SocialTokenExchangeInput = {provider: 'facebook', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
 			await handleAuthSuccessInternal(response.auth)
 			toast.success('Successfully signed in with Facebook!')
@@ -532,7 +543,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const provider = new OAuthProvider('apple.com')
 			const result = await signInWithPopup(auth, provider)
 			const idToken = await result.user.getIdToken()
-			const exchangeData: SocialTokenExchangeInput = { provider: 'apple', id_token: idToken }
+			const exchangeData: SocialTokenExchangeInput = {provider: 'apple', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
 			await handleAuthSuccessInternal(response.auth)
 			toast.success('Successfully signed in with Apple!')
@@ -551,7 +562,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const provider = new OAuthProvider('twitter.com')
 			const result = await signInWithPopup(auth, provider)
 			const idToken = await result.user.getIdToken()
-			const exchangeData: SocialTokenExchangeInput = { provider: 'twitter', id_token: idToken }
+			const exchangeData: SocialTokenExchangeInput = {provider: 'twitter', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
 			await handleAuthSuccessInternal(response.auth)
 			toast.success('Successfully signed in with Twitter!')
@@ -564,29 +575,32 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}, [handleAuthSuccessInternal])
 
-	const signInWithEmail = useCallback(async (data: LoginInput) => {
-		setLoading(true)
-		try {
-			const response = await serviceSignInWithEmail(data)
-			if (response.two_factor_required) {
-				setIsTwoFactorPending(true)
-				setTwoFactorSessionToken(response.two_factor_session_token || null)
+	const signInWithEmail = useCallback(
+		async (data: LoginInput) => {
+			setLoading(true)
+			try {
+				const response = await serviceSignInWithEmail(data)
+				if (response.two_factor_required) {
+					setIsTwoFactorPending(true)
+					setTwoFactorSessionToken(response.two_factor_session_token || null)
+					setLoading(false)
+					return {success: true, twoFactorRequired: true, sessionToken: response.two_factor_session_token}
+				} else if (response.auth) {
+					await handleAuthSuccessInternal(response.auth)
+					toast.success('Successfully signed in!')
+					return {success: true, twoFactorRequired: false}
+				} else {
+					throw new Error('Invalid response from server')
+				}
+			} catch (error: unknown) {
+				const msg = error instanceof Error ? error.message : 'Email sign-in failed.'
+				toast.error(`Sign-in failed: ${msg}`)
 				setLoading(false)
-				return { success: true, twoFactorRequired: true, sessionToken: response.two_factor_session_token }
-			} else if (response.auth) {
-				await handleAuthSuccessInternal(response.auth)
-				toast.success('Successfully signed in!')
-				return { success: true, twoFactorRequired: false }
-			} else {
-				throw new Error('Invalid response from server')
+				return {success: false, twoFactorRequired: false, error}
 			}
-		} catch (error: unknown) {
-			const msg = error instanceof Error ? error.message : 'Email sign-in failed.'
-			toast.error(`Sign-in failed: ${msg}`)
-			setLoading(false)
-			return { success: false, twoFactorRequired: false, error }
-		}
-	}, [handleAuthSuccessInternal])
+		},
+		[handleAuthSuccessInternal],
+	)
 
 	const verifyTwoFactorCode = useCallback(
 		async (data: Verify2FARequest) => {
@@ -595,13 +609,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				if (!twoFactorSessionToken) {
 					throw new Error('No 2FA session token available')
 				}
-				const response = await verifyTwoFactorLogin({ ...data, two_factor_session_token: twoFactorSessionToken })
+				const response = await verifyTwoFactorLogin({...data, two_factor_session_token: twoFactorSessionToken})
 				if (response.auth) {
 					await handleAuthSuccessInternal(response.auth)
 					setIsTwoFactorPending(false)
 					setTwoFactorSessionToken(null)
 					toast.success('Successfully verified 2FA!')
-					return { success: true }
+					return {success: true}
 				} else {
 					throw new Error('Invalid 2FA response')
 				}
@@ -610,7 +624,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				toast.error(`2FA verification failed: ${msg}`)
 				setIsTwoFactorPending(false)
 				setTwoFactorSessionToken(null)
-				return { success: false, error }
+				return {success: false, error}
 			} finally {
 				setLoading(false)
 			}
@@ -657,7 +671,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				}
 
 				const response = await apiClient.post<{access_token: string; refresh_token?: string}>('/api/v1/oauth2/token', tokenData, {
-					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					headers: {'Content-Type': 'application/x-www-form-urlencoded'},
 					transformRequest: [
 						(data) => {
 							return Object.keys(data)
@@ -675,7 +689,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				sessionStorage.removeItem('oauth2_code_verifier')
 				sessionStorage.removeItem('oauth2_code_challenge')
 
-				await handleAuthSuccessInternal({ access_token, refresh_token })
+				await handleAuthSuccessInternal({access_token, refresh_token})
 				toast.success('Successfully authenticated!')
 			} catch (error) {
 				console.error('OAuth2 code exchange failed:', error)
@@ -696,13 +710,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		isSystemAdmin,
 		loading,
 		currentTenantId,
-		
+
 		// Dual context state
 		currentMode,
 		globalContext,
 		tenantContext,
 		isTransitioning,
-		
+
 		// Authentication methods
 		signInWithGoogle,
 		signInWithFacebook,
@@ -712,20 +726,20 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		verifyTwoFactorCode,
 		register,
 		logout,
-		
+
 		// Context switching
 		switchToTenant,
 		switchToGlobal,
 		switchContext,
-		
+
 		// Two-factor
 		isTwoFactorPending,
 		twoFactorSessionToken,
-		
+
 		// Enhanced methods
 		handleAuthSuccess: handleAuthSuccessInternal,
 		signInWithOAuth2Code,
-		
+
 		// Utilities
 		getActiveContext,
 		canSwitchToTenant,

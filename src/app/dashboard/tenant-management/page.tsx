@@ -15,9 +15,10 @@ import {TenantPermission} from '@/types/tenantRbac'
 import {loginTenantContext} from '@/services/authService'
 import {useRouter} from 'next/navigation'
 import {ChevronDown, ChevronUp, Loader2} from 'lucide-react'
+import {toast} from 'sonner'
 
 export default function TenantManagementPage() {
-	const {user, loading, isAuthenticated, handleAuthSuccess} = useAuth()
+	const {user, loading, isAuthenticated} = useAuth()
 	const router = useRouter()
 	const [isSwitchingTenant, setIsSwitchingTenant] = React.useState(false)
 	const [openPermissionsTenantId, setOpenPermissionsTenantId] = React.useState<string | null>(null)
@@ -61,11 +62,15 @@ export default function TenantManagementPage() {
 	const handleJoinedTenantManagement = async (tenantId: string) => {
 		setIsSwitchingTenant(true)
 		try {
-			const authResult = await loginTenantContext(tenantId)
-			await handleAuthSuccess(authResult)
-			router.push(`/dashboard/tenant/${tenantId}`)
+			const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
+			if (contextResult.success) {
+				router.push(`/dashboard/tenant/${tenantId}`)
+			} else {
+				throw new Error(contextResult.error || 'Context switch failed')
+			}
 		} catch (error) {
 			console.error('Failed to login tenant context:', error)
+			toast.error('Không thể chuyển đổi context tenant. Vui lòng thử lại.')
 		} finally {
 			setIsSwitchingTenant(false)
 		}

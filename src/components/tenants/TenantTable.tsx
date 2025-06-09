@@ -10,6 +10,7 @@ import {Edit, Users} from 'lucide-react'
 import {loginTenantContext} from '@/services/authService'
 import {useAuth} from '@/contexts/AuthContext'
 import {Loader2} from 'lucide-react'
+import {toast} from 'sonner'
 import {PermissionButton} from '@/components/guards'
 import {PermissionTooltip} from '@/components/permissions'
 
@@ -20,7 +21,6 @@ interface TenantTableProps {
 
 export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	const router = useRouter()
-	const {handleAuthSuccess} = useAuth()
 	const [loading, setLoading] = React.useState(false)
 
 	if (!tenants || tenants.length === 0) {
@@ -30,12 +30,15 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	const handleTenantManagement = async (tenantId: string) => {
 		setLoading(true)
 		try {
-			const authResult = await loginTenantContext(tenantId)
-			await handleAuthSuccess(authResult)
-			router.push(`/dashboard/tenant/${tenantId}`)
+			const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
+			if (contextResult.success) {
+				router.push(`/dashboard/tenant/${tenantId}`)
+			} else {
+				throw new Error(contextResult.error || 'Context switch failed')
+			}
 		} catch (error) {
-			// Optionally handle error (e.g., toast)
-			console.error('Failed to login tenant context:', error) // Updated error message
+			console.error('Failed to login tenant context:', error)
+			toast.error('Không thể chuyển đổi context tenant. Vui lòng thử lại.')
 		} finally {
 			setLoading(false)
 		}

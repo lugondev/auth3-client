@@ -449,11 +449,21 @@ export const loginTenantContext = async (
 			context_mode: 'tenant' as ContextMode
 		};
 		
-		const response = await apiClient.post<ContextSwitchResult>('/api/v1/auth/login-tenant', requestData);
+		// Backend returns AuthResult, not ContextSwitchResult
+		const response = await apiClient.post<{access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string}>('/api/v1/auth/login-tenant', requestData);
 		
-		// The AuthContext will use this ContextSwitchResult to update tokens and user state.
-		console.log('Tenant context switched successfully.');
-		return response.data;
+		// Convert AuthResult to ContextSwitchResult format
+		if (response.data && response.data.access_token) {
+			console.log('Tenant context switched successfully.');
+			return {
+				success: true,
+				previousMode: 'global' as ContextMode,
+				newMode: 'tenant' as ContextMode,
+				rollbackAvailable: preserveGlobalContext
+			};
+		} else {
+			throw new Error('Invalid response from login-tenant API');
+		}
 	} catch (error) {
 		console.error('Error switching tenant context:', error);
 		throw error; // Re-throw to be handled by the caller (AuthContext)
@@ -485,11 +495,21 @@ export const loginGlobalContext = async (
 			context_mode: 'global' as ContextMode
 		};
 		
-		const response = await apiClient.post<ContextSwitchResult>('/api/v1/auth/login-global', requestData);
+		// Backend returns AuthResult, not ContextSwitchResult
+		const response = await apiClient.post<{access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string}>('/api/v1/auth/login-global', requestData);
 		
-		// The AuthContext will use this ContextSwitchResult to update tokens and user state.
-		console.log('Global context switched successfully.');
-		return response.data;
+		// Convert AuthResult to ContextSwitchResult format
+		if (response.data && response.data.access_token) {
+			console.log('Global context switched successfully.');
+			return {
+				success: true,
+				previousMode: 'tenant' as ContextMode,
+				newMode: 'global' as ContextMode,
+				rollbackAvailable: preserveTenantContext
+			};
+		} else {
+			throw new Error('Invalid response from login-global API');
+		}
 	} catch (error) {
 		console.error('Error switching global context:', error);
 		throw error; // Re-throw to be handled by the caller (AuthContext)
