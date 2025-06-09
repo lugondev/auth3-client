@@ -23,16 +23,19 @@ export {
 // Permission Buttons
 export {
 	PermissionButton,
-	PermissionActionButton,
-	RoleActionButton,
-	AdminActionButton,
-	TenantActionButton,
-	CreateButton,
-	EditButton,
-	DeleteButton,
-	ViewButton,
-	AdminButton,
-	SimplePermissionButton,
+PermissionActionButton,
+RoleActionButton,
+AdminActionButton,
+TenantActionButton,
+CreateButton,
+EditButton,
+DeleteButton,
+ViewButton,
+AdminButton,
+SimplePermissionButton,
+GlobalPermissionButton,
+TenantPermissionButton,
+AutoPermissionButton,
 } from './PermissionButton';
 
 // HOCs

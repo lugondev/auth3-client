@@ -67,7 +67,8 @@ export interface LoginInput {
 }
 
 export interface SocialTokenExchangeInput {
-	token: string; // The ID token from the social provider (e.g., Firebase)
+	token?: string; // The ID token from the social provider (e.g., Firebase)
+	id_token?: string; // Alternative ID token field for social providers
 	provider: string; // Added provider field, e.g., "firebase", "google"
 }
 

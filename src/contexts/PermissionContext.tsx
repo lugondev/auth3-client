@@ -3,114 +3,147 @@
 import React, {createContext, useContext, useEffect, useState, useCallback, useRef} from 'react'
 import {useAuth} from './AuthContext'
 import apiClient from '@/lib/apiClient'
-
-interface Permission {
-	object: string
-	action: string
-}
-
-interface PermissionContextType {
-	permissions: Permission[]
-	roles: string[]
-	loading: boolean
-	error: string | null
-	hasPermission: (permission: string) => boolean
-	hasRole: (role: string) => boolean
-	hasAnyPermission: (permissions: string[]) => boolean
-	hasAllPermissions: (permissions: string[]) => boolean
-	hasAnyRole: (roles: string[]) => boolean
-	hasAllRoles: (roles: string[]) => boolean
-	checkPermission: (object: string, action: string) => Promise<boolean>
-	checkPermissions: (permissions: string[]) => Promise<Record<string, boolean>>
-	refreshPermissions: () => Promise<void>
-	clearCache: () => void
-	isSystemAdmin: () => boolean
-	isTenantAdmin: () => boolean
-	getUserPermissions: () => Permission[]
-	getUserRoles: () => string[]
-}
+import { PermissionContextType } from '@/types/auth'
+import { Permission, ContextMode, ContextState, ContextSwitchOptions } from '@/types/dual-context'
+import { contextManager } from '@/lib/context-manager'
+import { tokenManager } from '@/lib/token-storage'
 
 interface PermissionCache {
 	permissions: Permission[]
 	roles: string[]
 	timestamp: number
 	tenantId: string | null
+	contextMode: ContextMode
 }
 
 const PermissionContext = createContext<PermissionContextType | undefined>(undefined)
 
 // Cache configuration
 const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-const CACHE_KEY = 'permission_cache'
+const CACHE_KEY_PREFIX = 'permission_cache'
 
 export function PermissionProvider({children}: {children: React.ReactNode}) {
-	const {user, currentTenantId, isAuthenticated} = useAuth()
+	const {
+		user,
+		currentTenantId,
+		isAuthenticated,
+		currentMode,
+		globalContext,
+		tenantContext
+	} = useAuth()
+	
+	// Current active permissions and roles
 	const [permissions, setPermissions] = useState<Permission[]>([])
 	const [roles, setRoles] = useState<string[]>([])
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
-	const cacheRef = useRef<PermissionCache | null>(null)
-	const fetchingRef = useRef<boolean>(false)
+	
+	// Context-specific permission states
+	const [globalPermissions, setGlobalPermissions] = useState<Permission[]>([])
+	const [globalRoles, setGlobalRoles] = useState<string[]>([])
+	const [tenantPermissions, setTenantPermissions] = useState<Permission[]>([])
+	const [tenantRoles, setTenantRoles] = useState<string[]>([])
+	
+	const cacheRef = useRef<Map<string, PermissionCache>>(new Map())
+	const fetchingRef = useRef<Set<string>>(new Set())
 
-	// Load cache from localStorage
-	const loadCache = useCallback((): PermissionCache | null => {
+	// Generate cache key for specific context
+	const getCacheKey = useCallback((context: ContextMode, tenantId?: string | null): string => {
+		if (context === 'tenant' && tenantId) {
+			return `${CACHE_KEY_PREFIX}_tenant_${tenantId}`
+		}
+		return `${CACHE_KEY_PREFIX}_global`
+	}, [])
+
+	// Load cache from localStorage for specific context
+	const loadCache = useCallback((context: ContextMode, tenantId?: string | null): PermissionCache | null => {
 		try {
-			const cached = localStorage.getItem(CACHE_KEY)
+			const cacheKey = getCacheKey(context, tenantId)
+			const cached = localStorage.getItem(cacheKey)
 			if (!cached) return null
 
 			const cache: PermissionCache = JSON.parse(cached)
 			const now = Date.now()
 
-			// Check if cache is expired or for different tenant
-			if (now - cache.timestamp > CACHE_TTL || cache.tenantId !== currentTenantId) {
-				localStorage.removeItem(CACHE_KEY)
+			// Check if cache is expired or for different context
+			if (now - cache.timestamp > CACHE_TTL || 
+				cache.contextMode !== context ||
+				cache.tenantId !== tenantId) {
+				localStorage.removeItem(cacheKey)
 				return null
 			}
 
 			return cache
 		} catch (error) {
 			console.error('Failed to load permission cache:', error)
-			localStorage.removeItem(CACHE_KEY)
+			const cacheKey = getCacheKey(context, tenantId)
+			localStorage.removeItem(cacheKey)
 			return null
 		}
-	}, [currentTenantId])
+	}, [getCacheKey])
 
-	// Save cache to localStorage
+	// Save cache to localStorage for specific context
 	const saveCache = useCallback(
-		(permissions: Permission[], roles: string[]) => {
+		(context: ContextMode, permissions: Permission[], roles: string[], tenantId?: string | null) => {
 			try {
+				const cacheKey = getCacheKey(context, tenantId)
 				const cache: PermissionCache = {
 					permissions,
 					roles,
 					timestamp: Date.now(),
-					tenantId: currentTenantId,
+					tenantId: tenantId || null,
+					contextMode: context,
 				}
-				localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
-				cacheRef.current = cache
+				localStorage.setItem(cacheKey, JSON.stringify(cache))
+				cacheRef.current.set(cacheKey, cache)
 			} catch (error) {
 				console.error('Failed to save permission cache:', error)
 			}
 		},
-		[currentTenantId],
+		[getCacheKey],
 	)
 
-	// Clear cache
-	const clearCache = useCallback(() => {
-		localStorage.removeItem(CACHE_KEY)
-		cacheRef.current = null
-	}, [])
+	// Clear cache for specific context
+	const clearCache = useCallback((context?: ContextMode, tenantId?: string | null) => {
+		if (context) {
+			const cacheKey = getCacheKey(context, tenantId)
+			localStorage.removeItem(cacheKey)
+			cacheRef.current.delete(cacheKey)
+		} else {
+			// Clear all caches
+			cacheRef.current.forEach((_, key) => {
+				localStorage.removeItem(key)
+			})
+			cacheRef.current.clear()
+		}
+	}, [getCacheKey])
 
-	// Fetch permissions from API
-	const fetchPermissions = useCallback(async (): Promise<{permissions: Permission[]; roles: string[]}> => {
-		if (!user?.id || !isAuthenticated) {
+	// Fetch permissions from API for specific context
+	const fetchPermissions = useCallback(async (context: ContextMode, tenantId?: string | null): Promise<{permissions: Permission[]; roles: string[]}> => {
+		const contextState = contextManager.getContextState(context)
+		const contextUser = contextState?.user
+		
+		if (!contextUser?.id || !contextState?.isAuthenticated) {
 			return {permissions: [], roles: []}
 		}
 
 		try {
-			// Determine the endpoint based on tenant context
-			const endpoint = currentTenantId ? `/api/v1/tenants/${currentTenantId}/permissions` : '/api/v1/tenants/global/permissions'
+			// Get tokens for the specific context
+			const tokens = tokenManager.getTokens(context)
+			if (!tokens.accessToken) {
+				throw new Error('No access token available for context')
+			}
+			
+			// Temporarily set auth header for this request
+			const originalAuth = apiClient.defaults.headers.Authorization
+			apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
+			
+			// Determine the endpoint based on context
+			const endpoint = context === 'tenant' && tenantId 
+				? `/api/v1/tenants/${tenantId}/permissions` 
+				: '/api/v1/tenants/global/permissions'
 
-			const response = await apiClient.get(endpoint)
+			const response = await apiClient.get<{permissions?: string[][]}>(endpoint)
 			const permissionData = response.data.permissions || []
 
 			// Convert permission arrays to objects
@@ -120,42 +153,107 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 			}))
 
 			// Get roles from user data
-			const roles = user.roles || []
+			const roles = contextUser.roles || []
+			
+			// Restore original auth header
+			if (originalAuth) {
+				apiClient.defaults.headers.Authorization = originalAuth
+			} else {
+				delete apiClient.defaults.headers.Authorization
+			}
 
 			return {permissions, roles}
 		} catch (error) {
 			console.error('Failed to fetch permissions:', error)
+			// Restore original auth header on error
+			const originalAuth = apiClient.defaults.headers.Authorization
+			if (originalAuth) {
+				apiClient.defaults.headers.Authorization = originalAuth
+			} else {
+				delete apiClient.defaults.headers.Authorization
+			}
 			throw error
 		}
-	}, [user, currentTenantId, isAuthenticated])
+	}, [])
 
-	// Refresh permissions
-	const refreshPermissions = useCallback(async () => {
-		if (fetchingRef.current) return
+	// Refresh permissions for specific context
+	const refreshPermissions = useCallback(async (context?: ContextMode, tenantId?: string | null) => {
+		const targetContext = context || currentMode
+		const targetTenantId = tenantId || (targetContext === 'tenant' ? currentTenantId : null)
+		const fetchKey = `${targetContext}_${targetTenantId || 'global'}`
+		
+		if (fetchingRef.current.has(fetchKey)) return
 
 		setLoading(true)
 		setError(null)
-		fetchingRef.current = true
+		fetchingRef.current.add(fetchKey)
 
 		try {
-			const {permissions: newPermissions, roles: newRoles} = await fetchPermissions()
-			setPermissions(newPermissions)
-			setRoles(newRoles)
-			saveCache(newPermissions, newRoles)
+			const {permissions: newPermissions, roles: newRoles} = await fetchPermissions(targetContext, targetTenantId)
+			
+			// Update context-specific state
+			if (targetContext === 'global') {
+				setGlobalPermissions(newPermissions)
+				setGlobalRoles(newRoles)
+			} else if (targetContext === 'tenant') {
+				setTenantPermissions(newPermissions)
+				setTenantRoles(newRoles)
+			}
+			
+			// Update active state if this is the current context
+			if (targetContext === currentMode) {
+				setPermissions(newPermissions)
+				setRoles(newRoles)
+			}
+			
+			saveCache(targetContext, newPermissions, newRoles, targetTenantId)
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Failed to fetch permissions'
 			setError(errorMessage)
 			console.error('Permission refresh failed:', error)
 		} finally {
 			setLoading(false)
-			fetchingRef.current = false
+			fetchingRef.current.delete(fetchKey)
 		}
-	}, [fetchPermissions, saveCache])
+	}, [currentMode, currentTenantId, fetchPermissions, saveCache])
+
+	// Switch permissions to match current context
+	const switchPermissionContext = useCallback((newMode: ContextMode) => {
+		if (newMode === 'global') {
+			setPermissions(globalPermissions)
+			setRoles(globalRoles)
+		} else if (newMode === 'tenant') {
+			setPermissions(tenantPermissions)
+			setRoles(tenantRoles)
+		} else if (newMode === 'auto') {
+			// Auto mode: use tenant permissions if in tenant context, otherwise global
+			if (currentTenantId) {
+				setPermissions(tenantPermissions)
+				setRoles(tenantRoles)
+			} else {
+				setPermissions(globalPermissions)
+				setRoles(globalRoles)
+			}
+		}
+	}, [globalPermissions, globalRoles, tenantPermissions, tenantRoles, currentTenantId])
 
 	// Check if user has a specific permission (string format: "object.action")
 	const hasPermission = useCallback(
-		(permission: string): boolean => {
-			if (!permission || !isAuthenticated) return false
+		(permission: string, context?: ContextMode): boolean => {
+			const targetContext = context || currentMode
+			const contextState = contextManager.getContextState(targetContext)
+			
+			if (!permission || !contextState?.isAuthenticated) return false
+
+			// Get permissions for the target context
+			let targetPermissions: Permission[]
+			if (context) {
+				// Use context-specific permissions
+				targetPermissions = context === 'global' ? globalPermissions : tenantPermissions
+			} else {
+				// Use current active permissions
+				targetPermissions = permissions
+			}
 
 			// Handle both dot and colon separators
 			let object: string, action: string
@@ -166,7 +264,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 			}
 			if (!object || !action) return false
 
-			return permissions.some((p) => {
+			return targetPermissions.some((p) => {
 				// Check for exact match
 				if (p.object === object && p.action === action) return true
 
@@ -178,117 +276,175 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				if (p.object === object && p.action === '.*') return true // Action regex wildcard (object..*)
 
 				// Check for full regex-like patterns
-				if (p.object === '.*' && p.action === '.*') return true // Full regex wildcard (.*..*)
+				if (p.object === '.*' && p.action === '.*') return true // Full regex wildcard (*..*)
 				if (p.object === '.*') return true // Object regex wildcard (.*.action)
 				if (p.action === '.*') return true // Action regex wildcard (object..*)
 
 				return false
 			})
 		},
-		[permissions, isAuthenticated],
+		[permissions, globalPermissions, tenantPermissions, currentMode],
 	)
 
 	// Check if user has a specific role
 	const hasRole = useCallback(
-		(role: string): boolean => {
-			if (!role || !isAuthenticated) return false
-			return roles.includes(role)
+		(role: string, context?: ContextMode): boolean => {
+			const targetContext = context || currentMode
+			const contextState = contextManager.getContextState(targetContext)
+			
+			if (!role || !contextState?.isAuthenticated) return false
+			
+			// Get roles for the target context
+			let targetRoles: string[]
+			if (context) {
+				// Use context-specific roles
+				targetRoles = context === 'global' ? globalRoles : tenantRoles
+			} else {
+				// Use current active roles
+				targetRoles = roles
+			}
+			
+			return targetRoles.includes(role)
 		},
-		[roles, isAuthenticated],
+		[roles, globalRoles, tenantRoles, currentMode],
 	)
 
 	// Check if user has any of the specified permissions
 	const hasAnyPermission = useCallback(
-		(permissionList: string[]): boolean => {
-			if (!permissionList || permissionList.length === 0 || !isAuthenticated) return false
-			return permissionList.some(permission => hasPermission(permission))
+		(permissionList: string[], context?: ContextMode): boolean => {
+			if (!permissionList || permissionList.length === 0) return false
+			return permissionList.some(permission => hasPermission(permission, context))
 		},
-		[hasPermission, isAuthenticated],
+		[hasPermission],
 	)
 
 	// Check if user has all of the specified permissions
 	const hasAllPermissions = useCallback(
-		(permissionList: string[]): boolean => {
-			if (!permissionList || permissionList.length === 0 || !isAuthenticated) return false
-			return permissionList.every(permission => hasPermission(permission))
+		(permissionList: string[], context?: ContextMode): boolean => {
+			if (!permissionList || permissionList.length === 0) return false
+			return permissionList.every(permission => hasPermission(permission, context))
 		},
-		[hasPermission, isAuthenticated],
+		[hasPermission],
 	)
 
 	// Check if user has any of the specified roles
 	const hasAnyRole = useCallback(
-		(roleList: string[]): boolean => {
-			if (!roleList || roleList.length === 0 || !isAuthenticated) return false
-			return roleList.some(role => hasRole(role))
+		(roleList: string[], context?: ContextMode): boolean => {
+			if (!roleList || roleList.length === 0) return false
+			return roleList.some(role => hasRole(role, context))
 		},
-		[hasRole, isAuthenticated],
+		[hasRole],
 	)
 
 	// Check if user has all of the specified roles
 	const hasAllRoles = useCallback(
-		(roleList: string[]): boolean => {
-			if (!roleList || roleList.length === 0 || !isAuthenticated) return false
-			return roleList.every(role => hasRole(role))
+		(roleList: string[], context?: ContextMode): boolean => {
+			if (!roleList || roleList.length === 0) return false
+			return roleList.every(role => hasRole(role, context))
 		},
-		[hasRole, isAuthenticated],
+		[hasRole],
 	)
 
 	// Check if user is system admin
-	const isSystemAdmin = useCallback((): boolean => {
-		if (!isAuthenticated) return false
-		return hasRole('SystemSuperAdmin') || hasRole('SystemAdmin') || hasPermission('*.*')
-	}, [hasRole, hasPermission, isAuthenticated])
+	const isSystemAdmin = useCallback((context?: ContextMode): boolean => {
+		const targetContext = context || currentMode
+		const contextState = contextManager.getContextState(targetContext)
+		
+		if (!contextState?.isAuthenticated) return false
+		return hasRole('SystemSuperAdmin', context) || hasRole('SystemAdmin', context) || hasPermission('*.*', context)
+	}, [hasRole, hasPermission, currentMode])
 
 	// Check if user is tenant admin
-	const isTenantAdmin = useCallback((): boolean => {
-		if (!isAuthenticated || !currentTenantId) return false
-		return hasRole('TenantAdmin') || hasRole('Admin') || hasPermission('tenant.*')
-	}, [hasRole, hasPermission, isAuthenticated, currentTenantId])
+	const isTenantAdmin = useCallback((context?: ContextMode): boolean => {
+		const targetContext = context || currentMode
+		const contextState = contextManager.getContextState(targetContext)
+		
+		if (!contextState?.isAuthenticated) return false
+		
+		// For tenant admin check, prefer tenant context if available
+		const checkContext = targetContext === 'auto' && currentTenantId ? 'tenant' : targetContext
+		return hasRole('TenantAdmin', checkContext) || hasRole('Admin', checkContext) || hasPermission('tenant.*', checkContext)
+	}, [hasRole, hasPermission, currentMode, currentTenantId])
 
 	// Get user permissions (for debugging/display)
-	const getUserPermissions = useCallback((): Permission[] => {
+	const getUserPermissions = useCallback((context?: ContextMode): Permission[] => {
+		if (context === 'global') return [...globalPermissions]
+		if (context === 'tenant') return [...tenantPermissions]
 		return [...permissions]
-	}, [permissions])
+	}, [permissions, globalPermissions, tenantPermissions])
 
 	// Get user roles (for debugging/display)
-	const getUserRoles = useCallback((): string[] => {
+	const getUserRoles = useCallback((context?: ContextMode): string[] => {
+		if (context === 'global') return [...globalRoles]
+		if (context === 'tenant') return [...tenantRoles]
 		return [...roles]
-	}, [roles])
+	}, [roles, globalRoles, tenantRoles])
 
 	// Dynamic permission check via API
 	const checkPermission = useCallback(
-		async (object: string, action: string): Promise<boolean> => {
-			if (!object || !action || !isAuthenticated || !user?.id) {
+		async (object: string, action: string, context?: ContextMode): Promise<boolean> => {
+			const targetContext = context || currentMode
+			const contextState = contextManager.getContextState(targetContext)
+			
+			if (!object || !action || !contextState?.isAuthenticated || !contextState.user?.id) {
 				return false
 			}
 
 			try {
 				// First check local cache
-				const hasLocal = permissions.some((p) => p.object === object && p.action === action)
+				const hasLocal = hasPermission(`${object}.${action}`, context)
 				if (hasLocal) return true
 
+				// Get tokens for the specific context
+				const tokens = tokenManager.getTokens(targetContext)
+				if (!tokens.accessToken) {
+					return false
+				}
+				
+				// Temporarily set auth header for this request
+				const originalAuth = apiClient.defaults.headers.Authorization
+				apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
+
 				// If not in cache, make API call to backend check endpoint
-				const endpoint = currentTenantId 
-					? `/api/v1/tenants/${currentTenantId}/rbac/check`
+				const tenantId = targetContext === 'tenant' ? (contextState.tenantId || currentTenantId) : null
+				const endpoint = tenantId 
+					? `/api/v1/tenants/${tenantId}/rbac/check`
 					: '/api/v1/rbac/check'
 				
-				const response = await apiClient.get(endpoint, {
+				const response = await apiClient.get<{hasPermission?: boolean}>(endpoint, {
 					params: { object, action }
 				})
+				
+				// Restore original auth header
+				if (originalAuth) {
+					apiClient.defaults.headers.Authorization = originalAuth
+				} else {
+					delete apiClient.defaults.headers.Authorization
+				}
 				
 				return response.data?.hasPermission || false
 			} catch (error) {
 				console.error('Permission check failed:', error)
+				// Restore original auth header on error
+				const originalAuth = apiClient.defaults.headers.Authorization
+				if (originalAuth) {
+					apiClient.defaults.headers.Authorization = originalAuth
+				} else {
+					delete apiClient.defaults.headers.Authorization
+				}
 				return false
 			}
 		},
-		[permissions, isAuthenticated, user?.id, currentTenantId],
+		[hasPermission, currentMode, currentTenantId],
 	)
 
 	// Bulk permission check via API
 	const checkPermissions = useCallback(
-		async (permissionList: string[]): Promise<Record<string, boolean>> => {
-			if (!permissionList || permissionList.length === 0 || !isAuthenticated || !user?.id) {
+		async (permissionList: string[], context?: ContextMode): Promise<Record<string, boolean>> => {
+			const targetContext = context || currentMode
+			const contextState = contextManager.getContextState(targetContext)
+			
+			if (!permissionList || permissionList.length === 0 || !contextState?.isAuthenticated || !contextState.user?.id) {
 				return {}
 			}
 
@@ -299,7 +455,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				const uncachedPermissions: string[] = []
 				
 				permissionList.forEach(permission => {
-					const hasLocal = hasPermission(permission)
+					const hasLocal = hasPermission(permission, context)
 					if (hasLocal) {
 						results[permission] = true
 					} else {
@@ -312,12 +468,27 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 					return results
 				}
 
+				// Get tokens for the specific context
+				const tokens = tokenManager.getTokens(targetContext)
+				if (!tokens.accessToken) {
+					// Return false for all uncached permissions if no token
+					uncachedPermissions.forEach(permission => {
+						results[permission] = false
+					})
+					return results
+				}
+				
+				// Temporarily set auth header for this request
+				const originalAuth = apiClient.defaults.headers.Authorization
+				apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
+
 				// Make API call for uncached permissions
-				const endpoint = currentTenantId 
-					? `/api/v1/tenants/${currentTenantId}/rbac/check-bulk`
+				const tenantId = targetContext === 'tenant' ? (contextState.tenantId || currentTenantId) : null
+				const endpoint = tenantId 
+					? `/api/v1/tenants/${tenantId}/rbac/check-bulk`
 					: '/api/v1/rbac/check-bulk'
 				
-				const response = await apiClient.post(endpoint, {
+				const response = await apiClient.post<{results?: Record<string, boolean>}>(endpoint, {
 					permissions: uncachedPermissions
 				})
 				
@@ -328,9 +499,23 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 					results[permission] = apiResults[permission] || false
 				})
 				
+				// Restore original auth header
+				if (originalAuth) {
+					apiClient.defaults.headers.Authorization = originalAuth
+				} else {
+					delete apiClient.defaults.headers.Authorization
+				}
+				
 				return results
 			} catch (error) {
 				console.error('Bulk permission check failed:', error)
+				// Restore original auth header on error
+				const originalAuth = apiClient.defaults.headers.Authorization
+				if (originalAuth) {
+					apiClient.defaults.headers.Authorization = originalAuth
+				} else {
+					delete apiClient.defaults.headers.Authorization
+				}
 				// Return false for all uncached permissions on error
 				permissionList.forEach(permission => {
 					if (!(permission in results)) {
@@ -340,7 +525,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				return results
 			}
 		},
-		[hasPermission, isAuthenticated, user?.id, currentTenantId],
+		[hasPermission, currentMode, currentTenantId],
 	)
 
 	// Load permissions on mount and when dependencies change
@@ -348,36 +533,76 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 		if (!isAuthenticated || !user?.id) {
 			setPermissions([])
 			setRoles([])
+			setGlobalPermissions([])
+			setGlobalRoles([])
+			setTenantPermissions([])
+			setTenantRoles([])
 			setError(null)
 			return
 		}
 
-		// Try to load from cache first
-		const cached = loadCache()
-		if (cached) {
-			setPermissions(cached.permissions)
-			setRoles(cached.roles)
-			cacheRef.current = cached
-			return
+		// Load permissions for both contexts
+		const loadContextPermissions = async () => {
+			// Load global context permissions
+			if (globalContext.isAuthenticated) {
+				const globalCache = loadCache('global')
+				if (globalCache) {
+					setGlobalPermissions(globalCache.permissions)
+					setGlobalRoles(globalCache.roles)
+				} else {
+					await refreshPermissions('global')
+				}
+			}
+			
+			// Load tenant context permissions
+			if (tenantContext.isAuthenticated && tenantContext.tenantId) {
+				const tenantCache = loadCache('tenant', tenantContext.tenantId)
+				if (tenantCache) {
+					setTenantPermissions(tenantCache.permissions)
+					setTenantRoles(tenantCache.roles)
+				} else {
+					await refreshPermissions('tenant', tenantContext.tenantId)
+				}
+			}
+			
+			// Set active permissions based on current mode
+			switchPermissionContext(currentMode)
 		}
+		
+		loadContextPermissions()
+	}, [isAuthenticated, user?.id, globalContext.isAuthenticated, tenantContext.isAuthenticated, tenantContext.tenantId])
 
-		// If no valid cache, fetch from API
-		refreshPermissions()
-	}, [isAuthenticated, user?.id, currentTenantId, loadCache, refreshPermissions])
+	// Switch permissions when context mode changes
+	useEffect(() => {
+		switchPermissionContext(currentMode)
+	}, [currentMode, switchPermissionContext])
 
 	// Refresh permissions when tenant changes
 	useEffect(() => {
-		if (isAuthenticated && user?.id && currentTenantId !== cacheRef.current?.tenantId) {
-			clearCache()
-			refreshPermissions()
+		if (isAuthenticated && user?.id && currentTenantId) {
+			// Check if we need to refresh tenant permissions
+			const tenantCache = loadCache('tenant', currentTenantId)
+			if (!tenantCache) {
+				refreshPermissions('tenant', currentTenantId)
+			}
 		}
-	}, [currentTenantId, isAuthenticated, user?.id, clearCache, refreshPermissions])
+	}, [currentTenantId, isAuthenticated, user?.id, loadCache, refreshPermissions])
 
 	const value: PermissionContextType = {
+		// Current active state
 		permissions,
 		roles,
 		loading,
 		error,
+		
+		// Context-specific state
+		globalPermissions,
+		globalRoles,
+		tenantPermissions,
+		tenantRoles,
+		currentMode,
+		
+		// Permission checking methods
 		hasPermission,
 		hasRole,
 		hasAnyPermission,
@@ -386,12 +611,43 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 		hasAllRoles,
 		checkPermission,
 		checkPermissions,
+		
+		// Utility methods
 		refreshPermissions,
 		clearCache,
 		isSystemAdmin,
 		isTenantAdmin,
 		getUserPermissions,
 		getUserRoles,
+		
+		// Context management
+		switchPermissionContext,
+		
+		// Smart permission resolution
+		resolvePermission: (permission: string, options?: ContextSwitchOptions) => {
+			// Default implementation - check current context first, fallback to global
+			if (hasPermission(permission, currentMode)) {
+				return true
+			}
+			return currentMode === 'tenant' ? hasPermission(permission, 'global') : false
+		},
+		
+		resolveRole: (role: string, options?: ContextSwitchOptions) => {
+			// Default implementation - check current context first, fallback to global
+			if (hasRole(role, currentMode)) {
+				return true
+			}
+			return currentMode === 'tenant' ? hasRole(role, 'global') : false
+		},
+		
+		// Context synchronization
+		syncPermissions: async () => {
+			await refreshPermissions(currentMode)
+		},
+		
+		invalidateContext: (context: ContextMode) => {
+			clearCache(context)
+		},
 	}
 
 	return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>
@@ -406,7 +662,7 @@ export function usePermissions() {
 }
 
 // Convenience hook for checking a single permission
-export function usePermissionCheck(permission: string) {
+export function usePermissionCheck(permission: string, context?: ContextMode) {
 	const {hasPermission, loading, error} = usePermissions()
 	const [hasAccess, setHasAccess] = useState(false)
 
@@ -414,9 +670,9 @@ export function usePermissionCheck(permission: string) {
 		if (loading || error) {
 			setHasAccess(false)
 		} else {
-			setHasAccess(hasPermission(permission))
+			setHasAccess(hasPermission(permission, context))
 		}
-	}, [permission, hasPermission, loading, error])
+	}, [permission, context, hasPermission, loading, error])
 
 	return {
 		hasAccess,
@@ -426,7 +682,7 @@ export function usePermissionCheck(permission: string) {
 }
 
 // Convenience hook for checking multiple permissions
-export function usePermissionChecks(permissions: string[]) {
+export function usePermissionChecks(permissions: string[], context?: ContextMode) {
 	const {hasPermission, loading, error} = usePermissions()
 	const [results, setResults] = useState<Record<string, boolean>>({})
 
@@ -434,11 +690,11 @@ export function usePermissionChecks(permissions: string[]) {
 		if (!loading && !error) {
 			const newResults: Record<string, boolean> = {}
 			permissions.forEach((permission) => {
-				newResults[permission] = hasPermission(permission)
+				newResults[permission] = hasPermission(permission, context)
 			})
 			setResults(newResults)
 		}
-	}, [permissions, hasPermission, loading, error])
+	}, [permissions, context, hasPermission, loading, error])
 
 	return {
 		results,

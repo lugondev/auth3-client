@@ -7,7 +7,6 @@ import {Button, buttonVariants} from '@/components/ui/button'
 import {VariantProps} from 'class-variance-authority'
 import {Loader2, Lock} from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipProvider, TooltipTrigger} from '@/components/ui/tooltip'
-import {ContextMode} from '@/types/dual-context'
 
 type ButtonProps = React.ComponentProps<'button'> &
 	VariantProps<typeof buttonVariants> & {
@@ -25,9 +24,6 @@ export interface PermissionButtonProps extends Omit<ButtonProps, 'disabled'> {
 	// Tenant requirements
 	requireTenant?: boolean
 	tenantId?: string
-	// Context management
-	context?: ContextMode // Specify which context to check permissions in
-	fallbackToGlobal?: boolean // If tenant context check fails, fallback to global
 	// System admin bypass
 	allowSystemAdmin?: boolean
 	// Behavior options
@@ -48,8 +44,8 @@ interface AccessCheckResult {
 	reason?: string
 }
 
-export function PermissionButton({children, permission, permissions, role, roles, requireAll = false, requireTenant = false, tenantId, context, fallbackToGlobal = true, allowSystemAdmin = true, hideOnDenied = false, showTooltip = true, customTooltip, loadingText, disabledText, forceDisabled = false, onAccessDenied, onPermissionCheck, onClick, ...buttonProps}: PermissionButtonProps) {
-	const {isAuthenticated, user, currentTenantId, currentMode} = useAuth()
+export function PermissionButton({children, permission, permissions, role, roles, requireAll = false, requireTenant = false, tenantId, allowSystemAdmin = true, hideOnDenied = false, showTooltip = true, customTooltip, loadingText, disabledText, forceDisabled = false, onAccessDenied, onPermissionCheck, onClick, ...buttonProps}: PermissionButtonProps) {
+	const {isAuthenticated, user, currentTenantId} = useAuth()
 	const {hasPermission, hasRole, hasAnyPermission, hasAllPermissions, hasAnyRole, hasAllRoles, isSystemAdmin, loading, error} = usePermissions()
 
 	// Use a stable check for system admin to prevent hydration mismatches
@@ -62,13 +58,6 @@ export function PermissionButton({children, permission, permissions, role, roles
 			setIsSystemAdminStable(false)
 		}
 	}, [loading, isAuthenticated, isSystemAdmin])
-
-	// Determine the context to check permissions in
-	const effectiveContext = React.useMemo(() => {
-		if (context) return context
-		if (requireTenant) return 'tenant'
-		return currentMode || 'auto'
-	}, [context, requireTenant, currentMode])
 
 	// Check access permissions
 	const checkAccess = React.useCallback((): AccessCheckResult => {
@@ -91,62 +80,42 @@ export function PermissionButton({children, permission, permissions, role, roles
 			return {hasAccess: true}
 		}
 
-		// Helper function to check permissions in a specific context
-		const checkInContext = (checkContext: ContextMode): AccessCheckResult => {
-			// Check permissions
-			if (permission && !hasPermission(permission, checkContext)) {
-				return {hasAccess: false, reason: `Missing permission: ${permission} in ${checkContext} context`}
-			}
-
-			if (permissions && permissions.length > 0) {
-				const hasRequiredPermissions = requireAll 
-					? hasAllPermissions(permissions, checkContext) 
-					: hasAnyPermission(permissions, checkContext)
-
-				if (!hasRequiredPermissions) {
-					const operator = requireAll ? 'all' : 'any'
-					return {
-						hasAccess: false,
-						reason: `Missing ${operator} of permissions: ${permissions.join(', ')} in ${checkContext} context`,
-					}
-				}
-			}
-
-			// Check roles
-			if (role && !hasRole(role, checkContext)) {
-				return {hasAccess: false, reason: `Missing role: ${role} in ${checkContext} context`}
-			}
-
-			if (roles && roles.length > 0) {
-				const hasRequiredRoles = requireAll 
-					? hasAllRoles(roles, checkContext) 
-					: hasAnyRole(roles, checkContext)
-
-				if (!hasRequiredRoles) {
-					const operator = requireAll ? 'all' : 'any'
-					return {
-						hasAccess: false,
-						reason: `Missing ${operator} of roles: ${roles.join(', ')} in ${checkContext} context`,
-					}
-				}
-			}
-
-			return {hasAccess: true}
+		// Check permissions
+		if (permission && !hasPermission(permission)) {
+			return {hasAccess: false, reason: `Missing permission: ${permission}`}
 		}
 
-		// Check permissions in the effective context
-		const primaryResult = checkInContext(effectiveContext)
-		
-		// If primary check fails and fallback is enabled, try global context
-		if (!primaryResult.hasAccess && fallbackToGlobal && effectiveContext !== 'global') {
-			const fallbackResult = checkInContext('global')
-			if (fallbackResult.hasAccess) {
-				return {hasAccess: true, reason: 'Access granted via global context fallback'}
+		if (permissions && permissions.length > 0) {
+			const hasRequiredPermissions = requireAll ? hasAllPermissions(permissions) : hasAnyPermission(permissions)
+
+			if (!hasRequiredPermissions) {
+				const operator = requireAll ? 'all' : 'any'
+				return {
+					hasAccess: false,
+					reason: `Missing ${operator} of permissions: ${permissions.join(', ')}`,
+				}
 			}
 		}
 
-		return primaryResult
-	}, [isAuthenticated, user, currentTenantId, requireTenant, tenantId, allowSystemAdmin, isSystemAdminStable, permission, permissions, role, roles, requireAll, effectiveContext, fallbackToGlobal, hasPermission, hasRole, hasAnyPermission, hasAllPermissions, hasAnyRole, hasAllRoles])
+		// Check roles
+		if (role && !hasRole(role)) {
+			return {hasAccess: false, reason: `Missing role: ${role}`}
+		}
+
+		if (roles && roles.length > 0) {
+			const hasRequiredRoles = requireAll ? hasAllRoles(roles) : hasAnyRole(roles)
+
+			if (!hasRequiredRoles) {
+				const operator = requireAll ? 'all' : 'any'
+				return {
+					hasAccess: false,
+					reason: `Missing ${operator} of roles: ${roles.join(', ')}`,
+				}
+			}
+		}
+
+		return {hasAccess: true}
+	}, [isAuthenticated, user, currentTenantId, requireTenant, tenantId, allowSystemAdmin, isSystemAdminStable, permission, permissions, role, roles, requireAll, hasPermission, hasRole, hasAnyPermission, hasAllPermissions, hasAnyRole, hasAllRoles])
 
 	// Handle access check result
 	const accessResult = checkAccess()
@@ -333,17 +302,4 @@ export interface SimplePermissionButtonProps extends Omit<PermissionButtonProps,
 
 export function SimplePermissionButton({hideWhenNoAccess = false, showLoadingState = true, disabledTooltip, ...props}: SimplePermissionButtonProps) {
 	return <PermissionButton {...props} hideOnDenied={hideWhenNoAccess} showTooltip={false} allowSystemAdmin={true} customTooltip={disabledTooltip} loadingText={showLoadingState ? 'Loading...' : undefined} />
-}
-
-// Context-aware convenience components
-export function GlobalPermissionButton(props: Omit<PermissionButtonProps, 'context'>) {
-	return <PermissionButton {...props} context='global' fallbackToGlobal={false} />
-}
-
-export function TenantPermissionButton(props: Omit<PermissionButtonProps, 'context' | 'requireTenant'>) {
-	return <PermissionButton {...props} context='tenant' requireTenant={true} fallbackToGlobal={props.fallbackToGlobal ?? true} />
-}
-
-export function AutoPermissionButton(props: Omit<PermissionButtonProps, 'context'>) {
-	return <PermissionButton {...props} context='auto' fallbackToGlobal={props.fallbackToGlobal ?? true} />
 }
