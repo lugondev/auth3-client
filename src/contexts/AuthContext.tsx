@@ -135,6 +135,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			}
 			
 			if (shouldRedirect && !isInitialLoad) {
+				// Store current path for redirect after login (except for login/register pages)
+				const currentPath = window.location.pathname
+				if (!currentPath.includes('/login') && !currentPath.includes('/register') && !currentPath.includes('/auth')) {
+					sessionStorage.setItem('auth_redirect_path', currentPath + window.location.search)
+				}
 				router.push('/login')
 			}
 		},
@@ -250,11 +255,29 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				}
 			}
 
+			// Add redirect logic for successful login (only if not preserving context)
+			if (!preserveContext && appUser) {
+				// Check if there's a stored redirect path
+				const storedRedirect = sessionStorage.getItem('auth_redirect_path')
+				if (storedRedirect) {
+					sessionStorage.removeItem('auth_redirect_path')
+					// Use setTimeout to ensure state updates are processed first
+					setTimeout(() => {
+						router.push(storedRedirect)
+					}, 100)
+				} else {
+					// Default redirect to dashboard
+					setTimeout(() => {
+						router.push('/dashboard/profile')
+					}, 100)
+				}
+			}
+
 			if (appUser && scheduleTokenRefreshRef.current) {
 				scheduleTokenRefreshRef.current(authResult.refresh_token || authResult.access_token)
 			}
 		},
-		[currentMode, checkSystemAdminStatus, updateContextState],
+		[currentMode, checkSystemAdminStatus, updateContextState, router],
 	)
 
 	// Context switching methods

@@ -16,6 +16,7 @@ import {
 	KeyRound, // OAuth2 icon
 	ListChecks, // OAuth2 list icon
 	Lock, // For disabled items
+	TestTube, // For permissions demo
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -42,7 +43,18 @@ const systemAdminLinks: NavLink[] = [
 	{href: '/dashboard/admin/tenants', label: 'Tenant Management', icon: Building, permission: 'admin:tenants:read'},
 	{href: '/dashboard/admin/users', label: 'User Management', icon: Users, permission: 'admin:users:read'},
 	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck, permission: 'admin:roles:read'},
-	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText, permission: 'admin:logs:read'},
+	{
+		href: '/dashboard/permissions-demo',
+		label: 'Permissions Demo',
+		icon: TestTube,
+		isCollapsible: true,
+		permission: 'admin:permissions:demo',
+		children: [
+			{href: '/dashboard/permissions-demo', label: 'Basic Demo', icon: TestTube, permission: 'admin:permissions:demo'},
+			{href: '/dashboard/permissions-demo/enhanced', label: 'Enhanced Demo', icon: TestTube, permission: 'admin:permissions:demo'},
+			{href: '/dashboard/permissions-demo/dual-context', label: 'Dual Context Demo', icon: TestTube, permission: 'admin:permissions:demo'},
+		],
+	},
 	{
 		href: '/dashboard/oauth2',
 		label: 'OAuth2 Management',
@@ -50,10 +62,23 @@ const systemAdminLinks: NavLink[] = [
 		isCollapsible: true,
 		permission: 'admin:oauth2:read',
 		children: [
-			{href: '#', label: 'Client List', icon: ListChecks, permission: 'admin:oauth2:read'},
+			{href: '/dashboard/oauth2/clients', label: 'Client List', icon: ListChecks, permission: 'admin:oauth2:read'},
 			{href: '/dashboard/oauth2/create', label: 'Create Client', icon: KeyRound, permission: 'admin:oauth2:create'},
+			{
+				href: '#',
+				label: 'Advanced Settings',
+				icon: Settings,
+				isCollapsible: true,
+				permission: 'admin:oauth2:advanced',
+				children: [
+					{href: '/dashboard/oauth2/scopes', label: 'Manage Scopes', icon: ShieldCheck, permission: 'admin:oauth2:scopes'},
+					{href: '/dashboard/oauth2/tokens', label: 'Token Management', icon: KeyRound, permission: 'admin:oauth2:tokens'},
+					{href: '/dashboard/oauth2/audit', label: 'Audit Logs', icon: FileText, permission: 'admin:oauth2:audit'},
+				],
+			},
 		],
 	},
+	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText, permission: 'admin:logs:read'},
 ]
 
 const adminParentLink: NavLink = {
@@ -72,10 +97,18 @@ const userLinks: NavLink[] = [
 
 const Sidebar: React.FC<SidebarProps> = ({type}) => {
 	const [openAdminMenu, setOpenAdminMenu] = React.useState(true)
+	const [openSubmenus, setOpenSubmenus] = React.useState<Record<string, boolean>>({})
 	const {hasPermission, hasRole} = usePermissions()
 
 	const toggleAdminMenu = () => {
 		setOpenAdminMenu(!openAdminMenu)
+	}
+
+	const toggleSubmenu = (key: string) => {
+		setOpenSubmenus((prev) => ({
+			...prev,
+			[key]: !prev[key],
+		}))
 	}
 
 	// Check if user has access to a nav link
@@ -164,10 +197,59 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 													const hasChildAccess = hasAccess(childLink)
 													const childTooltipMessage = getTooltipMessage(childLink)
 													const childKey = childLink.href !== '#' ? childLink.href : `${childLink.label}-${childIndex}`
+													const submenuKey = `${linkKey}-${childKey}`
+													const isSubmenuOpen = openSubmenus[submenuKey]
 
 													const childContent = (
 														<li>
-															{hasChildAccess ? (
+															{childLink.isCollapsible && childLink.children ? (
+																<>
+																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none', hasChildAccess ? 'hover:bg-gray-600 text-white' : 'text-gray-500 cursor-not-allowed')} disabled={!hasChildAccess}>
+																		<div className='flex items-center space-x-3'>
+																			{hasChildAccess ? <ChildIconComponent className='h-5 w-5' /> : <Lock className='h-5 w-5' />}
+																			<span>{childLink.label}</span>
+																		</div>
+																		{hasChildAccess && (isSubmenuOpen ? <ChevronDown className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />)}
+																	</button>
+																	{isSubmenuOpen && childLink.children && hasChildAccess && (
+																		<ul className='pl-4 mt-1'>
+																			{childLink.children.map((grandchildLink, grandchildIndex) => {
+																				const GrandchildIconComponent = grandchildLink.icon
+																				const hasGrandchildAccess = hasAccess(grandchildLink)
+																				const grandchildTooltipMessage = getTooltipMessage(grandchildLink)
+																				const grandchildKey = grandchildLink.href !== '#' ? grandchildLink.href : `${grandchildLink.label}-${grandchildIndex}`
+
+																				const grandchildContent = (
+																					<li>
+																						{hasGrandchildAccess ? (
+																							<Link href={grandchildLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-600 rounded text-white text-sm'>
+																								<GrandchildIconComponent className='h-4 w-4' />
+																								<span>{grandchildLink.label}</span>
+																							</Link>
+																						) : (
+																							<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed text-sm'>
+																								<Lock className='h-4 w-4' />
+																								<span>{grandchildLink.label}</span>
+																							</div>
+																						)}
+																					</li>
+																				)
+
+																				return grandchildTooltipMessage ? (
+																					<Tooltip key={grandchildKey}>
+																						<TooltipTrigger asChild>{grandchildContent}</TooltipTrigger>
+																						<TooltipContent>
+																							<p>{grandchildTooltipMessage}</p>
+																						</TooltipContent>
+																					</Tooltip>
+																				) : (
+																					<React.Fragment key={grandchildKey}>{grandchildContent}</React.Fragment>
+																				)
+																			})}
+																		</ul>
+																	)}
+																</>
+															) : hasChildAccess ? (
 																<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white'>
 																	<ChildIconComponent className='h-5 w-5' />
 																	<span>{childLink.label}</span>
