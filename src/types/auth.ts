@@ -54,6 +54,7 @@ export interface AuthContextType {
   getActiveContext: () => 'global' | 'tenant'
   canSwitchToTenant: (tenantId: string) => boolean
   rollbackContext: () => Promise<ContextSwitchResult>
+  checkAuthStatus: () => Promise<void>
 }
 
 // Enhanced PermissionContextType with dual context support

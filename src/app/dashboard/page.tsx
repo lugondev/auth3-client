@@ -11,7 +11,7 @@ import {AnalyticsService, PersonalDashboardAnalytics} from '@/services/analytics
 import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone} from 'lucide-react'
 
 export default function UserDashboardPage() {
-	const {user, isSystemAdmin, loading} = useAuth()
+	const {user, isSystemAdmin, loading, currentMode} = useAuth()
 	const [analytics, setAnalytics] = useState<PersonalDashboardAnalytics | null>(null)
 	const [analyticsLoading, setAnalyticsLoading] = useState(true)
 
@@ -31,7 +31,7 @@ export default function UserDashboardPage() {
 		if (user && !loading) {
 			fetchAnalytics()
 		}
-	}, [user, loading])
+	}, [user, loading, currentMode])
 
 	if (loading) {
 		return (

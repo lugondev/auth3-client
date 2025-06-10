@@ -2,6 +2,8 @@ import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError, Ax
 import { toast } from 'sonner'
 import { addCSRFHeader } from './csrf'
 import { rateLimiter, RATE_LIMIT_CONFIGS, isRateLimitError } from './rateLimiter'
+import { tokenManager } from './token-storage'
+import { contextManager } from './context-manager'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
 
@@ -59,7 +61,10 @@ class ApiClient {
 			(config) => {
 				// Add auth token if available
 				if (typeof window !== 'undefined') {
-					const token = localStorage.getItem('accessToken')?.replaceAll('"', '')
+					// Get current context mode and tokens from tokenManager
+					const currentMode = contextManager.getCurrentMode()
+					const tokens = tokenManager.getTokens(currentMode)
+					const token = tokens.accessToken
 
 					if (token && !config.headers?.['__skipAuthRefresh']) {
 						config.headers = config.headers || {}
@@ -82,7 +87,7 @@ class ApiClient {
 					// Apply rate limiting
 					const rateLimitEndpoint = this.getRateLimitEndpoint(config.url || '')
 					if (rateLimitEndpoint) {
-						const userId = this.getUserIdFromToken(token)
+						const userId = this.getUserIdFromToken(token || undefined)
 						const rateLimitResult = rateLimiter.checkLimit(rateLimitEndpoint, userId)
 
 						if (!rateLimitResult.allowed) {
@@ -191,7 +196,10 @@ class ApiClient {
 	}
 
 	private async refreshToken(): Promise<string> {
-		const refreshToken = localStorage.getItem('refreshToken')?.replaceAll('"', '')
+		// Get current context mode and refresh token from tokenManager
+		const currentMode = contextManager.getCurrentMode()
+		const tokens = tokenManager.getTokens(currentMode)
+		const refreshToken = tokens.refreshToken
 
 		if (!refreshToken) {
 			throw new Error('No refresh token available')
@@ -203,7 +211,8 @@ class ApiClient {
 		)
 
 		const { access_token } = response.data
-		localStorage.setItem('accessToken', JSON.stringify(access_token))
+		// Update tokens in tokenManager instead of localStorage
+		tokenManager.setTokens(currentMode, access_token, refreshToken)
 
 		return access_token
 	}
@@ -220,8 +229,9 @@ class ApiClient {
 	}
 
 	private handleAuthFailure() {
-		localStorage.removeItem('accessToken')
-		localStorage.removeItem('refreshToken')
+		// Clear tokens from tokenManager instead of localStorage
+		const currentMode = contextManager.getCurrentMode()
+		tokenManager.clearTokens(currentMode)
 
 		if (typeof window !== 'undefined') {
 			window.location.href = '/login'

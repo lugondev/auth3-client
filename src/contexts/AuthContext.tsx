@@ -213,6 +213,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				document.cookie = `refreshToken=${authResult.refresh_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
 			}
 
+			// Dispatch custom event to notify components in same tab about token update
+			window.dispatchEvent(new CustomEvent('tokenUpdated', { detail: { targetContext } }))
+
 			apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
 
 			const appUser = decodeToken(authResult.access_token)
@@ -498,6 +501,34 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		checkAuthStatus()
 	}, [checkAuthStatus])
 
+	// Listen for storage changes to detect token updates from other tabs or after login
+	useEffect(() => {
+		const handleStorageChange = (e: StorageEvent) => {
+			// Check if the changed key is related to tokens
+			if (e.key && (e.key.includes('accessToken') || e.key.includes('refreshToken') || e.key.includes('auth3_'))) {
+				console.log('Token storage changed, re-checking auth status')
+				// Re-check auth status when tokens change
+				checkAuthStatus()
+			}
+		}
+
+		// Add event listener for storage changes
+		window.addEventListener('storage', handleStorageChange)
+		
+		// Also listen for custom events for same-tab token updates
+		const handleTokenUpdate = () => {
+			console.log('Token updated in same tab, re-checking auth status')
+			checkAuthStatus()
+		}
+		
+		window.addEventListener('tokenUpdated', handleTokenUpdate)
+
+		return () => {
+			window.removeEventListener('storage', handleStorageChange)
+			window.removeEventListener('tokenUpdated', handleTokenUpdate)
+		}
+	}, [checkAuthStatus])
+
 	// Social login methods (unchanged logic, but now context-aware)
 	const signInWithGoogle = useCallback(async () => {
 		setLoading(true)
@@ -744,6 +775,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		getActiveContext,
 		canSwitchToTenant,
 		rollbackContext,
+		checkAuthStatus,
 	}
 
 	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
