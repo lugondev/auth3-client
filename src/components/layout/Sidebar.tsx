@@ -65,7 +65,7 @@ const systemAdminLinks: NavLink[] = [
 			{href: '/dashboard/oauth2/clients', label: 'Client List', icon: ListChecks, permission: 'admin:oauth2:read'},
 			{href: '/dashboard/oauth2/create', label: 'Create Client', icon: KeyRound, permission: 'admin:oauth2:create'},
 			{
-				href: '#',
+				href: '/dashboard/oauth2/advanced',
 				label: 'Advanced Settings',
 				icon: Settings,
 				isCollapsible: true,
@@ -113,8 +113,25 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 
 	// Check if user has access to a nav link
 	const hasAccess = (link: NavLink): boolean => {
-		if (link.permission && !hasPermission(link.permission)) return false
-		if (link.role && !hasRole(link.role)) return false
+		// Log permissions for debugging
+		console.log('Checking access for link:', link.label)
+		console.log('Link permission:', link.permission)
+		
+		// Special case for system admin with wildcard permissions
+		if (hasPermission('*.*') || hasPermission('*:*') || hasPermission('.*:.*')) {
+			console.log('User has wildcard permission, granting access to:', link.label)
+			return true
+		}
+		
+		if (link.permission && !hasPermission(link.permission)) {
+			console.log('Permission denied:', link.permission)
+			return false
+		}
+		if (link.role && !hasRole(link.role)) {
+			console.log('Role denied:', link.role)
+			return false
+		}
+		console.log('Access granted to:', link.label)
 		return true
 	}
 

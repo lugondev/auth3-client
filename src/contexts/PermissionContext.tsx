@@ -243,6 +243,8 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 			const targetContext = context || currentMode
 			const contextState = contextManager.getContextState(targetContext)
 			
+			console.log('hasPermission check:', permission)
+			
 			if (!permission || !contextState?.isAuthenticated) return false
 
 			// Get permissions for the target context
@@ -255,6 +257,16 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				targetPermissions = permissions
 			}
 
+			// Special case for wildcard permissions in the user's permissions array
+			for (const p of targetPermissions) {
+				if ((p.object === '*' && p.action === '*') || 
+				    (p.object === '*' && p.action === '.*') || 
+				    (p.object === '.*' && p.action === '.*')) {
+					console.log('User has wildcard permission, granting access to all')
+					return true
+				}
+			}
+
 			// Handle both dot and colon separators
 			let object: string, action: string
 			if (permission.includes(':')) {
@@ -264,21 +276,51 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 			}
 			if (!object || !action) return false
 
+			// Log for debugging
+			console.log('Checking permission object:', object, 'action:', action)
+
 			return targetPermissions.some((p) => {
 				// Check for exact match
-				if (p.object === object && p.action === action) return true
+				if (p.object === object && p.action === action) {
+					console.log('Exact match found')
+					return true
+				}
 
 				// Check for wildcard permissions
-				if (p.object === '*' && p.action === '*') return true // Full wildcard (*.*)
-				if (p.object === '*' && p.action === '.*') return true // SystemSuperAdmin pattern (*..*)
-				if (p.object === '*' && p.action === action) return true // Object wildcard (*.action)
-				if (p.object === object && p.action === '*') return true // Action wildcard (object.*)
-				if (p.object === object && p.action === '.*') return true // Action regex wildcard (object..*)
+				if (p.object === '*' && p.action === '*') {
+					console.log('Full wildcard (*.*) match found')
+					return true // Full wildcard (*.*)
+				}
+				if (p.object === '*' && p.action === '.*') {
+					console.log('SystemSuperAdmin pattern (*.*) match found')
+					return true // SystemSuperAdmin pattern (*..*)  
+				}
+				if (p.object === '*' && p.action === action) {
+					console.log('Object wildcard (*.action) match found')
+					return true // Object wildcard (*.action)
+				}
+				if (p.object === object && p.action === '*') {
+					console.log('Action wildcard (object.*) match found')
+					return true // Action wildcard (object.*)
+				}
+				if (p.object === object && p.action === '.*') {
+					console.log('Action regex wildcard (object.*) match found')
+					return true // Action regex wildcard (object..*)
+				}
 
 				// Check for full regex-like patterns
-				if (p.object === '.*' && p.action === '.*') return true // Full regex wildcard (*..*)
-				if (p.object === '.*') return true // Object regex wildcard (.*.action)
-				if (p.action === '.*') return true // Action regex wildcard (object..*)
+				if (p.object === '.*' && p.action === '.*') {
+					console.log('Full regex wildcard (.*.*) match found')
+					return true // Full regex wildcard (*..*)  
+				}
+				if (p.object === '.*') {
+					console.log('Object regex wildcard (.*.action) match found')
+					return true // Object regex wildcard (.*.action)
+				}
+				if (p.action === '.*') {
+					console.log('Action regex wildcard (object.*) match found')
+					return true // Action regex wildcard (object..*)
+				}
 
 				return false
 			})

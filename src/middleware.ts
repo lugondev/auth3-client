@@ -6,6 +6,7 @@ interface JWTPayload {
 	sub: string;
 	email: string;
 	roles?: string[];
+	permissions?: string[]; // Add permissions field
 	tenant_id?: string;
 	exp: number;
 }
@@ -25,37 +26,37 @@ const ROUTE_PERMISSIONS: RoutePermission[] = [
 	{
 		path: '/dashboard/admin',
 		permissions: ['admin:dashboard:read'],
-		roles: ['system:admin'],
+		roles: ['system:admin', 'SystemAdmin', 'SystemSuperAdmin'],
 		requireAll: true,
-		requireAllRoles: true,
+		requireAllRoles: false, // OR logic for roles
 	},
 	{
 		path: '/dashboard/admin/users',
 		permissions: ['admin:users:read'],
-		roles: ['system:admin'],
+		roles: ['system:admin', 'SystemAdmin', 'SystemSuperAdmin'],
 		requireAll: true,
-		requireAllRoles: true,
+		requireAllRoles: false, // OR logic for roles
 	},
 	{
 		path: '/dashboard/admin/tenants',
 		permissions: ['admin:tenants:read'],
-		roles: ['system:admin'],
+		roles: ['system:admin', 'SystemAdmin', 'SystemSuperAdmin'],
 		requireAll: true,
-		requireAllRoles: true,
+		requireAllRoles: false, // OR logic for roles
 	},
 	{
 		path: '/dashboard/admin/roles',
 		permissions: ['admin:roles:read'],
-		roles: ['system:admin'],
+		roles: ['system:admin', 'SystemAdmin', 'SystemSuperAdmin'],
 		requireAll: true,
-		requireAllRoles: true,
+		requireAllRoles: false, // OR logic for roles
 	},
 	{
 		path: '/dashboard/admin/oauth2',
 		permissions: ['admin:oauth2:read'],
-		roles: ['system:admin'],
+		roles: ['system:admin', 'SystemAdmin', 'SystemSuperAdmin'],
 		requireAll: true,
-		requireAllRoles: true,
+		requireAllRoles: false, // OR logic for roles
 	},
 	// Tenant-specific routes
 	{
@@ -81,20 +82,39 @@ function checkUserPermissions(payload: JWTPayload, requiredPermissions: string[]
 		return false;
 	}
 
+	// Check if user has wildcard permissions
+	const hasWildcardPermissions = payload.permissions?.some(permission => 
+		permission === '*' || 
+		permission === '.*' || 
+		permission === '*.*' || 
+		permission === '*:*' || 
+		permission === '.*:.*'
+	);
+
+	// Check if user is a system admin (multiple role formats)
+	const isSystemAdmin = payload.roles.some(role =>
+		role === 'system:admin' ||
+		role === 'SystemAdmin' ||
+		role === 'SystemSuperAdmin'
+	) || hasWildcardPermissions;
+
+	// System admins have access to all permissions
+	if (isSystemAdmin) {
+		return true;
+	}
+
 	// Extract permissions from roles
 	const userPermissions = new Set<string>();
-	
+
+	// Add direct permissions from JWT payload
+	if (payload.permissions) {
+		payload.permissions.forEach(permission => {
+			userPermissions.add(permission);
+		});
+	}
+
 	// Add role-based permissions (simplified - in real app, you'd fetch from backend)
 	payload.roles.forEach(role => {
-		// System admin has all permissions
-		if (role === 'system:admin') {
-			userPermissions.add('admin:dashboard:read');
-			userPermissions.add('admin:users:read');
-			userPermissions.add('admin:tenants:read');
-			userPermissions.add('admin:roles:read');
-			userPermissions.add('admin:oauth2:read');
-		}
-		
 		// Tenant-specific roles
 		if (role.includes(':admin')) {
 			userPermissions.add('tenant:dashboard:read');
@@ -105,7 +125,7 @@ function checkUserPermissions(payload: JWTPayload, requiredPermissions: string[]
 			userPermissions.add('users.update');
 			userPermissions.add('users.delete');
 		}
-		
+
 		if (role.includes(':member')) {
 			userPermissions.add('tenant:dashboard:read');
 			userPermissions.add('users.read');
@@ -119,11 +139,33 @@ function checkUserPermissions(payload: JWTPayload, requiredPermissions: string[]
 	}
 }
 
-function checkUserRoles(payload: JWTPayload, requiredRoles: string[], requireAll = true): boolean {
+function checkUserRoles(payload: JWTPayload, requiredRoles: string[], requireAll = false): boolean {
 	if (!payload.roles || payload.roles.length === 0) {
 		return false;
 	}
 
+	// Check if user has wildcard permissions
+	const hasWildcardPermissions = payload.permissions?.some(permission => 
+		permission === '*' || 
+		permission === '.*' || 
+		permission === '*.*' || 
+		permission === '*:*' || 
+		permission === '.*:.*'
+	);
+
+	// Check if user is a system admin (multiple role formats)
+	const isSystemAdmin = payload.roles.some(role =>
+		role === 'system:admin' ||
+		role === 'SystemAdmin' ||
+		role === 'SystemSuperAdmin'
+	) || hasWildcardPermissions;
+
+	// System admins have access to all roles
+	if (isSystemAdmin) {
+		return true;
+	}
+
+	// Check if user has any of the required roles
 	if (requireAll) {
 		return requiredRoles.every(role => payload.roles!.includes(role));
 	} else {
@@ -133,19 +175,19 @@ function checkUserRoles(payload: JWTPayload, requiredRoles: string[], requireAll
 
 function getMatchingRoute(pathname: string): RoutePermission | null {
 	// Find the most specific matching route
-	const matches = ROUTE_PERMISSIONS.filter(route => 
+	const matches = ROUTE_PERMISSIONS.filter(route =>
 		pathname.startsWith(route.path)
 	).sort((a, b) => b.path.length - a.path.length); // Sort by specificity
-	
+
 	return matches[0] || null;
 }
 
 export async function middleware(request: NextRequest) {
 	const { pathname } = request.nextUrl;
-	
+
 	// Skip middleware for public routes
-	if (pathname.startsWith('/login') || 
-		pathname.startsWith('/register') || 
+	if (pathname.startsWith('/login') ||
+		pathname.startsWith('/register') ||
 		pathname.startsWith('/forgot-password') ||
 		pathname.startsWith('/reset-password') ||
 		pathname.startsWith('/verify-email') ||
@@ -162,7 +204,7 @@ export async function middleware(request: NextRequest) {
 
 	// Get access token from cookies
 	const accessToken = request.cookies.get('accessToken')?.value;
-	
+
 	if (!accessToken) {
 		// Redirect to login if no token
 		const loginUrl = new URL('/login', request.url);
@@ -173,7 +215,7 @@ export async function middleware(request: NextRequest) {
 	try {
 		// Decode JWT token
 		const payload = jwtDecode<JWTPayload>(accessToken);
-		
+
 		// Check if token is expired
 		if (payload.exp * 1000 < Date.now()) {
 			const loginUrl = new URL('/login', request.url);
@@ -181,43 +223,95 @@ export async function middleware(request: NextRequest) {
 			return NextResponse.redirect(loginUrl);
 		}
 
+		// Check if user has wildcard permissions
+		const hasWildcardPermissions = payload.permissions?.some(permission => 
+			permission === '*' || 
+			permission === '.*' || 
+			permission === '*.*' || 
+			permission === '*:*' || 
+			permission === '.*:.*'
+		);
+
+		// Check if user is a system admin (multiple role formats)
+		const isSystemAdmin = payload.roles?.some(role =>
+			role === 'system:admin' ||
+			role === 'SystemAdmin' ||
+			role === 'SystemSuperAdmin'
+		) || hasWildcardPermissions;
+
+		// Debug logging
+		console.log('Middleware Debug:', {
+			pathname,
+			userRoles: payload.roles,
+			userPermissions: payload.permissions,
+			hasWildcardPermissions,
+			isSystemAdmin,
+			tenantId: payload.tenant_id
+		});
+
+		// System admins bypass all checks for admin routes
+		if (isSystemAdmin && pathname.startsWith('/dashboard/admin')) {
+			console.log('System admin accessing admin route, bypassing all checks');
+			const response = NextResponse.next();
+			response.headers.set('x-user-id', payload.sub);
+			response.headers.set('x-user-email', payload.email);
+			response.headers.set('x-user-roles', JSON.stringify(payload.roles || []));
+			response.headers.set('x-user-permissions', JSON.stringify(payload.permissions || []));
+			response.headers.set('x-tenant-id', payload.tenant_id || '');
+			return response;
+		}
+
 		// Check route permissions
 		const routeConfig = getMatchingRoute(pathname);
-		
+
 		if (routeConfig) {
-			// Check tenant requirement
-			if (routeConfig.tenantRequired && !payload.tenant_id) {
+			console.log('Route Config:', routeConfig);
+
+			// System admins can bypass tenant requirements for admin routes
+			const isAdminRoute = pathname.startsWith('/dashboard/admin');
+
+			// Check tenant requirement (bypass for system admins on admin routes)
+			if (routeConfig.tenantRequired && !payload.tenant_id && !(isSystemAdmin && isAdminRoute)) {
+				console.log('Redirecting to select-tenant: tenant required but not present');
 				const response = NextResponse.redirect(new URL('/dashboard/select-tenant', request.url));
 				return response;
 			}
-			
-			// Check permissions
-			if (routeConfig.permissions && routeConfig.permissions.length > 0) {
+
+			// Check permissions (system admins bypass this check)
+			if (!isSystemAdmin && routeConfig.permissions && routeConfig.permissions.length > 0) {
 				const hasPermissions = checkUserPermissions(
-					payload, 
-					routeConfig.permissions, 
+					payload,
+					routeConfig.permissions,
 					routeConfig.requireAll
 				);
-				
+
+				console.log('Permission check result:', hasPermissions);
+
 				if (!hasPermissions) {
+					console.log('Access denied: insufficient permissions');
 					return NextResponse.redirect(new URL('/dashboard/access-denied', request.url));
 				}
 			}
-			
-			// Check roles
-			if (routeConfig.roles && routeConfig.roles.length > 0) {
+
+			// Check roles (system admins bypass this check)
+			if (!isSystemAdmin && routeConfig.roles && routeConfig.roles.length > 0) {
 				const hasRoles = checkUserRoles(
-					payload, 
-					routeConfig.roles, 
+					payload,
+					routeConfig.roles,
 					routeConfig.requireAllRoles
 				);
-				
+
+				console.log('Role check result:', hasRoles);
+
 				if (!hasRoles) {
+					console.log('Access denied: insufficient roles');
 					return NextResponse.redirect(new URL('/dashboard/access-denied', request.url));
 				}
 			}
+
+			console.log('Access granted for:', pathname);
 		}
-		
+
 		// Add user info to headers for downstream components
 		const response = NextResponse.next();
 		response.headers.set('x-user-id', payload.sub);
@@ -228,9 +322,12 @@ export async function middleware(request: NextRequest) {
 		if (payload.roles) {
 			response.headers.set('x-user-roles', JSON.stringify(payload.roles));
 		}
-		
+		if (payload.permissions) {
+			response.headers.set('x-user-permissions', JSON.stringify(payload.permissions));
+		}
+
 		return response;
-		
+
 	} catch (error) {
 		console.error('Middleware error:', error);
 		// Redirect to login on token decode error
