@@ -90,9 +90,33 @@ const adminParentLink: NavLink = {
 }
 
 const userLinks: NavLink[] = [
-	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
-	{href: '/dashboard/tenant-management', label: 'Organizations', icon: Building},
-	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle},
+	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard:view'},
+	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle, permission: 'profile:view'},
+	{
+		href: '/dashboard/dids',
+		label: 'DID Management',
+		icon: KeyRound,
+		permission: 'did:view',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/dids', label: 'Overview', icon: KeyRound, permission: 'did:view'},
+			{href: '/dashboard/dids/create', label: 'Create DID', icon: KeyRound, permission: 'did:create'},
+			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings, permission: 'did:manage'}
+		]
+	},
+	{
+		href: '/dashboard/tenant-management',
+		label: 'Organizations',
+		icon: Building,
+		permission: 'tenant:view',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/tenant-management', label: 'Overview', icon: Building, permission: 'tenant:view'},
+			{href: '/dashboard/tenant-management/settings', label: 'Settings', icon: Settings, permission: 'tenant:manage'},
+			{href: '/dashboard/tenant-management/members', label: 'Members', icon: Users, permission: 'tenant:members:view'},
+			{href: '/dashboard/tenant-management/roles', label: 'Roles', icon: ShieldCheck, permission: 'tenant:roles:view'}
+		]
+	}
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({type}) => {

@@ -23,19 +23,19 @@ const TENANT_API_PREFIX = "/api/v1/tenant";
 // --- General RBAC Info ---
 
 export const getAllRoles = async (): Promise<RoleListOutput> => {
-	const response = await apiClient.get(`${RBAC_API_PREFIX}/roles`);
+	const response = await apiClient.get<RoleListOutput>(`${RBAC_API_PREFIX}/roles`);
 	return response.data;
 };
 
 export const getAllPermissions = async (): Promise<PermissionListOutput> => {
-	const response = await apiClient.get(`${RBAC_API_PREFIX}/permissions`);
+	const response = await apiClient.get<PermissionListOutput>(`${RBAC_API_PREFIX}/permissions`);
 	return response.data;
 };
 
 // --- User Role Management ---
 
 export const getRolesForUser = async (userId: string): Promise<UserRolesOutput> => {
-	const response = await apiClient.get(`${RBAC_API_PREFIX}/users/${userId}/roles`);
+	const response = await apiClient.get<UserRolesOutput>(`${RBAC_API_PREFIX}/users/${userId}/roles`);
 	return response.data;
 };
 
@@ -48,24 +48,24 @@ export const removeRoleForUser = async (userId: string, role: string): Promise<v
 };
 
 export const getRolesForUsers = async (data: BulkUserRolesInput): Promise<BulkUserRolesResponse[]> => {
-	const response = await apiClient.post(`${RBAC_API_PREFIX}/users/roles`, data);
+	const response = await apiClient.post<BulkUserRolesResponse[]>(`${RBAC_API_PREFIX}/users/roles`, data);
 	return response.data;
 };
 
 // --- Tenant Role Management ---
 
 export const getTenantRoles = async (tenantId: string): Promise<TenantRoleListOutput> => {
-	const response = await apiClient.get(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles`);
+	const response = await apiClient.get<TenantRoleListOutput>(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles`);
 	return response.data;
 };
 
 export const createTenantRole = async (tenantId: string, data: TenantRoleInput): Promise<TenantRoleOutput> => {
-	const response = await apiClient.post(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles`, data);
+	const response = await apiClient.post<TenantRoleOutput>(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles`, data);
 	return response.data;
 };
 
 export const updateTenantRole = async (tenantId: string, roleName: string, data: TenantRoleInput): Promise<TenantRoleOutput> => {
-	const response = await apiClient.put(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}`, data);
+	const response = await apiClient.put<TenantRoleOutput>(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}`, data);
 	return response.data;
 };
 
@@ -76,7 +76,7 @@ export const deleteTenantRole = async (tenantId: string, roleName: string): Prom
 // --- Tenant Role Permission Management ---
 
 export const getTenantRolePermissions = async (tenantId: string, roleName: string): Promise<PermissionListOutput> => {
-	const response = await apiClient.get(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`);
+	const response = await apiClient.get<PermissionListOutput>(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/${encodeURIComponent(roleName)}/permissions`);
 	return response.data;
 };
 
@@ -87,7 +87,7 @@ export const assignPermissionToTenantRole = async (
 		permissions: { object: string; action: string }[];
 	}
 ): Promise<void> => {
-	await apiClient.post(`${TENANT_API_PREFIX}s/${tenantId}/rbac/roles/permissions`, data);
+	await apiClient.post(`${TENANT_API_PREFIX}/${tenantId}/rbac/roles/permissions`, data);
 };
 
 export const revokePermissionFromTenantRole = async (
@@ -102,7 +102,7 @@ export const revokePermissionFromTenantRole = async (
 // --- Tenant User Role Assignment ---
 
 export const getTenantUserRoles = async (tenantId: string, userId: string): Promise<TenantUserResponse[]> => {
-	const response = await apiClient.get(`${TENANT_API_PREFIX}/${tenantId}/users/${userId}`);
+	const response = await apiClient.get<TenantUserResponse[]>(`${TENANT_API_PREFIX}/${tenantId}/users/${userId}`);
 	return response.data;
 };
 
@@ -125,7 +125,7 @@ export const revokeRoleFromTenantUser = async (
 // --- Role Permission Management ---
 
 export const getPermissionsForRole = async (role: string, domain: string): Promise<RolePermissionsOutput> => {
-	const response = await apiClient.get(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(role)}/permissions/${domain}`);
+	const response = await apiClient.get<RolePermissionsOutput>(`${RBAC_API_PREFIX}/roles/${encodeURIComponent(role)}/permissions/${domain}`);
 	return response.data;
 };
 

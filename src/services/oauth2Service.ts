@@ -16,7 +16,8 @@ const baseURL = "/api/v1/oauth2";
 export const registerClient = async (
   data: ClientRegistrationRequest
 ): Promise<ClientRegistrationResponse> => {
-  return apiClient.post(`${baseURL}/clients`, data);
+  const response = await apiClient.post<ClientRegistrationResponse>(`${baseURL}/clients`, data);
+  return response.data
 };
 
 export const listClients = async (
@@ -32,7 +33,7 @@ export const listClients = async (
   const query = params.toString();
   const url = query ? `${baseURL}/clients?${query}` : `${baseURL}/clients`;
 
-  const response = await apiClient.get(url);
+  const response = await apiClient.get<ClientListResponse>(url);
   return response.data;
 };
 
@@ -57,14 +58,15 @@ export const authorize = async (
     ...(nonce ? { nonce } : {}),
   });
 
-  return apiClient.get(`${baseURL}/authorize?${params.toString()}`);
+  const response = await apiClient.get<AuthorizeResponse>(`${baseURL}/authorize?${params.toString()}`);
+  return response.data;
 };
 
 // New function for authenticated OAuth2 authorization
 export const authorizeAuthenticated = async (
   oauth2Params: Record<string, string>
 ): Promise<{ code: string; state?: string }> => {
-  const response = await apiClient.post(`${baseURL}/authorize`, oauth2Params);
+  const response = await apiClient.post<{ code: string; state?: string }>(`${baseURL}/authorize`, oauth2Params);
   return response.data;
 };
 
@@ -142,23 +144,26 @@ export const token = async (
   if (refresh_token) formData.append("refresh_token", refresh_token);
   if (scope) formData.append("scope", scope);
 
-  return apiClient.post(`${baseURL}/token`, formData, {
+  const response = await apiClient.post<TokenResponse>(`${baseURL}/token`, formData, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
   });
+  return response.data;
 };
 
 export const userInfo = async (): Promise<UserInfoResponse> => {
-  return apiClient.get(`${baseURL}/userinfo`);
+  const response = await apiClient.get<UserInfoResponse>(`${baseURL}/userinfo`);
+  return response.data;
 };
 
 export const tokenInfo = async (accessToken: string): Promise<TokenInfo> => {
-  return apiClient.get(`${baseURL}/tokeninfo`, {
+  const response = await apiClient.get<TokenInfo>(`${baseURL}/tokeninfo`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   });
+  return response.data;
 };
 
 export const revokeToken = async (
@@ -173,17 +178,20 @@ export const revokeToken = async (
   if (client_id) formData.append("client_id", client_id);
   if (client_secret) formData.append("client_secret", client_secret);
 
-  return apiClient.post(`${baseURL}/revoke`, formData, {
+  const response = await apiClient.post<void>(`${baseURL}/revoke`, formData, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
     },
   });
+  return response.data;
 };
 
 export const getOpenIDConfiguration = async (): Promise<OpenIDConfiguration> => {
-  return apiClient.get(`/.well-known/openid_configuration`);
+  const response = await apiClient.get<OpenIDConfiguration>(`/.well-known/openid_configuration`);
+  return response.data;
 };
 
 export const getJWKS = async (): Promise<JWKS> => {
-  return apiClient.get(`${baseURL}/.well-known/jwks.json`);
+  const response = await apiClient.get<JWKS>(`${baseURL}/.well-known/jwks.json`);
+  return response.data;
 };

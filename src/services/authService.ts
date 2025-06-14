@@ -20,7 +20,6 @@ import {
 	Verify2FARequest,
 	TwoFactorRecoveryCodesResponse,
 	Disable2FARequest,
-	AuthResult, // Explicitly import AuthResult
 } from '@/types/user';
 import { ContextMode, ContextSwitchResult } from '@/types/dual-context';
 import { tokenManager } from '@/lib/token-storage';
@@ -48,7 +47,7 @@ export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput, cont
 			context_mode: context,
 			preserve_global_context: context === 'tenant'
 		};
-		
+
 		// Expect AuthResponse from the backend endpoint
 		const response = await apiClient.post<AuthResponse>('/api/v1/auth/social-token-exchange', requestData);
 		return response.data;
@@ -66,7 +65,7 @@ export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput, cont
  * @returns A LoginOutput which might contain tokens or indicate 2FA is required.
  */
 export const signInWithEmail = async (
-	data: LoginInput, 
+	data: LoginInput,
 	context: ContextMode = 'auto',
 	preserveGlobalContext: boolean = true
 ): Promise<LoginOutput> => {
@@ -77,7 +76,7 @@ export const signInWithEmail = async (
 			context_mode: context,
 			preserve_global_context: preserveGlobalContext
 		};
-		
+
 		// Expect LoginOutput from the backend /auth/login endpoint
 		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login', requestData);
 		// AuthContext will handle storing tokens or prompting for 2FA
@@ -107,7 +106,7 @@ export const verifyTwoFactorLogin = async (
 			context_mode: context,
 			preserve_global_context: preserveGlobalContext
 		};
-		
+
 		// Expect LoginOutput from the backend /auth/login/verify-2fa endpoint
 		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login/verify-2fa', requestData);
 		// AuthContext will handle storing tokens on success
@@ -136,7 +135,7 @@ export const register = async (data: RegisterInput, context: ContextMode = 'glob
 			...data,
 			context_mode: context
 		};
-		
+
 		const response = await apiClient.post<AuthResponse>('/api/v1/auth/register', requestData);
 		// AuthContext will handle storing tokens and user state
 		return response.data;
@@ -214,7 +213,7 @@ export const refreshToken = async (currentRefreshToken: string, context: Context
 			refresh_token: currentRefreshToken,
 			context_mode: context
 		};
-		
+
 		const response = await apiClient.post<AuthResponse>('/api/v1/auth/refresh', requestData, {
 			headers: { '__skipAuthRefresh': 'true' } // Prevent interceptor loop
 		});
@@ -260,7 +259,7 @@ export const logoutUser = async (context: ContextMode = 'auto', preserveGlobalCo
 			context_mode: context,
 			preserve_global_context: preserveGlobalContext
 		};
-		
+
 		// Notify backend about logout (best effort, don't block UI on failure)
 		await apiClient.post('/api/v1/auth/logout', requestData, {
 			headers: { '__skipAuthRefresh': 'true' } // Avoid potential issues if tokens were already cleared
@@ -382,7 +381,7 @@ export const verifyLoginLink = async (
 			context_mode: context,
 			preserve_global_context: preserveGlobalContext
 		};
-		
+
 		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login/verify-link', requestData);
 		// AuthContext will handle storing tokens and user state
 		return response.data;
@@ -441,17 +440,17 @@ export const loginTenantContext = async (
 				throw new Error(`Context switch validation failed: ${validation.errors.join(', ')}`);
 			}
 		}
-		
+
 		// Prepare request data with context information
 		const requestData = {
 			tenant_id: tenantId,
 			preserve_global_context: preserveGlobalContext,
 			context_mode: 'tenant' as ContextMode
 		};
-		
+
 		// Backend returns AuthResult, not ContextSwitchResult
-		const response = await apiClient.post<{access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string}>('/api/v1/auth/login-tenant', requestData);
-		
+		const response = await apiClient.post<{ access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string }>('/api/v1/auth/login-tenant', requestData);
+
 		// Convert AuthResult to ContextSwitchResult format
 		if (response.data && response.data.access_token) {
 			console.log('Tenant context switched successfully.');
@@ -488,16 +487,16 @@ export const loginGlobalContext = async (
 				throw new Error(`Context switch validation failed: ${validation.errors.join(', ')}`);
 			}
 		}
-		
+
 		// Prepare request data with context information
 		const requestData = {
 			preserve_tenant_context: preserveTenantContext,
 			context_mode: 'global' as ContextMode
 		};
-		
+
 		// Backend returns AuthResult, not ContextSwitchResult
-		const response = await apiClient.post<{access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string}>('/api/v1/auth/login-global', requestData);
-		
+		const response = await apiClient.post<{ access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string }>('/api/v1/auth/login-global', requestData);
+
 		// Convert AuthResult to ContextSwitchResult format
 		if (response.data && response.data.access_token) {
 			console.log('Global context switched successfully.');
@@ -523,7 +522,7 @@ export const loginGlobalContext = async (
  */
 export const getContextAwareApiClient = (context: ContextMode = 'auto') => {
 	const tokens = tokenManager.getTokens(context);
-	
+
 	// Create a new axios instance with context-specific headers
 	const contextApiClient = axios.create({
 		baseURL: apiClient.defaults.baseURL,
@@ -533,18 +532,18 @@ export const getContextAwareApiClient = (context: ContextMode = 'auto') => {
 			'X-Context-Mode': context
 		}
 	});
-	
+
 	if (tokens.accessToken) {
 		contextApiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`;
 	}
-	
+
 	if (context === 'tenant') {
 		const contextState = contextManager.getContextState('tenant');
 		if (contextState?.tenantId) {
 			contextApiClient.defaults.headers['X-Tenant-ID'] = contextState.tenantId;
 		}
 	}
-	
+
 	return contextApiClient;
 };
 
@@ -556,12 +555,12 @@ export const getContextAwareApiClient = (context: ContextMode = 'auto') => {
 export const validateAndRefreshContext = async (context: ContextMode): Promise<boolean> => {
 	try {
 		const validation = await contextManager.validateContext(context);
-		
+
 		if (!validation.isValid) {
 			console.warn('Context validation failed:', validation.errors);
 			return false;
 		}
-		
+
 		// If context is valid but tokens are expired, try to refresh
 		const tokens = tokenManager.getTokens(context);
 		if (tokens.refreshToken && !tokens.accessToken) {
@@ -573,7 +572,7 @@ export const validateAndRefreshContext = async (context: ContextMode): Promise<b
 				return false;
 			}
 		}
-		
+
 		return true;
 	} catch (error) {
 		console.error('Error validating context:', error);

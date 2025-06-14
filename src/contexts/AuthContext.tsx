@@ -734,6 +734,33 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		[handleAuthSuccessInternal],
 	)
 
+	/**
+	 * Signs in user with DID authentication tokens
+	 * @param data DID authentication data including tokens
+	 */
+	const signInWithDID = useCallback(
+		async (data: {did: string; access_token: string; refresh_token: string}) => {
+			try {
+				setLoading(true)
+				
+				// Handle authentication success with DID tokens
+				await handleAuthSuccessInternal({
+					access_token: data.access_token,
+					refresh_token: data.refresh_token
+				})
+				
+				toast.success(`Successfully authenticated with DID: ${data.did}`)
+			} catch (error) {
+				console.error('DID authentication failed:', error)
+				toast.error('DID authentication failed')
+				throw error
+			} finally {
+				setLoading(false)
+			}
+		},
+		[handleAuthSuccessInternal],
+	)
+
 	const value: AuthContextType = {
 		// Current state
 		user,
@@ -754,6 +781,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		signInWithApple,
 		signInWithTwitter,
 		signInWithEmail,
+		signInWithDID,
 		verifyTwoFactorCode,
 		register,
 		logout,

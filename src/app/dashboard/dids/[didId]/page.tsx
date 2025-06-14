@@ -1,0 +1,586 @@
+'use client'
+
+import React, {useState, useEffect} from 'react'
+import {PageHeader} from '@/components/layout/PageHeader'
+import {Button} from '@/components/ui/button'
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {Badge} from '@/components/ui/badge'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+import {Textarea} from '@/components/ui/textarea'
+import {Label} from '@/components/ui/label'
+import {Key, Globe, Coins, Network, Users, Copy, Check, Power, Trash2, Shield, Link as LinkIcon, History, Download} from 'lucide-react'
+import {useParams, useRouter} from 'next/navigation'
+import {toast} from 'sonner'
+
+// Types for DID data
+interface DIDDocument {
+	'@context': string[]
+	id: string
+	verificationMethod: VerificationMethod[]
+	authentication: string[]
+	assertionMethod: string[]
+	keyAgreement: string[]
+	capabilityInvocation: string[]
+	capabilityDelegation: string[]
+	service: ServiceEndpoint[]
+}
+
+interface VerificationMethod {
+	id: string
+	type: string
+	controller: string
+	publicKeyMultibase?: string
+	publicKeyJwk?: Record<string, unknown>
+	blockchainAccountId?: string
+}
+
+interface ServiceEndpoint {
+	id: string
+	type: string
+	serviceEndpoint: string | string[]
+}
+
+interface DIDMetadata {
+	method: 'key' | 'web' | 'ethr' | 'ion' | 'peer'
+	status: 'active' | 'deactivated' | 'revoked'
+	created: string
+	updated: string
+	nextUpdate?: string
+	versionId?: string
+	equivalentId?: string[]
+	canonicalId?: string
+}
+
+interface DIDHistory {
+	timestamp: string
+	action: 'created' | 'updated' | 'deactivated' | 'revoked'
+	description: string
+	versionId?: string
+}
+
+/**
+ * DID Details Page - Display complete DID document and metadata
+ * Shows verification methods, service endpoints, and DID history
+ */
+export default function DIDDetailsPage() {
+	const params = useParams()
+	const router = useRouter()
+	const didId = decodeURIComponent(params.didId as string)
+
+	const [didDocument, setDidDocument] = useState<DIDDocument | null>(null)
+	const [metadata, setMetadata] = useState<DIDMetadata | null>(null)
+	const [history, setHistory] = useState<DIDHistory[]>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState<string | null>(null)
+	const [copiedField, setCopiedField] = useState<string | null>(null)
+	const [activeTab, setActiveTab] = useState('document')
+
+	// Fetch DID document and metadata
+	useEffect(() => {
+		const fetchDIDDetails = async () => {
+			try {
+				setLoading(true)
+				// TODO: Replace with actual API calls
+				// const [docResponse, metaResponse, historyResponse] = await Promise.all([
+				//   didService.resolveDID(didId),
+				//   didService.getDIDMetadata(didId),
+				//   didService.getDIDHistory(didId)
+				// ])
+
+				// Mock data for now
+				const mockDocument: DIDDocument = {
+					'@context': ['https://www.w3.org/ns/did/v1', 'https://w3id.org/security/suites/ed25519-2020/v1'],
+					id: didId,
+					verificationMethod: [
+						{
+							id: `${didId}#keys-1`,
+							type: 'Ed25519VerificationKey2020',
+							controller: didId,
+							publicKeyMultibase: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
+						},
+						{
+							id: `${didId}#keys-2`,
+							type: 'X25519KeyAgreementKey2020',
+							controller: didId,
+							publicKeyMultibase: 'z6LSeu9HkTHSfLLeUs2nnzUSNedgDUevfNQgQjQC23ZCit6F',
+						},
+					],
+					authentication: [`${didId}#keys-1`],
+					assertionMethod: [`${didId}#keys-1`],
+					keyAgreement: [`${didId}#keys-2`],
+					capabilityInvocation: [`${didId}#keys-1`],
+					capabilityDelegation: [`${didId}#keys-1`],
+					service: [
+						{
+							id: `${didId}#linked-domain`,
+							type: 'LinkedDomains',
+							serviceEndpoint: 'https://example.com',
+						},
+						{
+							id: `${didId}#didcomm`,
+							type: 'DIDCommMessaging',
+							serviceEndpoint: 'https://example.com/didcomm',
+						},
+					],
+				}
+
+				const mockMetadata: DIDMetadata = {
+					method: didId.startsWith('did:key') ? 'key' : didId.startsWith('did:web') ? 'web' : didId.startsWith('did:ethr') ? 'ethr' : didId.startsWith('did:ion') ? 'ion' : 'peer',
+					status: 'active',
+					created: '2024-01-15T10:30:00Z',
+					updated: '2024-01-15T10:30:00Z',
+					versionId: '1',
+					canonicalId: didId,
+				}
+
+				const mockHistory: DIDHistory[] = [
+					{
+						timestamp: '2024-01-15T10:30:00Z',
+						action: 'created',
+						description: 'DID document created',
+						versionId: '1',
+					},
+				]
+
+				setDidDocument(mockDocument)
+				setMetadata(mockMetadata)
+				setHistory(mockHistory)
+			} catch (err) {
+				setError('Failed to fetch DID details')
+				console.error('Error fetching DID details:', err)
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		if (didId) {
+			fetchDIDDetails()
+		}
+	}, [didId])
+
+	/**
+	 * Get method icon based on DID method
+	 */
+	const getMethodIcon = (method: string) => {
+		switch (method) {
+			case 'key':
+				return <Key className='h-4 w-4' />
+			case 'web':
+				return <Globe className='h-4 w-4' />
+			case 'ethr':
+				return <Coins className='h-4 w-4' />
+			case 'ion':
+				return <Network className='h-4 w-4' />
+			case 'peer':
+				return <Users className='h-4 w-4' />
+			default:
+				return <Key className='h-4 w-4' />
+		}
+	}
+
+	/**
+	 * Get status badge variant based on DID status
+	 */
+	const getStatusBadge = (status: string) => {
+		switch (status) {
+			case 'active':
+				return (
+					<Badge variant='default' className='bg-green-100 text-green-800'>
+						Active
+					</Badge>
+				)
+			case 'deactivated':
+				return <Badge variant='secondary'>Deactivated</Badge>
+			case 'revoked':
+				return <Badge variant='destructive'>Revoked</Badge>
+			default:
+				return <Badge variant='outline'>Unknown</Badge>
+		}
+	}
+
+	/**
+	 * Copy text to clipboard
+	 */
+	const copyToClipboard = async (text: string, field: string) => {
+		try {
+			await navigator.clipboard.writeText(text)
+			setCopiedField(field)
+			toast.success('Copied to clipboard')
+			setTimeout(() => setCopiedField(null), 2000)
+		} catch (error) {
+			toast.error('Failed to copy to clipboard')
+		}
+	}
+
+	/**
+	 * Handle DID deactivation
+	 */
+	const handleDeactivate = async () => {
+		try {
+			// TODO: Implement actual API call
+			// await didService.deactivateDID(didId)
+			console.log('Deactivating DID:', didId)
+			toast.success('DID deactivated successfully')
+			// Refresh the data
+			// fetchDIDDetails()
+		} catch (err) {
+			console.error('Error deactivating DID:', err)
+			toast.error('Failed to deactivate DID')
+		}
+	}
+
+	/**
+	 * Handle DID revocation
+	 */
+	const handleRevoke = async () => {
+		try {
+			// TODO: Implement actual API call
+			// await didService.revokeDID(didId)
+			console.log('Revoking DID:', didId)
+			toast.success('DID revoked successfully')
+			// Refresh the data
+			// fetchDIDDetails()
+		} catch (err) {
+			console.error('Error revoking DID:', err)
+			toast.error('Failed to revoke DID')
+		}
+	}
+
+	/**
+	 * Download DID document as JSON
+	 */
+	const downloadDocument = () => {
+		if (!didDocument) return
+
+		const dataStr = JSON.stringify(didDocument, null, 2)
+		const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
+
+		const exportFileDefaultName = `did-document-${didId.replace(/[^a-zA-Z0-9]/g, '-')}.json`
+
+		const linkElement = document.createElement('a')
+		linkElement.setAttribute('href', dataUri)
+		linkElement.setAttribute('download', exportFileDefaultName)
+		linkElement.click()
+	}
+
+	if (loading) {
+		return (
+			<div className='space-y-6'>
+				<div className='h-8 bg-gray-200 rounded animate-pulse' />
+				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+					{[...Array(3)].map((_, i) => (
+						<div key={i} className='h-24 bg-gray-200 rounded animate-pulse' />
+					))}
+				</div>
+				<div className='h-96 bg-gray-200 rounded animate-pulse' />
+			</div>
+		)
+	}
+
+	if (error || !didDocument || !metadata) {
+		return (
+			<div className='text-center py-12'>
+				<p className='text-red-600 mb-4'>{error || 'DID not found'}</p>
+				<Button onClick={() => router.push('/dashboard/dids')}>Back to DIDs</Button>
+			</div>
+		)
+	}
+
+	return (
+		<div className='space-y-6'>
+			<PageHeader
+				title='DID Details'
+				description={didId}
+				backButton={{href: '/dashboard/dids', text: 'Back to DIDs'}}
+				actions={
+					<div className='flex gap-2'>
+						<Button variant='outline' onClick={downloadDocument}>
+							<Download className='h-4 w-4 mr-2' />
+							Download
+						</Button>
+						{metadata.status === 'active' && (
+							<>
+								<Button variant='outline' onClick={handleDeactivate} className='text-orange-600 hover:text-orange-700'>
+									<Power className='h-4 w-4 mr-2' />
+									Deactivate
+								</Button>
+								<Button variant='outline' onClick={handleRevoke} className='text-red-600 hover:text-red-700'>
+									<Trash2 className='h-4 w-4 mr-2' />
+									Revoke
+								</Button>
+							</>
+						)}
+					</div>
+				}
+			/>
+
+			{/* Status and Metadata Cards */}
+			<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+				<Card>
+					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+						<CardTitle className='text-sm font-medium'>Method</CardTitle>
+						{getMethodIcon(metadata.method)}
+					</CardHeader>
+					<CardContent>
+						<div className='text-2xl font-bold capitalize'>{metadata.method}</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+						<CardTitle className='text-sm font-medium'>Status</CardTitle>
+						<Shield className='h-4 w-4 text-muted-foreground' />
+					</CardHeader>
+					<CardContent>
+						<div className='text-2xl font-bold'>{getStatusBadge(metadata.status)}</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+						<CardTitle className='text-sm font-medium'>Created</CardTitle>
+						<History className='h-4 w-4 text-muted-foreground' />
+					</CardHeader>
+					<CardContent>
+						<div className='text-2xl font-bold'>{new Date(metadata.created).toLocaleDateString()}</div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Main Content Tabs */}
+			<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<TabsList className='grid w-full grid-cols-4'>
+					<TabsTrigger value='document'>Document</TabsTrigger>
+					<TabsTrigger value='verification'>Verification Methods</TabsTrigger>
+					<TabsTrigger value='services'>Services</TabsTrigger>
+					<TabsTrigger value='history'>History</TabsTrigger>
+				</TabsList>
+
+				{/* DID Document Tab */}
+				<TabsContent value='document' className='space-y-4'>
+					<Card>
+						<CardHeader>
+							<CardTitle>DID Document</CardTitle>
+							<CardDescription>Complete DID document in JSON format</CardDescription>
+						</CardHeader>
+						<CardContent className='space-y-4'>
+							<div className='flex gap-2'>
+								<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(didDocument, null, 2), 'document')}>
+									{copiedField === 'document' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}
+									Copy Document
+								</Button>
+								<Button variant='outline' onClick={() => copyToClipboard(didId, 'did-id')}>
+									{copiedField === 'did-id' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}
+									Copy DID
+								</Button>
+							</div>
+							<Textarea value={JSON.stringify(didDocument, null, 2)} readOnly className='font-mono text-sm h-96' />
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				{/* Verification Methods Tab */}
+				<TabsContent value='verification' className='space-y-4'>
+					<Card>
+						<CardHeader>
+							<CardTitle>Verification Methods</CardTitle>
+							<CardDescription>Cryptographic keys and verification methods</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{didDocument.verificationMethod.length === 0 ? (
+								<p className='text-gray-500 text-center py-8'>No verification methods found</p>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>ID</TableHead>
+											<TableHead>Type</TableHead>
+											<TableHead>Controller</TableHead>
+											<TableHead>Public Key</TableHead>
+											<TableHead>Actions</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{didDocument.verificationMethod.map((method, index) => (
+											<TableRow key={index}>
+												<TableCell className='font-mono text-sm'>
+													<div className='max-w-xs truncate' title={method.id}>
+														{method.id}
+													</div>
+												</TableCell>
+												<TableCell>{method.type}</TableCell>
+												<TableCell className='font-mono text-sm'>
+													<div className='max-w-xs truncate' title={method.controller}>
+														{method.controller}
+													</div>
+												</TableCell>
+												<TableCell className='font-mono text-sm'>
+													<div className='max-w-xs truncate' title={method.publicKeyMultibase}>
+														{method.publicKeyMultibase || method.blockchainAccountId || 'N/A'}
+													</div>
+												</TableCell>
+												<TableCell>
+													<Button variant='outline' size='sm' onClick={() => copyToClipboard(method.publicKeyMultibase || method.blockchainAccountId || '', `key-${index}`)}>
+														{copiedField === `key-${index}` ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
+													</Button>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							)}
+						</CardContent>
+					</Card>
+
+					{/* Key Usage */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Key Usage</CardTitle>
+							<CardDescription>How verification methods are used</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+								<div>
+									<Label>Authentication</Label>
+									<div className='mt-1 space-y-1'>
+										{didDocument.authentication.map((auth, index) => (
+											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+												{auth}
+											</div>
+										))}
+									</div>
+								</div>
+								<div>
+									<Label>Assertion Method</Label>
+									<div className='mt-1 space-y-1'>
+										{didDocument.assertionMethod.map((assertion, index) => (
+											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+												{assertion}
+											</div>
+										))}
+									</div>
+								</div>
+								<div>
+									<Label>Key Agreement</Label>
+									<div className='mt-1 space-y-1'>
+										{didDocument.keyAgreement.map((agreement, index) => (
+											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+												{agreement}
+											</div>
+										))}
+									</div>
+								</div>
+								<div>
+									<Label>Capability Invocation</Label>
+									<div className='mt-1 space-y-1'>
+										{didDocument.capabilityInvocation.map((capability, index) => (
+											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+												{capability}
+											</div>
+										))}
+									</div>
+								</div>
+							</div>
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				{/* Services Tab */}
+				<TabsContent value='services' className='space-y-4'>
+					<Card>
+						<CardHeader>
+							<CardTitle>Service Endpoints</CardTitle>
+							<CardDescription>Services and endpoints associated with this DID</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{didDocument.service.length === 0 ? (
+								<p className='text-gray-500 text-center py-8'>No service endpoints found</p>
+							) : (
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>ID</TableHead>
+											<TableHead>Type</TableHead>
+											<TableHead>Service Endpoint</TableHead>
+											<TableHead>Actions</TableHead>
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{didDocument.service.map((service, index) => (
+											<TableRow key={index}>
+												<TableCell className='font-mono text-sm'>
+													<div className='max-w-xs truncate' title={service.id}>
+														{service.id}
+													</div>
+												</TableCell>
+												<TableCell>
+													<Badge variant='outline'>{service.type}</Badge>
+												</TableCell>
+												<TableCell>
+													<div className='flex items-center gap-2'>
+														<LinkIcon className='h-4 w-4' />
+														<span className='font-mono text-sm truncate max-w-xs'>{Array.isArray(service.serviceEndpoint) ? service.serviceEndpoint[0] : service.serviceEndpoint}</span>
+													</div>
+												</TableCell>
+												<TableCell>
+													<div className='flex gap-2'>
+														<Button variant='outline' size='sm' onClick={() => copyToClipboard(Array.isArray(service.serviceEndpoint) ? service.serviceEndpoint.join(', ') : service.serviceEndpoint, `service-${index}`)}>
+															{copiedField === `service-${index}` ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
+														</Button>
+														{!Array.isArray(service.serviceEndpoint) && service.serviceEndpoint.startsWith('http') && (
+															<Button variant='outline' size='sm' onClick={() => window.open(service.serviceEndpoint as string, '_blank')}>
+																<LinkIcon className='h-4 w-4' />
+															</Button>
+														)}
+													</div>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							)}
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				{/* History Tab */}
+				<TabsContent value='history' className='space-y-4'>
+					<Card>
+						<CardHeader>
+							<CardTitle>DID History</CardTitle>
+							<CardDescription>Timeline of changes to this DID</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{history.length === 0 ? (
+								<p className='text-gray-500 text-center py-8'>No history found</p>
+							) : (
+								<div className='space-y-4'>
+									{history.map((event, index) => (
+										<div key={index} className='flex items-start gap-4 p-4 border rounded-lg'>
+											<div className='flex-shrink-0'>
+												<div className={`w-3 h-3 rounded-full ${event.action === 'created' ? 'bg-green-500' : event.action === 'updated' ? 'bg-blue-500' : event.action === 'deactivated' ? 'bg-orange-500' : 'bg-red-500'}`} />
+											</div>
+											<div className='flex-1'>
+												<div className='flex items-center gap-2 mb-1'>
+													<span className='font-medium capitalize'>{event.action}</span>
+													{event.versionId && (
+														<Badge variant='outline' className='text-xs'>
+															v{event.versionId}
+														</Badge>
+													)}
+												</div>
+												<p className='text-sm text-gray-600 mb-1'>{event.description}</p>
+												<p className='text-xs text-gray-500'>{new Date(event.timestamp).toLocaleString()}</p>
+											</div>
+										</div>
+									))}
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				</TabsContent>
+			</Tabs>
+		</div>
+	)
+}

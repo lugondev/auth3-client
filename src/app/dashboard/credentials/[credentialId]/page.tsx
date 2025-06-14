@@ -1,0 +1,454 @@
+'use client'
+
+import React, {useState, useEffect} from 'react'
+import {useParams, useRouter} from 'next/navigation'
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {Button} from '@/components/ui/button'
+import {Badge} from '@/components/ui/badge'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {ScrollArea} from '@/components/ui/scroll-area'
+import {Alert, AlertDescription} from '@/components/ui/alert'
+import {ArrowLeft, Download, Share2, Shield, Clock, User, Building, FileText, History, QrCode, Copy, ExternalLink, AlertTriangle, CheckCircle, XCircle} from 'lucide-react'
+import {toast} from 'sonner'
+import {VerifiableCredential, CredentialStatus} from '@/types/credentials'
+import {CredentialViewer} from '@/components/credentials/CredentialViewer'
+import {VerificationResults} from '@/components/credentials/VerificationResults'
+
+/**
+ * Credential Details Page Component
+ * Displays comprehensive information about a specific verifiable credential
+ */
+export default function CredentialDetailsPage() {
+	const params = useParams()
+	const router = useRouter()
+	const credentialId = params.credentialId as string
+
+	// State management
+	const [credential, setCredential] = useState<VerifiableCredential | null>(null)
+	const [verificationHistory, setVerificationHistory] = useState<VerificationResult[]>([])
+	const [loading, setLoading] = useState(true)
+	const [verifying, setVerifying] = useState(false)
+	const [error, setError] = useState<string | null>(null)
+	const [activeTab, setActiveTab] = useState('overview')
+
+	/**
+	 * Load credential details and verification history
+	 */
+	useEffect(() => {
+		const loadCredentialDetails = async () => {
+			try {
+				setLoading(true)
+				setError(null)
+
+				// Load credential details
+				const credentialResponse = await vcService.getCredential(credentialId)
+				if (credentialResponse.success && credentialResponse.data) {
+					setCredential(credentialResponse.data)
+				} else {
+					setError(credentialResponse.error || 'Failed to load credential')
+					return
+				}
+
+				// Load verification history (mock data for now)
+				// In real implementation, this would come from the backend
+				const mockHistory: VerificationResult[] = [
+					{
+						isValid: true,
+						verificationScore: 95,
+						checks: {
+							signatureValid: true,
+							notExpired: true,
+							notRevoked: true,
+							issuerTrusted: true,
+							schemaValid: true,
+						},
+						verifiedAt: new Date().toISOString(),
+						verifier: 'System Auto-Verification',
+						details: 'Credential passed all verification checks',
+					},
+				]
+				setVerificationHistory(mockHistory)
+			} catch (err) {
+				console.error('Error loading credential details:', err)
+				setError('Failed to load credential details')
+			} finally {
+				setLoading(false)
+			}
+		}
+
+		if (credentialId) {
+			loadCredentialDetails()
+		}
+	}, [credentialId])
+
+	/**
+	 * Handle credential verification
+	 */
+	const handleVerifyCredential = async () => {
+		if (!credential) return
+
+		try {
+			setVerifying(true)
+			const response = await vcService.verifyCredential({
+				credential: credential,
+				options: {
+					checkRevocation: true,
+					checkExpiration: true,
+					verifySignature: true,
+				},
+			})
+
+			if (response.success && response.data) {
+				// Add new verification to history
+				setVerificationHistory((prev) => [response.data!, ...prev])
+				toast.success('Credential verified successfully')
+			} else {
+				toast.error(response.error || 'Verification failed')
+			}
+		} catch (err) {
+			console.error('Error verifying credential:', err)
+			toast.error('Failed to verify credential')
+		} finally {
+			setVerifying(false)
+		}
+	}
+
+	/**
+	 * Handle credential download
+	 */
+	const handleDownload = () => {
+		if (!credential) return
+
+		const dataStr = JSON.stringify(credential, null, 2)
+		const dataBlob = new Blob([dataStr], {type: 'application/json'})
+		const url = URL.createObjectURL(dataBlob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = `credential-${credentialId}.json`
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+		URL.revokeObjectURL(url)
+
+		toast.success('Credential downloaded successfully')
+	}
+
+	/**
+	 * Handle credential sharing
+	 */
+	const handleShare = async () => {
+		if (!credential) return
+
+		try {
+			const shareUrl = `${window.location.origin}/credentials/view/${credentialId}`
+			await navigator.clipboard.writeText(shareUrl)
+			toast.success('Share link copied to clipboard')
+		} catch (err) {
+			toast.error('Failed to copy share link')
+		}
+	}
+
+	/**
+	 * Copy credential ID to clipboard
+	 */
+	const copyCredentialId = async () => {
+		try {
+			await navigator.clipboard.writeText(credentialId)
+			toast.success('Credential ID copied to clipboard')
+		} catch (err) {
+			toast.error('Failed to copy credential ID')
+		}
+	}
+
+	/**
+	 * Get status badge color
+	 */
+	const getStatusColor = (status: CredentialStatus) => {
+		switch (status) {
+			case 'active':
+				return 'bg-green-100 text-green-800'
+			case 'expired':
+				return 'bg-red-100 text-red-800'
+			case 'revoked':
+				return 'bg-gray-100 text-gray-800'
+			case 'suspended':
+				return 'bg-yellow-100 text-yellow-800'
+			default:
+				return 'bg-gray-100 text-gray-800'
+		}
+	}
+
+	/**
+	 * Format date for display
+	 */
+	const formatDate = (dateString: string) => {
+		return new Date(dateString).toLocaleDateString('en-US', {
+			year: 'numeric',
+			month: 'long',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		})
+	}
+
+	if (loading) {
+		return (
+			<div className='container mx-auto p-6'>
+				<div className='flex items-center justify-center h-64'>
+					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+				</div>
+			</div>
+		)
+	}
+
+	if (error || !credential) {
+		return (
+			<div className='container mx-auto p-6'>
+				<Alert className='max-w-md mx-auto'>
+					<AlertTriangle className='h-4 w-4' />
+					<AlertDescription>{error || 'Credential not found'}</AlertDescription>
+				</Alert>
+				<div className='flex justify-center mt-4'>
+					<Button onClick={() => router.back()} variant='outline'>
+						<ArrowLeft className='h-4 w-4 mr-2' />
+						Go Back
+					</Button>
+				</div>
+			</div>
+		)
+	}
+
+	return (
+		<div className='container mx-auto p-6 space-y-6'>
+			{/* Header */}
+			<div className='flex items-center justify-between'>
+				<div className='flex items-center space-x-4'>
+					<Button onClick={() => router.back()} variant='ghost' size='sm'>
+						<ArrowLeft className='h-4 w-4 mr-2' />
+						Back
+					</Button>
+					<div>
+						<h1 className='text-2xl font-bold'>Credential Details</h1>
+						<div className='flex items-center space-x-2 text-sm text-gray-600'>
+							<span>ID: {credentialId}</span>
+							<Button onClick={copyCredentialId} variant='ghost' size='sm' className='h-auto p-1'>
+								<Copy className='h-3 w-3' />
+							</Button>
+						</div>
+					</div>
+				</div>
+
+				<div className='flex items-center space-x-2'>
+					<Button onClick={handleVerifyCredential} disabled={verifying} variant='outline'>
+						<Shield className='h-4 w-4 mr-2' />
+						{verifying ? 'Verifying...' : 'Verify'}
+					</Button>
+					<Button onClick={handleDownload} variant='outline'>
+						<Download className='h-4 w-4 mr-2' />
+						Download
+					</Button>
+					<Button onClick={handleShare} variant='outline'>
+						<Share2 className='h-4 w-4 mr-2' />
+						Share
+					</Button>
+				</div>
+			</div>
+
+			{/* Status Overview */}
+			<Card>
+				<CardHeader>
+					<div className='flex items-center justify-between'>
+						<div>
+							<CardTitle className='flex items-center space-x-2'>
+								<FileText className='h-5 w-5' />
+								<span>{credential.type?.[1] || 'Verifiable Credential'}</span>
+							</CardTitle>
+							<CardDescription>Issued by {credential.issuer?.name || credential.issuer?.id || 'Unknown Issuer'}</CardDescription>
+						</div>
+						<Badge className={getStatusColor('active')}>Active</Badge>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+						<div className='flex items-center space-x-2'>
+							<Clock className='h-4 w-4 text-gray-500' />
+							<div>
+								<p className='text-sm font-medium'>Issued</p>
+								<p className='text-sm text-gray-600'>{formatDate(credential.issuanceDate)}</p>
+							</div>
+						</div>
+
+						{credential.expirationDate && (
+							<div className='flex items-center space-x-2'>
+								<Clock className='h-4 w-4 text-gray-500' />
+								<div>
+									<p className='text-sm font-medium'>Expires</p>
+									<p className='text-sm text-gray-600'>{formatDate(credential.expirationDate)}</p>
+								</div>
+							</div>
+						)}
+
+						<div className='flex items-center space-x-2'>
+							<User className='h-4 w-4 text-gray-500' />
+							<div>
+								<p className='text-sm font-medium'>Subject</p>
+								<p className='text-sm text-gray-600'>{credential.credentialSubject?.id || 'N/A'}</p>
+							</div>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Detailed Information Tabs */}
+			<Tabs value={activeTab} onValueChange={setActiveTab}>
+				<TabsList className='grid w-full grid-cols-4'>
+					<TabsTrigger value='overview'>Overview</TabsTrigger>
+					<TabsTrigger value='credential'>Credential</TabsTrigger>
+					<TabsTrigger value='verification'>Verification</TabsTrigger>
+					<TabsTrigger value='history'>History</TabsTrigger>
+				</TabsList>
+
+				{/* Overview Tab */}
+				<TabsContent value='overview' className='space-y-4'>
+					<div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
+						{/* Issuer Information */}
+						<Card>
+							<CardHeader>
+								<CardTitle className='flex items-center space-x-2'>
+									<Building className='h-5 w-5' />
+									<span>Issuer Information</span>
+								</CardTitle>
+							</CardHeader>
+							<CardContent className='space-y-3'>
+								<div>
+									<p className='text-sm font-medium'>Name</p>
+									<p className='text-sm text-gray-600'>{credential.issuer?.name || 'Not specified'}</p>
+								</div>
+								<div>
+									<p className='text-sm font-medium'>DID</p>
+									<p className='text-sm text-gray-600 break-all'>{credential.issuer?.id || credential.issuer}</p>
+								</div>
+								{credential.issuer?.url && (
+									<div>
+										<p className='text-sm font-medium'>Website</p>
+										<a href={credential.issuer.url} target='_blank' rel='noopener noreferrer' className='text-sm text-blue-600 hover:underline flex items-center space-x-1'>
+											<span>{credential.issuer.url}</span>
+											<ExternalLink className='h-3 w-3' />
+										</a>
+									</div>
+								)}
+							</CardContent>
+						</Card>
+
+						{/* Subject Information */}
+						<Card>
+							<CardHeader>
+								<CardTitle className='flex items-center space-x-2'>
+									<User className='h-5 w-5' />
+									<span>Subject Information</span>
+								</CardTitle>
+							</CardHeader>
+							<CardContent className='space-y-3'>
+								<div>
+									<p className='text-sm font-medium'>Subject ID</p>
+									<p className='text-sm text-gray-600 break-all'>{credential.credentialSubject?.id || 'Not specified'}</p>
+								</div>
+								{Object.entries(credential.credentialSubject || {}).map(([key, value]) => {
+									if (key === 'id') return null
+									return (
+										<div key={key}>
+											<p className='text-sm font-medium capitalize'>{key.replace(/([A-Z])/g, ' $1').trim()}</p>
+											<p className='text-sm text-gray-600'>{typeof value === 'object' ? JSON.stringify(value) : String(value)}</p>
+										</div>
+									)
+								})}
+							</CardContent>
+						</Card>
+					</div>
+
+					{/* Credential Schema */}
+					{credential.credentialSchema && (
+						<Card>
+							<CardHeader>
+								<CardTitle>Credential Schema</CardTitle>
+							</CardHeader>
+							<CardContent>
+								<div className='space-y-2'>
+									<div>
+										<p className='text-sm font-medium'>Schema ID</p>
+										<p className='text-sm text-gray-600 break-all'>{credential.credentialSchema.id}</p>
+									</div>
+									<div>
+										<p className='text-sm font-medium'>Type</p>
+										<p className='text-sm text-gray-600'>{credential.credentialSchema.type}</p>
+									</div>
+								</div>
+							</CardContent>
+						</Card>
+					)}
+				</TabsContent>
+
+				{/* Credential Tab */}
+				<TabsContent value='credential'>
+					<CredentialViewer credential={credential} />
+				</TabsContent>
+
+				{/* Verification Tab */}
+				<TabsContent value='verification' className='space-y-4'>
+					{verificationHistory.length > 0 ? (
+						<VerificationResults result={verificationHistory[0]} />
+					) : (
+						<Card>
+							<CardContent className='text-center py-8'>
+								<Shield className='h-12 w-12 text-gray-400 mx-auto mb-4' />
+								<p className='text-gray-600'>No verification results available</p>
+								<Button onClick={handleVerifyCredential} disabled={verifying} className='mt-4'>
+									{verifying ? 'Verifying...' : 'Verify Credential'}
+								</Button>
+							</CardContent>
+						</Card>
+					)}
+				</TabsContent>
+
+				{/* History Tab */}
+				<TabsContent value='history'>
+					<Card>
+						<CardHeader>
+							<CardTitle className='flex items-center space-x-2'>
+								<History className='h-5 w-5' />
+								<span>Verification History</span>
+							</CardTitle>
+						</CardHeader>
+						<CardContent>
+							{verificationHistory.length > 0 ? (
+								<ScrollArea className='h-64'>
+									<div className='space-y-4'>
+										{verificationHistory.map((result, index) => (
+											<div key={index} className='border rounded-lg p-4'>
+												<div className='flex items-center justify-between mb-2'>
+													<div className='flex items-center space-x-2'>
+														{result.isValid ? <CheckCircle className='h-4 w-4 text-green-600' /> : <XCircle className='h-4 w-4 text-red-600' />}
+														<span className='font-medium'>{result.isValid ? 'Valid' : 'Invalid'}</span>
+														<Badge variant='outline'>Score: {result.verificationScore}%</Badge>
+													</div>
+													<span className='text-sm text-gray-600'>{result.verifiedAt ? formatDate(result.verifiedAt) : 'Unknown'}</span>
+												</div>
+												<p className='text-sm text-gray-600'>Verified by: {result.verifier}</p>
+												{result.details && <p className='text-sm text-gray-600 mt-1'>{result.details}</p>}
+											</div>
+										))}
+									</div>
+								</ScrollArea>
+							) : (
+								<div className='text-center py-8'>
+									<History className='h-12 w-12 text-gray-400 mx-auto mb-4' />
+									<p className='text-gray-600'>No verification history available</p>
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				</TabsContent>
+			</Tabs>
+		</div>
+	)
+}

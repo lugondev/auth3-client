@@ -33,6 +33,7 @@ export interface AuthContextType {
   signInWithApple: () => Promise<void>
   signInWithTwitter: () => Promise<void>
   signInWithEmail: (data: LoginInput) => Promise<{success: boolean; twoFactorRequired: boolean; sessionToken?: string; error?: unknown}>
+  signInWithDID?: (data: {did: string; access_token: string; refresh_token: string}) => Promise<void>
   verifyTwoFactorCode: (data: Verify2FARequest) => Promise<{success: boolean; error?: unknown}>
   register: (data: RegisterInput) => Promise<void>
   logout: () => Promise<void>

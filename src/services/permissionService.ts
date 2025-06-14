@@ -33,7 +33,7 @@ export const getUserPermissions = async (tenantId?: string): Promise<UserPermiss
     ? `/api/v1/tenants/${tenantId}/permissions`
     : '/api/v1/tenants/global/permissions'
     
-  const response = await apiClient.get(endpoint)
+  const response = await apiClient.get<UserPermissionsResponse>(endpoint)
   return response.data
 }
 
@@ -110,7 +110,7 @@ export const refreshUserPermissions = async (tenantId?: string): Promise<UserPer
     ? `/api/v1/tenants/${tenantId}/permissions`
     : '/api/v1/tenants/global/permissions'
     
-  const response = await apiClient.get(endpoint, {
+  const response = await apiClient.get<UserPermissionsResponse>(endpoint, {
     params: {
       _t: Date.now() // Cache busting
     }
