@@ -22,8 +22,29 @@ import type {
   ListTemplatesInput,
   ListTemplatesOutput,
   CredentialApiResponse,
+  JSONSchema,
 } from '../types/credentials';
 import { CredentialServiceError } from '../types/credentials';
+
+// Schema validation result interface
+export interface SchemaValidationResult {
+  valid: boolean;
+  errors?: string[];
+  warnings?: string[];
+  schema?: JSONSchema;
+}
+
+// Credential statistics interface
+export interface CredentialStatistics {
+  totalCredentials: number;
+  activeCredentials: number;
+  revokedCredentials: number;
+  expiredCredentials: number;
+  issuedToday: number;
+  issuedThisWeek: number;
+  issuedThisMonth: number;
+  generatedAt: string;
+}
 
 /**
  * Verifiable Credentials Service - Client-side service for managing Verifiable Credentials
@@ -464,6 +485,163 @@ export const deleteTemplate = async (templateId: string): Promise<void> => {
     const axiosError = error as { response?: { data?: { message?: string; code?: string } }; message?: string };
     throw new CredentialServiceError(
       axiosError.response?.data?.message || axiosError.message || 'Failed to delete template',
+      axiosError.response?.data?.code || 'NETWORK_ERROR',
+      axiosError.response?.data
+    );
+  }
+};
+
+/**
+ * Gets credentials by issuer DID with pagination
+ * @param issuerDid - Issuer DID
+ * @param page - Page number (optional)
+ * @param limit - Items per page (optional)
+ * @returns Promise resolving to the credentials list
+ */
+export const getCredentialsByIssuer = async (
+  issuerDid: string,
+  page?: number,
+  limit?: number
+): Promise<ListCredentialsOutput> => {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    
+    const queryString = params.toString();
+    const url = queryString 
+      ? `/api/v1/credentials/issuer/${issuerDid}?${queryString}`
+      : `/api/v1/credentials/issuer/${issuerDid}`;
+    
+    const response = await apiClient.get<CredentialApiResponse<ListCredentialsOutput>>(url);
+    
+    if (!response.data.success) {
+      throw new CredentialServiceError(
+        response.data.message || 'Failed to get credentials by issuer',
+        'GET_BY_ISSUER_FAILED',
+        response.data.errors ? { errors: response.data.errors } : undefined
+      );
+    }
+    
+    return response.data.data;
+  } catch (error: unknown) {
+    if (error instanceof CredentialServiceError) {
+      throw error;
+    }
+    
+    const axiosError = error as { response?: { data?: { message?: string; code?: string } }; message?: string };
+    throw new CredentialServiceError(
+      axiosError.response?.data?.message || axiosError.message || 'Failed to get credentials by issuer',
+      axiosError.response?.data?.code || 'NETWORK_ERROR',
+      axiosError.response?.data
+    );
+  }
+};
+
+/**
+ * Gets credentials by subject DID with pagination
+ * @param subjectDid - Subject DID
+ * @param page - Page number (optional)
+ * @param limit - Items per page (optional)
+ * @returns Promise resolving to the credentials list
+ */
+export const getCredentialsBySubject = async (
+  subjectDid: string,
+  page?: number,
+  limit?: number
+): Promise<ListCredentialsOutput> => {
+  try {
+    const params = new URLSearchParams();
+    if (page) params.append('page', page.toString());
+    if (limit) params.append('limit', limit.toString());
+    
+    const queryString = params.toString();
+    const url = queryString 
+      ? `/api/v1/credentials/subject/${subjectDid}?${queryString}`
+      : `/api/v1/credentials/subject/${subjectDid}`;
+    
+    const response = await apiClient.get<CredentialApiResponse<ListCredentialsOutput>>(url);
+    
+    if (!response.data.success) {
+      throw new CredentialServiceError(
+        response.data.message || 'Failed to get credentials by subject',
+        'GET_BY_SUBJECT_FAILED',
+        response.data.errors ? { errors: response.data.errors } : undefined
+      );
+    }
+    
+    return response.data.data;
+  } catch (error: unknown) {
+    if (error instanceof CredentialServiceError) {
+      throw error;
+    }
+    
+    const axiosError = error as { response?: { data?: { message?: string; code?: string } }; message?: string };
+    throw new CredentialServiceError(
+      axiosError.response?.data?.message || axiosError.message || 'Failed to get credentials by subject',
+      axiosError.response?.data?.code || 'NETWORK_ERROR',
+      axiosError.response?.data
+    );
+  }
+};
+
+/**
+ * Gets credential statistics
+ * @returns Promise resolving to the statistics data
+ */
+export const getCredentialStatistics = async (): Promise<CredentialStatistics> => {
+  try {
+    const response = await apiClient.get<CredentialApiResponse<CredentialStatistics>>('/api/v1/credentials/statistics');
+    
+    if (!response.data.success) {
+      throw new CredentialServiceError(
+        response.data.message || 'Failed to get credential statistics',
+        'STATISTICS_FAILED',
+        response.data.errors ? { errors: response.data.errors } : undefined
+      );
+    }
+    
+    return response.data.data;
+  } catch (error: unknown) {
+    if (error instanceof CredentialServiceError) {
+      throw error;
+    }
+    
+    const axiosError = error as { response?: { data?: { message?: string; code?: string } }; message?: string };
+    throw new CredentialServiceError(
+      axiosError.response?.data?.message || axiosError.message || 'Failed to get credential statistics',
+      axiosError.response?.data?.code || 'NETWORK_ERROR',
+      axiosError.response?.data
+    );
+  }
+};
+
+/**
+ * Validates a credential schema
+ * @param schema - Schema to validate
+ * @returns Promise resolving to the validation result
+ */
+export const validateSchema = async (schema: JSONSchema): Promise<SchemaValidationResult> => {
+  try {
+    const response = await apiClient.post<CredentialApiResponse<SchemaValidationResult>>('/api/v1/credentials/validate-schema', { schema });
+    
+    if (!response.data.success) {
+      throw new CredentialServiceError(
+        response.data.message || 'Failed to validate schema',
+        'SCHEMA_VALIDATION_FAILED',
+        response.data.errors ? { errors: response.data.errors } : undefined
+      );
+    }
+    
+    return response.data.data;
+  } catch (error: unknown) {
+    if (error instanceof CredentialServiceError) {
+      throw error;
+    }
+    
+    const axiosError = error as { response?: { data?: { message?: string; code?: string } }; message?: string };
+    throw new CredentialServiceError(
+      axiosError.response?.data?.message || axiosError.message || 'Failed to validate schema',
       axiosError.response?.data?.code || 'NETWORK_ERROR',
       axiosError.response?.data
     );

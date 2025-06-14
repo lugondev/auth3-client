@@ -145,7 +145,7 @@ export const resolveDID = async (did: string): Promise<ResolveDIDResult> => {
  */
 export const deactivateDID = async (input: DeactivateDIDInput): Promise<DIDOperationResult> => {
   try {
-    const response = await apiClient.put<DIDApiResponse<DIDOperationResult>>(`/api/v1/dids/${input.did}/deactivate`, input);
+    const response = await apiClient.post<DIDApiResponse<DIDOperationResult>>(`/api/v1/dids/${input.did}/deactivate`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
@@ -163,7 +163,7 @@ export const deactivateDID = async (input: DeactivateDIDInput): Promise<DIDOpera
  */
 export const revokeDID = async (input: RevokeDIDInput): Promise<DIDOperationResult> => {
   try {
-    const response = await apiClient.put<DIDApiResponse<DIDOperationResult>>(`/api/v1/dids/${input.did}/revoke`, input);
+    const response = await apiClient.post<DIDApiResponse<DIDOperationResult>>(`/api/v1/dids/${input.did}/revoke`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
@@ -199,7 +199,7 @@ export const authenticateDID = async (input: AuthenticateDIDInput): Promise<Auth
  */
 export const validateOwnership = async (input: ValidateOwnershipInput): Promise<ValidateOwnershipOutput> => {
   try {
-    const response = await apiClient.post<DIDApiResponse<ValidateOwnershipOutput>>('/api/v1/dids/validate-ownership', input);
+    const response = await apiClient.post<DIDApiResponse<ValidateOwnershipOutput>>(`/api/v1/dids/${input.did_string}/validate-ownership`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
