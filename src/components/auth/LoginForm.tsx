@@ -7,9 +7,13 @@ import {Button} from '@/components/ui/button'
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form' // Added FormDescription
 import {Input} from '@/components/ui/input'
 import {InputOTP, InputOTPGroup, InputOTPSlot} from '@/components/ui/input-otp' // Import InputOTP
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {Separator} from '@/components/ui/separator'
 import {useAuth} from '@/contexts/AuthContext'
 import {useState} from 'react'
 import {Verify2FARequest} from '@/types/user'
+import {Shield, Key, Mail} from 'lucide-react'
 
 const formSchema = z.object({
 	email: z.string().email({message: 'Invalid email address.'}),
@@ -19,6 +23,13 @@ const formSchema = z.object({
 // Schema for the 2FA code
 const twoFactorSchema = z.object({
 	code: z.string().min(6, {message: 'Your one-time code must be 6 characters.'}),
+})
+
+// Schema for DID authentication
+const didAuthSchema = z.object({
+	did: z.string().min(1, {message: 'Please enter your DID.'}),
+	challenge: z.string().optional(),
+	signature: z.string().optional(),
 })
 
 interface LoginFormProps {
@@ -31,6 +42,8 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 	const {signInWithEmail, verifyTwoFactorCode, isTwoFactorPending, twoFactorSessionToken} = useAuth()
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
+	const [didAuthStep, setDidAuthStep] = useState<'input' | 'challenge' | 'signature'>('input')
+	const [didChallenge, setDidChallenge] = useState<string | null>(null)
 	// Removed local state for twoFactorSessionToken as it's now read from context
 
 	// Form for email/password
@@ -93,11 +106,92 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 		}
 	}
 
+	// Handler for DID authentication
+	async function onDidAuthSubmit(values: z.infer<typeof didAuthSchema>) {
+		setLoading(true)
+		setError(null)
+		console.log('DID Authentication attempt:', values)
+
+		try {
+			if (didAuthStep === 'input') {
+				// Step 1: Request challenge for the DID
+				const response = await fetch('/api/auth/did/challenge', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({did: values.did}),
+				})
+
+				if (!response.ok) {
+					throw new Error('Failed to get challenge')
+				}
+
+				const data = await response.json()
+				setDidChallenge(data.challenge)
+				didAuthForm.setValue('challenge', data.challenge)
+				setDidAuthStep('challenge')
+			} else if (didAuthStep === 'challenge') {
+				// Step 2: User needs to sign the challenge
+				// This would typically involve external wallet/agent
+				setDidAuthStep('signature')
+			} else if (didAuthStep === 'signature') {
+				// Step 3: Verify signature and complete authentication
+				const response = await fetch('/api/auth/did/verify', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						did: values.did,
+						challenge: values.challenge,
+						signature: values.signature,
+					}),
+				})
+
+				if (!response.ok) {
+					throw new Error('DID authentication failed')
+				}
+
+				const data = await response.json()
+				console.log('DID authentication successful:', data)
+				// Handle successful authentication (similar to email/password flow)
+			}
+		} catch (err) {
+			if (err instanceof Error) {
+				setError(err.message)
+			} else {
+				setError('DID authentication failed')
+			}
+			console.error('DID authentication error:', err)
+		} finally {
+			setLoading(false)
+		}
+	}
+
+	// Reset DID authentication flow
+	const resetDidAuth = () => {
+		setDidAuthStep('input')
+		setDidChallenge(null)
+		didAuthForm.reset()
+		setError(null)
+	}
+
 	// Form for 2FA code
 	const twoFactorForm = useForm<z.infer<typeof twoFactorSchema>>({
 		resolver: zodResolver(twoFactorSchema),
 		defaultValues: {
 			code: '',
+		},
+	})
+
+	// Form for DID authentication
+	const didAuthForm = useForm<z.infer<typeof didAuthSchema>>({
+		resolver: zodResolver(didAuthSchema),
+		defaultValues: {
+			did: '',
+			challenge: '',
+			signature: '',
 		},
 	})
 
@@ -193,42 +287,187 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 		)
 	}
 
-	// Render email/password form if 2FA is not pending
+	// Render authentication options if 2FA is not pending
 	return (
-		<Form {...form}>
-			<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
-				<FormField
-					control={form.control}
-					name='email'
-					render={({field}) => (
-						<FormItem>
-							<FormLabel>Email</FormLabel>
-							<FormControl>
-								<Input placeholder='your@email.com' {...field} type='email' />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-				<FormField
-					control={form.control}
-					name='password'
-					render={({field}) => (
-						<FormItem>
-							<FormLabel>Password</FormLabel>
-							<FormControl>
-								<Input placeholder='********' {...field} type='password' />
-							</FormControl>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
+		<Tabs defaultValue='email' className='w-full'>
+			<TabsList className='grid w-full grid-cols-2'>
+				<TabsTrigger value='email' className='flex items-center gap-2'>
+					<Mail className='h-4 w-4' />
+					Email
+				</TabsTrigger>
+				<TabsTrigger value='did' className='flex items-center gap-2'>
+					<Shield className='h-4 w-4' />
+					DID
+				</TabsTrigger>
+			</TabsList>
 
-				{error && <p className='text-sm text-red-500'>{error}</p>}
-				<Button type='submit' className='w-full' disabled={loading}>
-					{loading ? 'Signing in...' : 'Sign in with Email'}
-				</Button>
-			</form>
-		</Form>
+			{/* Email/Password Authentication */}
+			<TabsContent value='email'>
+				<Card>
+					<CardHeader>
+						<CardTitle className='flex items-center gap-2'>
+							<Mail className='h-5 w-5' />
+							Email Authentication
+						</CardTitle>
+						<CardDescription>Sign in with your email and password</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<Form {...form}>
+							<form onSubmit={form.handleSubmit(onSubmit)} className='space-y-4'>
+								<FormField
+									control={form.control}
+									name='email'
+									render={({field}) => (
+										<FormItem>
+											<FormLabel>Email</FormLabel>
+											<FormControl>
+												<Input placeholder='your@email.com' {...field} type='email' />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name='password'
+									render={({field}) => (
+										<FormItem>
+											<FormLabel>Password</FormLabel>
+											<FormControl>
+												<Input placeholder='********' {...field} type='password' />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+
+								{error && <p className='text-sm text-red-500'>{error}</p>}
+								<Button type='submit' className='w-full' disabled={loading}>
+									{loading ? 'Signing in...' : 'Sign in with Email'}
+								</Button>
+							</form>
+						</Form>
+					</CardContent>
+				</Card>
+			</TabsContent>
+
+			{/* DID Authentication */}
+			<TabsContent value='did'>
+				<Card>
+					<CardHeader>
+						<CardTitle className='flex items-center gap-2'>
+							<Shield className='h-5 w-5' />
+							DID Authentication
+						</CardTitle>
+						<CardDescription>Sign in using your Decentralized Identifier (DID)</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{/* DID Authentication Steps */}
+						<div className='space-y-4'>
+							{/* Step Indicator */}
+							<div className='flex items-center justify-between mb-6'>
+								<div className={`flex items-center gap-2 ${didAuthStep === 'input' ? 'text-primary' : didAuthStep === 'challenge' || didAuthStep === 'signature' ? 'text-green-600' : 'text-muted-foreground'}`}>
+									<div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${didAuthStep === 'input' ? 'bg-primary text-primary-foreground' : didAuthStep === 'challenge' || didAuthStep === 'signature' ? 'bg-green-600 text-white' : 'bg-muted'}`}>1</div>
+									<span className='text-sm font-medium'>Enter DID</span>
+								</div>
+								<div className={`flex items-center gap-2 ${didAuthStep === 'challenge' ? 'text-primary' : didAuthStep === 'signature' ? 'text-green-600' : 'text-muted-foreground'}`}>
+									<div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${didAuthStep === 'challenge' ? 'bg-primary text-primary-foreground' : didAuthStep === 'signature' ? 'bg-green-600 text-white' : 'bg-muted'}`}>2</div>
+									<span className='text-sm font-medium'>Sign Challenge</span>
+								</div>
+								<div className={`flex items-center gap-2 ${didAuthStep === 'signature' ? 'text-primary' : 'text-muted-foreground'}`}>
+									<div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${didAuthStep === 'signature' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>3</div>
+									<span className='text-sm font-medium'>Verify</span>
+								</div>
+							</div>
+
+							<Separator />
+
+							<Form {...didAuthForm}>
+								<form onSubmit={didAuthForm.handleSubmit(onDidAuthSubmit)} className='space-y-4'>
+									{/* Step 1: DID Input */}
+									{didAuthStep === 'input' && (
+										<>
+											<FormField
+												control={didAuthForm.control}
+												name='did'
+												render={({field}) => (
+													<FormItem>
+														<FormLabel className='flex items-center gap-2'>
+															<Key className='h-4 w-4' />
+															Your DID
+														</FormLabel>
+														<FormControl>
+															<Input placeholder='did:example:123456789abcdefghi' {...field} className='font-mono' />
+														</FormControl>
+														<FormDescription>Enter your Decentralized Identifier (DID)</FormDescription>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+										</>
+									)}
+
+									{/* Step 2: Challenge Display */}
+									{didAuthStep === 'challenge' && didChallenge && (
+										<>
+											<div className='space-y-3'>
+												<div className='p-4 bg-muted rounded-lg'>
+													<h4 className='font-medium mb-2 flex items-center gap-2'>
+														<Shield className='h-4 w-4' />
+														Challenge to Sign
+													</h4>
+													<code className='text-sm bg-background p-2 rounded border block font-mono break-all'>{didChallenge}</code>
+												</div>
+												<div className='p-4 bg-blue-50 border border-blue-200 rounded-lg'>
+													<p className='text-sm text-blue-800'>
+														<strong>Instructions:</strong> Please sign this challenge using your DID's private key with your wallet or agent, then paste the signature in the next step.
+													</p>
+												</div>
+											</div>
+										</>
+									)}
+
+									{/* Step 3: Signature Input */}
+									{didAuthStep === 'signature' && (
+										<>
+											<FormField
+												control={didAuthForm.control}
+												name='signature'
+												render={({field}) => (
+													<FormItem>
+														<FormLabel className='flex items-center gap-2'>
+															<Key className='h-4 w-4' />
+															Signature
+														</FormLabel>
+														<FormControl>
+															<Input placeholder='Paste your signature here...' {...field} className='font-mono' />
+														</FormControl>
+														<FormDescription>Paste the signature generated by your wallet/agent</FormDescription>
+														<FormMessage />
+													</FormItem>
+												)}
+											/>
+										</>
+									)}
+
+									{error && <p className='text-sm text-red-500'>{error}</p>}
+
+									<div className='flex gap-2'>
+										{didAuthStep !== 'input' && (
+											<Button type='button' variant='outline' onClick={resetDidAuth} disabled={loading}>
+												Reset
+											</Button>
+										)}
+										<Button type='submit' className='flex-1' disabled={loading}>
+											{loading ? (didAuthStep === 'input' ? 'Getting Challenge...' : didAuthStep === 'challenge' ? 'Proceeding...' : 'Verifying...') : didAuthStep === 'input' ? 'Get Challenge' : didAuthStep === 'challenge' ? 'I have signed the challenge' : 'Verify Signature'}
+										</Button>
+									</div>
+								</form>
+							</Form>
+						</div>
+					</CardContent>
+				</Card>
+			</TabsContent>
+		</Tabs>
 	)
 }

@@ -70,7 +70,7 @@ export default function TenantManagementPage() {
 			}
 		} catch (error) {
 			console.error('Failed to login tenant context:', error)
-			toast.error('Không thể chuyển đổi context tenant. Vui lòng thử lại.')
+			toast.error('Unable to switch tenant context. Please try again.')
 		} finally {
 			setIsSwitchingTenant(false)
 		}

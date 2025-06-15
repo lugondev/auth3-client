@@ -8,7 +8,6 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/c
 import {Badge} from '@/components/ui/badge'
 import {Edit, Users} from 'lucide-react'
 import {loginTenantContext} from '@/services/authService'
-import {useAuth} from '@/contexts/AuthContext'
 import {Loader2} from 'lucide-react'
 import {toast} from 'sonner'
 import {PermissionButton} from '@/components/guards'
@@ -38,7 +37,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 			}
 		} catch (error) {
 			console.error('Failed to login tenant context:', error)
-			toast.error('Không thể chuyển đổi context tenant. Vui lòng thử lại.')
+			toast.error('Unable to switch tenant context. Please try again.')
 		} finally {
 			setLoading(false)
 		}
