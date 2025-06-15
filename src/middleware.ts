@@ -215,6 +215,10 @@ export async function middleware(request: NextRequest) {
 	try {
 		// Decode JWT token
 		const payload = jwtDecode<JWTPayload>(accessToken);
+		
+		// Extract tenant ID from payload
+		const tenantId = payload.tenant_id;
+		const { search } = request.nextUrl;
 
 		// Check if token is expired
 		if (payload.exp * 1000 < Date.now()) {
@@ -240,84 +244,69 @@ export async function middleware(request: NextRequest) {
 		) || hasWildcardPermissions;
 
 		// Debug logging
-		console.log('Middleware Debug:', {
-			pathname,
-			userRoles: payload.roles,
-			userPermissions: payload.permissions,
-			hasWildcardPermissions,
-			isSystemAdmin,
-			tenantId: payload.tenant_id
-		});
-
-		// System admins bypass all checks for admin routes
-		if (isSystemAdmin && pathname.startsWith('/dashboard/admin')) {
-			console.log('System admin accessing admin route, bypassing all checks');
-			const response = NextResponse.next();
-			response.headers.set('x-user-id', payload.sub);
-			response.headers.set('x-user-email', payload.email);
-			response.headers.set('x-user-roles', JSON.stringify(payload.roles || []));
-			response.headers.set('x-user-permissions', JSON.stringify(payload.permissions || []));
-			response.headers.set('x-tenant-id', payload.tenant_id || '');
-			return response;
+		// Removed console.log statements for production build
+		
+		// System admin bypass - allow access to all routes
+		if (isSystemAdmin) {
+		// System admin accessing admin route, bypassing all checks
+		return NextResponse.next()
 		}
-
-		// Check route permissions
-		const routeConfig = getMatchingRoute(pathname);
-
-		if (routeConfig) {
-			console.log('Route Config:', routeConfig);
-
-			// System admins can bypass tenant requirements for admin routes
-			const isAdminRoute = pathname.startsWith('/dashboard/admin');
-
-			// Check tenant requirement (bypass for system admins on admin routes)
-			if (routeConfig.tenantRequired && !payload.tenant_id && !(isSystemAdmin && isAdminRoute)) {
-				console.log('Redirecting to select-tenant: tenant required but not present');
-				const response = NextResponse.redirect(new URL('/dashboard/select-tenant', request.url));
-				return response;
-			}
-
-			// Check permissions (system admins bypass this check)
-			if (!isSystemAdmin && routeConfig.permissions && routeConfig.permissions.length > 0) {
-				const hasPermissions = checkUserPermissions(
-					payload,
-					routeConfig.permissions,
-					routeConfig.requireAll
-				);
-
-				console.log('Permission check result:', hasPermissions);
-
-				if (!hasPermissions) {
-					console.log('Access denied: insufficient permissions');
-					return NextResponse.redirect(new URL('/dashboard/access-denied', request.url));
-				}
-			}
-
-			// Check roles (system admins bypass this check)
-			if (!isSystemAdmin && routeConfig.roles && routeConfig.roles.length > 0) {
-				const hasRoles = checkUserRoles(
-					payload,
-					routeConfig.roles,
-					routeConfig.requireAllRoles
-				);
-
-				console.log('Role check result:', hasRoles);
-
-				if (!hasRoles) {
-					console.log('Access denied: insufficient roles');
-					return NextResponse.redirect(new URL('/dashboard/access-denied', request.url));
-				}
-			}
-
-			console.log('Access granted for:', pathname);
+		
+		// Get route configuration
+		const routeConfig = getMatchingRoute(pathname)
+		
+		// If no route config found, allow access (public route)
+		if (!routeConfig) {
+		return NextResponse.next()
 		}
+		
+		// Route Config: routeConfig
+		
+		// Check if tenant is required but not present
+		if (routeConfig.tenantRequired && !tenantId) {
+		// Redirecting to select-tenant: tenant required but not present
+		const selectTenantUrl = new URL('/select-tenant', request.url)
+		selectTenantUrl.searchParams.set('returnUrl', pathname + search)
+		return NextResponse.redirect(selectTenantUrl)
+		}
+		
+		// Check permissions if required
+		if (routeConfig.permissions && routeConfig.permissions.length > 0) {
+		const hasPermissions = checkUserPermissions(
+		payload,
+		routeConfig.permissions,
+		routeConfig.requireAll
+		)
+		// Permission check result: hasPermissions
+		if (!hasPermissions) {
+		// Access denied: insufficient permissions
+		return NextResponse.redirect(new URL('/dashboard/access-denied', request.url))
+		}
+		}
+		
+		// Check roles if required
+		if (routeConfig.roles && routeConfig.roles.length > 0) {
+		const hasRoles = checkUserRoles(
+		payload,
+		routeConfig.roles,
+		routeConfig.requireAll
+		)
+		// Role check result: hasRoles
+		if (!hasRoles) {
+		// Access denied: insufficient roles
+		return NextResponse.redirect(new URL('/dashboard/access-denied', request.url))
+		}
+		}
+		
+		// Access granted for: pathname
+		return NextResponse.next()
 
 		// Add user info to headers for downstream components
 		const response = NextResponse.next();
 		response.headers.set('x-user-id', payload.sub);
 		response.headers.set('x-user-email', payload.email);
 		if (payload.tenant_id) {
-			response.headers.set('x-tenant-id', payload.tenant_id);
+			response.headers.set('x-tenant-id', String(payload.tenant_id));
 		}
 		if (payload.roles) {
 			response.headers.set('x-user-roles', JSON.stringify(payload.roles));

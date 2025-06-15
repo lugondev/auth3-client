@@ -24,7 +24,7 @@ export default function PermissionsDemoPage() {
 					<h1 className='text-3xl font-bold tracking-tight'>Permission System Demo</h1>
 					<p className='text-muted-foreground'>Test and demonstrate the RBAC permission system</p>
 				</div>
-				<Button onClick={refreshPermissions} disabled={loading} variant='outline'>
+				<Button onClick={() => refreshPermissions()} disabled={loading} variant='outline'>
 					<RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
 					Refresh Permissions
 				</Button>

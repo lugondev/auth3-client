@@ -49,6 +49,10 @@ export class ContextManager {
   
   // Get current context mode
   getCurrentMode(): ContextMode {
+    if (typeof window === 'undefined') {
+      return 'global'
+    }
+    
     try {
       const stored = localStorage.getItem(CONTEXT_STORAGE_KEYS.currentMode)
       return (stored as ContextMode) || 'global'
@@ -59,6 +63,10 @@ export class ContextManager {
   
   // Set current context mode
   setCurrentMode(mode: ContextMode): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       localStorage.setItem(CONTEXT_STORAGE_KEYS.currentMode, mode)
     } catch (error) {
@@ -68,6 +76,10 @@ export class ContextManager {
   
   // Get context state
   getContextState(context: ContextMode): ContextState | null {
+    if (typeof window === 'undefined') {
+      return null
+    }
+    
     try {
       const key = context === 'global' 
         ? CONTEXT_STORAGE_KEYS.globalContext 
@@ -93,6 +105,10 @@ export class ContextManager {
   
   // Set context state
   setContextState(context: ContextMode, state: Omit<ContextState, 'lastUpdated'>): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       const key = context === 'global' 
         ? CONTEXT_STORAGE_KEYS.globalContext 
@@ -111,6 +127,10 @@ export class ContextManager {
   
   // Clear context state
   clearContextState(context: ContextMode): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       const key = context === 'global' 
         ? CONTEXT_STORAGE_KEYS.globalContext 

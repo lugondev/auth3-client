@@ -41,6 +41,10 @@ export class GlobalTokenStorage {
   }
   
   getTokens(): TokenStorage {
+    if (typeof window === 'undefined') {
+      return { accessToken: null, refreshToken: null, timestamp: Date.now() }
+    }
+    
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.global.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.global.refreshToken)
@@ -57,6 +61,10 @@ export class GlobalTokenStorage {
   }
   
   setTokens(accessToken: string | null, refreshToken: string | null): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       if (accessToken) {
         localStorage.setItem(STORAGE_KEYS.global.accessToken, accessToken)
@@ -75,6 +83,10 @@ export class GlobalTokenStorage {
   }
   
   clearTokens(): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       localStorage.removeItem(STORAGE_KEYS.global.accessToken)
       localStorage.removeItem(STORAGE_KEYS.global.refreshToken)
@@ -112,6 +124,10 @@ export class TenantTokenStorage {
   }
   
   getTokens(): TokenStorage {
+    if (typeof window === 'undefined') {
+      return { accessToken: null, refreshToken: null, timestamp: Date.now() }
+    }
+    
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.tenant.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.tenant.refreshToken)
@@ -128,6 +144,10 @@ export class TenantTokenStorage {
   }
   
   setTokens(accessToken: string | null, refreshToken: string | null): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       if (accessToken) {
         localStorage.setItem(STORAGE_KEYS.tenant.accessToken, accessToken)
@@ -146,6 +166,10 @@ export class TenantTokenStorage {
   }
   
   clearTokens(): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     try {
       localStorage.removeItem(STORAGE_KEYS.tenant.accessToken)
       localStorage.removeItem(STORAGE_KEYS.tenant.refreshToken)
@@ -237,6 +261,10 @@ export class TokenManager {
   }
   
   backupTokens(fromContext: ContextMode): void {
+    if (typeof window === 'undefined') {
+      return
+    }
+    
     const tokens = this.getTokens(fromContext)
     try {
       if (tokens.accessToken) {
@@ -251,6 +279,10 @@ export class TokenManager {
   }
   
   restoreTokens(toContext: ContextMode): boolean {
+    if (typeof window === 'undefined') {
+      return false
+    }
+    
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.backup.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.backup.refreshToken)

@@ -1,7 +1,6 @@
 'use client'
 
 import React, {useState, useEffect} from 'react'
-import apiClient from '@/lib/apiClient'
 import {ClientRegistrationResponse, ClientRegistrationRequest} from '@/types/oauth2'
 import {Form} from '@/components/ui/form'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
@@ -9,6 +8,7 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {useForm} from 'react-hook-form'
 import {useParams} from 'next/navigation'
 import OAuth2ClientForm from '@/components/oauth2/OAuth2ClientForm'
+import {getClient, updateClient} from '@/services/oauth2Service'
 
 const OAuth2ClientEditPage: React.FC = () => {
 	const [client, setClient] = useState<ClientRegistrationResponse | null>(null)
@@ -44,21 +44,21 @@ const OAuth2ClientEditPage: React.FC = () => {
 		const fetchClient = async () => {
 			if (!clientId || typeof clientId !== 'string') return
 			try {
-				const response = await apiClient.get(`/api/v1/oauth2/clients/${clientId}`)
-				setClient(response.data)
+				const clientResponse = await getClient(clientId)
+				setClient(clientResponse)
 				setClientData({
-					name: response.data.name,
-					description: response.data.description || '',
-					redirect_uris: response.data.redirect_uris,
-					grant_types: response.data.grant_types,
-					response_types: response.data.response_types,
-					scopes: response.data.scopes,
-					client_uri: response.data.client_uri || '',
-					logo_uri: response.data.logo_uri || '',
-					tos_uri: response.data.tos_uri || '',
-					policy_uri: response.data.policy_uri || '',
-					token_endpoint_auth_method: response.data.token_endpoint_auth_method || '',
-					contacts: response.data.contacts || [],
+					name: clientResponse.name,
+					description: clientResponse.description || '',
+					redirect_uris: clientResponse.redirect_uris,
+					grant_types: clientResponse.grant_types,
+					response_types: clientResponse.response_types,
+					scopes: clientResponse.scopes,
+					client_uri: clientResponse.client_uri || '',
+					logo_uri: clientResponse.logo_uri || '',
+					tos_uri: clientResponse.tos_uri || '',
+					policy_uri: clientResponse.policy_uri || '',
+					token_endpoint_auth_method: clientResponse.token_endpoint_auth_method || '',
+					contacts: clientResponse.contacts || [],
 				})
 				setLoading(false)
 			} catch (err: unknown) {
@@ -86,7 +86,7 @@ const OAuth2ClientEditPage: React.FC = () => {
 		e.preventDefault()
 		if (!clientId || typeof clientId !== 'string') return
 		try {
-			await apiClient.put(`/api/v1/oauth2/clients/${clientId}`, clientData)
+			await updateClient(clientId, clientData)
 			setSuccessMessage('OAuth2 client updated successfully!')
 			setErrorMessage(null)
 		} catch (err: unknown) {

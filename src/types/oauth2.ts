@@ -34,6 +34,8 @@ export interface ClientRegistrationRequest {
 export interface ClientRegistrationResponse {
 	client_id: string;
 	client_secret: string;
+	name: string;
+	description?: string;
 	client_id_issued_at: number;
 	client_secret_expires_at: number;
 	registration_access_token: string;

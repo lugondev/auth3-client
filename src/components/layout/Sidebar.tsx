@@ -55,8 +55,8 @@ const systemAdminLinks: NavLink[] = [
 		isCollapsible: true,
 		children: [
 			{href: '/dashboard/admin/dids', label: 'DID Dashboard', icon: LayoutDashboard, permission: 'admin:dids:read'},
-			{href: '/dashboard/admin/dids/config', label: 'Method Configuration', icon: Settings, permission: 'admin:dids:config'}
-		]
+			{href: '/dashboard/admin/dids/config', label: 'Method Configuration', icon: Settings, permission: 'admin:dids:config'},
+		],
 	},
 	{
 		href: '/dashboard/admin/credentials',
@@ -67,8 +67,8 @@ const systemAdminLinks: NavLink[] = [
 		children: [
 			{href: '/dashboard/admin/credentials', label: 'VC Dashboard', icon: LayoutDashboard, permission: 'admin:credentials:read'},
 			{href: '/dashboard/admin/credentials/templates', label: 'Templates Management', icon: FileText, permission: 'admin:credentials:templates'},
-			{href: '/dashboard/admin/credentials/revocation', label: 'Revocation Management', icon: ShieldCheck, permission: 'admin:credentials:revoke'}
-		]
+			{href: '/dashboard/admin/credentials/revocation', label: 'Revocation Management', icon: ShieldCheck, permission: 'admin:credentials:revoke'},
+		],
 	},
 	{
 		href: '/dashboard/permissions-demo',
@@ -128,8 +128,8 @@ const userLinks: NavLink[] = [
 		children: [
 			{href: '/dashboard/dids', label: 'Overview', icon: KeyRound, permission: 'did:view'},
 			{href: '/dashboard/dids/create', label: 'Create DID', icon: Plus, permission: 'did:create'},
-			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings, permission: 'did:manage'}
-		]
+			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings, permission: 'did:manage'},
+		],
 	},
 	{
 		href: '/dashboard/credentials',
@@ -141,8 +141,8 @@ const userLinks: NavLink[] = [
 			{href: '/dashboard/credentials', label: 'Overview', icon: CreditCard, permission: 'credentials:view'},
 			{href: '/dashboard/credentials/issue', label: 'Issue Credential', icon: Plus, permission: 'credentials:issue'},
 			{href: '/dashboard/credentials/verify', label: 'Verify Credential', icon: Eye, permission: 'credentials:verify'},
-			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileText, permission: 'credentials:templates'}
-		]
+			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileText, permission: 'credentials:templates'},
+		],
 	},
 	{
 		href: '/dashboard/messages',
@@ -153,8 +153,8 @@ const userLinks: NavLink[] = [
 		children: [
 			{href: '/dashboard/messages', label: 'Inbox', icon: MessageSquare, permission: 'messages:view'},
 			{href: '/dashboard/messages/sent', label: 'Sent', icon: MessageSquare, permission: 'messages:view'},
-			{href: '/dashboard/messages/connections', label: 'Connections', icon: Users, permission: 'messages:connections'}
-		]
+			{href: '/dashboard/messages/connections', label: 'Connections', icon: Users, permission: 'messages:connections'},
+		],
 	},
 	{
 		href: '/dashboard/tenant-management',
@@ -166,9 +166,9 @@ const userLinks: NavLink[] = [
 			{href: '/dashboard/tenant-management', label: 'Overview', icon: Building, permission: 'tenant:view'},
 			{href: '/dashboard/tenant-management/settings', label: 'Settings', icon: Settings, permission: 'tenant:manage'},
 			{href: '/dashboard/tenant-management/members', label: 'Members', icon: Users, permission: 'tenant:members:view'},
-			{href: '/dashboard/tenant-management/roles', label: 'Roles', icon: ShieldCheck, permission: 'tenant:roles:view'}
-		]
-	}
+			{href: '/dashboard/tenant-management/roles', label: 'Roles', icon: ShieldCheck, permission: 'tenant:roles:view'},
+		],
+	},
 ]
 
 const Sidebar: React.FC<SidebarProps> = ({type}) => {
@@ -189,25 +189,17 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 
 	// Check if user has access to a nav link
 	const hasAccess = (link: NavLink): boolean => {
-		// Log permissions for debugging
-		console.log('Checking access for link:', link.label)
-		console.log('Link permission:', link.permission)
-		
 		// Special case for system admin with wildcard permissions
 		if (hasPermission('*.*') || hasPermission('*:*') || hasPermission('.*:.*')) {
-			console.log('User has wildcard permission, granting access to:', link.label)
 			return true
 		}
-		
+
 		if (link.permission && !hasPermission(link.permission)) {
-			console.log('Permission denied:', link.permission)
 			return false
 		}
 		if (link.role && !hasRole(link.role)) {
-			console.log('Role denied:', link.role)
 			return false
 		}
-		console.log('Access granted to:', link.label)
 		return true
 	}
 

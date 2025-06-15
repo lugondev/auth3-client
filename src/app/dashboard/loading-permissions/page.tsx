@@ -1,13 +1,13 @@
-'use client';
+'use client'
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Shield, Clock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
 
-export default function LoadingPermissionsPage() {
+function LoadingPermissionsPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { user, currentTenantId } = useAuth();
@@ -133,5 +133,13 @@ export default function LoadingPermissionsPage() {
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+export default function LoadingPermissionsPage() {
+	return (
+		<Suspense>
+			<LoadingPermissionsPageContent />
+		</Suspense>
 	);
 }

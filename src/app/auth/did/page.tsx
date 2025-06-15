@@ -1,6 +1,6 @@
 'use client'
 
-import {useState, useEffect} from 'react'
+import {useState, useEffect, Suspense} from 'react'
 import {useRouter, useSearchParams} from 'next/navigation'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
@@ -22,7 +22,7 @@ import {toast} from 'sonner'
  * - Signature verification UI
  * - Multi-step authentication process
  */
-export default function DIDAuthPage() {
+function DIDAuthPageContent() {
 	const router = useRouter()
 	const searchParams = useSearchParams()
 	const {signInWithDID} = useAuth()
@@ -338,5 +338,13 @@ export default function DIDAuthPage() {
 				</CardContent>
 			</Card>
 		</div>
+	)
+}
+
+export default function DIDAuthPage() {
+	return (
+		<Suspense fallback={<div>Loading...</div>}>
+			<DIDAuthPageContent />
+		</Suspense>
 	)
 }

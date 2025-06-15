@@ -195,3 +195,27 @@ export const getJWKS = async (): Promise<JWKS> => {
   const response = await apiClient.get<JWKS>(`${baseURL}/.well-known/jwks.json`);
   return response.data;
 };
+
+/**
+ * Get OAuth2 client details by client ID
+ * @param clientId - The OAuth2 client ID
+ * @returns Promise<ClientRegistrationResponse>
+ */
+export const getClient = async (clientId: string): Promise<ClientRegistrationResponse> => {
+  const response = await apiClient.get<ClientRegistrationResponse>(`${baseURL}/clients/${clientId}`);
+  return response.data;
+};
+
+/**
+ * Update OAuth2 client details
+ * @param clientId - The OAuth2 client ID
+ * @param data - The client data to update
+ * @returns Promise<ClientRegistrationResponse>
+ */
+export const updateClient = async (
+  clientId: string,
+  data: ClientRegistrationRequest
+): Promise<ClientRegistrationResponse> => {
+  const response = await apiClient.put<ClientRegistrationResponse>(`${baseURL}/clients/${clientId}`, data);
+  return response.data;
+};

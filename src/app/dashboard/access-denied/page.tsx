@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShieldX, ArrowLeft, Home, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/contexts/PermissionContext';
 
-export default function AccessDeniedPage() {
+function AccessDeniedPageContent() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const { user, currentTenantId } = useAuth();
@@ -130,5 +130,13 @@ export default function AccessDeniedPage() {
 				</CardContent>
 			</Card>
 		</div>
+	);
+}
+
+export default function AccessDeniedPage() {
+	return (
+		<Suspense fallback={<div>Loading...</div>}>
+			<AccessDeniedPageContent />
+		</Suspense>
 	);
 }

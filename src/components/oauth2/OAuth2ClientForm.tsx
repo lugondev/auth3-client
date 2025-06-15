@@ -1,7 +1,6 @@
 'use client'
 
 import React, {useState} from 'react'
-import {Form} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
 import {Button} from '@/components/ui/button'
@@ -9,6 +8,7 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
 import {X, Upload, Image} from 'lucide-react'
 import {ClientRegistrationRequest} from '@/types/oauth2'
+import {uploadOAuth2Logo} from '@/services/uploadService'
 
 // Auto Tag Input Component for Grant Types and Response Types
 const AutoTagInput: React.FC<{
@@ -141,27 +141,21 @@ const ImageUpload: React.FC<{
 		setIsUploading(true)
 
 		try {
-			// Create FormData for file upload
-			const formData = new FormData()
-			formData.append('file', file)
+			// Upload OAuth2 logo using the upload service
+			const uploadResponse = await uploadOAuth2Logo(file)
 
-			// TODO: Replace with actual upload endpoint
-			// For now, create a local preview URL
+			const uploadedUrl = uploadResponse.url
+			setPreviewUrl(uploadedUrl)
+			onChange(uploadedUrl)
+		} catch (error) {
+			console.error('Upload failed:', error)
+			const errorMessage = error instanceof Error ? error.message : 'Upload failed. Please try again.'
+			alert(errorMessage)
+
+			// Fallback to local preview if upload fails
 			const localUrl = URL.createObjectURL(file)
 			setPreviewUrl(localUrl)
 			onChange(localUrl)
-
-			// In a real implementation, you would upload to your server:
-			// const response = await fetch('/api/upload', {
-			//   method: 'POST',
-			//   body: formData,
-			// })
-			// const data = await response.json()
-			// onChange(data.url)
-			// setPreviewUrl(data.url)
-		} catch (error) {
-			console.error('Upload failed:', error)
-			alert('Upload failed. Please try again.')
 		} finally {
 			setIsUploading(false)
 		}
