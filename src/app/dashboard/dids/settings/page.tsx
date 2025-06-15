@@ -12,6 +12,8 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Settings, Shield, Database, Network, Save, RotateCcw, AlertTriangle, Info} from 'lucide-react'
 import {toast} from 'sonner'
+import {getCurrentUser, updateCurrentUserProfile} from '@/services/userService'
+import {UserProfile} from '@/types/user'
 
 // Types for DID settings
 interface DIDGeneralSettings {
@@ -107,8 +109,10 @@ export default function DIDSettingsPage() {
 		maxBatchSize: 10,
 	})
 
-	const [loading, setLoading] = useState(false)
+	const [loading, setLoading] = useState(true)
+	const [saving, setSaving] = useState(false)
 	const [hasChanges, setHasChanges] = useState(false)
+	const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
 	const [activeTab, setActiveTab] = useState('general')
 	const [newResolver, setNewResolver] = useState('')
 
@@ -116,17 +120,48 @@ export default function DIDSettingsPage() {
 	useEffect(() => {
 		const loadSettings = async () => {
 			try {
-				// TODO: Replace with actual API calls
-				// const settings = await settingsService.getDIDSettings()
-				// setGeneralSettings(settings.general)
-				// setSecuritySettings(settings.security)
-				// setNetworkSettings(settings.network)
-				// setAdvancedSettings(settings.advanced)
+				setLoading(true)
 
-				console.log('Loading DID settings...')
+				// Load user profile to get current settings
+				const user = await getCurrentUser()
+				// Convert UserOutput to UserProfile format for compatibility
+				const userProfileData: UserProfile = {
+					id: user.profile?.id || user.id,
+					user_id: user.id,
+					bio: user.profile?.bio,
+					date_of_birth: user.profile?.date_of_birth,
+					address: user.profile?.address,
+					interests: user.profile?.interests,
+					preferences: user.profile?.preferences,
+					metadata: user.metadata, // Include metadata from UserOutput
+					created_at: user.profile?.created_at || user.created_at,
+					updated_at: user.profile?.updated_at || user.updated_at,
+				}
+				setUserProfile(userProfileData)
+
+				// Load DID settings from user metadata if available
+				if (user.metadata) {
+					try {
+						const metadata = typeof user.metadata === 'string' ? JSON.parse(user.metadata) : user.metadata
+						const didSettings = metadata.didSettings
+
+						if (didSettings) {
+							if (didSettings.general) setGeneralSettings((prev) => ({...prev, ...didSettings.general}))
+							if (didSettings.security) setSecuritySettings((prev) => ({...prev, ...didSettings.security}))
+							if (didSettings.network) setNetworkSettings((prev) => ({...prev, ...didSettings.network}))
+							if (didSettings.advanced) setAdvancedSettings((prev) => ({...prev, ...didSettings.advanced}))
+						}
+					} catch (parseError) {
+						console.warn('Failed to parse user metadata:', parseError)
+					}
+				}
+
+				console.log('Settings loaded successfully')
 			} catch (error) {
-				console.error('Error loading settings:', error)
+				console.error('Failed to load settings:', error)
 				toast.error('Failed to load settings')
+			} finally {
+				setLoading(false)
 			}
 		}
 
@@ -138,83 +173,102 @@ export default function DIDSettingsPage() {
 	 */
 	const handleSaveSettings = async () => {
 		try {
-			setLoading(true)
+			setSaving(true)
 
-			// TODO: Replace with actual API calls
-			// await settingsService.updateDIDSettings({
-			//   general: generalSettings,
-			//   security: securitySettings,
-			//   network: networkSettings,
-			//   advanced: advancedSettings
-			// })
-
-			console.log('Saving settings:', {
+			// Prepare DID settings data
+			const didSettings = {
 				general: generalSettings,
 				security: securitySettings,
 				network: networkSettings,
 				advanced: advancedSettings,
+			}
+
+			// Get current metadata and merge with DID settings
+			let currentMetadata = {}
+			if (userProfile?.metadata) {
+				try {
+					currentMetadata = typeof userProfile.metadata === 'string' ? JSON.parse(userProfile.metadata) : userProfile.metadata
+				} catch (parseError) {
+					console.warn('Failed to parse existing metadata:', parseError)
+				}
+			}
+
+			// Update user profile with DID settings in metadata
+			const updatedMetadata = {
+				...currentMetadata,
+				didSettings,
+			}
+
+			await updateCurrentUserProfile({
+				metadata: updatedMetadata,
 			})
 
-			toast.success('Settings saved successfully')
 			setHasChanges(false)
+			toast.success('DID settings saved successfully')
 		} catch (error) {
-			console.error('Error saving settings:', error)
-			toast.error('Failed to save settings')
+			console.error('Failed to save DID settings:', error)
+			toast.error('Failed to save DID settings')
 		} finally {
-			setLoading(false)
+			setSaving(false)
 		}
 	}
 
 	/**
 	 * Reset settings to defaults
 	 */
-	const handleResetSettings = () => {
-		setGeneralSettings({
-			defaultMethod: 'key',
-			autoBackup: true,
-			backupInterval: 24,
-			enableNotifications: true,
-			notificationEmail: '',
-			maxDIDsPerUser: 100,
-			enableDIDHistory: true,
-			historyRetentionDays: 365,
-		})
+	const handleResetSettings = async () => {
+		try {
+			// Reset to default values
+			setGeneralSettings({
+				defaultMethod: 'key',
+				autoBackup: true,
+				backupInterval: 24,
+				enableNotifications: true,
+				notificationEmail: '',
+				maxDIDsPerUser: 100,
+				enableDIDHistory: true,
+				historyRetentionDays: 365,
+			})
 
-		setSecuritySettings({
-			requireMFA: false,
-			keyRotationEnabled: false,
-			keyRotationInterval: 90,
-			allowWeakKeys: false,
-			encryptPrivateKeys: true,
-			requireApprovalForRevocation: true,
-			sessionTimeout: 60,
-			enableAuditLog: true,
-		})
+			setSecuritySettings({
+				requireMFA: false,
+				keyRotationEnabled: false,
+				keyRotationInterval: 90,
+				allowWeakKeys: false,
+				encryptPrivateKeys: true,
+				requireApprovalForRevocation: true,
+				sessionTimeout: 60,
+				enableAuditLog: true,
+			})
 
-		setNetworkSettings({
-			ethereumNetwork: 'mainnet',
-			ethereumRpcUrl: '',
-			ionNodeUrl: 'https://ion.msidentity.com',
-			ipfsGateway: 'https://ipfs.io',
-			enableCaching: true,
-			cacheTimeout: 30,
-			retryAttempts: 3,
-			requestTimeout: 30,
-		})
+			setNetworkSettings({
+				ethereumNetwork: 'mainnet',
+				ethereumRpcUrl: '',
+				ionNodeUrl: 'https://ion.msidentity.com',
+				ipfsGateway: 'https://ipfs.io',
+				enableCaching: true,
+				cacheTimeout: 30,
+				retryAttempts: 3,
+				requestTimeout: 30,
+			})
 
-		setAdvancedSettings({
-			enableExperimentalFeatures: false,
-			debugMode: false,
-			logLevel: 'info',
-			enableMetrics: false,
-			metricsEndpoint: '',
-			customResolvers: [],
-			enableBatchOperations: true,
-			maxBatchSize: 10,
-		})
+			setAdvancedSettings({
+				enableExperimentalFeatures: false,
+				debugMode: false,
+				logLevel: 'info',
+				enableMetrics: false,
+				metricsEndpoint: '',
+				customResolvers: [],
+				enableBatchOperations: true,
+				maxBatchSize: 10,
+			})
 
-		setHasChanges(true)
-		toast.success('Settings reset to defaults')
+			setHasChanges(true)
+			toast.success('Settings reset to defaults')
+		} catch (error) {
+			console.error('Failed to reset settings:', error)
+			toast.error('Failed to reset settings')
+		}
 	}
 
 	/**
@@ -274,6 +328,19 @@ export default function DIDSettingsPage() {
 		setHasChanges(true)
 	}
 
+	if (loading) {
+		return (
+			<div className='container mx-auto py-6'>
+				<div className='flex items-center justify-center min-h-[400px]'>
+					<div className='text-center'>
+						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4'></div>
+						<p className='text-muted-foreground'>Loading DID settings...</p>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
 	return (
 		<div className='space-y-6'>
 			<PageHeader
@@ -282,13 +349,13 @@ export default function DIDSettingsPage() {
 				backButton={{href: '/dashboard/dids', text: 'Back to DIDs'}}
 				actions={
 					<div className='flex gap-2'>
-						<Button variant='outline' onClick={handleResetSettings} disabled={loading}>
+						<Button variant='outline' onClick={handleResetSettings} disabled={saving || loading}>
 							<RotateCcw className='h-4 w-4 mr-2' />
 							Reset
 						</Button>
-						<Button onClick={handleSaveSettings} disabled={loading || !hasChanges}>
+						<Button onClick={handleSaveSettings} disabled={!hasChanges || saving || loading}>
 							<Save className='h-4 w-4 mr-2' />
-							{loading ? 'Saving...' : 'Save Changes'}
+							{saving ? 'Saving...' : 'Save Changes'}
 						</Button>
 					</div>
 				}

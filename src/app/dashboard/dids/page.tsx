@@ -10,17 +10,10 @@ import { Plus, Eye, Trash2, Power, MoreHorizontal, Key, Globe, Coins, Network, U
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import * as didService from '@/services/didService'
+import type { DIDResponse } from '@/types/did'
 
-// Types for DID data
-interface DIDDocument {
-  id: string
-  method: 'key' | 'web' | 'ethr' | 'ion' | 'peer'
-  status: 'active' | 'deactivated' | 'revoked'
-  created_at: string
-  updated_at: string
-  document: Record<string, unknown>
-}
-
+// Types for DID data - using types from API
 interface DIDStats {
   total: number
   active: number
@@ -35,7 +28,7 @@ interface DIDStats {
  */
 export default function DIDDashboardPage() {
   const router = useRouter()
-  const [dids, setDids] = useState<DIDDocument[]>([])
+  const [dids, setDids] = useState<DIDResponse[]>([])
   const [stats, setStats] = useState<DIDStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -45,55 +38,25 @@ export default function DIDDashboardPage() {
     const fetchDIDs = async () => {
       try {
         setLoading(true)
-        // TODO: Replace with actual API call
-        // const response = await didService.getUserDIDs()
-        // setDids(response.dids)
-        // setStats(response.stats)
+        setError(null)
         
-        // Mock data for now
-        const mockDIDs: DIDDocument[] = [
-          {
-            id: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
-            method: 'key',
-            status: 'active',
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T10:30:00Z',
-            document: {}
-          },
-          {
-            id: 'did:web:example.com:users:alice',
-            method: 'web',
-            status: 'active',
-            created_at: '2024-01-10T14:20:00Z',
-            updated_at: '2024-01-10T14:20:00Z',
-            document: {}
-          },
-          {
-            id: 'did:ethr:0x1234567890123456789012345678901234567890',
-            method: 'ethr',
-            status: 'deactivated',
-            created_at: '2024-01-05T09:15:00Z',
-            updated_at: '2024-01-20T16:45:00Z',
-            document: {}
-          }
-        ]
+        // Fetch user's DIDs
+        const didsResponse = await didService.listDIDs()
+        setDids(didsResponse.dids || [])
         
-        const mockStats: DIDStats = {
-          total: 3,
-          active: 2,
-          deactivated: 1,
-          revoked: 0,
-          byMethod: {
-            key: 1,
-            web: 1,
-            ethr: 1,
-            ion: 0,
-            peer: 0
-          }
+        // Fetch DID statistics
+        const statsResponse = await didService.getDIDStatistics()
+        
+        // Convert statistics to local format
+        const convertedStats: DIDStats = {
+          total: statsResponse.total,
+          active: statsResponse.active,
+          deactivated: statsResponse.deactivated,
+          revoked: statsResponse.revoked,
+          byMethod: statsResponse.by_method
         }
         
-        setDids(mockDIDs)
-        setStats(mockStats)
+        setStats(convertedStats)
       } catch (err) {
         setError('Failed to fetch DIDs')
         console.error('Error fetching DIDs:', err)
@@ -144,30 +107,38 @@ export default function DIDDashboardPage() {
   /**
    * Handle DID deactivation
    */
-  const handleDeactivate = async (didId: string) => {
+  const handleDeactivate = async (did: DIDResponse) => {
     try {
-      // TODO: Implement actual API call
-      // await didService.deactivateDID(didId)
-      console.log('Deactivating DID:', didId)
+      await didService.deactivateDID({ 
+        id: did.id,
+        did: did.did,
+        user_id: did.user_id,
+        reason: 'User requested deactivation'
+      })
       // Refresh the list
-      // fetchDIDs()
+      window.location.reload()
     } catch (err) {
       console.error('Error deactivating DID:', err)
+      setError('Failed to deactivate DID')
     }
   }
 
   /**
    * Handle DID revocation
    */
-  const handleRevoke = async (didId: string) => {
+  const handleRevoke = async (did: DIDResponse) => {
     try {
-      // TODO: Implement actual API call
-      // await didService.revokeDID(didId)
-      console.log('Revoking DID:', didId)
+      await didService.revokeDID({ 
+        id: did.id,
+        did: did.did,
+        user_id: did.user_id,
+        reason: 'User requested revocation'
+      })
       // Refresh the list
-      // fetchDIDs()
+      window.location.reload()
     } catch (err) {
       console.error('Error revoking DID:', err)
+      setError('Failed to revoke DID')
     }
   }
 
@@ -290,8 +261,8 @@ export default function DIDDashboardPage() {
                 {dids.map((did) => (
                   <TableRow key={did.id}>
                     <TableCell className="font-mono text-sm">
-                      <div className="max-w-xs truncate" title={did.id}>
-                        {did.id}
+                      <div className="max-w-xs truncate" title={did.did}>
+                        {did.did}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -315,14 +286,14 @@ export default function DIDDashboardPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
-                            onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(did.id)}`)}
+                            onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(did.did)}`)}
                           >
                             <Eye className="h-4 w-4 mr-2" />
                             View Details
                           </DropdownMenuItem>
                           {did.status === 'active' && (
                             <DropdownMenuItem
-                              onClick={() => handleDeactivate(did.id)}
+                              onClick={() => handleDeactivate(did)}
                               className="text-orange-600"
                             >
                               <Power className="h-4 w-4 mr-2" />
@@ -331,7 +302,7 @@ export default function DIDDashboardPage() {
                           )}
                           {did.status !== 'revoked' && (
                             <DropdownMenuItem
-                              onClick={() => handleRevoke(did.id)}
+                              onClick={() => handleRevoke(did)}
                               className="text-red-600"
                             >
                               <Trash2 className="h-4 w-4 mr-2" />

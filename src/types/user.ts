@@ -28,6 +28,7 @@ export interface UserOutput {
 	is_two_factor_enabled: boolean; // Added for 2FA status
 	is_email_verified: boolean;
 	is_phone_verified: boolean;
+	metadata?: Record<string, unknown>; // Added metadata field to match backend
 	profile?: UserProfile | null; // Added optional profile field
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
@@ -48,6 +49,7 @@ export interface UserProfile {
 	address?: string;
 	interests?: string[];
 	preferences?: UserPreferences; // Can be optional or have defaults
+	metadata?: Record<string, unknown>; // Added metadata field for DID settings and other custom data
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
 }
@@ -145,6 +147,7 @@ export interface UpdateProfileInput {
 	address?: string;
 	interests?: string[];
 	preferences?: Partial<UserPreferences>; // Allow partial updates for preferences
+	metadata?: Record<string, unknown>; // Added metadata field for DID settings and other custom data
 }
 
 export interface UpdatePasswordInput {

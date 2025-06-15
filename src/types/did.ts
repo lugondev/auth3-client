@@ -305,6 +305,7 @@ export interface DIDActivity {
   action: string;
   timestamp: string;
   user_id: string;
+  versionId?: string;
 }
 
 // Authenticate DID - Based on AuthenticateDIDRequest/Response

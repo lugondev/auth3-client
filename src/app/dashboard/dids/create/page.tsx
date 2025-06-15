@@ -13,6 +13,8 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Key, Globe, Coins, Network, Users, Eye, EyeOff, Copy, Check} from 'lucide-react'
 import {useRouter} from 'next/navigation'
 import {toast} from 'sonner'
+import {createDID} from '@/services/didService'
+import type {CreateDIDInput, DIDMethod, DIDDocument} from '@/types/did'
 
 // Types for DID creation
 interface DIDCreationForm {
@@ -52,7 +54,7 @@ export default function CreateDIDPage() {
 		verificationMethods: [],
 	})
 	const [loading, setLoading] = useState(false)
-	const [previewDocument, setPreviewDocument] = useState<Record<string, unknown> | null>(null)
+	const [previewDocument, setPreviewDocument] = useState<DIDDocument | null>(null)
 	const [showPreview, setShowPreview] = useState(false)
 	const [generatedKeys, setGeneratedKeys] = useState<{publicKey: string; privateKey: string} | null>(null)
 	const [showPrivateKey, setShowPrivateKey] = useState(false)
@@ -110,21 +112,24 @@ export default function CreateDIDPage() {
 
 		switch (form.method) {
 			case 'key':
-				didId = 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK'
+				didId = 'did:key:[generated-key-will-be-here]'
 				break
 			case 'web':
-				didId = `did:web:${form.domain || 'example.com'}${form.path ? ':' + form.path.replace(/\//g, ':') : ''}`
+				didId = `did:web:${form.domain || '[domain-required]'}${form.path ? ':' + form.path.replace(/\//g, ':') : ''}`
 				break
 			case 'ethr':
-				didId = `did:ethr:${form.networkId || 'mainnet'}:${form.ethereumAddress || '0x1234567890123456789012345678901234567890'}`
+				didId = `did:ethr:${form.networkId || 'mainnet'}:${form.ethereumAddress || '[ethereum-address-required]'}`
 				break
 			case 'ion':
-				didId = 'did:ion:EiClkZMDxPKqC9c-umQfTkR8vvZ9JPhl_xLDI9Nfk38w5w'
+				didId = 'did:ion:[generated-ion-id-will-be-here]'
 				break
 			case 'peer':
-				didId = 'did:peer:2.Ez6LSbysY2xFMRpGMhb7tFTLMpeuPRaqaWM1yECx2AtzE3KCc'
+				didId = 'did:peer:[generated-peer-id-will-be-here]'
 				break
 		}
+
+		const keyType = form.keyType || 'Ed25519'
+		const verificationMethodType = keyType === 'Ed25519' ? 'Ed25519VerificationKey2020' : keyType === 'secp256k1' ? 'EcdsaSecp256k1VerificationKey2019' : 'JsonWebKey2020'
 
 		const document = {
 			'@context': ['https://www.w3.org/ns/did/v1', 'https://w3id.org/security/suites/ed25519-2020/v1'],
@@ -132,9 +137,9 @@ export default function CreateDIDPage() {
 			verificationMethod: [
 				{
 					id: `${didId}#keys-1`,
-					type: 'Ed25519VerificationKey2020',
+					type: verificationMethodType,
 					controller: didId,
-					publicKeyMultibase: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
+					publicKeyMultibase: '[generated-public-key-will-be-here]',
 				},
 			],
 			authentication: [`${didId}#keys-1`],
@@ -162,19 +167,38 @@ export default function CreateDIDPage() {
 		setLoading(true)
 
 		try {
-			// TODO: Replace with actual API call
-			// const response = await didService.createDID(form)
-
-			// Mock API call
-			await new Promise((resolve) => setTimeout(resolve, 2000))
-
-			// Mock generated keys
-			const mockKeys = {
-				publicKey: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
-				privateKey: 'zrv1mK7Vs8HKCwBgFaFhQVBhXwXQNjhrhJGvXckEKrJNVsQd2Qhd',
+			// Prepare API input
+			const createInput: CreateDIDInput = {
+				method: form.method as DIDMethod,
+				options: {
+					keyType: form.keyType,
+					...(form.method === 'web' && {
+						domain: form.domain,
+						path: form.path,
+					}),
+					...(form.method === 'ethr' && {
+						ethereumAddress: form.ethereumAddress,
+						networkId: form.networkId,
+					}),
+					...(form.method === 'peer' && {
+						peerEndpoint: form.peerEndpoint,
+					}),
+					serviceEndpoints: form.serviceEndpoints,
+				},
 			}
 
-			setGeneratedKeys(mockKeys)
+			// Call actual API
+			const response = await createDID(createInput)
+
+			// Extract keys from response (assuming they're in the document or metadata)
+			const keys = {
+				publicKey: response.document.verificationMethod?.[0]?.publicKeyMultibase || response.did,
+				privateKey: 'Private key is securely stored on the server', // Don't expose private keys
+			}
+
+			setGeneratedKeys(keys)
+			// Store the response for navigation
+			setPreviewDocument(response.document)
 			toast.success('DID created successfully!')
 
 			// Redirect after a delay to show the keys
@@ -199,6 +223,7 @@ export default function CreateDIDPage() {
 			toast.success('Copied to clipboard')
 			setTimeout(() => setCopiedField(null), 2000)
 		} catch (error) {
+			console.error('Error copying to clipboard:', error)
 			toast.error('Failed to copy to clipboard')
 		}
 	}
@@ -252,24 +277,35 @@ export default function CreateDIDPage() {
 							</div>
 						</div>
 
-						<div>
-							<Label>Private Key</Label>
-							<div className='flex items-center gap-2 mt-1'>
-								<Input type={showPrivateKey ? 'text' : 'password'} value={generatedKeys.privateKey} readOnly className='font-mono text-sm' />
-								<Button variant='outline' size='sm' onClick={() => setShowPrivateKey(!showPrivateKey)}>
-									{showPrivateKey ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
-								</Button>
-								<Button variant='outline' size='sm' onClick={() => copyToClipboard(generatedKeys.privateKey, 'privateKey')}>
-									{copiedField === 'privateKey' ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
-								</Button>
+						{generatedKeys.privateKey !== 'Private key is securely stored on the server' && (
+							<div>
+								<Label>Private Key</Label>
+								<div className='flex items-center gap-2 mt-1'>
+									<Input type={showPrivateKey ? 'text' : 'password'} value={generatedKeys.privateKey} readOnly className='font-mono text-sm' />
+									<Button variant='outline' size='sm' onClick={() => setShowPrivateKey(!showPrivateKey)}>
+										{showPrivateKey ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
+									</Button>
+									<Button variant='outline' size='sm' onClick={() => copyToClipboard(generatedKeys.privateKey, 'privateKey')}>
+										{copiedField === 'privateKey' ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
+									</Button>
+								</div>
 							</div>
-						</div>
+						)}
+
+						{generatedKeys.privateKey === 'Private key is securely stored on the server' && (
+							<Alert>
+								<Key className='h-4 w-4' />
+								<AlertDescription>
+									<strong>Security Notice:</strong> Your private key is securely stored on the server and is not exposed for security reasons. You can use your DID for authentication and signing operations through the platform.
+								</AlertDescription>
+							</Alert>
+						)}
 
 						<div className='flex gap-2 pt-4'>
 							<Button onClick={() => router.push('/dashboard/dids')} className='flex-1'>
 								Go to DID Dashboard
 							</Button>
-							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(String(previewDocument?.id || ''))}`)}>
+							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(previewDocument?.id || generatedKeys.publicKey)}`)}>
 								View DID Details
 							</Button>
 						</div>

@@ -13,7 +13,9 @@ import {Users, Key, Globe, Coins, Network, TrendingUp,  Activity, Settings, Sear
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
 import { getDIDStatistics, listDIDs } from '@/services/didService'
+import { getUserById } from '@/services/userService'
 import type { DIDStatisticsOutput, ListDIDsOutput, DIDResponse } from '@/types/did'
+import type { UserOutput } from '@/types/user'
 
 // Types for DID administration
 interface DIDStats {
@@ -81,21 +83,43 @@ export default function DIDAdminDashboard() {
 						method: methodFilter !== 'all' ? methodFilter : undefined,
 					})
 
-					// Transform DIDs to match component interface
-					const transformedDIDs: DIDRecord[] = didsData.dids.map((did: DIDResponse) => ({
-						id: did.id,
-						did: did.did,
-						method: did.method,
-						status: did.status,
-						owner: {
-							id: did.user_id,
-							email: `user@example.com`, // TODO: Get actual user email from user service
-							username: undefined,
-						},
-						createdAt: did.created_at,
-						updatedAt: did.updated_at,
-						lastUsed: undefined, // TODO: Add last used tracking
-					}))
+					// Transform DIDs to match component interface with user data
+					const transformedDIDs: DIDRecord[] = await Promise.all(
+						didsData.dids.map(async (did: DIDResponse) => {
+							let userEmail = 'unknown@example.com'
+							let username: string | undefined = undefined
+							
+							try {
+								// Fetch user data to get actual email
+								const userData: UserOutput = await getUserById(did.user_id)
+								userEmail = userData.email
+								// Construct username from first_name and last_name
+								if (userData.first_name || userData.last_name) {
+									username = `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+								}
+							} catch (error) {
+								console.warn(`Failed to fetch user data for user_id: ${did.user_id}`, error)
+							}
+							
+							return {
+								id: did.id,
+								did: did.did,
+								method: did.method,
+								status: did.status,
+								owner: {
+									id: did.user_id,
+									email: userEmail,
+									username: username,
+								},
+								createdAt: did.created_at,
+								updatedAt: did.updated_at,
+								// Note: Last used tracking is not implemented in the current DID model
+								// This would require adding a last_used_at field to the DID table
+								// and updating it whenever a DID is used for authentication or operations
+								lastUsed: undefined,
+							}
+						})
+					)
 
 					setStats(transformedStats)
 					setDids(transformedDIDs)

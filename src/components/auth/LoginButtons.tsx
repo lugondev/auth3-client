@@ -23,8 +23,6 @@ export function LoginButtons({oauth2Params}: LoginButtonsProps) {
 		}
 	}
 
-	// TODO: Add error handling display (e.g., using sonner or similar)
-
 	return (
 		<div className='flex flex-col space-y-2'>
 			<Button onClick={handleSocialSignIn(signInWithGoogle)} disabled={loading} variant='outline' className='w-full'>

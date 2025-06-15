@@ -13,32 +13,17 @@ import {Key, Globe, Coins, Network, Users, Save, RefreshCw, Info, Edit} from 'lu
 import {Alert, AlertDescription, AlertTitle} from '@/components/ui/alert'
 import {Separator} from '@/components/ui/separator'
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog'
+import {
+	getMethodConfigurations,
+	getNetworkConfigurations,
+	updateMethodConfigurations,
+	setDefaultMethod,
+	toggleMethodEnabled,
+	type DIDMethodConfig,
+	type NetworkConfig
+} from '@/services/didMethodService'
 
-// Types for DID method configuration
-interface DIDMethodConfig {
-	id: string
-	name: string
-	method: 'key' | 'web' | 'ethr' | 'ion' | 'peer'
-	enabled: boolean
-	default: boolean
-	priority: number
-	config: {
-		[key: string]: string | number | boolean
-	}
-	description: string
-	supportedOperations: string[]
-	lastUpdated: string
-	status: 'active' | 'inactive' | 'error'
-}
-
-interface NetworkConfig {
-	id: string
-	name: string
-	rpcUrl: string
-	chainId?: number
-	contractAddress?: string
-	enabled: boolean
-}
+// Types are now imported from didMethodService
 
 export default function DIDMethodConfiguration() {
 	const [methods, setMethods] = useState<DIDMethodConfig[]>([])
@@ -53,129 +38,18 @@ export default function DIDMethodConfiguration() {
 		const fetchConfigurations = async () => {
 			try {
 				setLoading(true)
-				// TODO: Replace with actual API calls
-				// const [methodsResponse, networksResponse] = await Promise.all([
-				//   didMethodService.getConfigurations(),
-				//   didMethodService.getNetworkConfigurations()
-				// ])
+				
+				// Fetch actual data from API
+				const [methodsResponse, networksResponse] = await Promise.all([
+					getMethodConfigurations(),
+					getNetworkConfigurations()
+				])
 
-				// Mock data for demonstration
-				const mockMethods: DIDMethodConfig[] = [
-					{
-						id: 'did-key',
-						name: 'DID Key',
-						method: 'key',
-						enabled: true,
-						default: true,
-						priority: 1,
-						config: {
-							keyType: 'Ed25519',
-							encoding: 'base58btc',
-						},
-						description: 'Simple cryptographic key-based DID method',
-						supportedOperations: ['create', 'resolve', 'update', 'deactivate'],
-						lastUpdated: new Date().toISOString(),
-						status: 'active',
-					},
-					{
-						id: 'did-web',
-						name: 'DID Web',
-						method: 'web',
-						enabled: true,
-						default: false,
-						priority: 2,
-						config: {
-							baseDomain: 'example.com',
-							path: '/.well-known/did.json',
-							httpsRequired: true,
-						},
-						description: 'Web-based DID method using domain names',
-						supportedOperations: ['create', 'resolve', 'update'],
-						lastUpdated: new Date().toISOString(),
-						status: 'active',
-					},
-					{
-						id: 'did-ethr',
-						name: 'DID Ethereum',
-						method: 'ethr',
-						enabled: false,
-						default: false,
-						priority: 3,
-						config: {
-							network: 'mainnet',
-							registryAddress: '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b',
-							rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
-						},
-						description: 'Ethereum blockchain-based DID method',
-						supportedOperations: ['create', 'resolve', 'update', 'deactivate'],
-						lastUpdated: new Date().toISOString(),
-						status: 'inactive',
-					},
-					{
-						id: 'did-ion',
-						name: 'DID ION',
-						method: 'ion',
-						enabled: false,
-						default: false,
-						priority: 4,
-						config: {
-							ionNodeUrl: 'https://ion.msidentity.com',
-							bitcoinRpcUrl: 'https://bitcoin.mainnet.rpc',
-						},
-						description: 'Bitcoin-anchored DID method via ION network',
-						supportedOperations: ['create', 'resolve', 'update', 'deactivate'],
-						lastUpdated: new Date().toISOString(),
-						status: 'inactive',
-					},
-					{
-						id: 'did-peer',
-						name: 'DID Peer',
-						method: 'peer',
-						enabled: true,
-						default: false,
-						priority: 5,
-						config: {
-							numAlgo: 2,
-							encAlgo: 'X25519',
-						},
-						description: 'Peer-to-peer DID method for direct communication',
-						supportedOperations: ['create', 'resolve'],
-						lastUpdated: new Date().toISOString(),
-						status: 'active',
-					},
-				]
-
-				const mockNetworks: NetworkConfig[] = [
-					{
-						id: 'ethereum-mainnet',
-						name: 'Ethereum Mainnet',
-						rpcUrl: 'https://mainnet.infura.io/v3/YOUR_PROJECT_ID',
-						chainId: 1,
-						contractAddress: '0xdca7ef03e98e0dc2b855be647c39abe984fcf21b',
-						enabled: false,
-					},
-					{
-						id: 'ethereum-sepolia',
-						name: 'Ethereum Sepolia',
-						rpcUrl: 'https://sepolia.infura.io/v3/YOUR_PROJECT_ID',
-						chainId: 11155111,
-						contractAddress: '0x03d5003bf0e79c5f5223588f347eba39afbc3818',
-						enabled: true,
-					},
-					{
-						id: 'polygon-mainnet',
-						name: 'Polygon Mainnet',
-						rpcUrl: 'https://polygon-rpc.com',
-						chainId: 137,
-						contractAddress: '0x41d788c9c5d335362d713152f407692c5efc7662',
-						enabled: false,
-					},
-				]
-
-				setMethods(mockMethods)
-				setNetworks(mockNetworks)
+				setMethods(methodsResponse.methods)
+				setNetworks(networksResponse.networks)
 			} catch (error) {
 				console.error('Failed to fetch DID method configurations:', error)
+				// You can add toast notification here for user feedback
 			} finally {
 				setLoading(false)
 			}
@@ -188,30 +62,51 @@ export default function DIDMethodConfiguration() {
 	const handleSaveConfiguration = async () => {
 		try {
 			setSaving(true)
-			// TODO: Implement actual save logic
-			// await didMethodService.updateConfigurations(methods)
-			console.log('Saving configurations:', methods)
+			
+			// Update configurations via API
+			const updatedMethods = await updateMethodConfigurations(methods)
+			setMethods(updatedMethods)
+			
 			// Show success message
+			console.log('Configurations saved successfully')
+			// You can add toast notification here for user feedback
 		} catch (error) {
 			console.error('Failed to save configurations:', error)
+			// You can add toast notification here for error feedback
 		} finally {
 			setSaving(false)
 		}
 	}
 
 	// Toggle method enabled state
-	const toggleMethodEnabled = (methodId: string) => {
-		setMethods((prev) => prev.map((method) => (method.id === methodId ? {...method, enabled: !method.enabled} : method)))
+	const handleToggleMethodEnabled = async (methodId: string) => {
+		try {
+			const method = methods.find(m => m.id === methodId)
+			if (!method) return
+			
+			const updatedMethod = await toggleMethodEnabled(methodId, !method.enabled)
+			setMethods((prev) => prev.map((m) => (m.id === methodId ? updatedMethod : m)))
+		} catch (error) {
+			console.error('Failed to toggle method enabled state:', error)
+			// You can add toast notification here for error feedback
+		}
 	}
 
 	// Set default method
-	const setDefaultMethod = (methodId: string) => {
-		setMethods((prev) =>
-			prev.map((method) => ({
-				...method,
-				default: method.id === methodId,
-			})),
-		)
+	const handleSetDefaultMethod = async (methodId: string) => {
+		try {
+			await setDefaultMethod(methodId)
+			// Update all methods - set the selected one as default and others as non-default
+			setMethods((prev) =>
+				prev.map((method) => ({
+					...method,
+					default: method.id === methodId,
+				})),
+			)
+		} catch (error) {
+			console.error('Failed to set default method:', error)
+			// You can add toast notification here for error feedback
+		}
 	}
 
 	// Get method icon
@@ -316,14 +211,14 @@ export default function DIDMethodConfiguration() {
 									<div className='space-y-4'>
 										<div className='flex items-center justify-between'>
 											<Label htmlFor={`enabled-${method.id}`}>Enabled</Label>
-											<Switch id={`enabled-${method.id}`} checked={method.enabled} onCheckedChange={() => toggleMethodEnabled(method.id)} />
+											<Switch id={`enabled-${method.id}`} checked={method.enabled} onCheckedChange={() => handleToggleMethodEnabled(method.id)} />
 										</div>
 
 										{method.enabled && (
 											<>
 												<div className='flex items-center justify-between'>
 													<Label htmlFor={`default-${method.id}`}>Set as Default</Label>
-													<Switch id={`default-${method.id}`} checked={method.default} onCheckedChange={() => setDefaultMethod(method.id)} />
+													<Switch id={`default-${method.id}`} checked={method.default} onCheckedChange={() => handleSetDefaultMethod(method.id)} />
 												</div>
 
 												<Separator />

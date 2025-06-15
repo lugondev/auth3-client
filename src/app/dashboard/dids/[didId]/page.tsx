@@ -12,52 +12,8 @@ import {Label} from '@/components/ui/label'
 import {Key, Globe, Coins, Network, Users, Copy, Check, Power, Trash2, Shield, Link as LinkIcon, History, Download} from 'lucide-react'
 import {useParams, useRouter} from 'next/navigation'
 import {toast} from 'sonner'
-
-// Types for DID data
-interface DIDDocument {
-	'@context': string[]
-	id: string
-	verificationMethod: VerificationMethod[]
-	authentication: string[]
-	assertionMethod: string[]
-	keyAgreement: string[]
-	capabilityInvocation: string[]
-	capabilityDelegation: string[]
-	service: ServiceEndpoint[]
-}
-
-interface VerificationMethod {
-	id: string
-	type: string
-	controller: string
-	publicKeyMultibase?: string
-	publicKeyJwk?: Record<string, unknown>
-	blockchainAccountId?: string
-}
-
-interface ServiceEndpoint {
-	id: string
-	type: string
-	serviceEndpoint: string | string[]
-}
-
-interface DIDMetadata {
-	method: 'key' | 'web' | 'ethr' | 'ion' | 'peer'
-	status: 'active' | 'deactivated' | 'revoked'
-	created: string
-	updated: string
-	nextUpdate?: string
-	versionId?: string
-	equivalentId?: string[]
-	canonicalId?: string
-}
-
-interface DIDHistory {
-	timestamp: string
-	action: 'created' | 'updated' | 'deactivated' | 'revoked'
-	description: string
-	versionId?: string
-}
+import {getDID, resolveDID, deactivateDID, revokeDID} from '@/services/didService'
+import {DIDResponse, ResolveDIDResult, DIDActivity} from '@/types/did'
 
 /**
  * DID Details Page - Display complete DID document and metadata
@@ -68,9 +24,9 @@ export default function DIDDetailsPage() {
 	const router = useRouter()
 	const didId = decodeURIComponent(params.didId as string)
 
-	const [didDocument, setDidDocument] = useState<DIDDocument | null>(null)
-	const [metadata, setMetadata] = useState<DIDMetadata | null>(null)
-	const [history, setHistory] = useState<DIDHistory[]>([])
+	const [didData, setDidData] = useState<DIDResponse | null>(null)
+	const [resolutionResult, setResolutionResult] = useState<ResolveDIDResult | null>(null)
+	const [history, setHistory] = useState<DIDActivity[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [copiedField, setCopiedField] = useState<string | null>(null)
@@ -78,85 +34,47 @@ export default function DIDDetailsPage() {
 
 	// Fetch DID document and metadata
 	useEffect(() => {
-		const fetchDIDDetails = async () => {
+		const fetchDIDData = async () => {
 			try {
 				setLoading(true)
-				// TODO: Replace with actual API calls
-				// const [docResponse, metaResponse, historyResponse] = await Promise.all([
-				//   didService.resolveDID(didId),
-				//   didService.getDIDMetadata(didId),
-				//   didService.getDIDHistory(didId)
-				// ])
+				setError(null)
 
-				// Mock data for now
-				const mockDocument: DIDDocument = {
-					'@context': ['https://www.w3.org/ns/did/v1', 'https://w3id.org/security/suites/ed25519-2020/v1'],
-					id: didId,
-					verificationMethod: [
-						{
-							id: `${didId}#keys-1`,
-							type: 'Ed25519VerificationKey2020',
-							controller: didId,
-							publicKeyMultibase: 'z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
-						},
-						{
-							id: `${didId}#keys-2`,
-							type: 'X25519KeyAgreementKey2020',
-							controller: didId,
-							publicKeyMultibase: 'z6LSeu9HkTHSfLLeUs2nnzUSNedgDUevfNQgQjQC23ZCit6F',
-						},
-					],
-					authentication: [`${didId}#keys-1`],
-					assertionMethod: [`${didId}#keys-1`],
-					keyAgreement: [`${didId}#keys-2`],
-					capabilityInvocation: [`${didId}#keys-1`],
-					capabilityDelegation: [`${didId}#keys-1`],
-					service: [
-						{
-							id: `${didId}#linked-domain`,
-							type: 'LinkedDomains',
-							serviceEndpoint: 'https://example.com',
-						},
-						{
-							id: `${didId}#didcomm`,
-							type: 'DIDCommMessaging',
-							serviceEndpoint: 'https://example.com/didcomm',
-						},
-					],
-				}
+				// Fetch DID data and resolution result
+				const [didResponse, resolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
 
-				const mockMetadata: DIDMetadata = {
-					method: didId.startsWith('did:key') ? 'key' : didId.startsWith('did:web') ? 'web' : didId.startsWith('did:ethr') ? 'ethr' : didId.startsWith('did:ion') ? 'ion' : 'peer',
-					status: 'active',
-					created: '2024-01-15T10:30:00Z',
-					updated: '2024-01-15T10:30:00Z',
-					versionId: '1',
-					canonicalId: didId,
-				}
+				setDidData(didResponse)
+				setResolutionResult(resolutionResponse)
 
-				const mockHistory: DIDHistory[] = [
+				// Convert DID data to history format for display
+				const historyData: DIDActivity[] = [
 					{
-						timestamp: '2024-01-15T10:30:00Z',
+						did_string: didResponse.did,
 						action: 'created',
-						description: 'DID document created',
-						versionId: '1',
+						timestamp: didResponse.created_at,
+						user_id: didResponse.user_id,
 					},
 				]
 
-				setDidDocument(mockDocument)
-				setMetadata(mockMetadata)
-				setHistory(mockHistory)
+				if (didResponse.updated_at !== didResponse.created_at) {
+					historyData.push({
+						did_string: didResponse.did,
+						action: 'updated',
+						timestamp: didResponse.updated_at,
+						user_id: didResponse.user_id,
+					})
+				}
+
+				setHistory(historyData)
 			} catch (err) {
-				setError('Failed to fetch DID details')
-				console.error('Error fetching DID details:', err)
+				console.error('Error fetching DID data:', err)
+				setError('Failed to load DID data')
+				toast.error('Failed to load DID data')
 			} finally {
 				setLoading(false)
 			}
 		}
 
-		if (didId) {
-			fetchDIDDetails()
-		}
+		fetchDIDData()
 	}, [didId])
 
 	/**
@@ -209,6 +127,7 @@ export default function DIDDetailsPage() {
 			toast.success('Copied to clipboard')
 			setTimeout(() => setCopiedField(null), 2000)
 		} catch (error) {
+			console.error('Failed to copy to clipboard:', error)
 			toast.error('Failed to copy to clipboard')
 		}
 	}
@@ -218,12 +137,22 @@ export default function DIDDetailsPage() {
 	 */
 	const handleDeactivate = async () => {
 		try {
-			// TODO: Implement actual API call
-			// await didService.deactivateDID(didId)
-			console.log('Deactivating DID:', didId)
+			if (!didData) return
+
+			await deactivateDID({
+				id: didData.id,
+				did: didData.did,
+				user_id: didData.user_id,
+				reason: 'User requested deactivation',
+			})
+
 			toast.success('DID deactivated successfully')
+
 			// Refresh the data
-			// fetchDIDDetails()
+			const [updatedDidResponse, updatedResolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
+
+			setDidData(updatedDidResponse)
+			setResolutionResult(updatedResolutionResponse)
 		} catch (err) {
 			console.error('Error deactivating DID:', err)
 			toast.error('Failed to deactivate DID')
@@ -235,12 +164,22 @@ export default function DIDDetailsPage() {
 	 */
 	const handleRevoke = async () => {
 		try {
-			// TODO: Implement actual API call
-			// await didService.revokeDID(didId)
-			console.log('Revoking DID:', didId)
+			if (!didData) return
+
+			await revokeDID({
+				id: didData.id,
+				did: didData.did,
+				user_id: didData.user_id,
+				reason: 'User requested revocation',
+			})
+
 			toast.success('DID revoked successfully')
+
 			// Refresh the data
-			// fetchDIDDetails()
+			const [updatedDidResponse, updatedResolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
+
+			setDidData(updatedDidResponse)
+			setResolutionResult(updatedResolutionResponse)
 		} catch (err) {
 			console.error('Error revoking DID:', err)
 			toast.error('Failed to revoke DID')
@@ -251,9 +190,9 @@ export default function DIDDetailsPage() {
 	 * Download DID document as JSON
 	 */
 	const downloadDocument = () => {
-		if (!didDocument) return
+		if (!resolutionResult?.didDocument) return
 
-		const dataStr = JSON.stringify(didDocument, null, 2)
+		const dataStr = JSON.stringify(resolutionResult.didDocument, null, 2)
 		const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
 
 		const exportFileDefaultName = `did-document-${didId.replace(/[^a-zA-Z0-9]/g, '-')}.json`
@@ -278,7 +217,7 @@ export default function DIDDetailsPage() {
 		)
 	}
 
-	if (error || !didDocument || !metadata) {
+	if (error || !didData || !resolutionResult) {
 		return (
 			<div className='text-center py-12'>
 				<p className='text-red-600 mb-4'>{error || 'DID not found'}</p>
@@ -299,7 +238,7 @@ export default function DIDDetailsPage() {
 							<Download className='h-4 w-4 mr-2' />
 							Download
 						</Button>
-						{metadata.status === 'active' && (
+						{didData.status === 'active' && (
 							<>
 								<Button variant='outline' onClick={handleDeactivate} className='text-orange-600 hover:text-orange-700'>
 									<Power className='h-4 w-4 mr-2' />
@@ -320,10 +259,10 @@ export default function DIDDetailsPage() {
 				<Card>
 					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 						<CardTitle className='text-sm font-medium'>Method</CardTitle>
-						{getMethodIcon(metadata.method)}
+						{getMethodIcon(didData.method)}
 					</CardHeader>
 					<CardContent>
-						<div className='text-2xl font-bold capitalize'>{metadata.method}</div>
+						<div className='text-2xl font-bold capitalize'>{didData.method}</div>
 					</CardContent>
 				</Card>
 
@@ -333,7 +272,7 @@ export default function DIDDetailsPage() {
 						<Shield className='h-4 w-4 text-muted-foreground' />
 					</CardHeader>
 					<CardContent>
-						<div className='text-2xl font-bold'>{getStatusBadge(metadata.status)}</div>
+						<div className='text-2xl font-bold'>{getStatusBadge(didData.status)}</div>
 					</CardContent>
 				</Card>
 
@@ -343,7 +282,7 @@ export default function DIDDetailsPage() {
 						<History className='h-4 w-4 text-muted-foreground' />
 					</CardHeader>
 					<CardContent>
-						<div className='text-2xl font-bold'>{new Date(metadata.created).toLocaleDateString()}</div>
+						<div className='text-2xl font-bold'>{new Date(didData.created_at).toLocaleDateString()}</div>
 					</CardContent>
 				</Card>
 			</div>
@@ -366,7 +305,7 @@ export default function DIDDetailsPage() {
 						</CardHeader>
 						<CardContent className='space-y-4'>
 							<div className='flex gap-2'>
-								<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(didDocument, null, 2), 'document')}>
+								<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(resolutionResult.didDocument, null, 2), 'document')}>
 									{copiedField === 'document' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}
 									Copy Document
 								</Button>
@@ -375,7 +314,7 @@ export default function DIDDetailsPage() {
 									Copy DID
 								</Button>
 							</div>
-							<Textarea value={JSON.stringify(didDocument, null, 2)} readOnly className='font-mono text-sm h-96' />
+							<Textarea value={JSON.stringify(resolutionResult.didDocument, null, 2)} readOnly className='font-mono text-sm h-96' />
 						</CardContent>
 					</Card>
 				</TabsContent>
@@ -388,7 +327,7 @@ export default function DIDDetailsPage() {
 							<CardDescription>Cryptographic keys and verification methods</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{didDocument.verificationMethod.length === 0 ? (
+							{!resolutionResult.didDocument.verificationMethod || resolutionResult.didDocument.verificationMethod.length === 0 ? (
 								<p className='text-gray-500 text-center py-8'>No verification methods found</p>
 							) : (
 								<Table>
@@ -402,7 +341,7 @@ export default function DIDDetailsPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{didDocument.verificationMethod.map((method, index) => (
+										{resolutionResult.didDocument.verificationMethod.map((method, index) => (
 											<TableRow key={index}>
 												<TableCell className='font-mono text-sm'>
 													<div className='max-w-xs truncate' title={method.id}>
@@ -444,41 +383,41 @@ export default function DIDDetailsPage() {
 								<div>
 									<Label>Authentication</Label>
 									<div className='mt-1 space-y-1'>
-										{didDocument.authentication.map((auth, index) => (
+										{resolutionResult.didDocument.authentication?.map((auth, index) => (
 											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
-												{auth}
+												{typeof auth === 'string' ? auth : auth.id}
 											</div>
-										))}
+										)) || []}
 									</div>
 								</div>
 								<div>
 									<Label>Assertion Method</Label>
 									<div className='mt-1 space-y-1'>
-										{didDocument.assertionMethod.map((assertion, index) => (
+										{resolutionResult.didDocument.assertionMethod?.map((assertion, index) => (
 											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
-												{assertion}
+												{typeof assertion === 'string' ? assertion : assertion.id}
 											</div>
-										))}
+										)) || []}
 									</div>
 								</div>
 								<div>
 									<Label>Key Agreement</Label>
 									<div className='mt-1 space-y-1'>
-										{didDocument.keyAgreement.map((agreement, index) => (
+										{resolutionResult.didDocument.keyAgreement?.map((agreement, index) => (
 											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
-												{agreement}
+												{typeof agreement === 'string' ? agreement : agreement.id}
 											</div>
-										))}
+										)) || []}
 									</div>
 								</div>
 								<div>
 									<Label>Capability Invocation</Label>
 									<div className='mt-1 space-y-1'>
-										{didDocument.capabilityInvocation.map((capability, index) => (
+										{resolutionResult.didDocument.capabilityInvocation?.map((capability, index) => (
 											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
-												{capability}
+												{typeof capability === 'string' ? capability : capability.id}
 											</div>
-										))}
+										)) || []}
 									</div>
 								</div>
 							</div>
@@ -494,7 +433,7 @@ export default function DIDDetailsPage() {
 							<CardDescription>Services and endpoints associated with this DID</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{didDocument.service.length === 0 ? (
+							{!resolutionResult.didDocument.service || resolutionResult.didDocument.service.length === 0 ? (
 								<p className='text-gray-500 text-center py-8'>No service endpoints found</p>
 							) : (
 								<Table>
@@ -507,7 +446,7 @@ export default function DIDDetailsPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{didDocument.service.map((service, index) => (
+										{resolutionResult.didDocument.service.map((service, index) => (
 											<TableRow key={index}>
 												<TableCell className='font-mono text-sm'>
 													<div className='max-w-xs truncate' title={service.id}>
@@ -520,15 +459,21 @@ export default function DIDDetailsPage() {
 												<TableCell>
 													<div className='flex items-center gap-2'>
 														<LinkIcon className='h-4 w-4' />
-														<span className='font-mono text-sm truncate max-w-xs'>{Array.isArray(service.serviceEndpoint) ? service.serviceEndpoint[0] : service.serviceEndpoint}</span>
+														<span className='font-mono text-sm truncate max-w-xs'>{typeof service.serviceEndpoint === 'string' ? service.serviceEndpoint : Array.isArray(service.serviceEndpoint) ? service.serviceEndpoint[0] : JSON.stringify(service.serviceEndpoint)}</span>
 													</div>
 												</TableCell>
 												<TableCell>
 													<div className='flex gap-2'>
-														<Button variant='outline' size='sm' onClick={() => copyToClipboard(Array.isArray(service.serviceEndpoint) ? service.serviceEndpoint.join(', ') : service.serviceEndpoint, `service-${index}`)}>
+														<Button
+															variant='outline'
+															size='sm'
+															onClick={() => {
+																const endpoint = typeof service.serviceEndpoint === 'string' ? service.serviceEndpoint : Array.isArray(service.serviceEndpoint) ? service.serviceEndpoint.join(', ') : JSON.stringify(service.serviceEndpoint)
+																copyToClipboard(endpoint, `service-${index}`)
+															}}>
 															{copiedField === `service-${index}` ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
 														</Button>
-														{!Array.isArray(service.serviceEndpoint) && service.serviceEndpoint.startsWith('http') && (
+														{typeof service.serviceEndpoint === 'string' && service.serviceEndpoint.startsWith('http') && (
 															<Button variant='outline' size='sm' onClick={() => window.open(service.serviceEndpoint as string, '_blank')}>
 																<LinkIcon className='h-4 w-4' />
 															</Button>
@@ -570,7 +515,7 @@ export default function DIDDetailsPage() {
 														</Badge>
 													)}
 												</div>
-												<p className='text-sm text-gray-600 mb-1'>{event.description}</p>
+												<p className='text-sm text-gray-600 mb-1'>{event.action === 'created' ? 'DID created' : event.action === 'updated' ? 'DID updated' : event.action === 'deactivated' ? 'DID deactivated' : 'DID deleted'}</p>
 												<p className='text-xs text-gray-500'>{new Date(event.timestamp).toLocaleString()}</p>
 											</div>
 										</div>

@@ -4,6 +4,7 @@ import {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {Plus, Search, Eye, Shield, AlertTriangle} from 'lucide-react'
 import Link from 'next/link'
+import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -14,7 +15,7 @@ import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 
 import {listCredentials} from '@/services/vcService'
-import type {CredentialStatus, ListCredentialsInput} from '@/types/credentials'
+import type {CredentialStatus, ListCredentialsInput, VerifiableCredential} from '@/types/credentials'
 import {CredentialCard} from '@/components/credentials/CredentialCard'
 
 /**
@@ -42,6 +43,45 @@ export default function CredentialsDashboard() {
 		...(typeFilter !== 'all' && {type: typeFilter}),
 		sortBy: 'issuedAt',
 		sortOrder: 'desc',
+	}
+
+	/**
+	 * Handle downloading a credential as JSON file
+	 * @param credential - The credential to download
+	 */
+	const handleDownloadCredential = (credential: VerifiableCredential) => {
+		try {
+			// Create JSON blob with formatted credential data
+			const credentialData = {
+				'@context': credential['@context'] || ['https://www.w3.org/2018/credentials/v1'],
+				id: credential.id,
+				type: credential.type,
+				issuer: credential.issuer,
+				issuanceDate: credential.issuanceDate,
+				...(credential.expirationDate && { expirationDate: credential.expirationDate }),
+				credentialSubject: credential.credentialSubject,
+				...(credential.proof && { proof: credential.proof }),
+				...(credential.credentialStatus && { credentialStatus: credential.credentialStatus })
+			}
+
+			const dataStr = JSON.stringify(credentialData, null, 2)
+			const dataBlob = new Blob([dataStr], { type: 'application/json' })
+			const url = URL.createObjectURL(dataBlob)
+			
+			// Create download link
+			const link = document.createElement('a')
+			link.href = url
+			link.download = `credential-${credential.id || Date.now()}.json`
+			document.body.appendChild(link)
+			link.click()
+			document.body.removeChild(link)
+			URL.revokeObjectURL(url)
+
+			toast.success('Credential downloaded successfully')
+		} catch (error) {
+			console.error('Error downloading credential:', error)
+			toast.error('Failed to download credential')
+		}
 	}
 
 	// Fetch credentials data
@@ -224,10 +264,7 @@ export default function CredentialsDashboard() {
 											key={credential.id}
 											credential={credential}
 											onView={() => window.open(`/dashboard/credentials/${credential.id}`, '_blank')}
-											onDownload={() => {
-												// TODO: Implement download functionality
-												console.log('Download credential:', credential.id)
-											}}
+											onDownload={() => handleDownloadCredential(credential)}
 										/>
 									))}
 								</div>
