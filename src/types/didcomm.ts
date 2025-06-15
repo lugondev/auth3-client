@@ -237,3 +237,241 @@ export const ERROR_CODES = {
 } as const;
 
 export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
+
+// Dashboard Widget Types
+export interface DIDCommSummary {
+  total_messages: number;
+  unread_messages: number;
+  total_connections: number;
+  active_connections: number;
+  pending_connections: number;
+  messages_today: number;
+  messages_this_week: number;
+}
+
+export interface RecentMessage {
+  id: string;
+  type: string;
+  from: string;
+  to: string[];
+  subject?: string;
+  created_time: string;
+  read: boolean;
+  direction: 'inbound' | 'outbound';
+  thread_id?: string;
+}
+
+export interface RecentConnection {
+  id: string;
+  their_did: string;
+  their_label?: string;
+  state: ConnectionState;
+  created_at: string;
+  last_activity?: string;
+}
+
+// Message Analytics Types
+export interface MessageAnalytics {
+  total_sent: number;
+  total_received: number;
+  messages_by_type: Record<string, number>;
+  messages_by_day: MessageActivityPoint[];
+  response_time_avg: number;
+  most_active_connections: ConnectionActivity[];
+}
+
+export interface MessageActivityPoint {
+  date: string;
+  sent: number;
+  received: number;
+}
+
+export interface ConnectionActivity {
+  connection_id: string;
+  their_did: string;
+  their_label?: string;
+  message_count: number;
+  last_message: string;
+}
+
+// Advanced Message Types
+export interface EncryptedMessage {
+  protected: string;
+  recipients: MessageRecipient[];
+  iv: string;
+  ciphertext: string;
+  tag: string;
+}
+
+export interface MessageRecipient {
+  encrypted_key: string;
+  header: {
+    kid: string;
+    alg: string;
+  };
+}
+
+export interface MessageDeliveryStatus {
+  message_id: string;
+  recipient: string;
+  status: 'pending' | 'delivered' | 'failed' | 'read';
+  timestamp: string;
+  error?: string;
+}
+
+// Connection Management Types
+export interface ConnectionInvitationQR {
+  invitation: ConnectionInvitation;
+  qr_code: string;
+  invitation_url: string;
+  expires_at?: string;
+}
+
+export interface ConnectionStatistics {
+  total: number;
+  by_state: Record<ConnectionState, number>;
+  created_today: number;
+  created_this_week: number;
+  created_this_month: number;
+  most_active: RecentConnection[];
+}
+
+// Message Threading Types
+export interface ThreadInfo {
+  thread_id: string;
+  parent_thread_id?: string;
+  message_count: number;
+  participants: string[];
+  last_message: string;
+  last_activity: string;
+  subject?: string;
+  status: 'active' | 'archived' | 'closed';
+}
+
+export interface ThreadMessage extends DIDCommMessage {
+  thread_position: number;
+  is_reply: boolean;
+  replied_to?: string;
+}
+
+// Protocol Handler Types
+export interface ProtocolHandler {
+  protocol: string;
+  version: string;
+  handler: (message: DIDCommMessage) => Promise<DIDCommMessage | null>;
+  supported_message_types: string[];
+}
+
+export interface ProtocolRegistry {
+  handlers: Map<string, ProtocolHandler>;
+  register: (handler: ProtocolHandler) => void;
+  unregister: (protocol: string) => void;
+  handle: (message: DIDCommMessage) => Promise<DIDCommMessage | null>;
+}
+
+// Message Templates
+export interface MessageTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  body_template: Record<string, unknown>;
+  variables: TemplateVariable[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TemplateVariable {
+  name: string;
+  type: 'string' | 'number' | 'boolean' | 'date';
+  required: boolean;
+  default_value?: unknown;
+  description?: string;
+}
+
+// Message Routing Types
+export interface MessageRoute {
+  pattern: string;
+  handler: string;
+  priority: number;
+  conditions?: RouteCondition[];
+}
+
+export interface RouteCondition {
+  field: string;
+  operator: 'equals' | 'contains' | 'starts_with' | 'ends_with' | 'regex';
+  value: string;
+}
+
+// Webhook Types
+export interface WebhookConfig {
+  id: string;
+  url: string;
+  events: WebhookEvent[];
+  secret?: string;
+  active: boolean;
+  created_at: string;
+  last_triggered?: string;
+}
+
+export type WebhookEvent = 
+  | 'message.received'
+  | 'message.sent'
+  | 'connection.created'
+  | 'connection.updated'
+  | 'connection.deleted'
+  | 'protocol.completed'
+  | 'error.occurred';
+
+export interface WebhookPayload {
+  event: WebhookEvent;
+  timestamp: string;
+  data: Record<string, unknown>;
+  webhook_id: string;
+}
+
+// Message Search and Filtering
+export interface AdvancedMessageFilters extends MessageSearchFilters {
+  has_attachments?: boolean;
+  protocol?: string;
+  thread_id?: string;
+  content_search?: string;
+  size_min?: number;
+  size_max?: number;
+}
+
+export interface MessageSearchResult {
+  messages: DIDCommMessage[];
+  total: number;
+  facets: {
+    types: Record<string, number>;
+    senders: Record<string, number>;
+    protocols: Record<string, number>;
+  };
+  search_time_ms: number;
+}
+
+// Message Backup and Export
+export interface MessageExportOptions {
+  format: 'json' | 'csv' | 'mbox';
+  include_attachments: boolean;
+  date_range?: {
+    from: string;
+    to: string;
+  };
+  filters?: AdvancedMessageFilters;
+  encryption?: {
+    enabled: boolean;
+    password?: string;
+  };
+}
+
+export interface MessageBackup {
+  id: string;
+  created_at: string;
+  message_count: number;
+  size_bytes: number;
+  encrypted: boolean;
+  download_url?: string;
+  expires_at?: string;
+}

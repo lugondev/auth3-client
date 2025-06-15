@@ -341,3 +341,123 @@ export interface DIDApiResponse<T = unknown> {
   error?: string;
   message?: string;
 }
+
+// Dashboard Widget Types
+export interface DIDSummary {
+  total: number;
+  active: number;
+  deactivated: number;
+  revoked: number;
+  by_method: Record<DIDMethod, number>;
+  recent_count: number;
+}
+
+export interface RecentDID {
+  id: string;
+  did: string;
+  method: DIDMethod;
+  status: DIDStatus;
+  created_at: string;
+  identifier: string;
+}
+
+export interface DIDMethodInfo {
+  method: DIDMethod;
+  name: string;
+  description: string;
+  supported: boolean;
+  icon?: string;
+  documentation_url?: string;
+}
+
+// DID Analytics Types
+export interface DIDAnalytics {
+  total_dids: number;
+  active_dids: number;
+  created_today: number;
+  created_this_week: number;
+  created_this_month: number;
+  method_distribution: Record<DIDMethod, number>;
+  status_distribution: Record<DIDStatus, number>;
+  activity_timeline: DIDActivityPoint[];
+}
+
+export interface DIDActivityPoint {
+  date: string;
+  created: number;
+  updated: number;
+  deactivated: number;
+}
+
+// DID Management Types
+export interface DIDManagementFilters {
+  method?: DIDMethod;
+  status?: DIDStatus;
+  created_from?: string;
+  created_to?: string;
+  search?: string;
+}
+
+export interface DIDManagementSort {
+  field: 'created_at' | 'updated_at' | 'method' | 'status' | 'did';
+  direction: 'asc' | 'desc';
+}
+
+export interface DIDListParams {
+  page?: number;
+  limit?: number;
+  filters?: DIDManagementFilters;
+  sort?: DIDManagementSort;
+}
+
+// DID Backup and Recovery
+export interface DIDBackup {
+  id: string;
+  did: string;
+  document: DIDDocument;
+  private_keys: Record<string, string>; // Encrypted private keys
+  metadata: Record<string, unknown>;
+  created_at: string;
+  encrypted: boolean;
+}
+
+export interface DIDRecoveryOptions {
+  backup_id?: string;
+  recovery_phrase?: string;
+  private_key?: string;
+  verification_method?: string;
+}
+
+// DID Verification Types
+export interface DIDVerificationResult {
+  did: string;
+  valid: boolean;
+  document_valid: boolean;
+  keys_valid: boolean;
+  services_valid: boolean;
+  errors: string[];
+  warnings: string[];
+  verified_at: string;
+}
+
+// DID Export/Import Types
+export interface DIDExportOptions {
+  include_private_keys: boolean;
+  include_metadata: boolean;
+  format: 'json' | 'jwk' | 'pem';
+  encryption?: {
+    enabled: boolean;
+    password?: string;
+    algorithm?: string;
+  };
+}
+
+export interface DIDImportOptions {
+  format: 'json' | 'jwk' | 'pem';
+  overwrite_existing: boolean;
+  validate_before_import: boolean;
+  decryption?: {
+    password?: string;
+    algorithm?: string;
+  };
+}

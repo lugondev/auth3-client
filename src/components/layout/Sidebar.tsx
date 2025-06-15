@@ -17,6 +17,10 @@ import {
 	ListChecks, // OAuth2 list icon
 	Lock, // For disabled items
 	TestTube, // For permissions demo
+	CreditCard, // For credentials
+	MessageSquare, // For messages
+	Plus, // For create actions
+	Eye, // For view actions
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -43,6 +47,29 @@ const systemAdminLinks: NavLink[] = [
 	{href: '/dashboard/admin/tenants', label: 'Tenant Management', icon: Building, permission: 'admin:tenants:read'},
 	{href: '/dashboard/admin/users', label: 'User Management', icon: Users, permission: 'admin:users:read'},
 	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck, permission: 'admin:roles:read'},
+	{
+		href: '/dashboard/admin/dids',
+		label: 'DID Administration',
+		icon: KeyRound,
+		permission: 'admin:dids:read',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/admin/dids', label: 'DID Dashboard', icon: LayoutDashboard, permission: 'admin:dids:read'},
+			{href: '/dashboard/admin/dids/config', label: 'Method Configuration', icon: Settings, permission: 'admin:dids:config'}
+		]
+	},
+	{
+		href: '/dashboard/admin/credentials',
+		label: 'VC Administration',
+		icon: CreditCard,
+		permission: 'admin:credentials:read',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/admin/credentials', label: 'VC Dashboard', icon: LayoutDashboard, permission: 'admin:credentials:read'},
+			{href: '/dashboard/admin/credentials/templates', label: 'Templates Management', icon: FileText, permission: 'admin:credentials:templates'},
+			{href: '/dashboard/admin/credentials/revocation', label: 'Revocation Management', icon: ShieldCheck, permission: 'admin:credentials:revoke'}
+		]
+	},
 	{
 		href: '/dashboard/permissions-demo',
 		label: 'Permissions Demo',
@@ -100,8 +127,33 @@ const userLinks: NavLink[] = [
 		isCollapsible: true,
 		children: [
 			{href: '/dashboard/dids', label: 'Overview', icon: KeyRound, permission: 'did:view'},
-			{href: '/dashboard/dids/create', label: 'Create DID', icon: KeyRound, permission: 'did:create'},
+			{href: '/dashboard/dids/create', label: 'Create DID', icon: Plus, permission: 'did:create'},
 			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings, permission: 'did:manage'}
+		]
+	},
+	{
+		href: '/dashboard/credentials',
+		label: 'Credentials',
+		icon: CreditCard,
+		permission: 'credentials:view',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/credentials', label: 'Overview', icon: CreditCard, permission: 'credentials:view'},
+			{href: '/dashboard/credentials/issue', label: 'Issue Credential', icon: Plus, permission: 'credentials:issue'},
+			{href: '/dashboard/credentials/verify', label: 'Verify Credential', icon: Eye, permission: 'credentials:verify'},
+			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileText, permission: 'credentials:templates'}
+		]
+	},
+	{
+		href: '/dashboard/messages',
+		label: 'Messages',
+		icon: MessageSquare,
+		permission: 'messages:view',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/messages', label: 'Inbox', icon: MessageSquare, permission: 'messages:view'},
+			{href: '/dashboard/messages/sent', label: 'Sent', icon: MessageSquare, permission: 'messages:view'},
+			{href: '/dashboard/messages/connections', label: 'Connections', icon: Users, permission: 'messages:connections'}
 		]
 	},
 	{

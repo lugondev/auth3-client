@@ -8,6 +8,9 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Skeleton} from '@/components/ui/skeleton'
 import {AnalyticsCard} from '@/components/analytics/AnalyticsCard'
 import {AnalyticsService, PersonalDashboardAnalytics} from '@/services/analyticsService'
+import {DIDWidget} from '@/components/dashboard/DIDWidget'
+import {CredentialWidget} from '@/components/dashboard/CredentialWidget'
+import {RecentActivityWidget} from '@/components/dashboard/RecentActivityWidget'
 import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone} from 'lucide-react'
 
 export default function UserDashboardPage() {
@@ -87,6 +90,16 @@ export default function UserDashboardPage() {
 					<AnalyticsCard title='Recent Logins' value={analytics?.recent_logins || 0} description='Last 30 days' icon={Clock} loading={analyticsLoading} />
 					<AnalyticsCard title='Active Sessions' value={analytics?.active_sessions || 0} description='Currently active' icon={Smartphone} loading={analyticsLoading} />
 					<AnalyticsCard title='Security Events' value={analytics?.security_events || 0} description='Recent alerts' icon={Shield} loading={analyticsLoading} />
+				</div>
+			</div>
+
+			{/* DID and Credentials Overview */}
+			<div className='mb-8'>
+				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>Identity & Credentials</h2>
+				<div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+					<DIDWidget className='lg:col-span-1' />
+					<CredentialWidget className='lg:col-span-1' />
+					<RecentActivityWidget className='lg:col-span-1' />
 				</div>
 			</div>
 
