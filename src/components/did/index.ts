@@ -1,8 +1,11 @@
-// DID Components exports
-export { DIDCard } from './DIDCard';
-export { DIDStatusBadge, DIDStatusIndicator } from './DIDStatusBadge';
-export { DIDMethodSelector } from './DIDMethodSelector';
-export { DIDDocumentViewer } from './DIDDocumentViewer';
-export { DIDQRCode, DIDQRCodeCompact } from './DIDQRCode';
-export { DIDVerificationMethods } from './DIDVerificationMethods';
-export { DIDServiceEndpoints } from './DIDServiceEndpoints';
+export { DIDCard } from './DIDCard'
+export { DIDDocumentViewer } from './DIDDocumentViewer'
+export { DIDMethodSelector } from './DIDMethodSelector'
+export { DIDQRCode } from './DIDQRCode'
+export { DIDServiceEndpoints } from './DIDServiceEndpoints'
+export { DIDStatusBadge } from './DIDStatusBadge'
+export { DIDVerificationMethods } from './DIDVerificationMethods'
+export { DIDList } from './DIDList'
+export { DIDCreate } from './DIDCreate'
+export { DIDDetails } from './DIDDetails'
+export { DIDDeactivate } from './DIDDeactivate'

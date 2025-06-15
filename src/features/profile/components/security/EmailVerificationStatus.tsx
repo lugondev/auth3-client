@@ -6,7 +6,7 @@ import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
-import {resendVerificationEmail} from '@/services/authService' // TODO: Uncomment when service function exists
+import {resendVerificationEmail} from '@/services/authService'
 
 interface EmailVerificationStatusProps {
 	userData: UserOutput | null

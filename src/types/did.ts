@@ -148,6 +148,7 @@ export interface ListDIDsOutput {
   offset: number;
   limit: number;
   has_more: boolean;
+  stats?: DIDStatisticsOutput;
 }
 
 // DID Authentication - Based on DID Auth DTOs

@@ -22,6 +22,7 @@ import {CalendarIcon} from 'lucide-react'
 import {Calendar} from '@/components/ui/calendar'
 import {cn} from '@/lib/utils'
 import {Checkbox} from '@/components/ui/checkbox'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 
 // --- Import Security Tab Components ---
 import EmailVerificationStatus from '@/features/profile/components/security/EmailVerificationStatus'
@@ -462,8 +463,6 @@ function ProfileDetailsForm({profileData, onSubmitSuccess}: ProfileDetailsFormPr
 						</FormItem>
 					)}
 				/>
-				{/* TODO: Add a better input for interests (e.g., TagInput) */}
-				{/* <FormField ... name="interests" ... /> */}
 
 				<h3 className='text-lg font-medium pt-4'>Preferences</h3>
 				<FormField
@@ -498,9 +497,57 @@ function ProfileDetailsForm({profileData, onSubmitSuccess}: ProfileDetailsFormPr
 						</FormItem>
 					)}
 				/>
-				{/* TODO: Add Select component for Theme and Language */}
-				{/* <FormField ... name="preferences.theme" ... /> */}
-				{/* <FormField ... name="preferences.language" ... /> */}
+				<FormField
+					control={form.control}
+					name='preferences.theme'
+					render={({field}) => (
+						<FormItem className='space-y-2'>
+							<FormLabel>Theme</FormLabel>
+							<Select onValueChange={field.onChange} defaultValue={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder='Select a theme' />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value='light'>Light</SelectItem>
+									<SelectItem value='dark'>Dark</SelectItem>
+									<SelectItem value='system'>System</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>Choose your preferred theme appearance.</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
+				<FormField
+					control={form.control}
+					name='preferences.language'
+					render={({field}) => (
+						<FormItem className='space-y-2'>
+							<FormLabel>Language</FormLabel>
+							<Select onValueChange={field.onChange} defaultValue={field.value}>
+								<FormControl>
+									<SelectTrigger>
+										<SelectValue placeholder='Select a language' />
+									</SelectTrigger>
+								</FormControl>
+								<SelectContent>
+									<SelectItem value='en'>English</SelectItem>
+									<SelectItem value='vi'>Tiếng Việt</SelectItem>
+									<SelectItem value='fr'>Français</SelectItem>
+									<SelectItem value='es'>Español</SelectItem>
+									<SelectItem value='de'>Deutsch</SelectItem>
+									<SelectItem value='ja'>日本語</SelectItem>
+									<SelectItem value='ko'>한국어</SelectItem>
+									<SelectItem value='zh'>中文</SelectItem>
+								</SelectContent>
+							</Select>
+							<FormDescription>Choose your preferred language for the interface.</FormDescription>
+							<FormMessage />
+						</FormItem>
+					)}
+				/>
 
 				<Button type='submit' disabled={isSubmitting || !form.formState.isDirty}>
 					{isSubmitting ? 'Saving...' : 'Save Profile Details'}

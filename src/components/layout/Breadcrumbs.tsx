@@ -49,9 +49,6 @@ const generateBreadcrumbs = (pathname: string, dynamicLabels: Record<string, str
 			label = capitalize(segment.replace(/-/g, ' '))
 		}
 
-		// TODO: Add logic to fetch dynamic labels (e.g., venue name for /venues/[venueId])
-		// if (segment === '[venueId]' && venueData) { label = venueData.name; }
-
 		// Modify the condition to create links for all segments for now
 		// The rendering logic below handles not linking the last item.
 		breadcrumbs.push({href: currentPath, label: label, icon: null})
