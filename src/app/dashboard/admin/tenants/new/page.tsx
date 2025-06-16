@@ -1,6 +1,5 @@
 'use client'
-
-import {useEffect} from 'react' // Added useEffect
+import {useEffect} from 'react'
 import {zodResolver} from '@hookform/resolvers/zod'
 import {useForm} from 'react-hook-form'
 import {z} from 'zod'
@@ -8,10 +7,13 @@ import {Button} from '@/components/ui/button'
 import {Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form'
 import {Input} from '@/components/ui/input'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
-import {useMutation} from '@tanstack/react-query'
+import {useMutation, useQueryClient} from '@tanstack/react-query'
 import {toast} from 'sonner'
 import Link from 'next/link'
 import {ArrowLeftIcon} from '@radix-ui/react-icons'
+import {createTenant} from '@/services/tenantService'
+import {CreateTenantRequest} from '@/types/tenant'
+import {useRouter} from 'next/navigation'
 
 const tenantFormSchema = z.object({
 	name: z.string().min(2, {message: 'Tenant name must be at least 2 characters.'}).max(100),
@@ -22,23 +24,27 @@ const tenantFormSchema = z.object({
 		.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
 			message: 'Slug must be lowercase alphanumeric with optional hyphens and no leading/trailing hyphens.',
 		}),
+	owner_email: z.string().email({message: 'Invalid email address.'}),
 })
 
 type TenantFormValues = z.infer<typeof tenantFormSchema>
 
 export default function CreateTenantPage() {
+	const router = useRouter()
+	const queryClient = useQueryClient()
+
 	const form = useForm<TenantFormValues>({
 		resolver: zodResolver(tenantFormSchema),
 		defaultValues: {
 			name: '',
 			slug: '',
 		},
-		mode: 'onChange', // Added for better watch performance
+		mode: 'onChange',
 	})
 
-	const {watch, setValue, trigger} = form // Destructure watch and setValue
+	const {watch, setValue, trigger} = form
 	const watchedName = watch('name')
-	const watchedSlug = watch('slug') // Watch slug to prevent overwriting manual input
+	const watchedSlug = watch('slug')
 
 	// Function to generate slug
 	const generateSlug = (name: string) => {
@@ -67,18 +73,18 @@ export default function CreateTenantPage() {
 	}, [watchedName, setValue, watchedSlug, trigger])
 
 	const createTenantMutation = useMutation({
-		// mutationFn: createTenant,
 		mutationFn: async (data: TenantFormValues) => {
-			// Simulate API call
-			console.log('Creating tenant with data:', data)
-			await new Promise((resolve) => setTimeout(resolve, 1000))
+			const tenantData: CreateTenantRequest = {
+				name: data.name,
+				slug: data.slug,
+				owner_email: data.owner_email,
+			}
+			return await createTenant(tenantData)
 		},
 		onSuccess: (data) => {
-			console.log('Tenant created successfully:', data)
-
-			// toast.success(`Tenant "${data.name}" created successfully!`)
-			// queryClient.invalidateQueries({queryKey: [TENANTS_QUERY_KEY]})
-			// router.push('/dashboard/admin/tenants') // Redirect to the tenants list
+			toast.success(`Tenant "${data.name}" created successfully!`)
+			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
+			router.push('/dashboard/admin/tenants')
 		},
 		onError: (error: Error | import('axios').AxiosError<{message?: string; error?: string}>) => {
 			let errorMessage = 'Failed to create tenant.'

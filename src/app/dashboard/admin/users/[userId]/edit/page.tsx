@@ -2,7 +2,7 @@
 
 import React, {useEffect, useState} from 'react'
 import {useParams} from 'next/navigation'
-import {getUserById, updateUserStatus} from '@/services/userService' // Assuming service functions exist
+import {getUserById, updateUser} from '@/services/userService' // Assuming service functions exist
 import {UserOutput, UpdateUserRequest, UserStatus} from '@/types/user' // Assuming necessary types and adding UserStatus
 import {toast} from 'sonner'
 import {Card, CardHeader, CardTitle, CardContent, CardFooter} from '@/components/ui/card'
@@ -39,8 +39,8 @@ export default function EditUserPage() {
 				setFormData({
 					first_name: userData.first_name || '',
 					last_name: userData.last_name || '',
+					phone: userData.phone || '',
 					status: userData.status, // Set default status
-					// Add other fields you want to be editable
 				})
 			} catch (err) {
 				console.error(`Failed to fetch user details for ${userId}:`, err)
@@ -74,15 +74,15 @@ export default function EditUserPage() {
 		setSaving(true)
 		setError(null)
 		try {
-			// Only update status using the new endpoint
-			await updateUserStatus(userId, formData.status as string)
-			toast.success('User status updated successfully!')
-			// No redirect needed, stay on the edit page to allow other edits if necessary
+			// Update user using the comprehensive endpoint
+			const updatedUser = await updateUser(userId, formData)
+			setUser(updatedUser)
+			toast.success('User updated successfully!')
 		} catch (err) {
-			console.error(`Failed to update user status ${userId}:`, err)
+			console.error(`Failed to update user ${userId}:`, err)
 			const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.'
 			setError(errorMessage)
-			toast.error(`Failed to update user status: ${errorMessage}`)
+			toast.error(`Failed to update user: ${errorMessage}`)
 		} finally {
 			setSaving(false)
 		}
@@ -127,12 +127,20 @@ export default function EditUserPage() {
 				<CardContent>
 					<form onSubmit={handleSubmit} className='grid gap-4'>
 						<div className='grid grid-cols-2 items-center gap-4'>
+							<Label htmlFor='email'>Email</Label>
+							<Input id='email' value={user.email} disabled className='bg-muted' />
+						</div>
+						<div className='grid grid-cols-2 items-center gap-4'>
 							<Label htmlFor='first_name'>First Name</Label>
 							<Input id='first_name' value={formData.first_name || ''} onChange={handleInputChange} />
 						</div>
 						<div className='grid grid-cols-2 items-center gap-4'>
 							<Label htmlFor='last_name'>Last Name</Label>
 							<Input id='last_name' value={formData.last_name || ''} onChange={handleInputChange} />
+						</div>
+						<div className='grid grid-cols-2 items-center gap-4'>
+							<Label htmlFor='phone'>Phone</Label>
+							<Input id='phone' value={formData.phone || ''} onChange={handleInputChange} placeholder='Enter phone number' />
 						</div>
 						<div className='grid grid-cols-2 items-center gap-4'>
 							<Label htmlFor='status'>Status</Label>

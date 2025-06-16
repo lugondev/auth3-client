@@ -67,9 +67,9 @@ export default function MessagesPage() {
 
 				setPagination({
 					page: response.page,
-					limit: response.limit,
+					limit: response.page_size,
 					total: response.total,
-					has_more: response.has_more,
+					has_more: response.has_next,
 				})
 				
 				if (onSuccess) {

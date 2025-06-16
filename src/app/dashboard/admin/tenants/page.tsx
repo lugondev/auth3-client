@@ -7,6 +7,7 @@ import {PaginatedTenantsResponse} from '@/types/tenant'
 import {TenantTable} from '@/components/tenants/TenantTable'
 import {Button} from '@/components/ui/button'
 import {ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight} from 'lucide-react'
+import Link from 'next/link'
 
 const ITEMS_PER_PAGE = 10
 
@@ -29,10 +30,15 @@ const TenantManagementPage = () => {
 	}
 
 	return (
-		<div className='container mx-auto p-4'>
-			<div className='mb-6'>
-				<h1 className='text-2xl font-bold text-gray-800 dark:text-gray-100'>Tenant Management</h1>
-			</div>
+			<div className='container mx-auto p-4'>
+				<div className='mb-6 flex justify-between items-center'>
+					<h1 className='text-2xl font-bold text-gray-800 dark:text-gray-100'>Tenant Management</h1>
+					<Link href='/dashboard/admin/tenants/new'>
+						<Button>
+							Create Tenant
+						</Button>
+					</Link>
+				</div>
 
 			<div className='mt-4 p-4 border rounded-md dark:border-gray-700 space-y-4'>
 				{isLoadingAll && <p className='text-gray-500 dark:text-gray-400'>Loading tenants...</p>}

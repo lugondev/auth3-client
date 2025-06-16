@@ -2,8 +2,13 @@
 
 // --- Start: Backend Type Definitions ---
 
+import { EntityWithMetadata, BaseStatus, UpdateInput } from './generics';
+
 // Based on internal/modules/account/domain/models.go
 export type UserStatus = "active" | "pending" | "suspended" | "deleted";
+
+// Generic user status extending base status
+export type ExtendedUserStatus = BaseStatus | "pending" | "deleted";
 
 // Based on internal/modules/account/domain/role.go
 
@@ -13,8 +18,7 @@ export interface RoleResponse {
 }
 
 // Based on internal/modules/account/domain/user_dto.go and models.go
-export interface UserOutput {
-	id: string; // uuid.UUID
+export interface UserOutput extends EntityWithMetadata {
 	email: string;
 	first_name: string;
 	last_name: string;
@@ -27,30 +31,23 @@ export interface UserOutput {
 	is_two_factor_enabled: boolean; // Added for 2FA status
 	is_email_verified: boolean;
 	is_phone_verified: boolean;
-	metadata?: Record<string, unknown>; // Added metadata field to match backend
 	profile?: UserProfile | null; // Added optional profile field
-	created_at: string; // time.Time
-	updated_at: string; // time.Time
 }
 
 export interface UserPreferences {
-	email_notifications: boolean;
-	push_notifications: boolean;
-	language: string;
-	theme: string;
+	email_notifications?: boolean;
+	push_notifications?: boolean;
+	language?: string;
+	theme?: string;
 }
 
-export interface UserProfile {
-	id: string; // uuid.UUID
+export interface UserProfile extends EntityWithMetadata {
 	user_id: string; // uuid.UUID
 	bio?: string;
 	date_of_birth?: string | null; // time.Time can be null/zero
 	address?: string;
 	interests?: string[];
 	preferences?: UserPreferences; // Can be optional or have defaults
-	metadata?: Record<string, unknown>; // Added metadata field for DID settings and other custom data
-	created_at: string; // time.Time
-	updated_at: string; // time.Time
 }
 
 // Based on internal/modules/account/domain/auth_dto.go
@@ -123,31 +120,13 @@ export interface Disable2FARequest {
 	code?: string; // Optional: Current TOTP code
 }
 
-// Input DTOs for User operations (Keep existing)
-export interface UpdateUserInput {
-	first_name?: string;
-	last_name?: string;
-	phone?: string;
-	status?: UserStatus; // Make optional for partial updates
-}
+// Input DTOs for User operations using generic types
+export type UpdateUserInput = UpdateInput<Pick<UserOutput, 'first_name' | 'last_name' | 'phone' | 'status'>>;
 
-// Added for user update requests
-export interface UpdateUserRequest {
-	first_name?: string;
-	last_name?: string;
-	phone?: string;
-	status?: UserStatus; // Updated based on user feedback
-	// Add other fields that can be updated via the API
-}
+// Alias for backward compatibility
+export type UpdateUserRequest = UpdateUserInput;
 
-export interface UpdateProfileInput {
-	bio?: string;
-	date_of_birth?: string | null; // Use string for date input, backend parses
-	address?: string;
-	interests?: string[];
-	preferences?: Partial<UserPreferences>; // Allow partial updates for preferences
-	metadata?: Record<string, unknown>; // Added metadata field for DID settings and other custom data
-}
+export type UpdateProfileInput = UpdateInput<Pick<UserProfile, 'bio' | 'date_of_birth' | 'address' | 'interests' | 'preferences' | 'metadata'>>;
 
 export interface UpdatePasswordInput {
 	current_password: string;
@@ -179,14 +158,19 @@ export interface LoginOutput {
 }
 
 
-// Paginated results for users and roles
+// Paginated results for users using generic types
 export interface PaginatedUsers {
 	users: UserOutput[];
 	total: number; // Assuming int64 maps to number
 	page: number;
 	page_size: number;
 	total_pages: number;
+	has_previous: boolean;
+	has_next: boolean;
 }
+
+// Alternative using generic pagination
+export type PaginatedUsersGeneric = import('./generics').LegacyPaginatedResponse<UserOutput>;
 
 // Search query parameters
 export interface UserSearchQuery {

@@ -1,4 +1,6 @@
-// Export all type definitions
+export * from './generics';
+
+// Export existing types (many now use generics internally)
 export * from './admin';
 export * from './api';
 export * from './audit';
@@ -16,3 +18,20 @@ export * from './tenant';
 export * from './tenantManagement';
 export * from './tenantRbac';
 export * from './user';
+
+// Re-export commonly used generic types for convenience
+export type {
+  BaseApiResponse,
+  PaginatedResponse,
+  BaseEntity,
+  EntityWithMetadata,
+  BaseError,
+  BaseFilter,
+  CreateInput,
+  UpdateInput,
+  FormState,
+  ModalState,
+  TableState,
+  ContextState,
+  SearchState
+} from './generics';

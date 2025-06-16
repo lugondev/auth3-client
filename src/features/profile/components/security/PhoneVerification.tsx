@@ -1,7 +1,7 @@
 'use client'
 
 import React, {useState} from 'react'
-import {UserOutput, VerifyPhoneInput} from '@/types/user'
+import {UserOutput} from '@/types/user'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from '@/components/ui/input-otp'
@@ -52,9 +52,8 @@ const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate
 			return
 		}
 		setIsVerifyingOtp(true)
-		const payload: VerifyPhoneInput = {otp}
 		try {
-			await verifyPhone(payload)
+			await verifyPhone(otp)
 			toast.success('Phone number verified successfully!')
 			// Trigger a refresh of user data in the parent component
 			// We need a way to fetch the updated user data, getCurrentUser might be suitable

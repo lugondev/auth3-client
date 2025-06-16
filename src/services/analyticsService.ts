@@ -26,6 +26,15 @@ export interface PersonalDashboardAnalytics {
 	two_factor_enabled: boolean;
 	email_verified: boolean;
 	phone_verified: boolean;
+	// DID-related analytics
+	total_dids: number;
+	total_credentials: number;
+	total_messages: number;
+	total_connections: number;
+	dids_this_month: number;
+	credentials_this_month: number;
+	messages_this_month: number;
+	last_activity?: string;
 }
 
 // System Dashboard Analytics
@@ -39,6 +48,11 @@ export interface SystemDashboardAnalytics {
 	failed_logins: number;
 	security_events: number;
 	system_health: 'healthy' | 'warning' | 'critical';
+	// DID-related system analytics
+	total_dids: number;
+	total_credentials: number;
+	total_messages: number;
+	user_growth_percentage: number;
 }
 
 // Chart Data Types
@@ -46,6 +60,7 @@ export interface UserGrowthItem {
 	date: string;
 	new_users: number;
 	total_users: number;
+	active_users: number;
 }
 
 export interface LoginActivityItem {

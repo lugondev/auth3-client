@@ -286,30 +286,32 @@ export const logoutUser = withErrorHandling(
 
 /**
  * Requests a phone verification OTP to be sent to the authenticated user's phone.
+ * @param phoneNumber - Optional phone number to verify (if not provided, uses user's current phone)
+ * @returns Promise resolving when OTP is sent
  */
-export const requestPhoneVerification = async (): Promise<void> => {
-	try {
-		await apiClient.post('/api/v1/auth/verify-phone/request');
+export const requestPhoneVerification = withErrorHandling(
+	async (phoneNumber?: string): Promise<void> => {
+		const payload = phoneNumber ? { phone_number: phoneNumber } : {};
+		await apiClient.post('/api/v1/auth/verify-phone/request', payload);
 		console.log('Phone verification OTP request sent.');
-	} catch (error) {
-		console.error('Error requesting phone verification:', error);
-		throw error;
 	}
-};
+);
 
 /**
  * Verifies the phone number using the provided OTP.
- * @param data The OTP code (VerifyPhoneInput).
+ * @param otp - The OTP code received via SMS
+ * @returns Promise resolving when phone is verified
  */
-export const verifyPhone = async (data: VerifyPhoneInput): Promise<void> => {
-	try {
-		await apiClient.post('/api/v1/auth/verify-phone/confirm', data);
-		console.log('Phone verified successfully.');
-	} catch (error) {
-		console.error('Error verifying phone:', error);
-		throw error;
+export const verifyPhone = withErrorHandling(
+	async (otp: string): Promise<{ message: string; verified: boolean }> => {
+		const response = await apiClient.post<{ message: string; verified: boolean }>(
+			'/api/v1/auth/verify-phone/confirm', 
+			{ otp }
+		);
+		console.log('Phone verification successful.');
+		return response.data;
 	}
-};
+);
 
 // --- Two-Factor Authentication (2FA) ---
 

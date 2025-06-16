@@ -302,3 +302,20 @@ export const completeDIDAuth = withErrorHandling(
     throw new Error(response.data.error || 'Failed to complete DID auth');
   }
 );
+
+
+// Export all functions as default service object
+export const didService= {
+  createDID,
+  updateDID,
+  getDID,
+  listDIDs,
+  resolveDID,
+  deactivateDID,
+  revokeDID,
+  authenticateDID,
+  didAuth,
+  getDIDStatistics,
+};
+
+export default didService;

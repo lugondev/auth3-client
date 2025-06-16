@@ -79,7 +79,12 @@ export default function AdminUsersPage() {
 		// Show initial loading only if no users are displayed yet
 		return (
 			<div>
-				<h1 className='text-2xl font-semibold mb-4'>System Users</h1>
+				<div className='flex justify-between items-center mb-4'>
+					<h1 className='text-2xl font-semibold'>System Users</h1>
+					<Link href='/dashboard/admin/users/new'>
+						<Button>Create User</Button>
+					</Link>
+				</div>
 				<p>Loading users...</p>
 			</div>
 		)

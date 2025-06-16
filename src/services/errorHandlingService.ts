@@ -29,11 +29,29 @@ export const handleApiError = (error: unknown): ApiError => {
 		const axiosError = error as { response: { data: ErrorResponse; status: number } };
 		// Server responded with error status
 		const errorData: ErrorResponse = axiosError.response.data;
+
+		// Handle new ErrorResponse schema
+		if (errorData.error && typeof errorData.error === 'object') {
+			return new ApiError(
+				errorData.error.message || 'An error occurred',
+				errorData.error.code || 'UNKNOWN_ERROR',
+				errorData.error.status_code || axiosError.response.status,
+				errorData
+			);
+		}
+
+		// Fallback for legacy error format
+		const legacyError = errorData as unknown as {
+			message?: string;
+			error?: string;
+			code?: string;
+			status_code?: number;
+		};
 		return new ApiError(
-			errorData.message || 'An error occurred',
-			errorData.error || 'UNKNOWN_ERROR',
+			(legacyError.message as string) || (legacyError.error as string) || 'An error occurred',
+			(legacyError.error as string) || (legacyError.code as string) || 'UNKNOWN_ERROR',
 			axiosError.response.status,
-			undefined
+			errorData
 		);
 	} else if (error && typeof error === 'object' && 'request' in error) {
 		// Network error
@@ -51,7 +69,7 @@ export const handleApiError = (error: unknown): ApiError => {
 			0
 		);
 	}
-};
+}
 
 /**
  * Wrapper function for API calls with standardized error handling

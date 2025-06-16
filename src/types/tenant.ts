@@ -17,6 +17,10 @@ export interface TenantResponse {
 		last_name: string | null;
 	}; // Added owner information to match backend response
 	is_active: boolean;
+	metadata?: number[]; // byte array from backend
+	version?: number; // version tracking
+	created_by?: string; // user ID who created the tenant
+	updated_by?: string; // user ID who last updated the tenant
 	created_at: string; // time.Time
 	updated_at: string; // time.Time
 }
@@ -39,6 +43,8 @@ export interface PaginatedTenantsResponse {
 	limit: number;
 	offset: number;
 	total_pages: number;
+	has_previous: boolean;
+	has_next: boolean;
 }
 
 // DTOs for Tenant-Contextual User Management
@@ -81,6 +87,8 @@ export interface PaginatedTenantUsersResponse {
 	limit: number;
 	offset: number;
 	total_pages: number;
+	has_previous: boolean;
+	has_next: boolean;
 }
 
 export interface CreateTenantRequest {
@@ -121,6 +129,8 @@ export interface PaginatedTenants {
 	page: number;
 	page_size: number;
 	total_pages: number;
+	has_previous: boolean;
+	has_next: boolean;
 }
 
 export interface PaginatedTenantUsers {
@@ -129,6 +139,8 @@ export interface PaginatedTenantUsers {
 	page: number;
 	page_size: number;
 	total_pages: number;
+	has_previous: boolean;
+	has_next: boolean;
 }
 
 export interface UserTenantMembershipInfo {

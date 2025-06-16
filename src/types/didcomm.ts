@@ -44,7 +44,7 @@ export interface DIDCommConnection {
   metadata?: Record<string, unknown>;
 }
 
-export type ConnectionState = 
+export type ConnectionState =
   | 'invitation-sent'
   | 'invitation-received'
   | 'request-sent'
@@ -130,16 +130,20 @@ export interface MessageListResponse {
   messages: DIDCommMessage[];
   total: number;
   page: number;
-  limit: number;
-  has_more: boolean;
+  page_size: number;
+  total_pages: number;
+  has_previous: boolean;
+  has_next: boolean;
 }
 
 export interface ConnectionListResponse {
   connections: DIDCommConnection[];
   total: number;
   page: number;
-  limit: number;
-  has_more: boolean;
+  page_size: number;
+  total_pages: number;
+  has_previous: boolean;
+  has_next: boolean;
 }
 
 export interface MessageSearchFilters {
@@ -164,25 +168,25 @@ export interface ConnectionFilters {
 export const MESSAGE_TYPES = {
   // Basic messaging
   BASIC_MESSAGE: 'https://didcomm.org/basicmessage/2.0/message',
-  
+
   // Connection protocol
   CONNECTION_INVITATION: 'https://didcomm.org/connections/1.0/invitation',
   CONNECTION_REQUEST: 'https://didcomm.org/connections/1.0/request',
   CONNECTION_RESPONSE: 'https://didcomm.org/connections/1.0/response',
-  
+
   // Trust ping
   TRUST_PING: 'https://didcomm.org/trust_ping/1.0/ping',
   TRUST_PING_RESPONSE: 'https://didcomm.org/trust_ping/1.0/ping_response',
-  
+
   // Credential exchange
   CREDENTIAL_OFFER: 'https://didcomm.org/issue-credential/2.0/offer-credential',
   CREDENTIAL_REQUEST: 'https://didcomm.org/issue-credential/2.0/request-credential',
   CREDENTIAL_ISSUE: 'https://didcomm.org/issue-credential/2.0/issue-credential',
-  
+
   // Presentation exchange
   PRESENTATION_REQUEST: 'https://didcomm.org/present-proof/2.0/request-presentation',
   PRESENTATION: 'https://didcomm.org/present-proof/2.0/presentation',
-  
+
   // Problem report
   PROBLEM_REPORT: 'https://didcomm.org/report-problem/1.0/problem-report',
 } as const;
@@ -225,7 +229,7 @@ export interface DIDCommError {
   details?: Record<string, unknown>;
 }
 
-export const ERROR_CODES = {
+export const DIDCOMM_ERROR_CODES = {
   INVALID_MESSAGE: 'INVALID_MESSAGE',
   ENCRYPTION_FAILED: 'ENCRYPTION_FAILED',
   DECRYPTION_FAILED: 'DECRYPTION_FAILED',
@@ -236,7 +240,7 @@ export const ERROR_CODES = {
   NETWORK_ERROR: 'NETWORK_ERROR'
 } as const;
 
-export type ErrorCode = typeof ERROR_CODES[keyof typeof ERROR_CODES];
+export type DIDCommErrorCode = typeof DIDCOMM_ERROR_CODES[keyof typeof DIDCOMM_ERROR_CODES];
 
 // Dashboard Widget Types
 export interface DIDCommSummary {
@@ -414,7 +418,7 @@ export interface WebhookConfig {
   last_triggered?: string;
 }
 
-export type WebhookEvent = 
+export type WebhookEvent =
   | 'message.received'
   | 'message.sent'
   | 'connection.created'

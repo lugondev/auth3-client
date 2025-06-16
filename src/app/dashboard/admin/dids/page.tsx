@@ -48,7 +48,7 @@ export default function DIDAdminDashboard() {
 	const [stats, setStats] = useState<DIDStats | null>(null)
 	const [dids, setDids] = useState<DIDRecord[]>([])
 	const [loading, setLoading] = useState(true)
-	const [searchTerm, setSearchTerm] = useState('')
+	const [searchTerm, setSearchTerm] = useState<string>('')
 	const [methodFilter, setMethodFilter] = useState<string>('all')
 	const [statusFilter, setStatusFilter] = useState<string>('all')
 	const [currentPage, ] = useState(1)
