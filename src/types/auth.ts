@@ -118,13 +118,3 @@ export interface TokenManager {
   restoreTokens: (fromContext: ContextMode, toContext: ContextMode) => void
   validateTokens: (context: ContextMode) => boolean
 }
-
-// Context state management
-export interface ContextState {
-  user: AppUser | null
-  permissions: Permission[]
-  roles: string[]
-  isAuthenticated: boolean
-  tenantId: string | null
-  lastUpdated: number
-}

@@ -1,4 +1,5 @@
-import apiClient from '@/lib/apiClient'
+import { withErrorHandling } from './errorHandlingService';
+import apiClient from '../lib/apiClient';
 
 export interface PermissionCheckResponse {
   hasPermission: boolean
@@ -28,14 +29,14 @@ export interface UserPermissionsResponse {
  * Get all permissions for the current user
  * @param tenantId - Optional tenant ID. If not provided, gets global permissions
  */
-export const getUserPermissions = async (tenantId?: string): Promise<UserPermissionsResponse> => {
-  const endpoint = tenantId 
+export const getUserPermissions = withErrorHandling(async (tenantId?: string): Promise<UserPermissionsResponse> => {
+  const endpoint = tenantId
     ? `/api/v1/tenants/${tenantId}/permissions`
     : '/api/v1/tenants/global/permissions'
-    
+
   const response = await apiClient.get<UserPermissionsResponse>(endpoint)
   return response.data
-}
+});
 
 /**
  * Check if user has a specific permission
@@ -45,59 +46,43 @@ export const getUserPermissions = async (tenantId?: string): Promise<UserPermiss
  * @param action - The action to check permission for
  * @param tenantId - Optional tenant ID for tenant-specific permission check
  */
-export const checkPermission = async (
+export const checkPermission = withErrorHandling(async (
   object: string,
   action: string,
   tenantId?: string
 ): Promise<PermissionCheckResponse> => {
   // This endpoint would need to be implemented on the backend
   // For now, we'll use the existing permissions endpoint and check locally
-  try {
-    const userPermissions = await getUserPermissions(tenantId)
-    const hasPermission = userPermissions.permissions.some(
-      ([permObject, permAction]) => permObject === object && permAction === action
-    )
-    
-    return { hasPermission }
-  } catch (error) {
-    console.error('Permission check failed:', error)
-    return { hasPermission: false }
-  }
-}
+  const userPermissions = await getUserPermissions(tenantId)
+  const hasPermission = userPermissions.permissions.some(
+    ([permObject, permAction]) => permObject === object && permAction === action
+  )
+
+  return { hasPermission }
+});
 
 /**
  * Check multiple permissions at once
  * @param permissions - Array of permissions to check
  * @param tenantId - Optional tenant ID for tenant-specific permission checks
  */
-export const bulkCheckPermissions = async (
+export const bulkCheckPermissions = withErrorHandling(async (
   permissions: Array<{ object: string; action: string }>,
   tenantId?: string
 ): Promise<BulkPermissionCheckResponse> => {
-  try {
-    const userPermissions = await getUserPermissions(tenantId)
-    const userPermsSet = new Set(
-      userPermissions.permissions.map(([object, action]) => `${object}.${action}`)
-    )
-    
-    const results = permissions.map(({ object, action }) => ({
-      object,
-      action,
-      hasPermission: userPermsSet.has(`${object}.${action}`)
-    }))
-    
-    return { results }
-  } catch (error) {
-    console.error('Bulk permission check failed:', error)
-    return {
-      results: permissions.map(({ object, action }) => ({
-        object,
-        action,
-        hasPermission: false
-      }))
-    }
-  }
-}
+  const userPermissions = await getUserPermissions(tenantId)
+  const userPermsSet = new Set(
+    userPermissions.permissions.map(([object, action]) => `${object}.${action}`)
+  )
+
+  const results = permissions.map(({ object, action }) => ({
+    object,
+    action,
+    hasPermission: userPermsSet.has(`${object}.${action}`)
+  }))
+
+  return { results }
+});
 
 /**
  * Refresh user permissions cache
@@ -106,10 +91,10 @@ export const bulkCheckPermissions = async (
  */
 export const refreshUserPermissions = async (tenantId?: string): Promise<UserPermissionsResponse> => {
   // Add cache-busting parameter
-  const endpoint = tenantId 
+  const endpoint = tenantId
     ? `/api/v1/tenants/${tenantId}/permissions`
     : '/api/v1/tenants/global/permissions'
-    
+
   const response = await apiClient.get<UserPermissionsResponse>(endpoint, {
     params: {
       _t: Date.now() // Cache busting
@@ -150,17 +135,17 @@ export const hasAllPermissions = async (
  */
 export const getStructuredPermissions = async (tenantId?: string) => {
   const response = await getUserPermissions(tenantId)
-  
+
   // Group permissions by object
   const permissionsByObject: Record<string, string[]> = {}
-  
+
   response.permissions.forEach(([object, action]) => {
     if (!permissionsByObject[object]) {
       permissionsByObject[object] = []
     }
     permissionsByObject[object].push(action)
   })
-  
+
   return {
     raw: response.permissions,
     byObject: permissionsByObject,

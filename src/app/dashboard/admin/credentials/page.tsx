@@ -52,13 +52,13 @@ const transformStatsToVCStats = (stats: CredentialStatistics, templateCount: num
 }
 
 // Use CredentialMetadata from types instead of custom interface
-import type {CredentialMetadata, CredentialTemplate} from '@/types/credentials'
+import type {CredentialTemplate, VerifiableCredential} from '@/types/credentials'
 
 // CredentialTemplate is imported from types/credentials.ts
 
 export default function VCAdminDashboard() {
 	const [stats, setStats] = useState<VCStats | null>(null)
-	const [credentials, setCredentials] = useState<CredentialMetadata[]>([])
+	const [credentials, setCredentials] = useState<VerifiableCredential[]>([])
 	const [templates, setTemplates] = useState<CredentialTemplate[]>([])
 	const [loading, setLoading] = useState(true)
 	const [searchTerm, setSearchTerm] = useState('')
@@ -109,9 +109,9 @@ export default function VCAdminDashboard() {
 
 	// Filter credentials based on search and filters
 	const filteredCredentials = credentials.filter((cred) => {
-		const matchesSearch = searchTerm === '' || cred.id.toLowerCase().includes(searchTerm.toLowerCase()) || cred.subject.toLowerCase().includes(searchTerm.toLowerCase()) || cred.issuer.toLowerCase().includes(searchTerm.toLowerCase())
+		const matchesSearch = searchTerm === '' || cred.id.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof cred.credentialSubject === 'object' && cred.credentialSubject.id && cred.credentialSubject.id.toLowerCase().includes(searchTerm.toLowerCase())) || (typeof cred.issuer === 'string' ? cred.issuer.toLowerCase().includes(searchTerm.toLowerCase()) : false)
 
-		const matchesStatus = statusFilter === 'all' || cred.status === statusFilter
+		const matchesStatus = statusFilter === 'all' || cred.credentialStatus === statusFilter
 		const matchesType = typeFilter === 'all' || (Array.isArray(cred.type) ? cred.type.includes(typeFilter) : cred.type === typeFilter)
 
 		return matchesSearch && matchesStatus && matchesType
@@ -378,19 +378,19 @@ export default function VCAdminDashboard() {
 												</TableCell>
 												<TableCell>
 													<div>
-														<div className='font-medium'>{cred.subject}</div>
+														<div className='font-medium'>{cred.credentialSubject?.id || 'N/A'}</div>
 													</div>
 												</TableCell>
 												<TableCell>
-													<div className='font-medium'>{cred.issuer}</div>
+													<div className='font-medium'>{typeof cred.issuer === 'string' ? cred.issuer : cred.issuer?.id || 'N/A'}</div>
 												</TableCell>
 												<TableCell>
 													<div className='flex items-center space-x-2'>
-														{getStatusIcon(cred.status)}
-														<Badge variant={getStatusVariant(cred.status)}>{cred.status}</Badge>
+														{getStatusIcon(cred.credentialStatus || 'active')}
+														<Badge variant={getStatusVariant(cred.credentialStatus || 'active')}>{cred.credentialStatus || 'active'}</Badge>
 													</div>
 												</TableCell>
-												<TableCell>{new Date(cred.issuedAt).toLocaleDateString()}</TableCell>
+												<TableCell>{new Date(cred.issuanceDate).toLocaleDateString()}</TableCell>
 												<TableCell>
 													<div className='text-center'>
 														<div className='font-medium'>-</div>
@@ -409,13 +409,13 @@ export default function VCAdminDashboard() {
 																<Eye className='mr-2 h-4 w-4' />
 																View Details
 															</DropdownMenuItem>
-															{cred.status === 'active' && (
+															{cred.credentialStatus === 'active' && (
 																<DropdownMenuItem>
 																	<Ban className='mr-2 h-4 w-4' />
 																	Suspend
 																</DropdownMenuItem>
 															)}
-															{(cred.status === 'active' || cred.status === 'suspended') && (
+															{(cred.credentialStatus === 'active' || cred.credentialStatus === 'suspended') && (
 																<DropdownMenuItem className='text-destructive'>
 																	<XCircle className='mr-2 h-4 w-4' />
 																	Revoke

@@ -1,5 +1,5 @@
 // Based on internal/modules/account/domain/dto.go (RBAC Management DTOs)
-import { UserOutput } from '@/types/user'
+import { UserOutput } from './user'
 
 export interface UserRoleInput {
 	role: string
@@ -119,17 +119,7 @@ export interface TenantRoleListOutput {
 
 // --- Tenant User Types ---
 
-export interface TenantUserResponse {
-	user_id: string // uuid.UUID
-	email: string
-	first_name: string
-	last_name: string
-	avatar?: string
-	status_in_tenant: string // Status from TenantUser table (e.g., "active", "invited")
-	global_status: string // Status from global User table (e.g., "active", "pending")
-	roles: string[] // Role names within this tenant
-	joined_at: string // ISO date string
-}
+
 
 export interface TenantUserRoleInput {
 	role: string

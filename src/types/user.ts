@@ -6,8 +6,7 @@
 export type UserStatus = "active" | "pending" | "suspended" | "deleted";
 
 // Based on internal/modules/account/domain/role.go
-// Assuming Permission is a string for simplicity, adjust if it's more complex
-export type Permission = string;
+
 
 export interface RoleResponse {
 	roles: string[]

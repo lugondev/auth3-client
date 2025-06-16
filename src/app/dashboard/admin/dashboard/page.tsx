@@ -23,7 +23,7 @@ export default function AdminDashboardPage() {
 				setLoading(true)
 
 				// Fetch all analytics data
-				const [systemData, userGrowthData, loginData, devicesData, locationsData, tenantsData] = await Promise.all([AnalyticsService.getSystemDashboardAnalytics(), AnalyticsService.getUserGrowthData({interval: 'day', limit: 30}), AnalyticsService.getLoginActivityData({interval: 'day', limit: 30}), AnalyticsService.getTopDevices({limit: 10}), AnalyticsService.getTopLocations({limit: 10}), AnalyticsService.getTenantStats({limit: 10})])
+				const [systemData, userGrowthData, loginData, devicesData, locationsData, tenantsData] = await Promise.all([AnalyticsService.getSystemDashboardAnalytics(), AnalyticsService.getUserGrowthData({interval: 'day', limit: 30}), AnalyticsService.getLoginActivityData({interval: 'day', limit: 30}), AnalyticsService.getTopDevicesData({limit: 10}), AnalyticsService.getTopLocationsData({limit: 10}), AnalyticsService.getTenantStatsData({limit: 10})])
 
 				setAnalytics(systemData)
 				setUserGrowth(userGrowthData)

@@ -64,8 +64,8 @@ export default function DIDMethodConfiguration() {
 			setSaving(true)
 			
 			// Update configurations via API
-			const updatedMethods = await updateMethodConfigurations(methods)
-			setMethods(updatedMethods)
+			const updatedMethods = await updateMethodConfigurations({ methods })
+			setMethods(updatedMethods.methods)
 			
 			// Show success message
 			console.log('Configurations saved successfully')
@@ -84,7 +84,7 @@ export default function DIDMethodConfiguration() {
 			const method = methods.find(m => m.id === methodId)
 			if (!method) return
 			
-			const updatedMethod = await toggleMethodEnabled(methodId, !method.enabled)
+			const updatedMethod = await toggleMethodEnabled({ id: methodId, enabled: !method.enabled })
 			setMethods((prev) => prev.map((m) => (m.id === methodId ? updatedMethod : m)))
 		} catch (error) {
 			console.error('Failed to toggle method enabled state:', error)
@@ -95,7 +95,7 @@ export default function DIDMethodConfiguration() {
 	// Set default method
 	const handleSetDefaultMethod = async (methodId: string) => {
 		try {
-			await setDefaultMethod(methodId)
+			await setDefaultMethod({ id: methodId })
 			// Update all methods - set the selected one as default and others as non-default
 			setMethods((prev) =>
 				prev.map((method) => ({

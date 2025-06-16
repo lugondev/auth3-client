@@ -3,7 +3,7 @@
 import React, {useState} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {listTenants} from '@/services/tenantService'
-import {AllTenantsResponse} from '@/types/tenantManagement'
+import {PaginatedTenantsResponse} from '@/types/tenant'
 import {TenantTable} from '@/components/tenants/TenantTable'
 import {Button} from '@/components/ui/button'
 import {ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight} from 'lucide-react'
@@ -17,7 +17,7 @@ const TenantManagementPage = () => {
 		data: allTenantsData,
 		isLoading: isLoadingAll,
 		error: errorAll,
-	} = useQuery<AllTenantsResponse, Error>({
+	} = useQuery<PaginatedTenantsResponse, Error>({
 		queryKey: ['allTenantsForAdmin', page],
 		queryFn: () => listTenants(ITEMS_PER_PAGE, (page - 1) * ITEMS_PER_PAGE),
 	})

@@ -1,4 +1,5 @@
 import apiClient from '../lib/apiClient';
+import { withErrorHandling } from './errorHandlingService';
 import type {
   CreateDIDInput,
   CreateDIDOutput,
@@ -45,54 +46,45 @@ import type {
  * @param input - DID creation parameters
  * @returns Promise resolving to the created DID information
  */
-export const createDID = async (input: CreateDIDInput): Promise<CreateDIDOutput> => {
-  try {
+export const createDID = withErrorHandling(
+  async (input: CreateDIDInput): Promise<CreateDIDOutput> => {
     const response = await apiClient.post<DIDApiResponse<CreateDIDOutput>>('/api/v1/dids', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to create DID');
-  } catch (error) {
-    console.error('Failed to create DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Updates an existing DID
  * @param input - DID update parameters
  * @returns Promise resolving to the updated DID information
  */
-export const updateDID = async (input: UpdateDIDInput): Promise<UpdateDIDOutput> => {
-  try {
+export const updateDID = withErrorHandling(
+  async (input: UpdateDIDInput): Promise<UpdateDIDOutput> => {
     const response = await apiClient.put<DIDApiResponse<UpdateDIDOutput>>(`/api/v1/dids/${input.did}`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to update DID');
-  } catch (error) {
-    console.error('Failed to update DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Retrieves a specific DID by ID
  * @param did - DID identifier
  * @returns Promise resolving to the DID information
  */
-export const getDID = async (did: string): Promise<DIDResponse> => {
-  try {
+export const getDID = withErrorHandling(
+  async (did: string): Promise<DIDResponse> => {
     const response = await apiClient.get<DIDApiResponse<DIDResponse>>(`/api/v1/dids/${did}`);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to get DID');
-  } catch (error) {
-    console.error('Failed to get DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Retrieves a list of DIDs for the current user
@@ -125,98 +117,83 @@ export const listDIDs = async (input?: ListDIDsInput): Promise<ListDIDsOutput> =
  * @param did The DID string to resolve
  * @returns Promise<ResolveDIDResult> The resolved DID document with metadata
  */
-export const resolveDID = async (did: string): Promise<ResolveDIDResult> => {
-  try {
+export const resolveDID = withErrorHandling(
+  async (did: string): Promise<ResolveDIDResult> => {
     const response = await apiClient.post<DIDApiResponse<ResolveDIDResult>>('/api/v1/dids/resolve', { did });
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to resolve DID');
-  } catch (error) {
-    console.error('Failed to resolve DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Deactivates a DID (reversible operation)
  * @param input Deactivation parameters including DID and optional reason
  * @returns Promise<DIDOperationResult> Result of the deactivation operation
  */
-export const deactivateDID = async (input: DeactivateDIDInput): Promise<DIDOperationResult> => {
-  try {
+export const deactivateDID = withErrorHandling(
+  async (input: DeactivateDIDInput): Promise<DIDOperationResult> => {
     const response = await apiClient.post<DIDApiResponse<DIDOperationResult>>(`/api/v1/dids/${input.did}/deactivate`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to deactivate DID');
-  } catch (error) {
-    console.error('Failed to deactivate DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Revokes a DID (permanent operation)
  * @param input Revocation parameters including DID and reason
  * @returns Promise<DIDOperationResult> Result of the revocation operation
  */
-export const revokeDID = async (input: RevokeDIDInput): Promise<DIDOperationResult> => {
-  try {
+export const revokeDID = withErrorHandling(
+  async (input: RevokeDIDInput): Promise<DIDOperationResult> => {
     const response = await apiClient.post<DIDApiResponse<DIDOperationResult>>(`/api/v1/dids/${input.did}/revoke`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to revoke DID');
-  } catch (error) {
-    console.error('Failed to revoke DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Authenticates a DID
  * @param input Authentication parameters
  * @returns Promise<AuthenticateDIDOutput> Authentication result
  */
-export const authenticateDID = async (input: AuthenticateDIDInput): Promise<AuthenticateDIDOutput> => {
-  try {
+export const authenticateDID = withErrorHandling(
+  async (input: AuthenticateDIDInput): Promise<AuthenticateDIDOutput> => {
     const response = await apiClient.post<DIDApiResponse<AuthenticateDIDOutput>>('/api/v1/dids/authenticate', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to authenticate DID');
-  } catch (error) {
-    console.error('Failed to authenticate DID:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Validates ownership of a DID
  * @param input Ownership validation parameters
  * @returns Promise<ValidateOwnershipOutput> Validation result
  */
-export const validateOwnership = async (input: ValidateOwnershipInput): Promise<ValidateOwnershipOutput> => {
-  try {
+export const validateOwnership = withErrorHandling(
+  async (input: ValidateOwnershipInput): Promise<ValidateOwnershipOutput> => {
     const response = await apiClient.post<DIDApiResponse<ValidateOwnershipOutput>>(`/api/v1/dids/${input.did_string}/validate-ownership`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to validate ownership');
-  } catch (error) {
-    console.error('Failed to validate ownership:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Gets DID statistics
  * @param input Statistics parameters
  * @returns Promise<DIDStatisticsOutput> Statistics data
  */
-export const getDIDStatistics = async (input?: DIDStatisticsInput): Promise<DIDStatisticsOutput> => {
-  try {
+export const getDIDStatistics = withErrorHandling(
+  async (input?: DIDStatisticsInput): Promise<DIDStatisticsOutput> => {
     const params = new URLSearchParams();
     if (input?.period) params.append('period', input.period);
     if (input?.method) params.append('method', input.method);
@@ -228,11 +205,8 @@ export const getDIDStatistics = async (input?: DIDStatisticsInput): Promise<DIDS
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to get statistics');
-  } catch (error) {
-    console.error('Failed to get DID statistics:', error);
-    throw error;
   }
-};
+);
 
 // DID Authentication Challenge Functions
 
@@ -241,36 +215,30 @@ export const getDIDStatistics = async (input?: DIDStatisticsInput): Promise<DIDS
  * @param input Challenge creation parameters
  * @returns Promise<CreateChallengeOutput> The generated challenge
  */
-export const createChallenge = async (input: CreateChallengeInput): Promise<CreateChallengeOutput> => {
-  try {
+export const createChallenge = withErrorHandling(
+  async (input: CreateChallengeInput): Promise<CreateChallengeOutput> => {
     const response = await apiClient.post<DIDApiResponse<CreateChallengeOutput>>('/api/v1/auth/did/challenge', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to create challenge');
-  } catch (error) {
-    console.error('Failed to create challenge:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Verifies a challenge response
  * @param input Challenge verification parameters
  * @returns Promise<VerifyChallengeOutput> Verification result
  */
-export const verifyChallenge = async (input: VerifyChallengeInput): Promise<VerifyChallengeOutput> => {
-  try {
+export const verifyChallenge = withErrorHandling(
+  async (input: VerifyChallengeInput): Promise<VerifyChallengeOutput> => {
     const response = await apiClient.post<DIDApiResponse<VerifyChallengeOutput>>('/api/v1/auth/did/verify', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to verify challenge');
-  } catch (error) {
-    console.error('Failed to verify challenge:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Performs DID authentication
@@ -295,51 +263,42 @@ export const didAuth = async (input: DIDAuthInput): Promise<DIDAuthOutput> => {
  * @param input Signature validation parameters
  * @returns Promise<ValidateSignatureOutput> Validation result
  */
-export const validateSignature = async (input: ValidateSignatureInput): Promise<ValidateSignatureOutput> => {
-  try {
+export const validateSignature = withErrorHandling(
+  async (input: ValidateSignatureInput): Promise<ValidateSignatureOutput> => {
     const response = await apiClient.post<DIDApiResponse<ValidateSignatureOutput>>('/api/v1/auth/did/validate-signature', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to validate signature');
-  } catch (error) {
-    console.error('Failed to validate signature:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Initiates DID authentication flow
  * @param input Authentication initiation parameters
  * @returns Promise<InitiateDIDAuthOutput> Initiation result
  */
-export const initiateDIDAuth = async (input: InitiateDIDAuthInput): Promise<InitiateDIDAuthOutput> => {
-  try {
+export const initiateDIDAuth = withErrorHandling(
+  async (input: InitiateDIDAuthInput): Promise<InitiateDIDAuthOutput> => {
     const response = await apiClient.post<DIDApiResponse<InitiateDIDAuthOutput>>('/api/v1/auth/did/init', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to initiate DID auth');
-  } catch (error) {
-    console.error('Failed to initiate DID auth:', error);
-    throw error;
   }
-};
+);
 
 /**
  * Completes DID authentication flow
  * @param input Authentication completion parameters
  * @returns Promise<CompleteDIDAuthOutput> Completion result
  */
-export const completeDIDAuth = async (input: CompleteDIDAuthInput): Promise<CompleteDIDAuthOutput> => {
-  try {
+export const completeDIDAuth = withErrorHandling(
+  async (input: CompleteDIDAuthInput): Promise<CompleteDIDAuthOutput> => {
     const response = await apiClient.post<DIDApiResponse<CompleteDIDAuthOutput>>('/api/v1/auth/did/complete', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to complete DID auth');
-  } catch (error) {
-    console.error('Failed to complete DID auth:', error);
-    throw error;
   }
-};
+);

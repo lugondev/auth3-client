@@ -1,4 +1,5 @@
 import apiClient from '@/lib/apiClient'
+import { withErrorHandling } from './errorHandlingService'
 
 export interface UploadResponse {
 	url: string
@@ -10,65 +11,86 @@ export interface UploadOptions {
 	bucket?: string
 	maxSize?: number // in bytes
 	allowedTypes?: string[]
+	purpose?: string
+	metadata?: Record<string, any>
+	onProgress?: (progressEvent: any) => void
+}
+
+export enum UploadStatus {
+	PENDING = 'pending',
+	UPLOADING = 'uploading',
+	COMPLETED = 'completed',
+	FAILED = 'failed',
+	CANCELLED = 'cancelled'
 }
 
 /**
- * Upload a file to the server
- * @param file - The file to upload
- * @param options - Upload options including bucket, max size, and allowed types
- * @returns Promise with upload response containing the file URL
+ * Upload a file
  */
-export const uploadFile = async (
-	file: File,
-	options: UploadOptions = {}
-): Promise<UploadResponse> => {
-	const {
-		bucket = 'general',
-		maxSize = 5 * 1024 * 1024, // 5MB default
-		allowedTypes = ['image/*']
-	} = options
+export const uploadFile = withErrorHandling(
+	async (
+		file: File,
+		options?: UploadOptions
+	): Promise<UploadResponse> => {
+		const formData = new FormData();
+		formData.append('file', file);
 
-	// Validate file type
-	if (allowedTypes.length > 0) {
-		const isAllowed = allowedTypes.some(type => {
-			if (type.endsWith('/*')) {
-				const baseType = type.slice(0, -2)
-				return file.type.startsWith(baseType)
-			}
-			return file.type === type
-		})
-
-		if (!isAllowed) {
-			throw new Error(`File type ${file.type} is not allowed. Allowed types: ${allowedTypes.join(', ')}`)
+		if (options?.purpose) {
+			formData.append('purpose', options.purpose);
 		}
+		if (options?.metadata) {
+			formData.append('metadata', JSON.stringify(options.metadata));
+		}
+
+		const response = await apiClient.post<UploadResponse>(
+			'/api/v1/upload',
+			formData,
+			{
+				headers: {
+					'Content-Type': 'multipart/form-data',
+				},
+				onUploadProgress: options?.onProgress,
+			}
+		);
+		return response.data;
 	}
+);
 
-	// Validate file size
-	if (file.size > maxSize) {
-		const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1)
-		throw new Error(`File size must be less than ${maxSizeMB}MB`)
+/**
+ * Upload multiple files
+ */
+export const uploadMultipleFiles = withErrorHandling(
+	async (
+		files: File[],
+		options?: UploadOptions
+	): Promise<UploadResponse[]> => {
+		const uploadPromises = files.map((file) =>
+			uploadFile(file, options)
+		);
+		return Promise.all(uploadPromises);
 	}
+);
 
-	// Create FormData for file upload
-	const formData = new FormData()
-	formData.append('file', file)
-
-	try {
-		const response = await apiClient.post<UploadResponse>('/api/v1/upload', formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
-			params: {
-				bucket,
-			},
-		})
-
-		return response.data
-	} catch (error) {
-		console.error('Upload failed:', error)
-		throw error
+/**
+ * Get upload status
+ */
+export const getUploadStatus = withErrorHandling(
+	async (uploadId: string): Promise<UploadStatus> => {
+		const response = await apiClient.get<UploadStatus>(
+			`/api/v1/upload/${uploadId}/status`
+		);
+		return response.data;
 	}
-}
+);
+
+/**
+ * Delete uploaded file
+ */
+export const deleteUpload = withErrorHandling(
+	async (uploadId: string): Promise<void> => {
+		await apiClient.delete(`/api/v1/upload/${uploadId}`);
+	}
+);
 
 /**
  * Upload an image file with specific validation for images
@@ -104,3 +126,27 @@ export const uploadOAuth2Logo = async (file: File): Promise<UploadResponse> => {
 export const uploadAvatar = async (file: File): Promise<UploadResponse> => {
 	return uploadImage(file, 'avatars')
 }
+
+export interface PresignedUrlResponse {
+	url: string
+	fields: Record<string, string>
+}
+
+/**
+ * Get presigned URL for direct upload to cloud storage
+ */
+export const getPresignedUrl = withErrorHandling(
+	async (
+		fileName: string,
+		fileType: string,
+		bucket: string = 'general'
+	): Promise<PresignedUrlResponse> => {
+		const response = await apiClient.post<PresignedUrlResponse>('/api/v1/upload/presigned', {
+			fileName,
+			fileType,
+			bucket,
+		});
+
+		return response.data;
+	}
+);

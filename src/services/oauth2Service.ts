@@ -1,4 +1,5 @@
 import apiClient from "@/lib/apiClient";
+import { withErrorHandling } from './errorHandlingService';
 import {
   ClientRegistrationRequest,
   ClientRegistrationResponse,
@@ -13,54 +14,58 @@ import {
 
 const baseURL = "/api/v1/oauth2";
 
-export const registerClient = async (
-  data: ClientRegistrationRequest
-): Promise<ClientRegistrationResponse> => {
-  const response = await apiClient.post<ClientRegistrationResponse>(`${baseURL}/clients`, data);
-  return response.data
-};
+export const registerClient = withErrorHandling(
+  async (data: ClientRegistrationRequest): Promise<ClientRegistrationResponse> => {
+    const response = await apiClient.post<ClientRegistrationResponse>(`${baseURL}/clients`, data);
+    return response.data;
+  }
+);
 
-export const listClients = async (
-  limit?: number,
-  offset?: number,
-  tenant_id?: string
-): Promise<ClientListResponse> => {
-  const params = new URLSearchParams();
-  if (limit) params.append("limit", limit.toString());
-  if (offset) params.append("offset", offset.toString());
-  if (tenant_id) params.append("tenant_id", tenant_id);
+export const listClients = withErrorHandling(
+  async (
+    limit?: number,
+    offset?: number,
+    tenant_id?: string
+  ): Promise<ClientListResponse> => {
+    const params = new URLSearchParams();
+    if (limit) params.append("limit", limit.toString());
+    if (offset) params.append("offset", offset.toString());
+    if (tenant_id) params.append("tenant_id", tenant_id);
 
-  const query = params.toString();
-  const url = query ? `${baseURL}/clients?${query}` : `${baseURL}/clients`;
+    const query = params.toString();
+    const url = query ? `${baseURL}/clients?${query}` : `${baseURL}/clients`;
 
-  const response = await apiClient.get<ClientListResponse>(url);
-  return response.data;
-};
+    const response = await apiClient.get<ClientListResponse>(url);
+    return response.data;
+  }
+);
 
-export const authorize = async (
-  response_type: string,
-  client_id: string,
-  redirect_uri: string,
-  scope?: string,
-  state?: string,
-  code_challenge?: string,
-  code_challenge_method?: string,
-  nonce?: string
-): Promise<AuthorizeResponse> => {
-  const params = new URLSearchParams({
-    response_type,
-    client_id,
-    redirect_uri,
-    ...(scope ? { scope } : {}),
-    ...(state ? { state } : {}),
-    ...(code_challenge ? { code_challenge } : {}),
-    ...(code_challenge_method ? { code_challenge_method } : {}),
-    ...(nonce ? { nonce } : {}),
-  });
+export const authorize = withErrorHandling(
+  async (
+    response_type: string,
+    client_id: string,
+    redirect_uri: string,
+    scope?: string,
+    state?: string,
+    code_challenge?: string,
+    code_challenge_method?: string,
+    nonce?: string
+  ): Promise<AuthorizeResponse> => {
+    const params = new URLSearchParams({
+      response_type,
+      client_id,
+      redirect_uri,
+      ...(scope ? { scope } : {}),
+      ...(state ? { state } : {}),
+      ...(code_challenge ? { code_challenge } : {}),
+      ...(code_challenge_method ? { code_challenge_method } : {}),
+      ...(nonce ? { nonce } : {}),
+    });
 
-  const response = await apiClient.get<AuthorizeResponse>(`${baseURL}/authorize?${params.toString()}`);
-  return response.data;
-};
+    const response = await apiClient.get<AuthorizeResponse>(`${baseURL}/authorize?${params.toString()}`);
+    return response.data;
+  }
+);
 
 // New function for authenticated OAuth2 authorization
 export const authorizeAuthenticated = async (
@@ -124,77 +129,89 @@ export const handleOAuth2Authorization = async (
   return redirectUrl.toString();
 };
 
-export const token = async (
-  grant_type: string,
-  code?: string,
-  redirect_uri?: string,
-  client_id?: string,
-  client_secret?: string,
-  code_verifier?: string,
-  refresh_token?: string,
-  scope?: string
-): Promise<TokenResponse> => {
-  const formData = new URLSearchParams();
-  formData.append("grant_type", grant_type);
-  if (code) formData.append("code", code);
-  if (redirect_uri) formData.append("redirect_uri", redirect_uri);
-  if (client_id) formData.append("client_id", client_id);
-  if (client_secret) formData.append("client_secret", client_secret);
-  if (code_verifier) formData.append("code_verifier", code_verifier);
-  if (refresh_token) formData.append("refresh_token", refresh_token);
-  if (scope) formData.append("scope", scope);
+export const token = withErrorHandling(
+  async (
+    grant_type: string,
+    code?: string,
+    redirect_uri?: string,
+    client_id?: string,
+    client_secret?: string,
+    code_verifier?: string,
+    refresh_token?: string,
+    scope?: string
+  ): Promise<TokenResponse> => {
+    const formData = new URLSearchParams();
+    formData.append("grant_type", grant_type);
+    if (code) formData.append("code", code);
+    if (redirect_uri) formData.append("redirect_uri", redirect_uri);
+    if (client_id) formData.append("client_id", client_id);
+    if (client_secret) formData.append("client_secret", client_secret);
+    if (code_verifier) formData.append("code_verifier", code_verifier);
+    if (refresh_token) formData.append("refresh_token", refresh_token);
+    if (scope) formData.append("scope", scope);
 
-  const response = await apiClient.post<TokenResponse>(`${baseURL}/token`, formData, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
-  return response.data;
-};
+    const response = await apiClient.post<TokenResponse>(`${baseURL}/token`, formData, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+    return response.data;
+  }
+);
 
-export const userInfo = async (): Promise<UserInfoResponse> => {
-  const response = await apiClient.get<UserInfoResponse>(`${baseURL}/userinfo`);
-  return response.data;
-};
+export const userInfo = withErrorHandling(
+  async (): Promise<UserInfoResponse> => {
+    const response = await apiClient.get<UserInfoResponse>(`${baseURL}/userinfo`);
+    return response.data;
+  }
+);
 
-export const tokenInfo = async (accessToken: string): Promise<TokenInfo> => {
-  const response = await apiClient.get<TokenInfo>(`${baseURL}/tokeninfo`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-  return response.data;
-};
+export const tokenInfo = withErrorHandling(
+  async (accessToken: string): Promise<TokenInfo> => {
+    const response = await apiClient.get<TokenInfo>(`${baseURL}/tokeninfo`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    return response.data;
+  }
+);
 
-export const revokeToken = async (
-  token: string,
-  token_type_hint?: string,
-  client_id?: string,
-  client_secret?: string
-): Promise<void> => {
-  const formData = new URLSearchParams();
-  formData.append("token", token);
-  if (token_type_hint) formData.append("token_type_hint", token_type_hint);
-  if (client_id) formData.append("client_id", client_id);
-  if (client_secret) formData.append("client_secret", client_secret);
+export const revokeToken = withErrorHandling(
+  async (
+    token: string,
+    token_type_hint?: string,
+    client_id?: string,
+    client_secret?: string
+  ): Promise<void> => {
+    const formData = new URLSearchParams();
+    formData.append("token", token);
+    if (token_type_hint) formData.append("token_type_hint", token_type_hint);
+    if (client_id) formData.append("client_id", client_id);
+    if (client_secret) formData.append("client_secret", client_secret);
 
-  const response = await apiClient.post<void>(`${baseURL}/revoke`, formData, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-  });
-  return response.data;
-};
+    const response = await apiClient.post<void>(`${baseURL}/revoke`, formData, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+    return response.data;
+  }
+);
 
-export const getOpenIDConfiguration = async (): Promise<OpenIDConfiguration> => {
-  const response = await apiClient.get<OpenIDConfiguration>(`/.well-known/openid_configuration`);
-  return response.data;
-};
+export const getOpenIDConfiguration = withErrorHandling(
+  async (): Promise<OpenIDConfiguration> => {
+    const response = await apiClient.get<OpenIDConfiguration>(`${baseURL}/.well-known/openid_configuration`);
+    return response.data;
+  }
+);
 
-export const getJWKS = async (): Promise<JWKS> => {
-  const response = await apiClient.get<JWKS>(`${baseURL}/.well-known/jwks.json`);
-  return response.data;
-};
+export const getJWKS = withErrorHandling(
+  async (): Promise<JWKS> => {
+    const response = await apiClient.get<JWKS>(`${baseURL}/.well-known/jwks.json`);
+    return response.data;
+  }
+);
 
 /**
  * Get OAuth2 client details by client ID

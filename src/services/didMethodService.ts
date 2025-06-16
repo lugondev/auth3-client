@@ -1,4 +1,5 @@
 import apiClient from '../lib/apiClient';
+import { withErrorHandling } from './errorHandlingService';
 
 // Types for DID method configuration
 export interface DIDMethodConfig {
@@ -59,100 +60,92 @@ export interface UpdateNetworkConfigurationInput {
   contractAddress?: string;
 }
 
+export interface UpdateMethodConfigurationsInput {
+  methods: UpdateMethodConfigurationInput[];
+}
+
+export interface SetDefaultMethodInput {
+  id: string;
+}
+
+export interface ToggleMethodEnabledInput {
+  id: string;
+  enabled: boolean;
+}
+
 // Get all DID method configurations
-export const getMethodConfigurations = async (): Promise<GetMethodConfigurationsOutput> => {
-  try {
+export const getMethodConfigurations = withErrorHandling(
+  async (): Promise<GetMethodConfigurationsOutput> => {
     const response = await apiClient.get<DIDMethodApiResponse<GetMethodConfigurationsOutput>>('/api/v1/admin/did-methods/configurations');
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to get method configurations');
-  } catch (error) {
-    console.error('Failed to get method configurations:', error);
-    throw error;
   }
-};
+);
 
 // Get all network configurations
-export const getNetworkConfigurations = async (): Promise<GetNetworkConfigurationsOutput> => {
-  try {
+export const getNetworkConfigurations = withErrorHandling(
+  async (): Promise<GetNetworkConfigurationsOutput> => {
     const response = await apiClient.get<DIDMethodApiResponse<GetNetworkConfigurationsOutput>>('/api/v1/admin/did-methods/networks');
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to get network configurations');
-  } catch (error) {
-    console.error('Failed to get network configurations:', error);
-    throw error;
   }
-};
+);
 
 // Update a DID method configuration
-export const updateMethodConfiguration = async (input: UpdateMethodConfigurationInput): Promise<DIDMethodConfig> => {
-  try {
+export const updateMethodConfiguration = withErrorHandling(
+  async (input: UpdateMethodConfigurationInput): Promise<DIDMethodConfig> => {
     const response = await apiClient.patch<DIDMethodApiResponse<DIDMethodConfig>>(`/api/v1/admin/did-methods/configurations/${input.id}`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to update method configuration');
-  } catch (error) {
-    console.error('Failed to update method configuration:', error);
-    throw error;
   }
-};
+);
 
 // Update multiple DID method configurations
-export const updateMethodConfigurations = async (methods: DIDMethodConfig[]): Promise<DIDMethodConfig[]> => {
-  try {
-    const response = await apiClient.put<DIDMethodApiResponse<DIDMethodConfig[]>>('/api/v1/admin/did-methods/configurations', { methods });
+export const updateMethodConfigurations = withErrorHandling(
+  async (input: UpdateMethodConfigurationsInput): Promise<GetMethodConfigurationsOutput> => {
+    const response = await apiClient.patch<DIDMethodApiResponse<GetMethodConfigurationsOutput>>('/api/v1/admin/did-methods/configurations', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to update method configurations');
-  } catch (error) {
-    console.error('Failed to update method configurations:', error);
-    throw error;
   }
-};
+);
 
 // Update a network configuration
-export const updateNetworkConfiguration = async (input: UpdateNetworkConfigurationInput): Promise<NetworkConfig> => {
-  try {
+export const updateNetworkConfiguration = withErrorHandling(
+  async (input: UpdateNetworkConfigurationInput): Promise<NetworkConfig> => {
     const response = await apiClient.patch<DIDMethodApiResponse<NetworkConfig>>(`/api/v1/admin/did-methods/networks/${input.id}`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to update network configuration');
-  } catch (error) {
-    console.error('Failed to update network configuration:', error);
-    throw error;
   }
-};
+);
 
 // Set default DID method
-export const setDefaultMethod = async (methodId: string): Promise<DIDMethodConfig> => {
-  try {
-    const response = await apiClient.post<DIDMethodApiResponse<DIDMethodConfig>>(`/api/v1/admin/did-methods/configurations/${methodId}/set-default`);
+export const setDefaultMethod = withErrorHandling(
+  async (input: SetDefaultMethodInput): Promise<DIDMethodConfig> => {
+    const response = await apiClient.post<DIDMethodApiResponse<DIDMethodConfig>>('/api/v1/admin/did-methods/default', input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
     throw new Error(response.data.error || 'Failed to set default method');
-  } catch (error) {
-    console.error('Failed to set default method:', error);
-    throw error;
   }
-};
+);
 
-// Toggle method enabled status
-export const toggleMethodEnabled = async (methodId: string, enabled: boolean): Promise<DIDMethodConfig> => {
-  try {
-    const response = await apiClient.patch<DIDMethodApiResponse<DIDMethodConfig>>(`/api/v1/admin/did-methods/configurations/${methodId}`, { enabled });
+// Toggle DID method enabled status
+export const toggleMethodEnabled = withErrorHandling(
+  async (input: ToggleMethodEnabledInput): Promise<DIDMethodConfig> => {
+    const response = await apiClient.patch<DIDMethodApiResponse<DIDMethodConfig>>(`/api/v1/admin/did-methods/configurations/${input.id}/toggle`, input);
     if (response.data.success && response.data.data) {
       return response.data.data;
     }
-    throw new Error(response.data.error || 'Failed to toggle method status');
-  } catch (error) {
-    console.error('Failed to toggle method status:', error);
-    throw error;
+    throw new Error(response.data.error || 'Failed to toggle method enabled status');
   }
-};
+);

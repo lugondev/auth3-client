@@ -43,18 +43,16 @@ export interface JoinedTenantMembership {
 	joined_at: string; // ISO date string
 }
 
-export interface PaginatedResponse<T> {
-	total: number;
-	limit: number;
-	offset: number;
-	total_pages: number;
+import { PaginatedResponse } from './api';
+
+export interface TenantManagementPaginatedResponse<T> extends PaginatedResponse<T> {
 	memberships?: T[]; // For joined tenants
 	tenants?: T[];     // For owned and all tenants
 }
 
-export type JoinedTenantsResponse = PaginatedResponse<JoinedTenantMembership>;
-export type OwnedTenantsResponse = PaginatedResponse<Tenant>;
-export type AllTenantsResponse = PaginatedResponse<Tenant>;
+export type JoinedTenantsResponse = TenantManagementPaginatedResponse<JoinedTenantMembership>;
+export type OwnedTenantsResponse = TenantManagementPaginatedResponse<Tenant>;
+export type AllTenantsResponse = TenantManagementPaginatedResponse<Tenant>;
 
 export interface CreateTenantPayload {
 	name: string;

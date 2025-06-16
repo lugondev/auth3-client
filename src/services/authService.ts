@@ -1,5 +1,6 @@
 import apiClient from '@/lib/apiClient';
 import axios from 'axios';
+import { withErrorHandling } from './errorHandlingService';
 import {
 	AuthResponse,
 	LoginOutput, // <-- Add LoginOutput
@@ -64,12 +65,12 @@ export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput, cont
  * @param preserveGlobalContext Whether to preserve global context when logging into tenant.
  * @returns A LoginOutput which might contain tokens or indicate 2FA is required.
  */
-export const signInWithEmail = async (
-	data: LoginInput,
-	context: ContextMode = 'auto',
-	preserveGlobalContext: boolean = true
-): Promise<LoginOutput> => {
-	try {
+export const signInWithEmail = withErrorHandling(
+	async (
+		data: LoginInput,
+		context: ContextMode = 'auto',
+		preserveGlobalContext: boolean = true
+	): Promise<LoginOutput> => {
 		// Add context information to the request
 		const requestData = {
 			...data,
@@ -81,11 +82,8 @@ export const signInWithEmail = async (
 		const response = await apiClient.post<LoginOutput>('/api/v1/auth/login', requestData);
 		// AuthContext will handle storing tokens or prompting for 2FA
 		return response.data;
-	} catch (error) {
-		console.error('Error signing in with email:', error);
-		throw error; // Re-throw to be handled by the caller (AuthContext/LoginForm)
 	}
-};
+);
 
 /**
  * Verifies the 2FA code during login.
@@ -128,8 +126,8 @@ export const verifyTwoFactorLogin = async (
  * @param context The context mode for registration ('global' | 'tenant' | 'auto').
  * @returns An AuthResponse containing tokens and user data.
  */
-export const register = async (data: RegisterInput, context: ContextMode = 'global'): Promise<AuthResponse> => {
-	try {
+export const register = withErrorHandling(
+	async (data: RegisterInput, context: ContextMode = 'global'): Promise<AuthResponse> => {
 		// Add context information to the request
 		const requestData = {
 			...data,
@@ -139,11 +137,8 @@ export const register = async (data: RegisterInput, context: ContextMode = 'glob
 		const response = await apiClient.post<AuthResponse>('/api/v1/auth/register', requestData);
 		// AuthContext will handle storing tokens and user state
 		return response.data;
-	} catch (error) {
-		console.error('Error registering user:', error);
-		throw error;
 	}
-};
+);
 
 
 /**
@@ -249,39 +244,41 @@ export const refreshToken = async (currentRefreshToken: string, context: Context
  * @param context The context to logout from ('global' | 'tenant' | 'auto'). If 'auto', logs out from all contexts.
  * @param preserveGlobalContext Whether to preserve global context when logging out from tenant context.
  */
-export const logoutUser = async (context: ContextMode = 'auto', preserveGlobalContext: boolean = false): Promise<void> => {
-	// Caller is responsible for clearing tokens (e.g., via useLocalStorage setter)
-	console.log('logoutUser service: Initiating logout process for context:', context);
+export const logoutUser = withErrorHandling(
+	async (context: ContextMode = 'auto', preserveGlobalContext: boolean = false): Promise<void> => {
+		// Caller is responsible for clearing tokens (e.g., via useLocalStorage setter)
+		console.log('logoutUser service: Initiating logout process for context:', context);
 
-	try {
-		// Add context information to the logout request
-		const requestData = {
-			context_mode: context,
-			preserve_global_context: preserveGlobalContext
-		};
-
-		// Notify backend about logout (best effort, don't block UI on failure)
-		await apiClient.post('/api/v1/auth/logout', requestData, {
-			headers: { '__skipAuthRefresh': 'true' } // Avoid potential issues if tokens were already cleared
-		});
-		console.log('logoutUser service: Backend logout notification sent.');
-	} catch (error) {
-		// Log non-critical error
-		console.warn('logoutUser service: Error during backend logout notification:', error);
-	}
-
-	// Sign out from Firebase only if logging out from all contexts
-	if (context === 'auto' || (context === 'global' && !preserveGlobalContext)) {
 		try {
-			await signOut(auth);
-			console.log('logoutUser service: Firebase sign-out successful.');
-		} catch (firebaseError) {
-			console.error('logoutUser service: Error signing out from Firebase:', firebaseError);
-			// Decide if this should be re-thrown or just logged
+			// Add context information to the logout request
+			const requestData = {
+				context_mode: context,
+				preserve_global_context: preserveGlobalContext
+			};
+
+			// Notify backend about logout (best effort, don't block UI on failure)
+			await apiClient.post('/api/v1/auth/logout', requestData, {
+				headers: { '__skipAuthRefresh': 'true' } // Avoid potential issues if tokens were already cleared
+			});
+			console.log('logoutUser service: Backend logout notification sent.');
+		} catch (error) {
+			// Log non-critical error
+			console.warn('logoutUser service: Error during backend logout notification:', error);
 		}
+
+		// Sign out from Firebase only if logging out from all contexts
+		if (context === 'auto' || (context === 'global' && !preserveGlobalContext)) {
+			try {
+				await signOut(auth);
+				console.log('logoutUser service: Firebase sign-out successful.');
+			} catch (firebaseError) {
+				console.error('logoutUser service: Error signing out from Firebase:', firebaseError);
+				// Decide if this should be re-thrown or just logged
+			}
+		}
+		// No redirect here, handled by UI/AuthContext based on auth state change
 	}
-	// No redirect here, handled by UI/AuthContext based on auth state change
-};
+);
 
 // User profile management functions have been moved to userService.ts
 
@@ -552,8 +549,8 @@ export const getContextAwareApiClient = (context: ContextMode = 'auto') => {
  * @param context The context to validate and refresh.
  * @returns Promise<boolean> indicating if context is valid and refreshed.
  */
-export const validateAndRefreshContext = async (context: ContextMode): Promise<boolean> => {
-	try {
+export const validateAndRefreshContext = withErrorHandling(
+	async (context: ContextMode): Promise<boolean> => {
 		const validation = await contextManager.validateContext(context);
 
 		if (!validation.isValid) {
@@ -574,8 +571,5 @@ export const validateAndRefreshContext = async (context: ContextMode): Promise<b
 		}
 
 		return true;
-	} catch (error) {
-		console.error('Error validating context:', error);
-		return false;
 	}
-};
+);

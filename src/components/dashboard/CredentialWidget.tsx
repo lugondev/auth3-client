@@ -103,11 +103,11 @@ export function CredentialWidget({ className }: CredentialWidgetProps) {
         const stats: CredentialStats = {
           total: userCredentials.length,
           active: userCredentials.filter(cred => 
-            cred.status === 'active' && !isExpired(cred)
+            cred.credentialStatus === 'active' && !isExpired(cred)
           ).length,
           expired: userCredentials.filter(cred => isExpired(cred)).length,
           revoked: userCredentials.filter(cred => 
-            cred.status === 'revoked'
+            cred.credentialStatus === 'revoked'
           ).length,
           recentlyIssued: userCredentials.filter(cred => 
             new Date(cred.issuanceDate) > thirtyDaysAgo

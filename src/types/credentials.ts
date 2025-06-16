@@ -616,3 +616,61 @@ export interface CredentialShare {
   fields_shared: string[];
   presentation_id?: string;
 }
+
+// Additional types for vcService
+export interface CredentialsBySubjectResponse {
+  credentials: VerifiableCredential[];
+  total: number;
+  subject_did: string;
+}
+
+export interface ValidateSchemaInput {
+  schema_url: string;
+  credential_data: unknown;
+}
+
+export interface ValidateSchemaOutput {
+  valid: boolean;
+  errors?: string[];
+  warnings?: string[];
+  schema_info?: {
+    id: string;
+    name: string;
+    version: string;
+  };
+}
+
+export interface CredentialListResponse {
+  credentials: VerifiableCredential[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  total: number;
+}
+
+export interface CredentialListQuery {
+  page?: number;
+  limit?: number;
+  status?: CredentialStatus;
+  type?: string;
+  issuer?: string;
+  subject?: string;
+  search?: string;
+  sortBy?: 'issuedAt' | 'expiresAt' | 'status';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface CredentialStatistics {
+  totalCredentials: number;
+  activeCredentials: number;
+  revokedCredentials: number;
+  expiredCredentials: number;
+  issuedToday: number;
+  issuedThisWeek: number;
+  issuedThisMonth: number;
+  generatedAt: string;
+}

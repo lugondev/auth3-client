@@ -100,15 +100,17 @@ export default function CredentialsDashboard() {
 		credentialsData?.credentials.filter((credential) => {
 			if (!searchTerm) return true
 			const searchLower = searchTerm.toLowerCase()
-			return credential.id.toLowerCase().includes(searchLower) || credential.type.some((type) => type.toLowerCase().includes(searchLower)) || credential.issuer.toLowerCase().includes(searchLower) || credential.subject.toLowerCase().includes(searchLower)
+			const issuerString = typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id || ''
+			const subjectString = credential.credentialSubject?.id || ''
+			return credential.id.toLowerCase().includes(searchLower) || credential.type.some((type) => type.toLowerCase().includes(searchLower)) || issuerString.toLowerCase().includes(searchLower) || subjectString.toLowerCase().includes(searchLower)
 		}) || []
 
 	// Calculate statistics
 	const stats = {
 		total: credentialsData?.total || 0,
-		active: credentialsData?.credentials.filter((c) => c.status === 'active').length || 0,
-		revoked: credentialsData?.credentials.filter((c) => c.status === 'revoked').length || 0,
-		expired: credentialsData?.credentials.filter((c) => c.status === 'expired').length || 0,
+		active: credentialsData?.credentials.filter((c) => c.credentialStatus === 'active').length || 0,
+		revoked: credentialsData?.credentials.filter((c) => c.credentialStatus === 'revoked').length || 0,
+		expired: credentialsData?.credentials.filter((c) => c.credentialStatus === 'expired').length || 0,
 	}
 
 	return (
@@ -291,7 +293,7 @@ export default function CredentialsDashboard() {
 								<span className='flex items-center px-4'>
 									Page {page} of {Math.ceil(credentialsData.total / limit)}
 								</span>
-								<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.hasNext}>
+								<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.pagination?.hasNext}>
 									Next
 								</Button>
 							</div>
