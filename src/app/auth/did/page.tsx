@@ -203,17 +203,7 @@ function DIDAuthPageContent() {
 			</div>
 
 			<Button onClick={handleInitiateAuth} disabled={loading || !didInput.trim()} className='w-full'>
-				{loading ? (
-					<>
-						<Loader2 className='mr-2 h-4 w-4 animate-spin' />
-						Initiating Authentication...
-					</>
-				) : (
-					<>
-						<Shield className='mr-2 h-4 w-4' />
-						Authenticate with DID
-					</>
-				)}
+				{loading ? [<Loader2 key='loader' className='mr-2 h-4 w-4 animate-spin' />, 'Initiating Authentication...'] : [<Shield key='shield' className='mr-2 h-4 w-4' />, 'Authenticate with DID']}
 			</Button>
 		</div>
 	)
@@ -273,15 +263,15 @@ function DIDAuthPageContent() {
 				</Button>
 				<Button onClick={handleSubmitSignature} disabled={loading || !signature.trim()} className='flex-1'>
 					{loading ? (
-						<>
+						<div>
 							<Loader2 className='mr-2 h-4 w-4 animate-spin' />
 							Verifying...
-						</>
+						</div>
 					) : (
-						<>
+						<div>
 							<CheckCircle className='mr-2 h-4 w-4' />
 							Complete Authentication
-						</>
+						</div>
 					)}
 				</Button>
 			</div>

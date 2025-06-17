@@ -373,7 +373,7 @@ export default function CreateDIDPage() {
 
 						{/* Web Method Configuration */}
 						{form.method === 'web' && (
-							<>
+							<div>
 								<div>
 									<Label htmlFor='domain'>Domain *</Label>
 									<Input id='domain' value={form.domain || ''} onChange={(e) => setForm((prev) => ({...prev, domain: e.target.value}))} placeholder='example.com' required />
@@ -382,12 +382,12 @@ export default function CreateDIDPage() {
 									<Label htmlFor='path'>Path (optional)</Label>
 									<Input id='path' value={form.path || ''} onChange={(e) => setForm((prev) => ({...prev, path: e.target.value}))} placeholder='users/alice' />
 								</div>
-							</>
+							</div>
 						)}
 
 						{/* Ethereum Method Configuration */}
 						{form.method === 'ethr' && (
-							<>
+							<div>
 								<div>
 									<Label htmlFor='ethereumAddress'>Ethereum Address</Label>
 									<Input id='ethereumAddress' value={form.ethereumAddress || ''} onChange={(e) => setForm((prev) => ({...prev, ethereumAddress: e.target.value}))} placeholder='0x1234567890123456789012345678901234567890' />
@@ -406,7 +406,7 @@ export default function CreateDIDPage() {
 										</SelectContent>
 									</Select>
 								</div>
-							</>
+							</div>
 						)}
 
 						{/* Peer Method Configuration */}

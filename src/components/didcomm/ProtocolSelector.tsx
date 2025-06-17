@@ -229,7 +229,7 @@ export function ProtocolSelector({selectedProtocol, protocols = [], onProtocolSe
 
 				{/* Custom Protocol */}
 				{allowCustom && (
-					<>
+					<div>
 						<Separator />
 
 						<div className='space-y-3'>
@@ -289,12 +289,12 @@ export function ProtocolSelector({selectedProtocol, protocols = [], onProtocolSe
 								</Card>
 							)}
 						</div>
-					</>
+					</div>
 				)}
 
 				{/* Selected Protocol Summary */}
 				{selectedProtocol && (
-					<>
+					<div>
 						<Separator />
 
 						<div className='p-3 bg-primary/5 border border-primary/20 rounded-lg'>
@@ -308,7 +308,7 @@ export function ProtocolSelector({selectedProtocol, protocols = [], onProtocolSe
 
 							<p className='text-xs text-muted-foreground'>{selectedProtocol.description}</p>
 						</div>
-					</>
+					</div>
 				)}
 			</CardContent>
 		</Card>

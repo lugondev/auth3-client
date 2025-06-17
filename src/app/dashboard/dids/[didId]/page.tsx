@@ -239,7 +239,7 @@ export default function DIDDetailsPage() {
 							Download
 						</Button>
 						{didData.status === 'active' && (
-							<>
+							<div>
 								<Button variant='outline' onClick={handleDeactivate} className='text-orange-600 hover:text-orange-700'>
 									<Power className='h-4 w-4 mr-2' />
 									Deactivate
@@ -248,7 +248,7 @@ export default function DIDDetailsPage() {
 									<Trash2 className='h-4 w-4 mr-2' />
 									Revoke
 								</Button>
-							</>
+							</div>
 						)}
 					</div>
 				}

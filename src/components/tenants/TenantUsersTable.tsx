@@ -49,7 +49,7 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles,
 	}
 
 	return (
-		<>
+		<div>
 			<Table>
 				<TableHeader>
 					<TableRow>
@@ -127,6 +127,6 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles,
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</>
+		</div>
 	)
 }

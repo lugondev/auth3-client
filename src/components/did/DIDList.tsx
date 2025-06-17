@@ -285,12 +285,12 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 						<CardContent className='p-12 text-center'>
 							<div className='text-muted-foreground'>
 								{searchTerm || Object.keys(filters).length > 0 ? (
-									<>
+									<div>
 										<p className='text-lg mb-2'>No DIDs found</p>
 										<p>Try adjusting your search or filters</p>
-									</>
+									</div>
 								) : (
-									<>
+									<div>
 										<p className='text-lg mb-2'>No DIDs yet</p>
 										<p>Create your first DID to get started</p>
 										{onCreateNew && (
@@ -299,7 +299,7 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 												Create Your First DID
 											</Button>
 										)}
-									</>
+									</div>
 								)}
 							</div>
 						</CardContent>

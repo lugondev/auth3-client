@@ -25,5 +25,5 @@ export default function AdminLayout({children}: {children: React.ReactNode}) {
 	}
 
 	// User is authenticated and authorized as a system admin
-	return <>{children}</>
+	return children
 }

@@ -670,7 +670,7 @@ export default function ProfilePage() {
 					</CardContent>
 				</Card>
 			) : userData ? (
-				<>
+				<div>
 					{/* User Header Section */}
 					<Card>
 						<CardHeader className='flex flex-row items-center space-x-4'>
@@ -771,7 +771,7 @@ export default function ProfilePage() {
 							</Card>
 						</TabsContent>
 					</Tabs>
-				</>
+				</div>
 			) : (
 				<Card>
 					<CardHeader>

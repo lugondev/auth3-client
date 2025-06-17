@@ -135,7 +135,7 @@ export default function ManageRolePermissionsPage() {
 						{isLoadingRolePermissions && <p>Loading permissions...</p>}
 						{rolePermissionsError && <p className='text-red-500'>Error fetching permissions: {rolePermissionsError.message}</p>}
 						{rolePermissionsData && (
-							<>
+							<div>
 								{rolePermissionsData.permissions.length > 0 ? (
 									<Table>
 										<TableHeader>
@@ -197,7 +197,7 @@ export default function ManageRolePermissionsPage() {
 										</Button>
 									</form>
 								</Form>
-							</>
+							</div>
 						)}
 					</CardContent>
 				</Card>

@@ -8,5 +8,5 @@ export default function ProfileLayout({children}: {children: React.ReactNode}) {
 	// AppShell internally uses AuthContext to determine the correct sidebar
 	// (e.g., 'user' links for non-admins, 'system' links for system admins)
 	// because no 'sidebarType' prop is explicitly passed here.
-	return <>{children}</>
+	return children
 }

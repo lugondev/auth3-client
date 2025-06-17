@@ -259,15 +259,15 @@ export default function VerifyCredentialPage() {
 									{/* Verify Button */}
 									<Button onClick={handleVerify} disabled={!credentialInput.trim() || verifyMutation.isPending} className='w-full' size='lg'>
 										{verifyMutation.isPending ? (
-											<>
+											<div>
 												<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2' />
 												Verifying...
-											</>
+											</div>
 										) : (
-											<>
+											<div>
 												<Shield className='h-4 w-4 mr-2' />
 												Verify Credential
-											</>
+											</div>
 										)}
 									</Button>
 								</TabsContent>

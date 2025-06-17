@@ -218,13 +218,13 @@ export function ConnectionCard({connection, showActions = true, showDetails = tr
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align='end'>
 								{isActive && (
-									<>
+									<div>
 										<DropdownMenuItem onClick={() => onMessageClick?.(connection)}>
 											<MessageCircle className='h-4 w-4 mr-2' />
 											Send Message
 										</DropdownMenuItem>
 										<DropdownMenuSeparator />
-									</>
+									</div>
 								)}
 
 								<DropdownMenuItem onClick={() => copyDid(connection.their_did)}>
@@ -234,15 +234,15 @@ export function ConnectionCard({connection, showActions = true, showDetails = tr
 
 								<DropdownMenuItem onClick={() => setShowFullDid(!showFullDid)}>
 									{showFullDid ? (
-										<>
+										<div>
 											<EyeOff className='h-4 w-4 mr-2' />
 											Hide Full DID
-										</>
+										</div>
 									) : (
-										<>
+										<div>
 											<Eye className='h-4 w-4 mr-2' />
 											Show Full DID
-										</>
+										</div>
 									)}
 								</DropdownMenuItem>
 
@@ -258,7 +258,7 @@ export function ConnectionCard({connection, showActions = true, showDetails = tr
 									<AlertDialogContent>
 										<AlertDialogHeader>
 											<AlertDialogTitle>Delete Connection</AlertDialogTitle>
-					<AlertDialogDescription>Are you sure you want to delete the connection with "{connection.their_label || 'No label'}"? This action cannot be undone.</AlertDialogDescription>
+											<AlertDialogDescription>Are you sure you want to delete the connection with "{connection.their_label || 'No label'}"? This action cannot be undone.</AlertDialogDescription>
 										</AlertDialogHeader>
 										<AlertDialogFooter>
 											<AlertDialogCancel>Cancel</AlertDialogCancel>

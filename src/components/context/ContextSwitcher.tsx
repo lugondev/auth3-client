@@ -223,7 +223,7 @@ export function ContextSwitcher({variant = 'dropdown', size = 'md', showCurrentC
 						)
 					})}
 					{showRefreshButton && (
-						<>
+						<div>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem onClick={handleRefresh} disabled={isRefreshing} className='flex items-center gap-3 cursor-pointer'>
 								{isRefreshing ? <Loader2 className='h-4 w-4 animate-spin' /> : <RefreshCw className='h-4 w-4' />}
@@ -233,7 +233,7 @@ export function ContextSwitcher({variant = 'dropdown', size = 'md', showCurrentC
 								<LogOut className='h-4 w-4' />
 								<span>Logout</span>
 							</DropdownMenuItem>
-						</>
+						</div>
 					)}
 				</DropdownMenuContent>
 			</DropdownMenu>

@@ -102,7 +102,7 @@ const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate
 			</div>
 
 			{hasPhoneNumber ? (
-				<>
+				<div>
 					{isVerified && verifiedAt ? (
 						<p className='text-sm text-muted-foreground'>
 							Your phone number ({userData?.phone}) was verified on {new Intl.DateTimeFormat('en-US', {year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric'}).format(verifiedAt)}. {/* Format: January 1, 2023, 12:00 PM */}
@@ -139,7 +139,7 @@ const PhoneVerification: React.FC<PhoneVerificationProps> = ({userData, onUpdate
 							</Button>
 						</div>
 					)}
-				</>
+				</div>
 			) : (
 				<p className='text-sm text-muted-foreground'>
 					Please add a phone number in the <span className='font-medium'>General Info</span> tab to enable phone verification.

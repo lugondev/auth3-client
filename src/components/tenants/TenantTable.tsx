@@ -44,7 +44,7 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	}
 
 	return (
-		<>
+		<div>
 			{loading && (
 				<div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'>
 					<div className='bg-white dark:bg-zinc-900 rounded-lg p-8 flex flex-col items-center shadow-lg'>
@@ -103,6 +103,6 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 					))}
 				</TableBody>
 			</Table>
-		</>
+		</div>
 	)
 }

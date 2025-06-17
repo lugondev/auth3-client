@@ -127,7 +127,7 @@ export default function ManageUserRolesPage() {
 						{isLoadingUserRoles && <p>Loading roles...</p>}
 						{userRolesError && <p className='text-red-500'>Error fetching roles: {userRolesError.message}</p>}
 						{userRolesData && (
-							<>
+							<div>
 								{userRolesData.roles.length > 0 ? (
 									<Table>
 										<TableHeader>
@@ -174,7 +174,7 @@ export default function ManageUserRolesPage() {
 										</Button>
 									</form>
 								</Form>
-							</>
+							</div>
 						)}
 					</CardContent>
 				</Card>

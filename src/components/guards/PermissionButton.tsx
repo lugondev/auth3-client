@@ -99,9 +99,7 @@ export function PermissionButton({children, permission, permissions, role, roles
 			}
 
 			if (permissions && permissions.length > 0) {
-				const hasRequiredPermissions = requireAll 
-					? hasAllPermissions(permissions, checkContext) 
-					: hasAnyPermission(permissions, checkContext)
+				const hasRequiredPermissions = requireAll ? hasAllPermissions(permissions, checkContext) : hasAnyPermission(permissions, checkContext)
 
 				if (!hasRequiredPermissions) {
 					const operator = requireAll ? 'all' : 'any'
@@ -118,9 +116,7 @@ export function PermissionButton({children, permission, permissions, role, roles
 			}
 
 			if (roles && roles.length > 0) {
-				const hasRequiredRoles = requireAll 
-					? hasAllRoles(roles, checkContext) 
-					: hasAnyRole(roles, checkContext)
+				const hasRequiredRoles = requireAll ? hasAllRoles(roles, checkContext) : hasAnyRole(roles, checkContext)
 
 				if (!hasRequiredRoles) {
 					const operator = requireAll ? 'all' : 'any'
@@ -136,7 +132,7 @@ export function PermissionButton({children, permission, permissions, role, roles
 
 		// Check permissions in the effective context
 		const primaryResult = checkInContext(effectiveContext)
-		
+
 		// If primary check fails and fallback is enabled, try global context
 		if (!primaryResult.hasAccess && fallbackToGlobal && effectiveContext !== 'global') {
 			const fallbackResult = checkInContext('global')
@@ -186,19 +182,19 @@ export function PermissionButton({children, permission, permissions, role, roles
 	const getButtonContent = () => {
 		if (loading) {
 			return (
-				<>
+				<div>
 					<Loader2 className='mr-2 h-4 w-4 animate-spin' />
 					{loadingText || 'Loading...'}
-				</>
+				</div>
 			)
 		}
 
 		if (isDisabled && !accessResult.hasAccess && disabledText) {
 			return (
-				<>
+				<div>
 					<Lock className='mr-2 h-4 w-4' />
 					{disabledText}
-				</>
+				</div>
 			)
 		}
 

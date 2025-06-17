@@ -155,12 +155,12 @@ export default function TenantSettingsPage() {
 		}
 
 		return (
-			<>
+			<div>
 				<Separator />
 				{/* We'll need to import these components */}
 				<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
 				<Separator />
-			</>
+			</div>
 		)
 	}
 

@@ -31,5 +31,5 @@ export default function TenantLayout({children}: TenantLayoutProps) {
 		return null
 	}
 
-	return <>{children}</>
+	return children
 }

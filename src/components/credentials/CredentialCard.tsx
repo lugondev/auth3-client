@@ -128,7 +128,7 @@ export function CredentialCard({credential, status = 'active', onDelete, onShare
 			onDownload()
 			return
 		}
-		
+
 		try {
 			const blob = new Blob([JSON.stringify(credential, null, 2)], {type: 'application/json'})
 			const url = URL.createObjectURL(blob)
@@ -217,20 +217,20 @@ export function CredentialCard({credential, status = 'active', onDelete, onShare
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align='end'>
 								{onView ? (
-								<DropdownMenuItem onClick={onView}>
-									<Eye className='h-4 w-4 mr-2' />
-									View Details
-								</DropdownMenuItem>
-							) : (
-								<Dialog open={showDetails} onOpenChange={setShowDetails}>
-									<DialogTrigger asChild>
-										<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-											<Eye className='h-4 w-4 mr-2' />
-											View Details
-										</DropdownMenuItem>
-									</DialogTrigger>
-								</Dialog>
-							)}
+									<DropdownMenuItem onClick={onView}>
+										<Eye className='h-4 w-4 mr-2' />
+										View Details
+									</DropdownMenuItem>
+								) : (
+									<Dialog open={showDetails} onOpenChange={setShowDetails}>
+										<DialogTrigger asChild>
+											<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+												<Eye className='h-4 w-4 mr-2' />
+												View Details
+											</DropdownMenuItem>
+										</DialogTrigger>
+									</Dialog>
+								)}
 
 								<DropdownMenuItem onClick={downloadCredential}>
 									<Download className='h-4 w-4 mr-2' />
@@ -243,7 +243,7 @@ export function CredentialCard({credential, status = 'active', onDelete, onShare
 								</DropdownMenuItem>
 
 								{onDelete && (
-									<>
+									<div>
 										<DropdownMenuSeparator />
 										<AlertDialog>
 											<AlertDialogTrigger asChild>
@@ -265,7 +265,7 @@ export function CredentialCard({credential, status = 'active', onDelete, onShare
 												</AlertDialogFooter>
 											</AlertDialogContent>
 										</AlertDialog>
-									</>
+									</div>
 								)}
 							</DropdownMenuContent>
 						</DropdownMenu>

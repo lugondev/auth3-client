@@ -277,15 +277,15 @@ export default function IssueCredentialPage() {
 										<div className='flex gap-2 pt-4'>
 											<Button type='submit' disabled={issueMutation.isPending} className='flex-1'>
 												{issueMutation.isPending ? (
-													<>
+													<div>
 														<div className='animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2' />
 														Issuing...
-													</>
+													</div>
 												) : (
-													<>
+													<div>
 														<Shield className='h-4 w-4 mr-2' />
 														Issue Credential
-													</>
+													</div>
 												)}
 											</Button>
 											<Button type='button' variant='outline' onClick={() => setActiveTab('preview')}>

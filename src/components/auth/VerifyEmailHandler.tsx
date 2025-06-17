@@ -64,13 +64,13 @@ export function VerifyEmailHandler({token}: VerifyEmailHandlerProps) {
 						<Skeleton className='h-4 w-1/2 mx-auto' />
 					</div>
 				) : (
-					<>
+					<div>
 						{message && <p className={`text-sm ${isError ? 'text-red-500' : 'text-green-600'}`}>{message}</p>}
 						{!isError && <p className='text-sm text-muted-foreground'>You can now sign in with your verified email address.</p>}
 						<Button asChild>
 							<Link href='/login'>Go to Sign In</Link>
 						</Button>
-					</>
+					</div>
 				)}
 			</CardContent>
 		</Card>

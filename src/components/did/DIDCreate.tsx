@@ -302,7 +302,7 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 
 							{/* Method-specific configuration */}
 							{form.method === 'web' && (
-								<>
+								<div>
 									<div className='space-y-2'>
 										<Label htmlFor='domain'>Domain *</Label>
 										<Input id='domain' placeholder='example.com' value={form.domain || ''} onChange={(e) => setForm((prev) => ({...prev, domain: e.target.value}))} />
@@ -311,11 +311,11 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 										<Label htmlFor='path'>Path (optional)</Label>
 										<Input id='path' placeholder='users/alice' value={form.path || ''} onChange={(e) => setForm((prev) => ({...prev, path: e.target.value}))} />
 									</div>
-								</>
+								</div>
 							)}
 
 							{form.method === 'ethr' && (
-								<>
+								<div>
 									<div className='space-y-2'>
 										<Label htmlFor='ethereumAddress'>Ethereum Address *</Label>
 										<Input id='ethereumAddress' placeholder='0x...' value={form.ethereumAddress || ''} onChange={(e) => setForm((prev) => ({...prev, ethereumAddress: e.target.value}))} />
@@ -334,7 +334,7 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 											</SelectContent>
 										</Select>
 									</div>
-								</>
+								</div>
 							)}
 
 							{form.method === 'peer' && (

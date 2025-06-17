@@ -1,6 +1,6 @@
 'use client'
 
-import React, { Suspense } from 'react'
+import React, {Suspense} from 'react'
 import {useRouter, useSearchParams} from 'next/navigation'
 import {ShieldX, ArrowLeft, Home, RefreshCw, AlertTriangle, Info} from 'lucide-react'
 import {Button} from '@/components/ui/button'
@@ -103,16 +103,16 @@ function PermissionDeniedPageContent() {
 						<AlertDescription>
 							<strong>Requested Resource:</strong> {requestedPath}
 							{requiredPermission && (
-								<>
+								<div>
 									<br />
 									<strong>Required Permission:</strong> {requiredPermission}
-								</>
+								</div>
 							)}
 							{requiredRole && (
-								<>
+								<div>
 									<br />
 									<strong>Required Role:</strong> {requiredRole}
-								</>
+								</div>
 							)}
 						</AlertDescription>
 					</Alert>
@@ -124,10 +124,10 @@ function PermissionDeniedPageContent() {
 							<AlertDescription>
 								<strong>Current User:</strong> {user.email}
 								{currentTenantId && (
-									<>
+									<div>
 										<br />
 										<strong>Organization:</strong> {currentTenantId}
-									</>
+									</div>
 								)}
 							</AlertDescription>
 						</Alert>

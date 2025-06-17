@@ -138,7 +138,7 @@ export function PermissionGuard({children, permission, permissions, role, roles,
 	// Loading state
 	if (loading) {
 		if (loadingComponent) {
-			return <>{loadingComponent}</>
+			return loadingComponent
 		}
 
 		return (
@@ -154,7 +154,7 @@ export function PermissionGuard({children, permission, permissions, role, roles,
 	// Error state
 	if (error) {
 		if (errorComponent) {
-			return <>{errorComponent}</>
+			return errorComponent
 		}
 
 		if (silentFail) {
@@ -182,7 +182,7 @@ export function PermissionGuard({children, permission, permissions, role, roles,
 
 	// Access granted
 	if (accessResult.hasAccess) {
-		return <>{children}</>
+		return children
 	}
 
 	// Access denied
@@ -191,7 +191,7 @@ export function PermissionGuard({children, permission, permissions, role, roles,
 	}
 
 	if (accessDeniedComponent) {
-		return <>{accessDeniedComponent}</>
+		return accessDeniedComponent
 	}
 
 	return (

@@ -13,15 +13,7 @@ import {Key, Globe, Coins, Network, Users, Save, RefreshCw, Info, Edit} from 'lu
 import {Alert, AlertDescription, AlertTitle} from '@/components/ui/alert'
 import {Separator} from '@/components/ui/separator'
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog'
-import {
-	getMethodConfigurations,
-	getNetworkConfigurations,
-	updateMethodConfigurations,
-	setDefaultMethod,
-	toggleMethodEnabled,
-	type DIDMethodConfig,
-	type NetworkConfig
-} from '@/services/didMethodService'
+import {getMethodConfigurations, getNetworkConfigurations, updateMethodConfigurations, setDefaultMethod, toggleMethodEnabled, type DIDMethodConfig, type NetworkConfig} from '@/services/didMethodService'
 
 // Types are now imported from didMethodService
 
@@ -38,12 +30,9 @@ export default function DIDMethodConfiguration() {
 		const fetchConfigurations = async () => {
 			try {
 				setLoading(true)
-				
+
 				// Fetch actual data from API
-				const [methodsResponse, networksResponse] = await Promise.all([
-					getMethodConfigurations(),
-					getNetworkConfigurations()
-				])
+				const [methodsResponse, networksResponse] = await Promise.all([getMethodConfigurations(), getNetworkConfigurations()])
 
 				setMethods(methodsResponse.methods)
 				setNetworks(networksResponse.networks)
@@ -62,11 +51,11 @@ export default function DIDMethodConfiguration() {
 	const handleSaveConfiguration = async () => {
 		try {
 			setSaving(true)
-			
+
 			// Update configurations via API
-			const updatedMethods = await updateMethodConfigurations({ methods })
+			const updatedMethods = await updateMethodConfigurations({methods})
 			setMethods(updatedMethods.methods)
-			
+
 			// Show success message
 			console.log('Configurations saved successfully')
 			// You can add toast notification here for user feedback
@@ -81,10 +70,10 @@ export default function DIDMethodConfiguration() {
 	// Toggle method enabled state
 	const handleToggleMethodEnabled = async (methodId: string) => {
 		try {
-			const method = methods.find(m => m.id === methodId)
+			const method = methods.find((m) => m.id === methodId)
 			if (!method) return
-			
-			const updatedMethod = await toggleMethodEnabled({ id: methodId, enabled: !method.enabled })
+
+			const updatedMethod = await toggleMethodEnabled({id: methodId, enabled: !method.enabled})
 			setMethods((prev) => prev.map((m) => (m.id === methodId ? updatedMethod : m)))
 		} catch (error) {
 			console.error('Failed to toggle method enabled state:', error)
@@ -95,7 +84,7 @@ export default function DIDMethodConfiguration() {
 	// Set default method
 	const handleSetDefaultMethod = async (methodId: string) => {
 		try {
-			await setDefaultMethod({ id: methodId })
+			await setDefaultMethod({id: methodId})
 			// Update all methods - set the selected one as default and others as non-default
 			setMethods((prev) =>
 				prev.map((method) => ({
@@ -215,7 +204,7 @@ export default function DIDMethodConfiguration() {
 										</div>
 
 										{method.enabled && (
-											<>
+											<div>
 												<div className='flex items-center justify-between'>
 													<Label htmlFor={`default-${method.id}`}>Set as Default</Label>
 													<Switch id={`default-${method.id}`} checked={method.default} onCheckedChange={() => handleSetDefaultMethod(method.id)} />
@@ -247,7 +236,7 @@ export default function DIDMethodConfiguration() {
 														Configure
 													</Button>
 												</div>
-											</>
+											</div>
 										)}
 									</div>
 								</CardContent>

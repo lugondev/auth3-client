@@ -66,7 +66,7 @@ export function PermissionGuard({children, permission, permissions = [], require
 
 	// Show loading state
 	if (permissionsLoading) {
-		return loading ? <>{loading}</> : null
+		return loading ? loading : null
 	}
 
 	// Show error state if requested
@@ -75,7 +75,7 @@ export function PermissionGuard({children, permission, permissions = [], require
 	}
 
 	// Return children if access is granted, otherwise return fallback
-	return hasAccess ? <>{children}</> : <>{fallback}</>
+	return hasAccess ? children : fallback
 }
 
 // Convenience component for simple permission checks

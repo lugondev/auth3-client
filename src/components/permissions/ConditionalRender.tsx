@@ -20,21 +20,7 @@ interface ConditionalRenderProps {
 	onAccessDenied?: () => void // Callback when access is denied
 }
 
-export function ConditionalRender({
-	children,
-	permission,
-	permissions = [],
-	requireAll = false,
-	role,
-	roles = [],
-	requireAllRoles = false,
-	fallback = null,
-	showFallback = true,
-	invert = false,
-	loadingFallback = null,
-	onAccessGranted,
-	onAccessDenied,
-}: ConditionalRenderProps) {
+export function ConditionalRender({children, permission, permissions = [], requireAll = false, role, roles = [], requireAllRoles = false, fallback = null, showFallback = true, invert = false, loadingFallback = null, onAccessGranted, onAccessDenied}: ConditionalRenderProps) {
 	const {hasPermission, hasRole, loading} = usePermissions()
 	const {isSystemAdmin} = useAuth()
 
@@ -58,7 +44,7 @@ export function ConditionalRender({
 	const hasRequiredPermissions = React.useMemo(() => {
 		// System admin bypasses all permission checks
 		if (isSystemAdmin) return true
-		
+
 		if (permissionChecks.length === 0) return true
 
 		if (requireAll) {
@@ -72,7 +58,7 @@ export function ConditionalRender({
 	const hasRequiredRoles = React.useMemo(() => {
 		// System admin bypasses all role checks
 		if (isSystemAdmin) return true
-		
+
 		if (roleChecks.length === 0) return true
 
 		if (requireAllRoles) {
@@ -91,7 +77,7 @@ export function ConditionalRender({
 	// Handle callbacks
 	React.useEffect(() => {
 		if (loading) return
-		
+
 		if (hasAccess && onAccessGranted) {
 			onAccessGranted()
 		} else if (!hasAccess && onAccessDenied) {
@@ -101,23 +87,20 @@ export function ConditionalRender({
 
 	// Show loading state
 	if (loading) {
-		return loadingFallback ? <>{loadingFallback}</> : null
+		return loadingFallback ? loadingFallback : null
 	}
 
 	// Render based on access
 	if (shouldRender) {
-		return <>{children}</>
+		return children
 	}
 
 	// Show fallback or nothing
-	return showFallback ? <>{fallback}</> : null
+	return showFallback ? fallback : null
 }
 
 // Convenience components for common use cases
-export function ShowWithPermission({
-	children,
-	...props
-}: Omit<ConditionalRenderProps, 'invert'>) {
+export function ShowWithPermission({children, ...props}: Omit<ConditionalRenderProps, 'invert'>) {
 	return (
 		<ConditionalRender {...props} invert={false}>
 			{children}
@@ -125,10 +108,7 @@ export function ShowWithPermission({
 	)
 }
 
-export function HideWithPermission({
-	children,
-	...props
-}: Omit<ConditionalRenderProps, 'invert'>) {
+export function HideWithPermission({children, ...props}: Omit<ConditionalRenderProps, 'invert'>) {
 	return (
 		<ConditionalRender {...props} invert={true}>
 			{children}
@@ -137,14 +117,7 @@ export function HideWithPermission({
 }
 
 // Hook for conditional logic in components
-export function useConditionalAccess({
-	permission,
-	permissions = [],
-	requireAll = false,
-	role,
-	roles = [],
-	requireAllRoles = false,
-}: Omit<ConditionalRenderProps, 'children' | 'fallback' | 'showFallback' | 'invert' | 'loadingFallback' | 'onAccessGranted' | 'onAccessDenied'>) {
+export function useConditionalAccess({permission, permissions = [], requireAll = false, role, roles = [], requireAllRoles = false}: Omit<ConditionalRenderProps, 'children' | 'fallback' | 'showFallback' | 'invert' | 'loadingFallback' | 'onAccessGranted' | 'onAccessDenied'>) {
 	const {hasPermission, hasRole, loading} = usePermissions()
 	const {isSystemAdmin} = useAuth()
 

@@ -228,7 +228,7 @@ interface OAuth2ClientFormProps {
 
 const OAuth2ClientForm: React.FC<OAuth2ClientFormProps> = ({clientData, onSubmit, onChange, onDataChange, submitLabel, errorMessage, showCancel = false, onCancel, isLoading = false}) => {
 	return (
-		<>
+		<div>
 			{errorMessage && (
 				<Alert variant='destructive' className='mb-4'>
 					<AlertDescription>{errorMessage}</AlertDescription>
@@ -289,7 +289,7 @@ const OAuth2ClientForm: React.FC<OAuth2ClientFormProps> = ({clientData, onSubmit
 					)}
 				</div>
 			</form>
-		</>
+		</div>
 	)
 }
 

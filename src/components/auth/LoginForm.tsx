@@ -386,7 +386,7 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 								<form onSubmit={didAuthForm.handleSubmit(onDidAuthSubmit)} className='space-y-4'>
 									{/* Step 1: DID Input */}
 									{didAuthStep === 'input' && (
-										<>
+										<div>
 											<FormField
 												control={didAuthForm.control}
 												name='did'
@@ -404,12 +404,12 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 													</FormItem>
 												)}
 											/>
-										</>
+										</div>
 									)}
 
 									{/* Step 2: Challenge Display */}
 									{didAuthStep === 'challenge' && didChallenge && (
-										<>
+										<div>
 											<div className='space-y-3'>
 												<div className='p-4 bg-muted rounded-lg'>
 													<h4 className='font-medium mb-2 flex items-center gap-2'>
@@ -424,12 +424,12 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 													</p>
 												</div>
 											</div>
-										</>
+										</div>
 									)}
 
 									{/* Step 3: Signature Input */}
 									{didAuthStep === 'signature' && (
-										<>
+										<div>
 											<FormField
 												control={didAuthForm.control}
 												name='signature'
@@ -447,7 +447,7 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 													</FormItem>
 												)}
 											/>
-										</>
+										</div>
 									)}
 
 									{error && <p className='text-sm text-red-500'>{error}</p>}

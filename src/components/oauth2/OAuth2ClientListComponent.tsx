@@ -142,17 +142,7 @@ const OAuth2ClientListComponent: React.FC = () => {
 									</div>
 									<div className='flex flex-col gap-1'>
 										<Badge variant={client.is_public ? 'secondary' : 'outline'} className='text-xs'>
-											{client.is_public ? (
-												<>
-													<Unlock className='mr-1 h-3 w-3' />
-													Public
-												</>
-											) : (
-												<>
-													<Lock className='mr-1 h-3 w-3' />
-													Private
-												</>
-											)}
+											{client.is_public ? [<Unlock key='icon' className='mr-1 h-3 w-3' />, 'Public'] : [<Lock key='icon' className='mr-1 h-3 w-3' />, 'Private']}
 										</Badge>
 									</div>
 								</div>

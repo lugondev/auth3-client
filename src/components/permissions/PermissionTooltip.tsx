@@ -16,17 +16,7 @@ interface PermissionTooltipProps {
 	showTooltip?: boolean // Force show/hide tooltip
 }
 
-export function PermissionTooltip({
-	children,
-	permission,
-	permissions = [],
-	requireAll = false,
-	role,
-	roles = [],
-	requireAllRoles = false,
-	customMessage,
-	showTooltip = true,
-}: PermissionTooltipProps) {
+export function PermissionTooltip({children, permission, permissions = [], requireAll = false, role, roles = [], requireAllRoles = false, customMessage, showTooltip = true}: PermissionTooltipProps) {
 	const {hasPermission, hasRole} = usePermissions()
 
 	// Build permission checks array
@@ -115,16 +105,14 @@ export function PermissionTooltip({
 
 	// Don't show tooltip if access is granted or showTooltip is false
 	if (!showTooltip || hasAccess || !tooltipMessage) {
-		return <>{children}</>
+		return children
 	}
 
 	return (
 		<Tooltip>
-			<TooltipTrigger asChild>
-				{children}
-			</TooltipTrigger>
+			<TooltipTrigger asChild>{children}</TooltipTrigger>
 			<TooltipContent>
-				<p className="text-sm">{tooltipMessage}</p>
+				<p className='text-sm'>{tooltipMessage}</p>
 			</TooltipContent>
 		</Tooltip>
 	)

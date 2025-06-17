@@ -222,7 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 	// Check if a parent link has an active child
 	const hasActiveChild = (link: NavLink): boolean => {
 		if (!link.children) return false
-		return link.children.some(child => {
+		return link.children.some((child) => {
 			if (isLinkActive(child.href)) return true
 			if (child.children) return hasActiveChild(child)
 			return false
@@ -378,23 +378,12 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 						const linkKey = link.href !== '#' ? link.href : `${link.label}-${linkIndex}`
 
 						const linkContent = (
-							<>
+							<ul>
 								{link.isCollapsible ? (
 									<li>
-										<button 
-											onClick={() => toggleMenu(linkKey)} 
-											className={cn(
-												'flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', 
-												hasLinkAccess ? 'hover:bg-gray-700 text-white' : 'text-gray-500 cursor-not-allowed',
-												(isLinkActive(link.href) || hasActiveChild(link)) && hasLinkAccess ? 'bg-gray-700 font-medium' : ''
-											)} 
-											disabled={!hasLinkAccess}
-										>
+										<button onClick={() => toggleMenu(linkKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasLinkAccess ? 'hover:bg-gray-700 text-white' : 'text-gray-500 cursor-not-allowed', (isLinkActive(link.href) || hasActiveChild(link)) && hasLinkAccess ? 'bg-gray-700 font-medium' : '')} disabled={!hasLinkAccess}>
 											<div className='flex items-center space-x-3'>
-												{hasLinkAccess ? 
-													<IconComponent className={cn('h-5 w-5', (isLinkActive(link.href) || hasActiveChild(link)) ? 'text-blue-400' : '')} /> : 
-													<Lock className='h-5 w-5' />
-												}
+												{hasLinkAccess ? <IconComponent className={cn('h-5 w-5', isLinkActive(link.href) || hasActiveChild(link) ? 'text-blue-400' : '')} /> : <Lock className='h-5 w-5' />}
 												{!isCollapsed && <span>{link.label}</span>}
 											</div>
 											{hasLinkAccess && !isCollapsed && (openMenus[linkKey] ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
@@ -414,21 +403,10 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 													const childContent = (
 														<li>
 															{childLink.isCollapsible && childLink.children ? (
-																<>
-																	<button 
-																		onClick={() => toggleSubmenu(submenuKey)} 
-																		className={cn(
-																			'flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', 
-																			hasChildAccess ? 'hover:bg-gray-600 text-white' : 'text-gray-500 cursor-not-allowed',
-																			(isChildActive || hasChildActiveChild) && hasChildAccess ? 'bg-gray-600 font-medium' : ''
-																		)} 
-																		disabled={!hasChildAccess}
-																	>
+																<div>
+																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasChildAccess ? 'hover:bg-gray-600 text-white' : 'text-gray-500 cursor-not-allowed', (isChildActive || hasChildActiveChild) && hasChildAccess ? 'bg-gray-600 font-medium' : '')} disabled={!hasChildAccess}>
 																		<div className='flex items-center space-x-3'>
-																			{hasChildAccess ? 
-																				<ChildIconComponent className={cn('h-5 w-5', (isChildActive || hasChildActiveChild) ? 'text-blue-400' : '')} /> : 
-																				<Lock className='h-5 w-5' />
-																			}
+																			{hasChildAccess ? <ChildIconComponent className={cn('h-5 w-5', isChildActive || hasChildActiveChild ? 'text-blue-400' : '')} /> : <Lock className='h-5 w-5' />}
 																			<span>{childLink.label}</span>
 																		</div>
 																		{hasChildAccess && (isSubmenuOpen ? <ChevronDown className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />)}
@@ -445,13 +423,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 																				const grandchildContent = (
 																					<li>
 																						{hasGrandchildAccess ? (
-																							<Link 
-																								href={grandchildLink.href} 
-																								className={cn(
-																									'flex items-center space-x-3 py-2 px-3 hover:bg-gray-600 rounded text-white text-sm transition-colors duration-200',
-																									isGrandchildActive ? 'bg-gray-600 font-medium' : ''
-																								)}
-																							>
+																							<Link href={grandchildLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-gray-600 rounded text-white text-sm transition-colors duration-200', isGrandchildActive ? 'bg-gray-600 font-medium' : '')}>
 																								<GrandchildIconComponent className={cn('h-4 w-4', isGrandchildActive ? 'text-blue-400' : '')} />
 																								<span>{grandchildLink.label}</span>
 																							</Link>
@@ -477,15 +449,9 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 																			})}
 																		</ul>
 																	)}
-																</>
+																</div>
 															) : hasChildAccess ? (
-																<Link 
-																	href={childLink.href} 
-																	className={cn(
-																		'flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200',
-																		isChildActive ? 'bg-gray-700 font-medium' : ''
-																	)}
-																>
+																<Link href={childLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200', isChildActive ? 'bg-gray-700 font-medium' : '')}>
 																	<ChildIconComponent className={cn('h-5 w-5', isChildActive ? 'text-blue-400' : '')} />
 																	<span>{childLink.label}</span>
 																</Link>
@@ -515,13 +481,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 								) : (
 									<li>
 										{hasLinkAccess ? (
-											<Link 
-												href={link.href} 
-												className={cn(
-													'flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200',
-													isLinkActive(link.href) ? 'bg-gray-700 font-medium' : ''
-												)}
-											>
+											<Link href={link.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200', isLinkActive(link.href) ? 'bg-gray-700 font-medium' : '')}>
 												<IconComponent className={cn('h-5 w-5', isLinkActive(link.href) ? 'text-blue-400' : '')} />
 												{!isCollapsed && <span>{link.label}</span>}
 											</Link>
@@ -533,7 +493,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 										)}
 									</li>
 								)}
-							</>
+							</ul>
 						)
 
 						// Wrap with tooltip if access is denied or if collapsed

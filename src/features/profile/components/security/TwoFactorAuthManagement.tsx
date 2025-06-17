@@ -203,12 +203,12 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 
 			{/* Content based on stage */}
 			{stage === 'idle' && !isEnabled && (
-				<>
+				<div>
 					<p className='text-sm text-muted-foreground'>Add an extra layer of security to your account using an authenticator app.</p>
 					<Button onClick={handleGenerateSecret} disabled={isLoading} size='sm' className='hover:bg-gray-700'>
 						{isLoading ? 'Generating...' : 'Enable 2FA'}
 					</Button>
-				</>
+				</div>
 			)}
 
 			{stage === 'generating' && (

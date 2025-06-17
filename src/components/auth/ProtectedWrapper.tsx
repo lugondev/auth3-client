@@ -29,7 +29,7 @@ export default function ProtectedWrapper({children}: {children: React.ReactNode}
 	// During initial auth check, render children to maintain layout
 	// The layout components will handle their own loading states
 	if (isCheckingAuth) {
-		return <>{children}</>
+		return children
 	}
 
 	// Not authenticated and not loading anymore - layout components will handle redirection
@@ -37,5 +37,5 @@ export default function ProtectedWrapper({children}: {children: React.ReactNode}
 		return null
 	}
 
-	return <>{children}</>
+	return children
 }

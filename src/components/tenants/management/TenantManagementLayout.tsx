@@ -205,31 +205,31 @@ export function TenantManagementLayout({titlePrefix, informationDescription, loa
 
 			{/* Additional Content */}
 			{additionalContent && (
-				<>
+				<div>
 					<Separator />
 					{additionalContent}
-				</>
+				</div>
 			)}
 
 			{/* Ownership and Delete Sections */}
 			{renderOwnershipSections ? (
 				renderOwnershipSections(tenant)
 			) : (
-				<>
+				<div>
 					{showTransferOwnership && (
-						<>
+						<div>
 							<Separator />
 							<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
-						</>
+						</div>
 					)}
 
 					{showDeleteSection && (
-						<>
+						<div>
 							<Separator />
 							<DeleteTenantSection tenant={tenant} onDeleteInitiated={() => setIsDeleteModalOpen(true)} isDeleting={deleteTenantMutation.isPending} />
-						</>
+						</div>
 					)}
-				</>
+				</div>
 			)}
 		</div>
 	)

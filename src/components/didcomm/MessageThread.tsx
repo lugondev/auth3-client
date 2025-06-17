@@ -266,13 +266,7 @@ export function MessageThread({threadId, connectionDid, myDid, showCompose = tru
 
 										{/* Message Content */}
 										<div className={cn('rounded-lg px-3 py-2 text-sm', isFromMe ? 'bg-primary text-primary-foreground' : 'bg-muted')}>
-											{typeof message.body === 'string' ? (
-												<p className='whitespace-pre-wrap'>{message.body}</p>
-											) : (
-												message.body && typeof message.body === 'object' && 'content' in message.body && typeof message.body.content === 'string' && (
-													<p className='whitespace-pre-wrap'>{message.body.content}</p>
-												)
-											)}
+											{typeof message.body === 'string' ? <p className='whitespace-pre-wrap'>{message.body}</p> : message.body && typeof message.body === 'object' && 'content' in message.body && typeof message.body.content === 'string' && <p className='whitespace-pre-wrap'>{message.body.content}</p>}
 
 											{/* Attachments */}
 											{message.attachments && message.attachments.length > 0 && (
@@ -308,7 +302,7 @@ export function MessageThread({threadId, connectionDid, myDid, showCompose = tru
 
 			{/* Compose Area */}
 			{showCompose && (
-				<>
+				<div>
 					<Separator />
 					<div className='p-4 space-y-3'>
 						{/* Attachments Preview */}
@@ -355,7 +349,7 @@ export function MessageThread({threadId, connectionDid, myDid, showCompose = tru
 							</Button>
 						</div>
 					</div>
-				</>
+				</div>
 			)}
 		</Card>
 	)

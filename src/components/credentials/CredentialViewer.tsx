@@ -103,15 +103,15 @@ export function CredentialViewer({credential, className = '', showActions = true
 						<div className='flex gap-2'>
 							<Button variant='outline' size='sm' onClick={() => setShowRawJson(!showRawJson)}>
 								{showRawJson ? (
-									<>
+									<div>
 										<EyeOff className='h-4 w-4 mr-2' />
 										Hide JSON
-									</>
+									</div>
 								) : (
-									<>
+									<div>
 										<Eye className='h-4 w-4 mr-2' />
 										Show JSON
-									</>
+									</div>
 								)}
 							</Button>
 							<Button variant='outline' size='sm' onClick={copyCredential}>
@@ -279,7 +279,7 @@ export function CredentialViewer({credential, className = '', showActions = true
 								</div>
 
 								{typeof credential.issuer === 'object' && (
-									<>
+									<div>
 										<Separator />
 										<div className='space-y-3'>
 											<Label className='text-sm font-medium text-muted-foreground'>Additional Issuer Details</Label>
@@ -294,7 +294,7 @@ export function CredentialViewer({credential, className = '', showActions = true
 													))}
 											</div>
 										</div>
-									</>
+									</div>
 								)}
 							</div>
 						</TabsContent>

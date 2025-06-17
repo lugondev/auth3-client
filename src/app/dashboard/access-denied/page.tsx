@@ -101,15 +101,15 @@ function AccessDeniedPageContent() {
 					<div className='flex flex-col space-y-3'>
 						<Button onClick={handleRefreshPermissions} disabled={loading} variant='default' className='w-full'>
 							{loading ? (
-								<>
+								<div>
 									<RefreshCw className='mr-2 h-4 w-4 animate-spin' />
 									Refreshing...
-								</>
+								</div>
 							) : (
-								<>
+								<div>
 									<RefreshCw className='mr-2 h-4 w-4' />
 									Refresh Permissions
-								</>
+								</div>
 							)}
 						</Button>
 
