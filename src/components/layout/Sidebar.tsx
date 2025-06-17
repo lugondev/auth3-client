@@ -21,6 +21,8 @@ import {
 	MessageSquare, // For messages
 	Plus, // For create actions
 	Eye, // For view actions
+	ChevronsLeft, // For sidebar collapse
+	ChevronsRight, // For sidebar expand
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -40,6 +42,11 @@ interface SidebarProps {
 	type?: 'system' | 'user' // Added 'user' type
 	tenantId?: string // Only for tenant type
 	tenantName?: string // Only for tenant type
+	initialWidth?: number // Initial width of sidebar
+	minWidth?: number // Minimum width when collapsed
+	maxWidth?: number // Maximum width when expanded
+	resizeTransitionDuration?: number // Duration of resize transition in ms
+	onWidthChange?: (width: number) => void // Callback when sidebar width changes
 }
 
 const systemAdminLinks: NavLink[] = [
@@ -171,10 +178,31 @@ const userLinks: NavLink[] = [
 	},
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({type}) => {
+const Sidebar: React.FC<SidebarProps> = ({
+	type, 
+	initialWidth = 256, 
+	minWidth = 80, 
+	maxWidth = 320,
+	resizeTransitionDuration = 150,
+	onWidthChange
+}) => {
 	const [openAdminMenu, setOpenAdminMenu] = React.useState(true)
 	const [openSubmenus, setOpenSubmenus] = React.useState<Record<string, boolean>>({})
+	const [sidebarWidth, setSidebarWidth] = React.useState(initialWidth)
+	const [isCollapsed, setIsCollapsed] = React.useState(false)
+	const [isResizing, setIsResizing] = React.useState(false)
 	const {hasPermission, hasRole} = usePermissions()
+	
+	// Reference for tracking resize
+	const sidebarRef = React.useRef<HTMLDivElement>(null)
+	const resizingRef = React.useRef(false)
+	const startXRef = React.useRef(0)
+	const startWidthRef = React.useRef(0)
+
+	// Update parent component when sidebar width changes
+	React.useEffect(() => {
+		onWidthChange?.(sidebarWidth)
+	}, [sidebarWidth, onWidthChange])
 
 	const toggleAdminMenu = () => {
 		setOpenAdminMenu(!openAdminMenu)
@@ -186,6 +214,73 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 			[key]: !prev[key],
 		}))
 	}
+
+	// Toggle sidebar collapse state
+	const toggleCollapse = () => {
+		if (isCollapsed) {
+			// Expand to previous width or default
+			setSidebarWidth(Math.max(initialWidth, minWidth))
+			setIsCollapsed(false)
+		} else {
+			// Collapse to minimum width
+			setSidebarWidth(minWidth)
+			setIsCollapsed(true)
+		}
+	}
+
+	// Start resize with improved handling
+	const startResize = (e: React.MouseEvent) => {
+		e.preventDefault() // Prevent text selection during resize
+		resizingRef.current = true
+		startXRef.current = e.clientX
+		startWidthRef.current = sidebarWidth
+		setIsResizing(true)
+		
+		// Add event listeners
+		document.addEventListener('mousemove', handleResize)
+		document.addEventListener('mouseup', stopResize)
+		
+		// Add cursor styles to entire document during resize
+		document.body.style.cursor = 'ew-resize'
+		document.body.style.userSelect = 'none' // Prevent text selection
+	}
+	
+	// Handle resize with throttling for better performance
+	const handleResize = React.useCallback((e: MouseEvent) => {
+		if (!resizingRef.current) return
+		
+		// Calculate new width based on mouse movement
+		const deltaX = e.clientX - startXRef.current
+		const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidthRef.current + deltaX))
+		
+		// Update width and collapsed state
+		setSidebarWidth(newWidth)
+		setIsCollapsed(newWidth <= minWidth + 20) // Consider collapsed if near min width
+	}, [minWidth, maxWidth])
+	
+	// Stop resize with cleanup
+	const stopResize = React.useCallback(() => {
+		resizingRef.current = false
+		setIsResizing(false)
+		
+		// Remove event listeners
+		document.removeEventListener('mousemove', handleResize)
+		document.removeEventListener('mouseup', stopResize)
+		
+		// Reset cursor styles
+		document.body.style.cursor = ''
+		document.body.style.userSelect = ''
+	}, [handleResize])
+	
+	// Cleanup event listeners on unmount
+	React.useEffect(() => {
+		return () => {
+			document.removeEventListener('mousemove', handleResize)
+			document.removeEventListener('mouseup', stopResize)
+			document.body.style.cursor = ''
+			document.body.style.userSelect = ''
+		}
+	}, [handleResize, stopResize])
 
 	// Check if user has access to a nav link
 	const hasAccess = (link: NavLink): boolean => {
@@ -237,23 +332,39 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 		return 'Menu' // Default title
 	})()
 
-	// The actual visibility of the sidebar (especially on mobile) is controlled by AppShell.
-	// This component might use `isOpen` for internal styling or animations if needed in the future.
-	// For now, we just ensure the prop is accepted.
-
-	// Tailwind classes for the sidebar container.
-	// The actual visibility (especially on mobile) is controlled by AppShell.
-	// `isOpen` might be used here for conditional styling if needed.
-	const sidebarClasses = `
-    h-full flex flex-col 
-    bg-gray-800 text-white 
-    p-4 space-y-2
-  `
-	// Removed w-64 as width is handled by the parent div in AppShell
+	// Tailwind classes for the sidebar container
+	const sidebarClasses = cn(
+		'h-full flex flex-col bg-gray-800 text-white p-4 space-y-2 relative',
+		isCollapsed ? 'items-center' : '',
+		isResizing ? '' : `transition-all duration-${resizeTransitionDuration}`
+	)
 
 	return (
-		<aside className={sidebarClasses}>
-			<h2 className='text-xl font-semibold mb-4'>{title}</h2>
+		<aside 
+			ref={sidebarRef}
+			className={sidebarClasses} 
+			style={{ width: `${sidebarWidth}px` }}
+		>
+			{/* Resize handle - improved for better UX */}
+			<div 
+				className="absolute top-0 right-0 w-4 h-full cursor-ew-resize z-20 group"
+				onMouseDown={startResize}
+			>
+				<div className="absolute top-0 right-0 w-1 h-full bg-gray-700 group-hover:bg-blue-500 group-hover:w-2 transition-all duration-200" />
+			</div>
+			
+			{/* Collapse/Expand button */}
+			<div className="absolute top-4 right-2 z-10">
+				<button 
+					onClick={toggleCollapse}
+					className="p-1 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-colors duration-200"
+					title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+				>
+					{isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
+				</button>
+			</div>
+			
+			<h2 className={cn('text-xl font-semibold mb-4', isCollapsed ? 'sr-only' : '')}>{title}</h2>
 			<nav className='flex-grow overflow-y-auto'>
 				{' '}
 				{/* Added flex-grow and overflow for long lists */}
@@ -268,14 +379,14 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 							<>
 								{link.isCollapsible ? (
 									<li>
-										<button onClick={toggleAdminMenu} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none', hasLinkAccess ? 'hover:bg-gray-700 text-white' : 'text-gray-500 cursor-not-allowed')} disabled={!hasLinkAccess}>
+										<button onClick={toggleAdminMenu} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasLinkAccess ? 'hover:bg-gray-700 text-white' : 'text-gray-500 cursor-not-allowed')} disabled={!hasLinkAccess}>
 											<div className='flex items-center space-x-3'>
 												{hasLinkAccess ? <IconComponent className='h-5 w-5' /> : <Lock className='h-5 w-5' />}
-												<span>{link.label}</span>
+												{!isCollapsed && <span>{link.label}</span>}
 											</div>
-											{hasLinkAccess && (openAdminMenu ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
+											{hasLinkAccess && !isCollapsed && (openAdminMenu ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
 										</button>
-										{openAdminMenu && link.children && hasLinkAccess && (
+										{openAdminMenu && link.children && hasLinkAccess && !isCollapsed && (
 											<ul className='pl-4 mt-1'>
 												{link.children.map((childLink, childIndex) => {
 													const ChildIconComponent = childLink.icon
@@ -289,7 +400,7 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 														<li>
 															{childLink.isCollapsible && childLink.children ? (
 																<>
-																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none', hasChildAccess ? 'hover:bg-gray-600 text-white' : 'text-gray-500 cursor-not-allowed')} disabled={!hasChildAccess}>
+																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasChildAccess ? 'hover:bg-gray-600 text-white' : 'text-gray-500 cursor-not-allowed')} disabled={!hasChildAccess}>
 																		<div className='flex items-center space-x-3'>
 																			{hasChildAccess ? <ChildIconComponent className='h-5 w-5' /> : <Lock className='h-5 w-5' />}
 																			<span>{childLink.label}</span>
@@ -307,7 +418,7 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 																				const grandchildContent = (
 																					<li>
 																						{hasGrandchildAccess ? (
-																							<Link href={grandchildLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-600 rounded text-white text-sm'>
+																							<Link href={grandchildLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-600 rounded text-white text-sm transition-colors duration-200'>
 																								<GrandchildIconComponent className='h-4 w-4' />
 																								<span>{grandchildLink.label}</span>
 																							</Link>
@@ -335,7 +446,7 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 																	)}
 																</>
 															) : hasChildAccess ? (
-																<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white'>
+																<Link href={childLink.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200'>
 																	<ChildIconComponent className='h-5 w-5' />
 																	<span>{childLink.label}</span>
 																</Link>
@@ -365,14 +476,14 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 								) : (
 									<li>
 										{hasLinkAccess ? (
-											<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white'>
+											<Link href={link.href} className='flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200'>
 												<IconComponent className='h-5 w-5' />
-												<span>{link.label}</span>
+												{!isCollapsed && <span>{link.label}</span>}
 											</Link>
 										) : (
 											<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed'>
 												<Lock className='h-5 w-5' />
-												<span>{link.label}</span>
+												{!isCollapsed && <span>{link.label}</span>}
 											</div>
 										)}
 									</li>
@@ -380,12 +491,15 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 							</>
 						)
 
-						// Wrap with tooltip if access is denied
-						return tooltipMessage ? (
+						// Wrap with tooltip if access is denied or if collapsed
+						const shouldShowTooltip = tooltipMessage || isCollapsed
+						const tooltipText = tooltipMessage || (isCollapsed ? link.label : '')
+						
+						return shouldShowTooltip ? (
 							<Tooltip key={linkKey}>
 								<TooltipTrigger asChild>{linkContent}</TooltipTrigger>
 								<TooltipContent>
-									<p>{tooltipMessage}</p>
+									<p>{tooltipText}</p>
 								</TooltipContent>
 							</Tooltip>
 						) : (

@@ -14,9 +14,15 @@ interface AppShellProps {
 
 const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarType, tenantId, tenantName}) => {
 	const [isSidebarOpen, setIsSidebarOpen] = React.useState(true)
+	const [sidebarWidth, setSidebarWidth] = React.useState(256) // Default sidebar width (w-64 = 256px)
 	const {isAuthenticated, isSystemAdmin, loading: authLoading} = useAuth()
 
 	const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
+
+	// Handle sidebar width change
+	const handleSidebarWidthChange = (width: number) => {
+		setSidebarWidth(width)
+	}
 
 	// Determine the actual sidebar type
 	let actualSidebarType: 'system' | 'user' | undefined = propSidebarType
@@ -44,22 +50,38 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 	const showSidebar = isAuthenticated || authLoading // Show sidebar if authenticated or auth is still loading (to avoid flicker)
 
 	return (
-		<div className='flex h-screen bg-gray-100 dark:bg-gray-900'>
-			{showSidebar && (
-				<>
-					{/* Sidebar: Hidden on mobile by default, visible on md and larger */}
-					<div className={`fixed inset-y-0 left-0 z-30 w-64 transform bg-gray-800 text-white transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-						<Sidebar type={actualSidebarType} tenantId={tenantId} tenantName={tenantName} />
-					</div>
+		<div className='flex h-screen w-screen max-w-full overflow-hidden bg-gray-100 dark:bg-gray-900'>
+			{/* Flex container to ensure sidebar and content are adjacent */}
+			<div className='flex w-full h-full overflow-hidden'>
+				{showSidebar && (
+					<>
+						{/* Sidebar: Hidden on mobile by default, visible on md and larger */}
+						<div 
+							className={`fixed inset-y-0 left-0 z-30 transform bg-gray-800 text-white transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+							style={{ width: `${sidebarWidth}px`, flexShrink: 0, maxWidth: '100vw' }}
+						>
+							<Sidebar 
+								type={actualSidebarType} 
+								tenantId={tenantId} 
+								tenantName={tenantName} 
+								initialWidth={256}
+								minWidth={80}
+								maxWidth={320}
+								onWidthChange={handleSidebarWidthChange}
+							/>
+						</div>
 
-					{/* Overlay for mobile when sidebar is open */}
-					{isSidebarOpen && <div className='fixed inset-0 z-20 bg-black opacity-50 md:hidden' onClick={toggleSidebar}></div>}
-				</>
-			)}
+						{/* Overlay for mobile when sidebar is open */}
+						{isSidebarOpen && <div className='fixed inset-0 z-20 bg-black opacity-50 md:hidden' onClick={toggleSidebar}></div>}
+					</>
+				)}
 
-			<div className='flex flex-1 flex-col overflow-hidden'>
-				<Header onMenuButtonClick={toggleSidebar} />
-				<main className='flex-1 overflow-y-auto overflow-x-hidden bg-gray-100 p-4 dark:bg-gray-900'>{children}</main>
+				<div 
+					className='flex flex-1 flex-col overflow-hidden min-w-0'
+				>
+					<Header onMenuButtonClick={toggleSidebar} />
+					<main className='flex-1 overflow-y-auto overflow-x-hidden bg-gray-100 p-4 dark:bg-gray-900'>{children}</main>
+				</div>
 			</div>
 		</div>
 	)
