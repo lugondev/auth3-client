@@ -88,7 +88,7 @@ export function usePermissionGuard(options: PermissionGuardOptions = {}): Permis
 	const checkAccess = useCallback(async (): Promise<boolean> => {
 		try {
 			setError(null);
-			
+
 			// Check authentication
 			if (!isAuthenticated || !user) {
 				setError('User not authenticated');
@@ -138,7 +138,7 @@ export function usePermissionGuard(options: PermissionGuardOptions = {}): Permis
 			} else {
 				const missingPermissions = permissionChecks.filter(perm => !hasPermission(perm));
 				const missingRoles = roleChecks.filter(r => !hasRole(r));
-				
+
 				let errorMessage = 'Access denied';
 				if (missingPermissions.length > 0) {
 					errorMessage += `. Missing permissions: ${missingPermissions.join(', ')}`;
@@ -146,11 +146,16 @@ export function usePermissionGuard(options: PermissionGuardOptions = {}): Permis
 				if (missingRoles.length > 0) {
 					errorMessage += `. Missing roles: ${missingRoles.join(', ')}`;
 				}
-				
+
 				setError(errorMessage);
 				onAccessDenied?.();
-				
+
 				if (redirectOnDenied) {
+					// Store current URL in sessionStorage before redirecting
+					if (typeof window !== 'undefined') {
+						const currentPath = window.location.pathname + window.location.search;
+						sessionStorage.setItem('previousUrl', currentPath);
+					}
 					router.push(redirectOnDenied);
 				}
 			}

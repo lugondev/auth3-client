@@ -95,18 +95,18 @@ export const withErrorHandling = <TArgs extends readonly unknown[], TReturn>(
  */
 export const getUserFriendlyErrorMessage = (error: ApiError): string => {
 	const errorMessages: Record<string, string> = {
-		'UNAUTHORIZED': 'Bạn cần đăng nhập để thực hiện hành động này',
-		'FORBIDDEN': 'Bạn không có quyền thực hiện hành động này',
-		'NOT_FOUND': 'Không tìm thấy tài nguyên được yêu cầu',
-		'VALIDATION_ERROR': 'Dữ liệu đầu vào không hợp lệ',
-		'CONFLICT': 'Dữ liệu đã tồn tại hoặc xung đột',
-		'RATE_LIMITED': 'Bạn đã thực hiện quá nhiều yêu cầu, vui lòng thử lại sau',
-		'NETWORK_ERROR': 'Lỗi kết nối mạng, vui lòng kiểm tra kết nối internet',
-		'INTERNAL_SERVER_ERROR': 'Lỗi máy chủ nội bộ, vui lòng thử lại sau',
-		'SERVICE_UNAVAILABLE': 'Dịch vụ tạm thời không khả dụng',
+		'UNAUTHORIZED': 'You need to log in to perform this action',
+		'FORBIDDEN': 'You do not have permission to perform this action',
+		'NOT_FOUND': 'The requested resource was not found',
+		'VALIDATION_ERROR': 'Invalid input data',
+		'CONFLICT': 'Data already exists or conflicts',
+		'RATE_LIMITED': 'You have made too many requests, please try again later',
+		'NETWORK_ERROR': 'Network connection error, please check your internet connection',
+		'INTERNAL_SERVER_ERROR': 'Internal server error, please try again later',
+		'SERVICE_UNAVAILABLE': 'Service temporarily unavailable',
 	};
 
-	return errorMessages[error.code] || error.message || 'Đã xảy ra lỗi không xác định';
+	return errorMessages[error.code] || error.message || 'An unexpected error occurred';
 };
 
 export const errorService = {
