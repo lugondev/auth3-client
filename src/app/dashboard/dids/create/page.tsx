@@ -271,7 +271,7 @@ export default function CreateDIDPage() {
 							<Label>Public Key</Label>
 							<div className='flex items-center gap-2 mt-1'>
 								<Input value={generatedKeys.publicKey} readOnly className='font-mono text-sm' />
-								<Button variant='outline' size='sm' onClick={() => copyToClipboard(generatedKeys.publicKey, 'publicKey')}>
+								<Button variant='outline' size='sm' onClick={() => copyToClipboard(generatedKeys.publicKey, 'publicKey')} className='hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 									{copiedField === 'publicKey' ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
 								</Button>
 							</div>
@@ -282,10 +282,10 @@ export default function CreateDIDPage() {
 								<Label>Private Key</Label>
 								<div className='flex items-center gap-2 mt-1'>
 									<Input type={showPrivateKey ? 'text' : 'password'} value={generatedKeys.privateKey} readOnly className='font-mono text-sm' />
-									<Button variant='outline' size='sm' onClick={() => setShowPrivateKey(!showPrivateKey)}>
+									<Button variant='outline' size='sm' onClick={() => setShowPrivateKey(!showPrivateKey)} className='hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-300 dark:hover:border-gray-600 transition-colors'>
 										{showPrivateKey ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
 									</Button>
-									<Button variant='outline' size='sm' onClick={() => copyToClipboard(generatedKeys.privateKey, 'privateKey')}>
+									<Button variant='outline' size='sm' onClick={() => copyToClipboard(generatedKeys.privateKey, 'privateKey')} className='hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 										{copiedField === 'privateKey' ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
 									</Button>
 								</div>
@@ -302,10 +302,10 @@ export default function CreateDIDPage() {
 						)}
 
 						<div className='flex gap-2 pt-4'>
-							<Button onClick={() => router.push('/dashboard/dids')} className='flex-1'>
+							<Button onClick={() => router.push('/dashboard/dids')} className='flex-1 hover:bg-blue-600 dark:hover:bg-blue-800 transition-colors'>
 								Go to DID Dashboard
 							</Button>
-							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(previewDocument?.id || generatedKeys.publicKey)}`)}>
+							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(previewDocument?.id || generatedKeys.publicKey)}`)} className='flex-1 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 								View DID Details
 							</Button>
 						</div>
@@ -333,11 +333,11 @@ export default function CreateDIDPage() {
 								return (
 									<div key={method} className='flex items-center space-x-2'>
 										<RadioGroupItem value={method} id={method} />
-										<Label htmlFor={method} className='flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 flex-1'>
+										<Label htmlFor={method} className='flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 flex-1'>
 											{info.icon}
 											<div>
 												<div className='font-medium'>{info.title}</div>
-												<div className='text-sm text-gray-500'>{info.description}</div>
+												<div className='text-sm text-gray-500 dark:text-gray-400'>{info.description}</div>
 											</div>
 										</Label>
 									</div>
@@ -452,12 +452,12 @@ export default function CreateDIDPage() {
 										placeholder='https://example.com'
 									/>
 								</div>
-								<Button type='button' variant='outline' onClick={() => removeServiceEndpoint(index)}>
+								<Button type='button' variant='outline' onClick={() => removeServiceEndpoint(index)} className='hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800 transition-colors'>
 									Remove
 								</Button>
 							</div>
 						))}
-						<Button type='button' variant='outline' onClick={addServiceEndpoint}>
+						<Button type='button' variant='outline' onClick={addServiceEndpoint} className='hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 							Add Service Endpoint
 						</Button>
 					</CardContent>
@@ -465,10 +465,10 @@ export default function CreateDIDPage() {
 
 				{/* Actions */}
 				<div className='flex gap-4'>
-					<Button type='button' variant='outline' onClick={generatePreview} className='flex-1'>
+					<Button type='button' variant='outline' onClick={generatePreview} className='flex-1 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 						Preview DID Document
 					</Button>
-					<Button type='submit' disabled={loading} className='flex-1'>
+					<Button type='submit' disabled={loading} className='flex-1 hover:bg-blue-600 dark:hover:bg-blue-800 transition-colors'>
 						{loading ? 'Creating...' : 'Create DID'}
 					</Button>
 				</div>
@@ -484,11 +484,11 @@ export default function CreateDIDPage() {
 					<CardContent>
 						<Textarea value={JSON.stringify(previewDocument, null, 2)} readOnly className='font-mono text-sm h-64' />
 						<div className='flex gap-2 mt-4'>
-							<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(previewDocument, null, 2), 'preview')}>
+							<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(previewDocument, null, 2), 'preview')} className='hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 								{copiedField === 'preview' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}
 								Copy
 							</Button>
-							<Button variant='outline' onClick={() => setShowPreview(false)}>
+							<Button variant='outline' onClick={() => setShowPreview(false)} className='hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300 dark:hover:bg-gray-800 dark:hover:text-gray-300 dark:hover:border-gray-600 transition-colors'>
 								Close
 							</Button>
 						</div>

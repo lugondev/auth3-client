@@ -9,7 +9,7 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 
 	return (
 		<ProtectedWrapper>
-			<AppShell sidebarType={isSystemAdmin ? 'system' : 'user'}>{children}</AppShell> // User sidebar
+			<AppShell sidebarType={isSystemAdmin ? 'system' : 'user'}>{children}</AppShell>
 		</ProtectedWrapper>
 	)
 }

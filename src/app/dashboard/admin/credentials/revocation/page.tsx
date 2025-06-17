@@ -177,16 +177,16 @@ export default function RevocationManagementPage() {
 			<div className='flex justify-between items-center'>
 				<div>
 					<h1 className='text-3xl font-bold'>Revocation Management</h1>
-					<p className='text-gray-600 mt-1'>Manage credential revocations and monitor revocation status</p>
+					<p className='text-gray-600 dark:text-gray-300 mt-1'>Manage credential revocations and monitor revocation status</p>
 				</div>
 				<div className='flex gap-2'>
-					<Button variant='outline' className='flex items-center gap-2'>
+					<Button variant='outline' className='flex items-center gap-2 transition-colors hover:bg-green-50 hover:text-green-600 hover:border-green-200 dark:hover:bg-green-900/20 dark:hover:text-green-400 dark:hover:border-green-800'>
 						<Download className='w-4 h-4' />
 						Export Report
 					</Button>
 					<Dialog open={isRevokeDialogOpen} onOpenChange={setIsRevokeDialogOpen}>
 						<DialogTrigger asChild>
-							<Button variant='destructive' className='flex items-center gap-2'>
+							<Button variant='destructive' className='flex items-center gap-2 transition-colors hover:bg-red-600 dark:hover:bg-red-800'>
 								<Ban className='w-4 h-4' />
 								Revoke Credential
 							</Button>
@@ -207,8 +207,8 @@ export default function RevocationManagementPage() {
 					<CardContent className='p-4'>
 						<div className='flex items-center justify-between'>
 							<div>
-								<p className='text-sm text-gray-600'>Total Revoked</p>
-								<p className='text-2xl font-bold'>{mockStats.totalRevoked}</p>
+								<p className='text-sm text-gray-600 dark:text-gray-300'>Total Revoked</p>
+								<p className='text-2xl font-bold dark:text-white'>{mockStats.totalRevoked}</p>
 							</div>
 							<FileX className='w-8 h-8 text-red-500' />
 						</div>
@@ -218,8 +218,8 @@ export default function RevocationManagementPage() {
 					<CardContent className='p-4'>
 						<div className='flex items-center justify-between'>
 							<div>
-								<p className='text-sm text-gray-600'>This Month</p>
-								<p className='text-2xl font-bold text-orange-600'>{mockStats.thisMonth}</p>
+								<p className='text-sm text-gray-600 dark:text-gray-300'>This Month</p>
+								<p className='text-2xl font-bold text-orange-600 dark:text-orange-400'>{mockStats.thisMonth}</p>
 							</div>
 							<Calendar className='w-8 h-8 text-orange-500' />
 						</div>
@@ -229,8 +229,8 @@ export default function RevocationManagementPage() {
 					<CardContent className='p-4'>
 						<div className='flex items-center justify-between'>
 							<div>
-								<p className='text-sm text-gray-600'>This Week</p>
-								<p className='text-2xl font-bold text-yellow-600'>{mockStats.thisWeek}</p>
+								<p className='text-sm text-gray-600 dark:text-gray-300'>This Week</p>
+								<p className='text-2xl font-bold text-yellow-600 dark:text-yellow-400'>{mockStats.thisWeek}</p>
 							</div>
 							<Clock className='w-8 h-8 text-yellow-500' />
 						</div>
@@ -240,8 +240,8 @@ export default function RevocationManagementPage() {
 					<CardContent className='p-4'>
 						<div className='flex items-center justify-between'>
 							<div>
-								<p className='text-sm text-gray-600'>Pending</p>
-								<p className='text-2xl font-bold text-blue-600'>{mockStats.pendingRevocation}</p>
+								<p className='text-sm text-gray-600 dark:text-gray-300'>Pending</p>
+								<p className='text-2xl font-bold text-blue-600 dark:text-blue-400'>{mockStats.pendingRevocation}</p>
 							</div>
 							<AlertCircle className='w-8 h-8 text-blue-500' />
 						</div>
@@ -251,8 +251,8 @@ export default function RevocationManagementPage() {
 					<CardContent className='p-4'>
 						<div className='flex items-center justify-between'>
 							<div>
-								<p className='text-sm text-gray-600'>Revocation Rate</p>
-								<p className='text-2xl font-bold text-purple-600'>{mockStats.revocationRate}%</p>
+								<p className='text-sm text-gray-600 dark:text-gray-300'>Revocation Rate</p>
+								<p className='text-2xl font-bold text-purple-600 dark:text-purple-400'>{mockStats.revocationRate}%</p>
 							</div>
 							<TrendingUp className='w-8 h-8 text-purple-500' />
 						</div>
@@ -269,7 +269,7 @@ export default function RevocationManagementPage() {
 							<div className='flex flex-col md:flex-row gap-4'>
 								<div className='flex-1'>
 									<div className='relative'>
-										<Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4' />
+										<Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500 w-4 h-4' />
 										<Input placeholder='Search by holder, credential ID, or type...' value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className='pl-10' />
 									</div>
 								</div>
@@ -308,7 +308,7 @@ export default function RevocationManagementPage() {
 						<CardContent>
 							<div className='space-y-4'>
 								{filteredCredentials.map((credential) => (
-									<div key={credential.id} className='border rounded-lg p-4 hover:bg-gray-50'>
+									<div key={credential.id} className='border rounded-lg p-4 transition-all duration-200 hover:bg-gray-50 dark:hover:bg-gray-800 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'>
 										<div className='flex items-center justify-between'>
 											<div className='flex-1'>
 												<div className='flex items-center gap-3 mb-2'>
@@ -317,7 +317,7 @@ export default function RevocationManagementPage() {
 													{getReasonBadge(credential.reason)}
 													{getMethodBadge(credential.revocationMethod)}
 												</div>
-												<div className='grid grid-cols-2 gap-4 text-sm text-gray-600'>
+												<div className='grid grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-300'>
 													<div>
 														<p>
 															<strong>Credential ID:</strong> {credential.credentialId}
@@ -343,10 +343,10 @@ export default function RevocationManagementPage() {
 												</div>
 											</div>
 											<div className='flex items-center gap-2'>
-												<Button variant='ghost' size='sm'>
+												<Button variant='ghost' size='sm' className='hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors'>
 													<Eye className='w-4 h-4' />
 												</Button>
-												<Button variant='ghost' size='sm'>
+												<Button variant='ghost' size='sm' className='hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400 transition-colors'>
 													<Download className='w-4 h-4' />
 												</Button>
 											</div>
@@ -369,12 +369,12 @@ export default function RevocationManagementPage() {
 							<div className='space-y-3'>
 								{mockStats.topReasons.map((item, index) => (
 									<div key={index} className='flex items-center justify-between'>
-										<span className='text-sm'>{item.reason}</span>
+										<span className='text-sm dark:text-gray-300'>{item.reason}</span>
 										<div className='flex items-center gap-2'>
-											<div className='w-16 bg-gray-200 rounded-full h-2'>
+											<div className='w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2'>
 												<div className='bg-blue-500 h-2 rounded-full' style={{width: `${(item.count / mockStats.topReasons[0].count) * 100}%`}}></div>
 											</div>
-											<span className='text-sm font-medium'>{item.count}</span>
+											<span className='text-sm font-medium dark:text-gray-300'>{item.count}</span>
 										</div>
 									</div>
 								))}
@@ -388,15 +388,15 @@ export default function RevocationManagementPage() {
 							<CardTitle>Quick Actions</CardTitle>
 						</CardHeader>
 						<CardContent className='space-y-2'>
-							<Button variant='outline' className='w-full justify-start'>
+							<Button variant='outline' className='w-full justify-start transition-colors hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800'>
 								<RefreshCw className='w-4 h-4 mr-2' />
 								Refresh Status
 							</Button>
-							<Button variant='outline' className='w-full justify-start'>
+							<Button variant='outline' className='w-full justify-start transition-colors hover:bg-green-50 hover:text-green-600 hover:border-green-200 dark:hover:bg-green-900/20 dark:hover:text-green-400 dark:hover:border-green-800'>
 								<Download className='w-4 h-4 mr-2' />
 								Export All
 							</Button>
-							<Button variant='outline' className='w-full justify-start'>
+							<Button variant='outline' className='w-full justify-start transition-colors hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 dark:hover:border-purple-800'>
 								<Shield className='w-4 h-4 mr-2' />
 								Audit Trail
 							</Button>
