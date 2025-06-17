@@ -206,13 +206,25 @@ export default function RBACManagement() {
 			)}
 
 			{/* Domain Tabs */}
-			<div className='flex space-x-4 border-b border-gray-200'>
-				<button onClick={() => setSelectedDomain('tenant')} className={`pb-2 px-4 ${selectedDomain === 'tenant' ? 'border-b-2 border-primary text-primary font-semibold' : 'text-gray-500'}`}>
-					Tenant Roles
-				</button>
-				<button onClick={() => setSelectedDomain('global')} className={`pb-2 px-4 ${selectedDomain === 'global' ? 'border-b-2 border-primary text-primary font-semibold' : 'text-gray-500'}`}>
-					Global Roles
-				</button>
+			<div className='flex border-b border-gray-200 mb-4'>
+				<div className='flex'>
+					<button 
+						onClick={() => setSelectedDomain('tenant')} 
+						className={`py-2 px-8 font-medium transition-all ${selectedDomain === 'tenant' 
+							? 'bg-primary text-white rounded-t-lg font-semibold shadow-sm' 
+							: 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+					>
+						Tenant Roles
+					</button>
+					<button 
+						onClick={() => setSelectedDomain('global')} 
+						className={`py-2 px-8 font-medium transition-all ${selectedDomain === 'global' 
+							? 'bg-primary text-white rounded-t-lg font-semibold shadow-sm' 
+							: 'text-gray-500 hover:bg-gray-100 hover:text-gray-900'}`}
+					>
+						Global Roles
+					</button>
+				</div>
 			</div>
 
 			{/* Roles Section (from useRbac) */}

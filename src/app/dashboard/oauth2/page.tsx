@@ -1,13 +1,23 @@
 import React from 'react'
+import {Metadata} from 'next'
 import OAuth2ClientList from '@/components/oauth2/OAuth2ClientList'
 
-const OAuth2DashboardPage: React.FC = () => {
+export const metadata: Metadata = {
+	title: 'OAuth2 Management - Auth3',
+	description: 'Manage your OAuth2 clients and applications',
+}
+
+/**
+ * Page component for OAuth2 client management dashboard
+ */
+export default function OAuth2DashboardPage() {
 	return (
 		<div className='space-y-6'>
-			<h1 className='text-2xl font-bold'>OAuth2 Management</h1>
+			<div>
+				<h2 className='text-2xl font-bold tracking-tight'>OAuth2 Management</h2>
+				<p className='text-muted-foreground'>Manage your OAuth2 clients and applications</p>
+			</div>
 			<OAuth2ClientList />
 		</div>
 	)
 }
-
-export default OAuth2DashboardPage
