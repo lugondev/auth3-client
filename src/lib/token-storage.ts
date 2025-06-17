@@ -2,7 +2,7 @@
 // Handles token isolation, backup, and restoration between global and tenant contexts
 
 import { ContextMode, TokenStorage } from '@/types/dual-context'
-import { jwtDecode } from 'jwt-decode'
+import { decodeJwt } from './jwt'
 
 // Storage keys for different contexts
 const STORAGE_KEYS = {
@@ -11,7 +11,7 @@ const STORAGE_KEYS = {
     refreshToken: 'global_refreshToken',
   },
   tenant: {
-    accessToken: 'tenant_accessToken', 
+    accessToken: 'tenant_accessToken',
     refreshToken: 'tenant_refreshToken',
   },
   backup: {
@@ -32,23 +32,23 @@ interface TokenPayload {
 // Global Token Storage Class
 export class GlobalTokenStorage {
   private static instance: GlobalTokenStorage
-  
+
   static getInstance(): GlobalTokenStorage {
     if (!GlobalTokenStorage.instance) {
       GlobalTokenStorage.instance = new GlobalTokenStorage()
     }
     return GlobalTokenStorage.instance
   }
-  
+
   getTokens(): TokenStorage {
     if (typeof window === 'undefined') {
       return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
-    
+
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.global.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.global.refreshToken)
-      
+
       return {
         accessToken,
         refreshToken,
@@ -59,19 +59,19 @@ export class GlobalTokenStorage {
       return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
   }
-  
+
   setTokens(accessToken: string | null, refreshToken: string | null): void {
     if (typeof window === 'undefined') {
       return
     }
-    
+
     try {
       if (accessToken) {
         localStorage.setItem(STORAGE_KEYS.global.accessToken, accessToken)
       } else {
         localStorage.removeItem(STORAGE_KEYS.global.accessToken)
       }
-      
+
       if (refreshToken) {
         localStorage.setItem(STORAGE_KEYS.global.refreshToken, refreshToken)
       } else {
@@ -81,12 +81,12 @@ export class GlobalTokenStorage {
       console.error('Failed to set global tokens:', error)
     }
   }
-  
+
   clearTokens(): void {
     if (typeof window === 'undefined') {
       return
     }
-    
+
     try {
       localStorage.removeItem(STORAGE_KEYS.global.accessToken)
       localStorage.removeItem(STORAGE_KEYS.global.refreshToken)
@@ -94,17 +94,17 @@ export class GlobalTokenStorage {
       console.error('Failed to clear global tokens:', error)
     }
   }
-  
+
   validateTokens(): boolean {
     const { accessToken } = this.getTokens()
     return this.isTokenValid(accessToken)
   }
-  
+
   private isTokenValid(token: string | null): boolean {
     if (!token) return false
-    
+
     try {
-      const decoded = jwtDecode<TokenPayload>(token)
+      const decoded = decodeJwt<TokenPayload>(token)
       return decoded.exp * 1000 > Date.now()
     } catch {
       return false
@@ -115,23 +115,23 @@ export class GlobalTokenStorage {
 // Tenant Token Storage Class
 export class TenantTokenStorage {
   private static instance: TenantTokenStorage
-  
+
   static getInstance(): TenantTokenStorage {
     if (!TenantTokenStorage.instance) {
       TenantTokenStorage.instance = new TenantTokenStorage()
     }
     return TenantTokenStorage.instance
   }
-  
+
   getTokens(): TokenStorage {
     if (typeof window === 'undefined') {
       return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
-    
+
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.tenant.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.tenant.refreshToken)
-      
+
       return {
         accessToken,
         refreshToken,
@@ -142,19 +142,19 @@ export class TenantTokenStorage {
       return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
   }
-  
+
   setTokens(accessToken: string | null, refreshToken: string | null): void {
     if (typeof window === 'undefined') {
       return
     }
-    
+
     try {
       if (accessToken) {
         localStorage.setItem(STORAGE_KEYS.tenant.accessToken, accessToken)
       } else {
         localStorage.removeItem(STORAGE_KEYS.tenant.accessToken)
       }
-      
+
       if (refreshToken) {
         localStorage.setItem(STORAGE_KEYS.tenant.refreshToken, refreshToken)
       } else {
@@ -164,12 +164,12 @@ export class TenantTokenStorage {
       console.error('Failed to set tenant tokens:', error)
     }
   }
-  
+
   clearTokens(): void {
     if (typeof window === 'undefined') {
       return
     }
-    
+
     try {
       localStorage.removeItem(STORAGE_KEYS.tenant.accessToken)
       localStorage.removeItem(STORAGE_KEYS.tenant.refreshToken)
@@ -177,17 +177,17 @@ export class TenantTokenStorage {
       console.error('Failed to clear tenant tokens:', error)
     }
   }
-  
+
   validateTokens(): boolean {
     const { accessToken } = this.getTokens()
     return this.isTokenValid(accessToken)
   }
-  
+
   private isTokenValid(token: string | null): boolean {
     if (!token) return false
-    
+
     try {
-      const decoded = jwtDecode<TokenPayload>(token)
+      const decoded = decodeJwt<TokenPayload>(token)
       return decoded.exp * 1000 > Date.now()
     } catch {
       return false
@@ -199,12 +199,12 @@ export class TenantTokenStorage {
 export class TokenManager {
   private globalStorage: GlobalTokenStorage
   private tenantStorage: TenantTokenStorage
-  
+
   constructor() {
     this.globalStorage = GlobalTokenStorage.getInstance()
     this.tenantStorage = TenantTokenStorage.getInstance()
   }
-  
+
   getTokens(context: ContextMode): TokenStorage {
     switch (context) {
       case 'global':
@@ -222,7 +222,7 @@ export class TokenManager {
         return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
   }
-  
+
   setTokens(context: ContextMode, accessToken: string | null, refreshToken: string | null): void {
     switch (context) {
       case 'global':
@@ -244,7 +244,7 @@ export class TokenManager {
         break
     }
   }
-  
+
   clearTokens(context: ContextMode): void {
     switch (context) {
       case 'global':
@@ -259,12 +259,12 @@ export class TokenManager {
         break
     }
   }
-  
+
   backupTokens(fromContext: ContextMode): void {
     if (typeof window === 'undefined') {
       return
     }
-    
+
     const tokens = this.getTokens(fromContext)
     try {
       if (tokens.accessToken) {
@@ -277,16 +277,16 @@ export class TokenManager {
       console.error('Failed to backup tokens:', error)
     }
   }
-  
+
   restoreTokens(toContext: ContextMode): boolean {
     if (typeof window === 'undefined') {
       return false
     }
-    
+
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.backup.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.backup.refreshToken)
-      
+
       if (accessToken || refreshToken) {
         this.setTokens(toContext, accessToken, refreshToken)
         // Clear backup after restore
@@ -300,7 +300,7 @@ export class TokenManager {
       return false
     }
   }
-  
+
   validateTokens(context: ContextMode): boolean {
     switch (context) {
       case 'global':
@@ -313,29 +313,29 @@ export class TokenManager {
         return false
     }
   }
-  
+
   getTokenExpiry(context: ContextMode): number | null {
     const { accessToken } = this.getTokens(context)
     if (!accessToken) return null
-    
+
     try {
-      const decoded = jwtDecode<TokenPayload>(accessToken)
+      const decoded = decodeJwt<TokenPayload>(accessToken)
       return decoded.exp * 1000
     } catch {
       return null
     }
   }
-  
+
   isTokenExpiringSoon(context: ContextMode, marginMs: number = 5 * 60 * 1000): boolean {
     const expiry = this.getTokenExpiry(context)
     if (!expiry) return true
-    
+
     return expiry - Date.now() < marginMs
   }
-  
+
   private extractTenantId(token: string): string | null {
     try {
-      const decoded = jwtDecode<TokenPayload>(token)
+      const decoded = decodeJwt<TokenPayload>(token)
       return decoded.tenant_id || null
     } catch {
       return null

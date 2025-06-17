@@ -18,6 +18,7 @@ export * from './tenant';
 export * from './tenantManagement';
 export * from './tenantRbac';
 export * from './user';
+export * from './jwt';
 
 // Re-export commonly used generic types for convenience
 export type {

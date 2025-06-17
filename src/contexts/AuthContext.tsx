@@ -6,19 +6,19 @@ import {GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup
 import {auth} from '@/lib/firebase'
 import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin} from '@/services/authService'
 import apiClient from '@/lib/apiClient'
-import {jwtDecode} from 'jwt-decode'
 import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, Verify2FARequest} from '@/types/user'
 import {toast} from 'sonner'
 import {AuthContextType} from '@/types/auth'
 import {AppUser, ContextMode, ContextSwitchOptions, ContextSwitchResult} from '@/types/dual-context'
 import {tokenManager} from '@/lib/token-storage'
 import {contextManager} from '@/lib/context-manager'
+import {decodeJwt} from '@/lib/jwt'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const decodeToken = (token: string): AppUser | null => {
 	try {
-		const decoded = jwtDecode<{
+		const decoded = decodeJwt<{
 			sub: string
 			email: string
 			first_name?: string
@@ -214,7 +214,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			}
 
 			// Dispatch custom event to notify components in same tab about token update
-			window.dispatchEvent(new CustomEvent('tokenUpdated', { detail: { targetContext } }))
+			window.dispatchEvent(new CustomEvent('tokenUpdated', {detail: {targetContext}}))
 
 			apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
 
@@ -418,7 +418,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				clearTimeout(refreshTimeoutRef.current)
 			}
 			try {
-				const decoded = jwtDecode<{exp: number}>(currentToken)
+				const decoded = decodeJwt<{exp: number}>(currentToken)
 				const expiresInMs = decoded.exp * 1000 - Date.now()
 				let refreshDelay = expiresInMs - REFRESH_MARGIN_MS
 				if (refreshDelay < MIN_REFRESH_DELAY_MS) {
@@ -514,13 +514,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 		// Add event listener for storage changes
 		window.addEventListener('storage', handleStorageChange)
-		
+
 		// Also listen for custom events for same-tab token updates
 		const handleTokenUpdate = () => {
 			console.log('Token updated in same tab, re-checking auth status')
 			checkAuthStatus()
 		}
-		
+
 		window.addEventListener('tokenUpdated', handleTokenUpdate)
 
 		return () => {
@@ -742,13 +742,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		async (data: {did: string; access_token: string; refresh_token: string}) => {
 			try {
 				setLoading(true)
-				
+
 				// Handle authentication success with DID tokens
 				await handleAuthSuccessInternal({
 					access_token: data.access_token,
-					refresh_token: data.refresh_token
+					refresh_token: data.refresh_token,
 				})
-				
+
 				toast.success(`Successfully authenticated with DID: ${data.did}`)
 			} catch (error) {
 				console.error('DID authentication failed:', error)

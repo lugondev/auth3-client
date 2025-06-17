@@ -1,15 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { jwtDecode } from 'jwt-decode';
-
-interface JWTPayload {
-	sub: string;
-	email: string;
-	roles?: string[];
-	permissions?: string[]; // Add permissions field
-	tenant_id?: string;
-	exp: number;
-}
+import { JWTPayload } from '@/types';
+import { decodeJwt } from '@/lib/jwt';
 
 interface RoutePermission {
 	path: string;
@@ -78,28 +70,74 @@ const ROUTE_PERMISSIONS: RoutePermission[] = [
 ];
 
 function checkUserPermissions(payload: JWTPayload, requiredPermissions: string[], requireAll = true): boolean {
-	if (!payload.roles || payload.roles.length === 0) {
-		return false;
+	// Check if user has wildcard permissions
+	// Log permissions for debugging
+	console.log('checkUserPermissions - User permissions:', payload.permissions);
+	console.log('checkUserPermissions - User roles:', payload.roles);
+
+	// Check if permissions array exists and has elements
+	if (!payload.permissions || payload.permissions.length === 0) {
+		console.log('checkUserPermissions - No permissions found in payload');
 	}
 
-	// Check if user has wildcard permissions
-	const hasWildcardPermissions = payload.permissions?.some(permission =>
-		permission === '*' ||
-		permission === '.*' ||
-		permission === '*.*' ||
-		permission === '*:*' ||
-		permission === '.*:.*'
-	);
+	const hasWildcardPermissions = payload.permissions?.some(permission => {
+		if (!permission) {
+			return false;
+		}
+
+		// Log raw permission for debugging
+		console.log('checkUserPermissions - Raw permission:', JSON.stringify(permission));
+
+		// Handle both string and array formats
+		if (Array.isArray(permission)) {
+			// If permission is an array like ["*",".*"]
+			console.log('checkUserPermissions - Permission is an array:', permission);
+			return permission.some(p => {
+				if (!p) return false;
+				const trimmed = p.trim();
+				const isWildcard =
+					trimmed === '*' ||
+					trimmed === '.*' ||
+					trimmed === '*.*' ||
+					trimmed === '*:*' ||
+					trimmed === '.*:.*';
+
+				if (isWildcard) {
+					console.log('checkUserPermissions - Found wildcard in array permission:', trimmed);
+				}
+				return isWildcard;
+			});
+		}
+
+		// Handle string format
+		// Trim whitespace and check for wildcard patterns
+		const trimmedPermission = permission.trim();
+		const isWildcard =
+			trimmedPermission === '*' ||
+			trimmedPermission === '.*' ||
+			trimmedPermission === '*.*' ||
+			trimmedPermission === '*:*' ||
+			trimmedPermission === '.*:.*';
+
+		if (isWildcard) {
+			console.log('checkUserPermissions - Found wildcard permission:', trimmedPermission);
+		}
+
+		return isWildcard;
+	});
+
+
+	console.log('checkUserPermissions - Has wildcard permissions:', hasWildcardPermissions);
 
 	// Check if user is a system admin (multiple role formats)
-	const isSystemAdmin = payload.roles.some(role =>
+	const isSystemAdmin = payload.roles?.some(role =>
 		role === 'system:admin' ||
 		role === 'SystemAdmin' ||
 		role === 'SystemSuperAdmin'
-	) || hasWildcardPermissions;
+	);
 
-	// System admins have access to all permissions
-	if (isSystemAdmin) {
+	// System admins or users with wildcard permissions have access to all permissions
+	if (isSystemAdmin || hasWildcardPermissions) {
 		return true;
 	}
 
@@ -114,7 +152,7 @@ function checkUserPermissions(payload: JWTPayload, requiredPermissions: string[]
 	}
 
 	// Add role-based permissions (simplified - in real app, you'd fetch from backend)
-	payload.roles.forEach(role => {
+	payload.roles?.forEach(role => {
 		// Tenant-specific roles
 		if (role.includes(':admin')) {
 			userPermissions.add('tenant:dashboard:read');
@@ -145,23 +183,72 @@ function checkUserRoles(payload: JWTPayload, requiredRoles: string[], requireAll
 	}
 
 	// Check if user has wildcard permissions
-	const hasWildcardPermissions = payload.permissions?.some(permission =>
-		permission === '*' ||
-		permission === '.*' ||
-		permission === '*.*' ||
-		permission === '*:*' ||
-		permission === '.*:.*'
-	);
+	// Log permissions for debugging
+	console.log('checkUserRoles - User permissions:', payload.permissions);
+	console.log('checkUserRoles - User roles:', payload.roles);
+
+	// Check if permissions array exists and has elements
+	if (!payload.permissions || payload.permissions.length === 0) {
+		console.log('checkUserRoles - No permissions found in payload');
+	}
+
+	const hasWildcardPermissions = payload.permissions?.some(permission => {
+		if (!permission) {
+			return false;
+		}
+
+		// Log raw permission for debugging
+		console.log('checkUserRoles - Raw permission:', JSON.stringify(permission));
+
+		// Handle both string and array formats
+		if (Array.isArray(permission)) {
+			// If permission is an array like ["*",".*"]
+			console.log('checkUserRoles - Permission is an array:', permission);
+			return permission.some(p => {
+				if (!p) return false;
+				const trimmed = p.trim();
+				const isWildcard =
+					trimmed === '*' ||
+					trimmed === '.*' ||
+					trimmed === '*.*' ||
+					trimmed === '*:*' ||
+					trimmed === '.*:.*';
+
+				if (isWildcard) {
+					console.log('checkUserRoles - Found wildcard in array permission:', trimmed);
+				}
+				return isWildcard;
+			});
+		}
+
+		// Handle string format
+		// Trim whitespace and check for wildcard patterns
+		const trimmedPermission = permission.trim();
+		const isWildcard =
+			trimmedPermission === '*' ||
+			trimmedPermission === '.*' ||
+			trimmedPermission === '*.*' ||
+			trimmedPermission === '*:*' ||
+			trimmedPermission === '.*:.*';
+
+		if (isWildcard) {
+			console.log('checkUserRoles - Found wildcard permission:', trimmedPermission);
+		}
+
+		return isWildcard;
+	});
+
+	console.log('checkUserRoles - Has wildcard permissions:', hasWildcardPermissions);
 
 	// Check if user is a system admin (multiple role formats)
 	const isSystemAdmin = payload.roles.some(role =>
 		role === 'system:admin' ||
 		role === 'SystemAdmin' ||
 		role === 'SystemSuperAdmin'
-	) || hasWildcardPermissions;
+	);
 
-	// System admins have access to all roles
-	if (isSystemAdmin) {
+	// System admins or users with wildcard permissions have access to all roles
+	if (isSystemAdmin || hasWildcardPermissions) {
 		return true;
 	}
 
@@ -214,7 +301,7 @@ export async function middleware(request: NextRequest) {
 
 	try {
 		// Decode JWT token
-		const payload = jwtDecode<JWTPayload>(accessToken);
+		const payload = decodeJwt<JWTPayload>(accessToken);
 
 		// Extract tenant ID from payload
 		const tenantId = payload.tenant_id;
@@ -228,27 +315,78 @@ export async function middleware(request: NextRequest) {
 		}
 
 		// Check if user has wildcard permissions
-		const hasWildcardPermissions = payload.permissions?.some(permission =>
-			permission === '*' ||
-			permission === '.*' ||
-			permission === '*.*' ||
-			permission === '*:*' ||
-			permission === '.*:.*'
-		);
+		// Log permissions for debugging
+		console.log('User permissions:', payload.permissions);
+		console.log('User roles:', payload.roles);
+
+		// Check if permissions array exists and has elements
+		if (!payload.permissions || payload.permissions.length === 0) {
+			console.log('No permissions found in payload');
+		}
+
+		const hasWildcardPermissions = payload.permissions?.some(permission => {
+			if (!permission) {
+				return false;
+			}
+
+			// Log raw permission for debugging
+			console.log('Raw permission:', JSON.stringify(permission));
+
+			// Handle both string and array formats
+			if (Array.isArray(permission)) {
+				// If permission is an array like ["*",".*"]
+				console.log('Permission is an array:', permission);
+				return permission.some(p => {
+					if (!p) return false;
+					const trimmed = p.trim();
+					const isWildcard =
+						trimmed === '*' ||
+						trimmed === '.*' ||
+						trimmed === '*.*' ||
+						trimmed === '*:*' ||
+						trimmed === '*:.*' ||
+						trimmed === '*:.*' ||
+						trimmed === '.*:.*';
+
+					if (isWildcard) {
+						console.log('Found wildcard in array permission:', trimmed);
+					}
+					return isWildcard;
+				});
+			}
+
+			// Handle string format
+			// Trim whitespace and check for wildcard patterns
+			const trimmedPermission = permission.trim();
+			const isWildcard =
+				trimmedPermission === '*' ||
+				trimmedPermission === '.*' ||
+				trimmedPermission === '*.*' ||
+				trimmedPermission === '*:*' ||
+				trimmedPermission === '.*:.*';
+
+			if (isWildcard) {
+				console.log('Found wildcard permission:', trimmedPermission);
+			}
+
+			return isWildcard;
+		});
+
+		console.log('Has wildcard permissions:', hasWildcardPermissions);
 
 		// Check if user is a system admin (multiple role formats)
 		const isSystemAdmin = payload.roles?.some(role =>
 			role === 'system:admin' ||
 			role === 'SystemAdmin' ||
 			role === 'SystemSuperAdmin'
-		) || hasWildcardPermissions;
+		);
 
 		// Debug logging
 		// Removed console.log statements for production build
 
-		// System admin bypass - allow access to all routes
-		if (isSystemAdmin) {
-			// System admin accessing admin route, bypassing all checks
+		// System admin or user with wildcard permissions bypass - allow access to all routes
+		if (isSystemAdmin || hasWildcardPermissions) {
+			// System admin or user with wildcard permissions accessing route, bypassing all checks
 			return NextResponse.next()
 		}
 
@@ -290,12 +428,15 @@ export async function middleware(request: NextRequest) {
 
 		// Check roles if required
 		if (routeConfig.roles && routeConfig.roles.length > 0) {
+			console.log('middleware roles:', routeConfig.roles);
+
 			const hasRoles = checkUserRoles(
 				payload,
 				routeConfig.roles,
 				routeConfig.requireAll
 			)
-			// Role check result: hasRoles
+
+			// // Role check result: hasRoles
 			if (!hasRoles) {
 				// Access denied: insufficient roles
 				const accessDeniedUrl = new URL('/dashboard/access-denied', request.url);
@@ -305,10 +446,6 @@ export async function middleware(request: NextRequest) {
 				return NextResponse.redirect(accessDeniedUrl);
 			}
 		}
-
-		// Access granted for: pathname
-		// return NextResponse.next()
-
 		// Add user info to headers for downstream components
 		const response = NextResponse.next();
 		response.headers.set('x-user-id', payload.sub);

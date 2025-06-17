@@ -190,7 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({type}) => {
 	// Check if user has access to a nav link
 	const hasAccess = (link: NavLink): boolean => {
 		// Special case for system admin with wildcard permissions
-		if (hasPermission('*.*') || hasPermission('*:*') || hasPermission('.*:.*')) {
+		if (hasPermission('*.*') || hasPermission('*:*') || hasPermission('.*:.*') || hasPermission('*:.*')) {
 			return true
 		}
 
