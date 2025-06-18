@@ -350,7 +350,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 	})()
 
 	// Tailwind classes for the sidebar container
-	const sidebarClasses = cn('h-full flex flex-col bg-gray-800 text-white p-4 space-y-2 relative', isCollapsed ? 'items-center' : '', isResizing ? '' : `transition-all duration-${resizeTransitionDuration}`)
+	const sidebarClasses = cn('h-full min-h-screen flex flex-col bg-gray-800 text-white p-4 space-y-2 relative', isCollapsed ? 'items-center' : '', isResizing ? '' : `transition-all duration-${resizeTransitionDuration}`)
 
 	return (
 		<aside ref={sidebarRef} className={sidebarClasses} style={{width: `${sidebarWidth}px`}}>
