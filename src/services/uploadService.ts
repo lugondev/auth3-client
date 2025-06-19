@@ -1,28 +1,6 @@
 import apiClient from '@/lib/apiClient'
 import { withErrorHandling } from './errorHandlingService'
-
-export interface UploadResponse {
-	url: string
-	filename?: string
-	size?: number
-}
-
-export interface UploadOptions {
-	bucket?: string
-	maxSize?: number // in bytes
-	allowedTypes?: string[]
-	purpose?: string
-	metadata?: Record<string, any>
-	onProgress?: (progressEvent: any) => void
-}
-
-export enum UploadStatus {
-	PENDING = 'pending',
-	UPLOADING = 'uploading',
-	COMPLETED = 'completed',
-	FAILED = 'failed',
-	CANCELLED = 'cancelled'
-}
+import { UploadResponse, UploadOptions, UploadStatus, PresignedUrlResponse } from '@/types/upload'
 
 /**
  * Upload a file
@@ -125,11 +103,6 @@ export const uploadOAuth2Logo = async (file: File): Promise<UploadResponse> => {
  */
 export const uploadAvatar = async (file: File): Promise<UploadResponse> => {
 	return uploadImage(file, 'avatars')
-}
-
-export interface PresignedUrlResponse {
-	url: string
-	fields: Record<string, string>
 }
 
 /**

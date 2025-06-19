@@ -13,7 +13,9 @@ import {Key, Globe, Coins, Network, Users, Copy, Check, Power, Trash2, Shield, L
 import {useParams, useRouter} from 'next/navigation'
 import {toast} from 'sonner'
 import {getDID, resolveDID, deactivateDID, revokeDID} from '@/services/didService'
-import {DIDResponse, ResolveDIDResult, DIDActivity} from '@/types/did'
+import {ResolveDIDResult, DIDActivity, DIDData} from '@/types/did'
+import {formatDate} from '@/lib/utils'
+import {DIDSkeleton} from '@/components/did'
 
 /**
  * DID Details Page - Display complete DID document and metadata
@@ -24,7 +26,7 @@ export default function DIDDetailsPage() {
 	const router = useRouter()
 	const didId = decodeURIComponent(params.didId as string)
 
-	const [didData, setDidData] = useState<DIDResponse | null>(null)
+	const [didData, setDidData] = useState<DIDData | null>(null)
 	const [resolutionResult, setResolutionResult] = useState<ResolveDIDResult | null>(null)
 	const [history, setHistory] = useState<DIDActivity[]>([])
 	const [loading, setLoading] = useState(true)
@@ -42,27 +44,31 @@ export default function DIDDetailsPage() {
 				// Fetch DID data and resolution result
 				const [didResponse, resolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
 
-				setDidData(didResponse)
+				console.log('DID Response:', didResponse)
+				console.log('Resolution Response:', resolutionResponse)
+
+				setDidData(didResponse.did)
 				setResolutionResult(resolutionResponse)
 
 				// Convert DID data to history format for display
 				const historyData: DIDActivity[] = [
 					{
-						did_string: didResponse.did,
+						did_string: didResponse.did.did,
 						action: 'created',
-						timestamp: didResponse.created_at,
-						user_id: didResponse.user_id,
+						timestamp: didResponse.did.created_at,
+						user_id: didResponse.did.user_id,
 					},
 				]
 
-				if (didResponse.updated_at !== didResponse.created_at) {
+				if (didResponse.did.updated_at !== didResponse.did.created_at) {
 					historyData.push({
-						did_string: didResponse.did,
+						did_string: didResponse.did.did,
 						action: 'updated',
-						timestamp: didResponse.updated_at,
-						user_id: didResponse.user_id,
+						timestamp: didResponse.did.updated_at,
+						user_id: didResponse.did.user_id,
 					})
 				}
+				console.log('History Data:', historyData)
 
 				setHistory(historyData)
 			} catch (err) {
@@ -151,7 +157,7 @@ export default function DIDDetailsPage() {
 			// Refresh the data
 			const [updatedDidResponse, updatedResolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
 
-			setDidData(updatedDidResponse)
+			setDidData(updatedDidResponse.did)
 			setResolutionResult(updatedResolutionResponse)
 		} catch (err) {
 			console.error('Error deactivating DID:', err)
@@ -178,7 +184,7 @@ export default function DIDDetailsPage() {
 			// Refresh the data
 			const [updatedDidResponse, updatedResolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
 
-			setDidData(updatedDidResponse)
+			setDidData(updatedDidResponse.did)
 			setResolutionResult(updatedResolutionResponse)
 		} catch (err) {
 			console.error('Error revoking DID:', err)
@@ -190,9 +196,9 @@ export default function DIDDetailsPage() {
 	 * Download DID document as JSON
 	 */
 	const downloadDocument = () => {
-		if (!resolutionResult?.didDocument) return
+		if (!resolutionResult?.document) return
 
-		const dataStr = JSON.stringify(resolutionResult.didDocument, null, 2)
+		const dataStr = JSON.stringify(resolutionResult.document, null, 2)
 		const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr)
 
 		const exportFileDefaultName = `did-document-${didId.replace(/[^a-zA-Z0-9]/g, '-')}.json`
@@ -206,13 +212,7 @@ export default function DIDDetailsPage() {
 	if (loading) {
 		return (
 			<div className='space-y-6'>
-				<div className='h-8 bg-gray-200 rounded animate-pulse' />
-				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-					{[...Array(3)].map((_, i) => (
-						<div key={i} className='h-24 bg-gray-200 rounded animate-pulse' />
-					))}
-				</div>
-				<div className='h-96 bg-gray-200 rounded animate-pulse' />
+				<DIDSkeleton variant='details' />
 			</div>
 		)
 	}
@@ -282,7 +282,7 @@ export default function DIDDetailsPage() {
 						<History className='h-4 w-4 text-muted-foreground' />
 					</CardHeader>
 					<CardContent>
-						<div className='text-2xl font-bold'>{new Date(didData.created_at).toLocaleDateString()}</div>
+						<div className='text-2xl font-bold'>{formatDate(didData.created_at)}</div>
 					</CardContent>
 				</Card>
 			</div>
@@ -305,7 +305,7 @@ export default function DIDDetailsPage() {
 						</CardHeader>
 						<CardContent className='space-y-4'>
 							<div className='flex gap-2'>
-								<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(resolutionResult.didDocument, null, 2), 'document')}>
+								<Button variant='outline' onClick={() => copyToClipboard(JSON.stringify(resolutionResult.document, null, 2), 'document')}>
 									{copiedField === 'document' ? <Check className='h-4 w-4 mr-2' /> : <Copy className='h-4 w-4 mr-2' />}
 									Copy Document
 								</Button>
@@ -314,7 +314,7 @@ export default function DIDDetailsPage() {
 									Copy DID
 								</Button>
 							</div>
-							<Textarea value={JSON.stringify(resolutionResult.didDocument, null, 2)} readOnly className='font-mono text-sm h-96' />
+							<Textarea value={JSON.stringify(resolutionResult.document, null, 2)} readOnly className='font-mono text-sm h-96' />
 						</CardContent>
 					</Card>
 				</TabsContent>
@@ -327,47 +327,35 @@ export default function DIDDetailsPage() {
 							<CardDescription>Cryptographic keys and verification methods</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{!resolutionResult.didDocument.verificationMethod || resolutionResult.didDocument.verificationMethod.length === 0 ? (
+							{!resolutionResult.document.verificationMethod || resolutionResult.document.verificationMethod.length === 0 ? (
 								<p className='text-gray-500 text-center py-8'>No verification methods found</p>
 							) : (
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>ID</TableHead>
-											<TableHead>Type</TableHead>
-											<TableHead>Controller</TableHead>
-											<TableHead>Public Key</TableHead>
-											<TableHead>Actions</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{resolutionResult.didDocument.verificationMethod.map((method, index) => (
-											<TableRow key={index}>
-												<TableCell className='font-mono text-sm'>
-													<div className='max-w-xs truncate' title={method.id}>
-														{method.id}
+								<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+									{resolutionResult.document.verificationMethod.map((method, index) => (
+										<div key={index} className='space-y-2'>
+											<Label className='text-sm font-medium'>{method.type}</Label>
+											<div className='space-y-1'>
+												<div>
+													<Label className='text-xs text-muted-foreground'>ID</Label>
+													<div className='text-sm font-mono bg-muted p-2 rounded-md break-all'>{method.id}</div>
+												</div>
+												<div>
+													<Label className='text-xs text-muted-foreground'>Controller</Label>
+													<div className='text-sm font-mono bg-muted p-2 rounded-md break-all'>{method.controller}</div>
+												</div>
+												<div>
+													<Label className='text-xs text-muted-foreground'>Public Key</Label>
+													<div className='flex items-center gap-2'>
+														<div className='text-sm font-mono bg-muted p-2 rounded-md break-all flex-1'>{method.publicKeyMultibase || method.blockchainAccountId || 'N/A'}</div>
+														<Button variant='outline' size='sm' onClick={() => copyToClipboard(method.publicKeyMultibase || method.blockchainAccountId || '', `key-${index}`)}>
+															{copiedField === `key-${index}` ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
+														</Button>
 													</div>
-												</TableCell>
-												<TableCell>{method.type}</TableCell>
-												<TableCell className='font-mono text-sm'>
-													<div className='max-w-xs truncate' title={method.controller}>
-														{method.controller}
-													</div>
-												</TableCell>
-												<TableCell className='font-mono text-sm'>
-													<div className='max-w-xs truncate' title={method.publicKeyMultibase}>
-														{method.publicKeyMultibase || method.blockchainAccountId || 'N/A'}
-													</div>
-												</TableCell>
-												<TableCell>
-													<Button variant='outline' size='sm' onClick={() => copyToClipboard(method.publicKeyMultibase || method.blockchainAccountId || '', `key-${index}`)}>
-														{copiedField === `key-${index}` ? <Check className='h-4 w-4' /> : <Copy className='h-4 w-4' />}
-													</Button>
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
+												</div>
+											</div>
+										</div>
+									))}
+								</div>
 							)}
 						</CardContent>
 					</Card>
@@ -380,44 +368,44 @@ export default function DIDDetailsPage() {
 						</CardHeader>
 						<CardContent>
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-								<div>
-									<Label>Authentication</Label>
-									<div className='mt-1 space-y-1'>
-										{resolutionResult.didDocument.authentication?.map((auth, index) => (
-											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+								<div className='space-y-2'>
+									<Label className='text-sm font-medium'>Authentication</Label>
+									<div className='space-y-1'>
+										{resolutionResult.document.authentication?.map((auth, index) => (
+											<div key={index} className='text-sm font-mono bg-muted p-2 rounded-md break-all'>
 												{typeof auth === 'string' ? auth : auth.id}
 											</div>
-										)) || []}
+										)) || <div className='text-sm text-muted-foreground'>No authentication methods</div>}
 									</div>
 								</div>
-								<div>
-									<Label>Assertion Method</Label>
-									<div className='mt-1 space-y-1'>
-										{resolutionResult.didDocument.assertionMethod?.map((assertion, index) => (
-											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+								<div className='space-y-2'>
+									<Label className='text-sm font-medium'>Assertion Method</Label>
+									<div className='space-y-1'>
+										{resolutionResult.document.assertionMethod?.map((assertion, index) => (
+											<div key={index} className='text-sm font-mono bg-muted p-2 rounded-md break-all'>
 												{typeof assertion === 'string' ? assertion : assertion.id}
 											</div>
-										)) || []}
+										)) || <div className='text-sm text-muted-foreground'>No assertion methods</div>}
 									</div>
 								</div>
-								<div>
-									<Label>Key Agreement</Label>
-									<div className='mt-1 space-y-1'>
-										{resolutionResult.didDocument.keyAgreement?.map((agreement, index) => (
-											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+								<div className='space-y-2'>
+									<Label className='text-sm font-medium'>Key Agreement</Label>
+									<div className='space-y-1'>
+										{resolutionResult.document.keyAgreement?.map((agreement, index) => (
+											<div key={index} className='text-sm font-mono bg-muted p-2 rounded-md break-all'>
 												{typeof agreement === 'string' ? agreement : agreement.id}
 											</div>
-										)) || []}
+										)) || <div className='text-sm text-muted-foreground'>No key agreement methods</div>}
 									</div>
 								</div>
-								<div>
-									<Label>Capability Invocation</Label>
-									<div className='mt-1 space-y-1'>
-										{resolutionResult.didDocument.capabilityInvocation?.map((capability, index) => (
-											<div key={index} className='text-sm font-mono bg-gray-100 p-2 rounded'>
+								<div className='space-y-2'>
+									<Label className='text-sm font-medium'>Capability Invocation</Label>
+									<div className='space-y-1'>
+										{resolutionResult.document.capabilityInvocation?.map((capability, index) => (
+											<div key={index} className='text-sm font-mono bg-muted p-2 rounded-md break-all'>
 												{typeof capability === 'string' ? capability : capability.id}
 											</div>
-										)) || []}
+										)) || <div className='text-sm text-muted-foreground'>No capability invocation methods</div>}
 									</div>
 								</div>
 							</div>
@@ -433,7 +421,7 @@ export default function DIDDetailsPage() {
 							<CardDescription>Services and endpoints associated with this DID</CardDescription>
 						</CardHeader>
 						<CardContent>
-							{!resolutionResult.didDocument.service || resolutionResult.didDocument.service.length === 0 ? (
+							{!resolutionResult.document?.service || resolutionResult.document.service.length === 0 ? (
 								<p className='text-gray-500 text-center py-8'>No service endpoints found</p>
 							) : (
 								<Table>
@@ -446,7 +434,7 @@ export default function DIDDetailsPage() {
 										</TableRow>
 									</TableHeader>
 									<TableBody>
-										{resolutionResult.didDocument.service.map((service, index) => (
+										{resolutionResult.document?.service?.map((service, index) => (
 											<TableRow key={index}>
 												<TableCell className='font-mono text-sm'>
 													<div className='max-w-xs truncate' title={service.id}>
@@ -516,7 +504,7 @@ export default function DIDDetailsPage() {
 													)}
 												</div>
 												<p className='text-sm text-gray-600 mb-1'>{event.action === 'created' ? 'DID created' : event.action === 'updated' ? 'DID updated' : event.action === 'deactivated' ? 'DID deactivated' : 'DID deleted'}</p>
-												<p className='text-xs text-gray-500'>{new Date(event.timestamp).toLocaleString()}</p>
+												<p className='text-xs text-gray-500'>{formatDate(event.timestamp)}</p>
 											</div>
 										</div>
 									))}

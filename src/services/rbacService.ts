@@ -49,7 +49,7 @@ export const removeRoleForUser = withErrorHandling(async (userId: string, role: 
 });
 
 export const getRolesForUsers = withErrorHandling(async (data: BulkUserRolesInput): Promise<BulkUserRolesResponse[]> => {
-	const response = await apiClient.post<BulkUserRolesResponse[]>(`${RBAC_API_PREFIX}/users/roles/bulk`, data);
+	const response = await apiClient.post<BulkUserRolesResponse[]>(`${RBAC_API_PREFIX}/users/roles`, data);
 	return response.data;
 });
 

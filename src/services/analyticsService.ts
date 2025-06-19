@@ -105,6 +105,19 @@ export interface TenantStatsItem {
 	is_active: boolean;
 }
 
+export interface LoginHistoryItem {
+	timestamp: string;
+	ip_address: string;
+	user_agent: string;
+	success: boolean;
+}
+
+export interface DeviceHistoryItem {
+	device: string;
+	last_used: string;
+	count: number;
+}
+
 /**
  * Get personal dashboard analytics for the current user
  */
@@ -195,6 +208,59 @@ export const getLoginActivityData = withErrorHandling(
 		const url = `/api/v1/analytics/admin/login-activity${queryString ? `?${queryString}` : ''}`;
 
 		const response = await apiClient.get<LoginActivityItem[]>(url);
+		return response.data;
+	}
+);
+
+/**
+ * Get personal login history data
+ */
+export const getPersonalLoginHistory = withErrorHandling(
+	async (query?: AnalyticsQuery): Promise<LoginHistoryItem[]> => {
+		const params = new URLSearchParams();
+
+		if (query?.time_range?.start_date) {
+			params.append('start_date', query.time_range.start_date);
+		}
+		if (query?.time_range?.end_date) {
+			params.append('end_date', query.time_range.end_date);
+		}
+		if (query?.limit) {
+			params.append('limit', query.limit.toString());
+		}
+		if (query?.offset) {
+			params.append('offset', query.offset.toString());
+		}
+
+		const queryString = params.toString();
+		const url = `/api/v1/analytics/personal/login-history${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<LoginHistoryItem[]>(url);
+		return response.data;
+	}
+);
+
+/**
+ * Get personal device history data
+ */
+export const getPersonalDeviceHistory = withErrorHandling(
+	async (query?: AnalyticsQuery): Promise<DeviceHistoryItem[]> => {
+		const params = new URLSearchParams();
+
+		if (query?.time_range?.start_date) {
+			params.append('start_date', query.time_range.start_date);
+		}
+		if (query?.time_range?.end_date) {
+			params.append('end_date', query.time_range.end_date);
+		}
+		if (query?.limit) {
+			params.append('limit', query.limit.toString());
+		}
+
+		const queryString = params.toString();
+		const url = `/api/v1/analytics/personal/device-history${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<DeviceHistoryItem[]>(url);
 		return response.data;
 	}
 );

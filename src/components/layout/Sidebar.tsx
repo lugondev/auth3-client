@@ -216,7 +216,22 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 	// Check if a link is active (current page or parent of current page)
 	const isLinkActive = (href: string): boolean => {
 		if (href === '#') return false
-		return pathname === href || pathname.startsWith(`${href}/`)
+		
+		// Handle fragment URLs (URLs with #)
+		if (href.includes('#')) {
+			// Extract the base path without the fragment
+			const basePath = href.split('#')[0]
+			// Check if current path matches the base path exactly
+			return pathname === basePath
+		}
+		
+		// Check if current path matches exactly
+		if (pathname === href) return true
+		
+		// For submenu items, we don't want to highlight parent items
+		// For example, when on /dashboard/dids/create, we don't want /dashboard/dids to be active
+		// This is to prevent multiple items in the same submenu from being highlighted
+		return false
 	}
 
 	// Check if a parent link has an active child

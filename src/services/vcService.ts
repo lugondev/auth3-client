@@ -10,22 +10,25 @@ import {
   VerifyPresentationInput,
   VerifyPresentationOutput,
   CredentialStatus,
-  CredentialListResponse,
-  CredentialListQuery,
-  CredentialStatistics,
-  CredentialsBySubjectResponse,
   ValidateSchemaInput,
   ValidateSchemaOutput,
-  CredentialApiResponse,
   CreateTemplateInput,
   ListTemplatesInput,
-  ListTemplatesOutput,
   CredentialTemplate,
   GetCredentialOutput,
 } from '../types/credentials';
 
+import {
+  CredentialApiResponse,
+  CredentialListQuery,
+  CredentialListResponse,
+  CredentialsBySubjectResponse,
+  CredentialStatistics,
+  ListTemplatesOutput
+} from '../types/vc';
+
 // Re-export types for convenience
-export type { CredentialStatistics } from '../types/credentials';
+export type { CredentialStatistics } from '../types/vc';
 
 /**
  * Custom error class for credential service operations
@@ -51,17 +54,8 @@ export class CredentialServiceError extends Error {
  */
 export const issueCredential = withErrorHandling(
   async (input: IssueCredentialInput): Promise<IssueCredentialOutput> => {
-    const response = await apiClient.post<CredentialApiResponse<IssueCredentialOutput>>('/api/v1/credentials/issue', input);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to issue credential',
-        'ISSUE_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.post<IssueCredentialOutput>('/api/v1/credentials/issue', input);
+    return response.data;
   }
 );
 
@@ -72,17 +66,8 @@ export const issueCredential = withErrorHandling(
  */
 export const verifyCredential = withErrorHandling(
   async (input: VerifyCredentialInput): Promise<VerifyCredentialOutput> => {
-    const response = await apiClient.post<CredentialApiResponse<VerifyCredentialOutput>>('/api/v1/credentials/verify', input);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to verify credential',
-        'VERIFY_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.post<VerifyCredentialOutput>('/api/v1/credentials/verify', input);
+    return response.data;
   }
 );
 
@@ -93,17 +78,8 @@ export const verifyCredential = withErrorHandling(
  */
 export const getCredential = withErrorHandling(
   async ({ credentialId }: { credentialId: string }): Promise<GetCredentialOutput> => {
-    const response = await apiClient.get<CredentialApiResponse<GetCredentialOutput>>(`/api/v1/credentials/${credentialId}`);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to get credential',
-        'GET_CREDENTIAL_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.get<GetCredentialOutput>(`/api/v1/credentials/${credentialId}`);
+    return response.data;
   }
 );
 
@@ -114,17 +90,8 @@ export const getCredential = withErrorHandling(
  */
 export const getCredentialStatus = withErrorHandling(
   async (credentialId: string): Promise<CredentialStatus> => {
-    const response = await apiClient.get<CredentialApiResponse<CredentialStatus>>(`/api/v1/credentials/${credentialId}/status`);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to get credential status',
-        'STATUS_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.get<CredentialStatus>(`/api/v1/credentials/${credentialId}/status`);
+    return response.data;
   }
 );
 
@@ -150,17 +117,8 @@ export const listCredentials = withErrorHandling(
     const queryString = params.toString();
     const url = queryString ? `/api/v1/credentials?${queryString}` : '/api/v1/credentials';
 
-    const response = await apiClient.get<CredentialApiResponse<CredentialListResponse>>(url);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to list credentials',
-        'LIST_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.get<CredentialListResponse>(url);
+    return response.data;
   }
 );
 
@@ -171,17 +129,8 @@ export const listCredentials = withErrorHandling(
  */
 export const createPresentation = withErrorHandling(
   async (input: CreatePresentationInput): Promise<CreatePresentationOutput> => {
-    const response = await apiClient.post<CredentialApiResponse<CreatePresentationOutput>>('/api/v1/presentations/create', input);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to create presentation',
-        'CREATE_PRESENTATION_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.post<CreatePresentationOutput>('/api/v1/presentations/create', input);
+    return response.data;
   }
 );
 
@@ -192,17 +141,8 @@ export const createPresentation = withErrorHandling(
  */
 export const verifyPresentation = withErrorHandling(
   async (input: VerifyPresentationInput): Promise<VerifyPresentationOutput> => {
-    const response = await apiClient.post<CredentialApiResponse<VerifyPresentationOutput>>('/api/v1/presentations/verify', input);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to verify presentation',
-        'VERIFY_PRESENTATION_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.post<VerifyPresentationOutput>('/api/v1/presentations/verify', input);
+    return response.data;
   }
 );
 
@@ -213,15 +153,8 @@ export const verifyPresentation = withErrorHandling(
  */
 export const revokeCredential = withErrorHandling(
   async (credentialId: string): Promise<void> => {
-    const response = await apiClient.post<CredentialApiResponse<void>>(`/api/v1/credentials/${credentialId}/revoke`);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to revoke credential',
-        'REVOKE_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
+    const response = await apiClient.post<void>(`/api/v1/credentials/${credentialId}/revoke`);
+    return response.data;
   }
 );
 
@@ -232,17 +165,8 @@ export const revokeCredential = withErrorHandling(
  */
 export const getCredentialsBySubject = withErrorHandling(
   async (subjectDid: string): Promise<CredentialsBySubjectResponse> => {
-    const response = await apiClient.get<CredentialApiResponse<CredentialsBySubjectResponse>>(`/api/v1/credentials/subject/${encodeURIComponent(subjectDid)}`);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to get credentials by subject',
-        'GET_BY_SUBJECT_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.get<CredentialsBySubjectResponse>(`/api/v1/credentials/subject/${encodeURIComponent(subjectDid)}`);
+    return response.data;
   }
 );
 
@@ -252,17 +176,8 @@ export const getCredentialsBySubject = withErrorHandling(
  */
 export const getCredentialStatistics = withErrorHandling(
   async (): Promise<CredentialStatistics> => {
-    const response = await apiClient.get<CredentialApiResponse<CredentialStatistics>>('/api/v1/credentials/statistics');
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to get credential statistics',
-        'STATISTICS_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.get<CredentialStatistics>('/api/v1/credentials/statistics');
+    return response.data;
   }
 );
 
@@ -273,17 +188,8 @@ export const getCredentialStatistics = withErrorHandling(
  */
 export const validateSchema = withErrorHandling(
   async (input: ValidateSchemaInput): Promise<ValidateSchemaOutput> => {
-    const response = await apiClient.post<CredentialApiResponse<ValidateSchemaOutput>>('/api/v1/credentials/validate-schema', input);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to validate schema',
-        'VALIDATE_SCHEMA_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.post<ValidateSchemaOutput>('/api/v1/credentials/validate-schema', input);
+    return response.data;
   }
 );
 
@@ -308,17 +214,8 @@ export const listTemplates = withErrorHandling(
     const queryString = params.toString();
     const url = queryString ? `/api/v1/credentials/templates?${queryString}` : '/api/v1/credentials/templates';
 
-    const response = await apiClient.get<CredentialApiResponse<ListTemplatesOutput>>(url);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to list templates',
-        'LIST_TEMPLATES_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.get<ListTemplatesOutput>(url);
+    return response.data;
   }
 );
 
@@ -329,17 +226,8 @@ export const listTemplates = withErrorHandling(
  */
 export const createTemplate = withErrorHandling(
   async (input: CreateTemplateInput): Promise<CredentialTemplate> => {
-    const response = await apiClient.post<CredentialApiResponse<CredentialTemplate>>('/api/v1/credentials/templates', input);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to create template',
-        'CREATE_TEMPLATE_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
-
-    return response.data.data;
+    const response = await apiClient.post<CredentialTemplate>('/api/v1/credentials/templates', input);
+    return response.data;
   }
 );
 
@@ -350,14 +238,7 @@ export const createTemplate = withErrorHandling(
  */
 export const deleteTemplate = withErrorHandling(
   async (templateId: string): Promise<void> => {
-    const response = await apiClient.delete<CredentialApiResponse<void>>(`/api/v1/credentials/templates/${templateId}`);
-
-    if (!response.data.success) {
-      throw new CredentialServiceError(
-        response.data.message || 'Failed to delete template',
-        'DELETE_TEMPLATE_FAILED',
-        response.data.errors ? { errors: response.data.errors } : undefined
-      );
-    }
+    const response = await apiClient.delete<void>(`/api/v1/credentials/templates/${templateId}`);
+    return response.data;
   }
 );

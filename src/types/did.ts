@@ -64,7 +64,7 @@ export interface CreateDIDInput {
   metadata?: Record<string, unknown>;
 }
 
-export interface CreateDIDOutput {
+export interface DIDOutput {
   id: string;
   did: string;
   method: string;
@@ -72,6 +72,11 @@ export interface CreateDIDOutput {
   status: string;
   created_at: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface CreateDIDOutput {
+  did: DIDOutput;
+  created_at: string;
 }
 
 // Update DID - Based on UpdateDIDRequest/Response
@@ -97,7 +102,7 @@ export interface UpdateDIDOutput {
 }
 
 // DID Response - Based on DIDResponse DTO
-export interface DIDResponse {
+export interface DIDData {
   id: string;
   user_id: string;
   did: string;
@@ -109,12 +114,24 @@ export interface DIDResponse {
   updated_at: string;
   metadata?: Record<string, unknown>;
 }
+export interface DIDResponse {
+  did: DIDData;
+  id: string;
+  user_id: string;
+  method: string;
+  identifier: string;
+  document: DIDDocument;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  metadata?: Record<string, unknown>;
+}
 
 // DID Resolution - Based on ResolveDIDResponse
 export interface ResolveDIDResult {
-  didDocument: DIDDocument;
-  didResolutionMetadata: DIDResolutionMetadata;
-  didDocumentMetadata: DIDDocumentMetadata;
+  document: DIDDocument;
+  resolution_metadata: DIDResolutionMetadata;
+  document_metadata: DIDDocumentMetadata;
 }
 
 export interface DIDResolutionMetadata {
@@ -126,29 +143,31 @@ export interface DIDResolutionMetadata {
 export interface DIDDocumentMetadata {
   created: string;
   updated: string;
-  versionId?: string;
-  nextUpdate?: string;
-  nextVersionId?: string;
-  equivalentId?: string[];
-  canonicalId?: string;
+  version_id?: string;
+  next_update?: string;
+  next_version_id?: string;
+  equivalent_id?: string[];
+  canonical_id?: string;
 }
 
 // List DIDs - Based on ListDIDsRequest/Response
 export interface ListDIDsInput {
-  offset?: number;
+  page?: number;
   limit?: number;
+  offset?: number; // Giữ lại để tương thích ngược
   user_id?: string;
-  status?: string;
+  status?: DIDStatus;
   method?: string;
 }
 
 export interface ListDIDsOutput {
   dids: DIDResponse[];
   total: number;
-  offset: number;
-  limit: number;
-  has_more: boolean;
+  page: number;
+  page_size: number;
+  total_pages: number;
   stats?: DIDStatisticsOutput;
+  error?: unknown
 }
 
 // DID Authentication - Based on DID Auth DTOs
@@ -290,14 +309,14 @@ export interface DIDStatisticsInput {
 }
 
 export interface DIDStatisticsOutput {
-  total: number;
-  active: number;
-  deactivated: number;
-  revoked: number;
-  by_method: Record<string, number>;
-  recent_activity: DIDActivity[];
-  user_count?: number;
-  timestamp: string;
+  total_dids: number;
+  active_dids: number;
+  deactivated_dids: number;
+  revoked_dids: number;
+  dids_by_method: Record<string, number>;
+  dids_created_today: number;
+  dids_created_week: number;
+  dids_created_month: number;
 }
 
 export interface DIDActivity {
@@ -334,14 +353,6 @@ export interface DIDServiceConfig {
   baseUrl: string;
   timeout?: number;
   retries?: number;
-}
-
-// API Response wrapper
-export interface DIDApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
 }
 
 // Dashboard Widget Types

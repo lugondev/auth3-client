@@ -1,85 +1,17 @@
 import apiClient from '@/lib/apiClient';
 import { withErrorHandling } from './errorHandlingService';
-
-// DID Authentication Types
-export interface DIDAuthInitiateRequest {
-	did: string;
-	challenge_type?: 'signature' | 'presentation';
-	verification_method?: string;
-}
-
-export interface DIDAuthInitiateResponse {
-	challenge: string;
-	challenge_id: string;
-	expires_at: string;
-	verification_method?: string;
-}
-
-export interface DIDAuthCompleteRequest {
-	challenge_id: string;
-	response: string;
-	proof?: {
-		type: string;
-		created: string;
-		verification_method: string;
-		proof_purpose: string;
-		jws?: string;
-		signature?: string;
-	};
-}
-
-export interface DIDAuthCompleteResponse {
-	access_token: string;
-	refresh_token: string;
-	token_type: string;
-	expires_in: number;
-	user: {
-		id: string;
-		did: string;
-		email?: string;
-		name?: string;
-		roles: string[];
-		permissions: string[];
-	};
-}
-
-export interface DIDChallengeRequest {
-	did: string;
-	challenge_type?: 'signature' | 'presentation';
-}
-
-export interface DIDChallengeResponse {
-	challenge: string;
-	challenge_id: string;
-	expires_at: string;
-}
-
-export interface DIDVerifyRequest {
-	challenge_id: string;
-	signature: string;
-	verification_method: string;
-}
-
-export interface DIDVerifyResponse {
-	valid: boolean;
-	did: string;
-	verification_method: string;
-	message?: string;
-}
-
-export interface DIDValidateSignatureRequest {
-	did: string;
-	message: string;
-	signature: string;
-	verification_method: string;
-}
-
-export interface DIDValidateSignatureResponse {
-	valid: boolean;
-	did: string;
-	verification_method: string;
-	message?: string;
-}
+import {
+	DIDAuthInitiateRequest,
+	DIDAuthInitiateResponse,
+	DIDAuthCompleteRequest,
+	DIDAuthCompleteResponse,
+	DIDChallengeRequest,
+	DIDChallengeResponse,
+	DIDVerifyRequest,
+	DIDVerifyResponse,
+	DIDValidateSignatureRequest,
+	DIDValidateSignatureResponse
+} from '@/types/didAuth';
 
 /**
  * Initiate DID authentication process

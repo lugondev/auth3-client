@@ -3,7 +3,7 @@
 
 import {
   ContextMode,
-  ContextState,
+  ContextAuthState,
   ContextSwitchOptions,
   ContextSwitchResult,
   ContextValidationResult,
@@ -73,7 +73,7 @@ export class ContextManager {
   }
 
   // Get context state
-  getContextState(context: ContextMode): ContextState | null {
+  getContextState(context: ContextMode): ContextAuthState | null {
     if (typeof window === 'undefined') {
       return null
     }
@@ -86,7 +86,7 @@ export class ContextManager {
       const stored = localStorage.getItem(key)
       if (!stored) return null
 
-      const state: ContextState = JSON.parse(stored)
+      const state: ContextAuthState = JSON.parse(stored)
 
       // Validate cache timeout
       if (this.config.validationEnabled && this.isCacheExpired(state.lastUpdated)) {
@@ -102,7 +102,7 @@ export class ContextManager {
   }
 
   // Set context state
-  setContextState(context: ContextMode, state: Omit<ContextState, 'lastUpdated'>): void {
+  setContextState(context: ContextMode, state: Omit<ContextAuthState, 'lastUpdated'>): void {
     if (typeof window === 'undefined') {
       return
     }
@@ -112,7 +112,7 @@ export class ContextManager {
         ? CONTEXT_STORAGE_KEYS.globalContext
         : CONTEXT_STORAGE_KEYS.tenantContext
 
-      const stateWithTimestamp: ContextState = {
+      const stateWithTimestamp: ContextAuthState = {
         ...state,
         lastUpdated: Date.now()
       }
@@ -142,7 +142,7 @@ export class ContextManager {
   }
 
   // Validate context
-  validateContext(context: ContextMode, state?: ContextState): ContextValidationResult {
+  validateContext(context: ContextMode, state?: ContextAuthState): ContextValidationResult {
     const errors: string[] = []
     const warnings: string[] = []
 

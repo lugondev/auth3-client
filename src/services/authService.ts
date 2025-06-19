@@ -147,7 +147,7 @@ export const register = withErrorHandling(
  */
 export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> => {
 	try {
-		await apiClient.post('/api/v1/auth/password/forgot', data); // Added /api/v1
+		await apiClient.post('/api/v1/auth/forgot-password', data);
 		console.log('Forgot password request sent.');
 	} catch (error) {
 		console.error('Error sending forgot password request:', error);
@@ -161,7 +161,7 @@ export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> =
  */
 export const resetPassword = async (data: ResetPasswordInput): Promise<void> => {
 	try {
-		await apiClient.post('/api/v1/auth/password/reset', data); // Added /api/v1
+		await apiClient.post('/api/v1/auth/reset-password', data);
 		console.log('Password reset successful.');
 	} catch (error) {
 		console.error('Error resetting password:', error);
@@ -177,7 +177,7 @@ export const resetPassword = async (data: ResetPasswordInput): Promise<void> => 
 export const verifyEmail = async (token: string): Promise<EmailVerificationOutput> => {
 	try {
 		// Backend expects GET request for email verification
-		const response = await apiClient.get<EmailVerificationOutput>(`/api/v1/auth/email/verify/${token}`); // Added /api/v1
+		const response = await apiClient.get<EmailVerificationOutput>(`/api/v1/auth/verify-email/${token}`);
 		console.log('Email verification successful.');
 		return response.data;
 	} catch (error) {

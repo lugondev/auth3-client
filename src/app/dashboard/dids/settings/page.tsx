@@ -14,6 +14,7 @@ import {Settings, Shield, Database, Network, Save, RotateCcw, AlertTriangle, Inf
 import {toast} from 'sonner'
 import {getCurrentUser, updateCurrentUserProfile} from '@/services/userService'
 import {UserProfile} from '@/types/user'
+import {DIDSkeleton} from '@/components/did'
 
 // Types for DID settings
 interface DIDGeneralSettings {
@@ -331,12 +332,7 @@ export default function DIDSettingsPage() {
 	if (loading) {
 		return (
 			<div className='container mx-auto py-6'>
-				<div className='flex items-center justify-center min-h-[400px]'>
-					<div className='text-center'>
-						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4'></div>
-						<p className='text-muted-foreground'>Loading DID settings...</p>
-					</div>
-				</div>
+				<DIDSkeleton variant='card' />
 			</div>
 		)
 	}

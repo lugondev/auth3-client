@@ -9,7 +9,7 @@ export interface TokenStorage {
   timestamp: number
 }
 
-export interface ContextState {
+export interface ContextAuthState {
   user: AppUser | null
   permissions: Permission[]
   roles: string[]
@@ -20,8 +20,8 @@ export interface ContextState {
 }
 
 export interface DualContext {
-  globalContext: ContextState
-  tenantContext: ContextState
+  globalContext: ContextAuthState
+  tenantContext: ContextAuthState
   currentMode: ContextMode
   isTransitioning: boolean
 }

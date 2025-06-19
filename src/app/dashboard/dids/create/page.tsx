@@ -189,22 +189,24 @@ export default function CreateDIDPage() {
 
 			// Call actual API
 			const response = await createDID(createInput)
+			console.log('API Response:', response)
 
-			// Extract keys from response (assuming they're in the document or metadata)
+			// Extract keys from response metadata and document
+			const publicKey = response.did.metadata?.publicKey || response.did.document?.verificationMethod?.[0]?.publicKeyMultibase || response.did
+
+			const privateKey = response.did.metadata?.privateKey || 'Private key is securely stored on the server'
+
 			const keys = {
-				publicKey: response.document.verificationMethod?.[0]?.publicKeyMultibase || response.did,
-				privateKey: 'Private key is securely stored on the server', // Don't expose private keys
+				publicKey: typeof publicKey === 'string' ? publicKey : JSON.stringify(publicKey),
+				privateKey: typeof privateKey === 'string' ? privateKey : 'Private key is securely stored on the server',
 			}
 
 			setGeneratedKeys(keys)
 			// Store the response for navigation
-			setPreviewDocument(response.document)
+			if (response.did.document) {
+				setPreviewDocument(response.did.document)
+			}
 			toast.success('DID created successfully!')
-
-			// Redirect after a delay to show the keys
-			setTimeout(() => {
-				router.push('/dashboard/dids')
-			}, 5000)
 		} catch (error) {
 			console.error('Error creating DID:', error)
 			toast.error('Failed to create DID')
