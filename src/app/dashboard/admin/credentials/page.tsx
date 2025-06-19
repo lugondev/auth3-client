@@ -14,6 +14,7 @@ import {getCredentialStatistics, listCredentials, listTemplates} from '@/service
 import type {CredentialStatistics} from '@/services/vcService'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
+import type {CredentialMetadata} from '@/types/credentials'
 
 // Types for VC administration
 interface VCStats {
@@ -58,7 +59,7 @@ import type {CredentialTemplate, VerifiableCredential} from '@/types/credentials
 
 export default function VCAdminDashboard() {
 	const [stats, setStats] = useState<VCStats | null>(null)
-	const [credentials, setCredentials] = useState<VerifiableCredential[]>([])
+	const [credentials, setCredentials] = useState<CredentialMetadata[]>([])
 	const [templates, setTemplates] = useState<CredentialTemplate[]>([])
 	const [loading, setLoading] = useState(true)
 	const [searchTerm, setSearchTerm] = useState('')
@@ -109,9 +110,9 @@ export default function VCAdminDashboard() {
 
 	// Filter credentials based on search and filters
 	const filteredCredentials = credentials.filter((cred) => {
-		const matchesSearch = searchTerm === '' || cred.id.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof cred.credentialSubject === 'object' && cred.credentialSubject.id && cred.credentialSubject.id.toLowerCase().includes(searchTerm.toLowerCase())) || (typeof cred.issuer === 'string' ? cred.issuer.toLowerCase().includes(searchTerm.toLowerCase()) : false)
+		const matchesSearch = searchTerm === '' || cred.id.toLowerCase().includes(searchTerm.toLowerCase()) || cred.subject.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof cred.issuer === 'string' ? cred.issuer.toLowerCase().includes(searchTerm.toLowerCase()) : false)
 
-		const matchesStatus = statusFilter === 'all' || cred.credentialStatus === statusFilter
+		const matchesStatus = statusFilter === 'all' || cred.status === statusFilter
 		const matchesType = typeFilter === 'all' || (Array.isArray(cred.type) ? cred.type.includes(typeFilter) : cred.type === typeFilter)
 
 		return matchesSearch && matchesStatus && matchesType
@@ -383,17 +384,17 @@ export default function VCAdminDashboard() {
 													<Badge variant='outline'>{Array.isArray(cred.type) ? cred.type.filter((t) => t !== 'VerifiableCredential').join(', ') : cred.type}</Badge>
 												</TableCell>
 												<TableCell>
-													<div>
-														<div className='font-medium'>{cred.credentialSubject?.id || 'N/A'}</div>
-													</div>
-												</TableCell>
+												<div>
+													<div className='font-medium'>{cred.subject || 'N/A'}</div>
+												</div>
+											</TableCell>
 												<TableCell>
 													<div className='font-medium'>{typeof cred.issuer === 'string' ? cred.issuer : cred.issuer?.id || 'N/A'}</div>
 												</TableCell>
 												<TableCell>
 													<div className='flex items-center space-x-2'>
-														{getStatusIcon(cred.credentialStatus || 'active')}
-														<Badge variant={getStatusVariant(cred.credentialStatus || 'active')}>{cred.credentialStatus || 'active'}</Badge>
+														{getStatusIcon(cred.status || 'active')}
+													<Badge variant={getStatusVariant(cred.status || 'active')}>{cred.status || 'active'}</Badge>
 													</div>
 												</TableCell>
 												<TableCell>{new Date(cred.issuanceDate).toLocaleDateString()}</TableCell>
@@ -415,13 +416,13 @@ export default function VCAdminDashboard() {
 																<Eye className='mr-2 h-4 w-4' />
 																View Details
 															</DropdownMenuItem>
-															{cred.credentialStatus === 'active' && (
+															{cred.status === 'active' && (
 																<DropdownMenuItem>
 																	<Ban className='mr-2 h-4 w-4' />
 																	Suspend
 																</DropdownMenuItem>
 															)}
-															{(cred.credentialStatus === 'active' || cred.credentialStatus === 'suspended') && (
+															{(cred.status === 'active' || cred.status === 'suspended') && (
 																<DropdownMenuItem className='text-destructive'>
 																	<XCircle className='mr-2 h-4 w-4' />
 																	Revoke

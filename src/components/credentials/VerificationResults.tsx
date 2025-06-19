@@ -9,6 +9,7 @@ import {Separator} from '@/components/ui/separator'
 import {Label} from '@/components/ui/label'
 
 import type {VerifyCredentialOutput} from '@/types/credentials'
+import {VerificationStatus} from '@/types/credentials'
 
 // Extended interface for component props to include additional verification details
 interface ExtendedVerificationResult extends VerifyCredentialOutput {
@@ -50,18 +51,18 @@ export function VerificationResults({result, className = ''}: VerificationResult
 	const calculateScore = () => {
 		if (!result.checks || result.checks.length === 0) return 0
 
-		const passedChecks = result.checks.filter((check) => check.status === 'passed').length
+		const passedChecks = result.checks.filter((check) => check.status === VerificationStatus.SUCCESS).length
 		return Math.round((passedChecks / result.checks.length) * 100)
 	}
 
 	// Get status color
 	const getStatusColor = (status: string) => {
 		switch (status) {
-			case 'passed':
+			case VerificationStatus.SUCCESS:
 				return 'text-green-600'
-			case 'failed':
+			case VerificationStatus.ERROR:
 				return 'text-red-600'
-			case 'warning':
+			case VerificationStatus.WARNING:
 				return 'text-yellow-600'
 			case 'skipped':
 				return 'text-gray-500'
@@ -73,11 +74,11 @@ export function VerificationResults({result, className = ''}: VerificationResult
 	// Get status icon
 	const getStatusIcon = (status: string) => {
 		switch (status) {
-			case 'passed':
+			case VerificationStatus.SUCCESS:
 				return <CheckCircle className='h-4 w-4' />
-			case 'failed':
+			case VerificationStatus.ERROR:
 				return <XCircle className='h-4 w-4' />
-			case 'warning':
+			case VerificationStatus.WARNING:
 				return <AlertTriangle className='h-4 w-4' />
 			case 'skipped':
 				return <Clock className='h-4 w-4' />
@@ -114,7 +115,7 @@ export function VerificationResults({result, className = ''}: VerificationResult
 	}
 
 	const score = calculateScore()
-	const passedChecks = result.checks?.filter((check) => check.status === 'passed').length || 0
+	const passedChecks = result.checks?.filter((check) => check.status === VerificationStatus.SUCCESS).length || 0
 	const totalChecks = result.checks?.length || 0
 
 	return (
@@ -171,7 +172,7 @@ export function VerificationResults({result, className = ''}: VerificationResult
 											<div className='flex items-center gap-2'>
 												<div className='text-muted-foreground'>{getCheckTypeIcon(check.check)}</div>
 												<h4 className='font-medium'>{check.check}</h4>
-												<Badge variant={check.status === 'passed' ? 'default' : check.status === 'failed' ? 'destructive' : check.status === 'warning' ? 'secondary' : 'outline'}>{check.status}</Badge>
+												<Badge variant={check.status === VerificationStatus.SUCCESS ? 'default' : check.status === VerificationStatus.ERROR ? 'destructive' : check.status === VerificationStatus.WARNING ? 'secondary' : 'outline'}>{check.status}</Badge>
 											</div>
 
 											{check.message && <p className='text-sm text-muted-foreground'>{check.message}</p>}

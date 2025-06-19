@@ -9,13 +9,14 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/c
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
-import {Users, Key, Globe, Coins, Network, TrendingUp,  Activity, Settings, Search,  MoreHorizontal, Eye, Trash2, Power} from 'lucide-react'
+import {Users, Key, Globe, Coins, Network, TrendingUp, Activity, Settings, Search, MoreHorizontal, Eye, Trash2, Power} from 'lucide-react'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
-import { getDIDStatistics, listDIDs } from '@/services/didService'
-import { getUserById } from '@/services/userService'
-import type { DIDStatisticsOutput, ListDIDsOutput, DIDResponse } from '@/types/did'
-import type { UserOutput } from '@/types/user'
+import {getDIDStatistics, listDIDs} from '@/services/didService'
+import {getUserById} from '@/services/userService'
+import type {DIDStatisticsOutput, ListDIDsOutput, DIDResponse, DIDMethod} from '@/types/did'
+import { DIDStatus } from '@/types/did'
+import type {UserOutput} from '@/types/user'
 
 // Types for DID administration
 interface DIDStats {
@@ -51,7 +52,7 @@ export default function DIDAdminDashboard() {
 	const [searchTerm, setSearchTerm] = useState<string>('')
 	const [methodFilter, setMethodFilter] = useState<string>('all')
 	const [statusFilter, setStatusFilter] = useState<string>('all')
-	const [currentPage, ] = useState(1)
+	const [currentPage] = useState(1)
 	const [pageSize] = useState(20)
 	const [, setTotalPages] = useState(1)
 
@@ -59,71 +60,67 @@ export default function DIDAdminDashboard() {
 	useEffect(() => {
 		const fetchData = async () => {
 			try {
-					setLoading(true)
-					// Fetch DID statistics
-					const statsData: DIDStatisticsOutput = await getDIDStatistics()
-					
-					// Transform statistics to match component interface
-					const transformedStats: DIDStats = {
-						totalDIDs: statsData.total,
-						activeUsers: statsData.user_count || 0,
-						methodDistribution: statsData.by_method,
-						recentActivity: {
-							created: statsData.recent_activity.filter(a => a.action === 'created').length,
-							deactivated: statsData.deactivated,
-							revoked: statsData.revoked,
-						},
-					}
+				setLoading(true)
+				// Fetch DID statistics
+				const statsData: DIDStatisticsOutput = await getDIDStatistics()
 
-					// Fetch DIDs list
-					const didsData: ListDIDsOutput = await listDIDs({
-						limit: pageSize,
-						offset: (currentPage - 1) * pageSize,
-						status: statusFilter !== 'all' ? statusFilter : undefined,
-						method: methodFilter !== 'all' ? methodFilter : undefined,
-					})
+				// Transform statistics to match component interface
+				const transformedStats: DIDStats = {
+					totalDIDs: statsData.total_dids,
+					activeUsers: statsData.active_dids || 0,
+					methodDistribution: statsData.dids_by_method,
+					recentActivity: {
+						created: statsData.dids_created_today,
+						deactivated: statsData.deactivated_dids,
+						revoked: statsData.revoked_dids,
+					},
+				}
 
-					// Transform DIDs to match component interface with user data
-					const transformedDIDs: DIDRecord[] = await Promise.all(
-						didsData.dids.map(async (did: DIDResponse) => {
-							let userEmail = 'unknown@example.com'
-							let username: string | undefined = undefined
-							
-							try {
-								// Fetch user data to get actual email
-								const userData: UserOutput = await getUserById(did.user_id)
-								userEmail = userData.email
-								// Construct username from first_name and last_name
-								if (userData.first_name || userData.last_name) {
-									username = `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
-								}
-							} catch (error) {
-								console.warn(`Failed to fetch user data for user_id: ${did.user_id}`, error)
+				// Fetch DIDs list
+				const didsData: ListDIDsOutput = await listDIDs({
+					limit: pageSize,
+					offset: (currentPage - 1) * pageSize,
+					status: statusFilter !== 'all' ? (statusFilter as DIDStatus) : undefined,
+					method: methodFilter !== 'all' ? (methodFilter as DIDMethod) : undefined,
+				})
+
+				// Transform DIDs to match component interface with user data
+				const transformedDIDs: DIDRecord[] = await Promise.all(
+					didsData.dids.map(async (did: DIDResponse) => {
+						let userEmail = 'unknown@example.com'
+						let username: string | undefined = undefined
+
+						try {
+							const userData: UserOutput = await getUserById(did.user_id)
+							userEmail = userData.email
+
+							if (userData.first_name || userData.last_name) {
+								username = `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || undefined
 							}
-							
-							return {
-								id: did.id,
-								did: did.did,
-								method: did.method,
-								status: did.status,
-								owner: {
-									id: did.user_id,
-									email: userEmail,
-									username: username,
-								},
-								createdAt: did.created_at,
-								updatedAt: did.updated_at,
-								// Note: Last used tracking is not implemented in the current DID model
-								// This would require adding a last_used_at field to the DID table
-								// and updating it whenever a DID is used for authentication or operations
-								lastUsed: undefined,
-							}
-						})
-					)
+						} catch (error) {
+							console.warn(`Failed to fetch user data for user_id: ${did.user_id}`, error)
+						}
 
-					setStats(transformedStats)
-					setDids(transformedDIDs)
-					setTotalPages(Math.ceil(didsData.total / pageSize))
+						return {
+					id: did.id,
+					did: did.did.did,
+					method: did.method,
+					status: did.status,
+					owner: {
+						id: did.user_id,
+						email: userEmail,
+						username,
+					},
+					createdAt: did.created_at,
+					updatedAt: did.updated_at,
+					lastUsed: undefined,
+				}
+					}),
+				)
+
+				setStats(transformedStats)
+				setDids(transformedDIDs)
+				setTotalPages(Math.ceil(didsData.total / pageSize))
 			} catch (error) {
 				console.error('Failed to fetch DID admin data:', error)
 			} finally {
@@ -419,7 +416,7 @@ export default function DIDAdminDashboard() {
 																<Eye className='mr-2 h-4 w-4' />
 																View Details
 															</DropdownMenuItem>
-															{did.status === 'active' && (
+															{did.status === DIDStatus.ACTIVE && (
 																<DropdownMenuItem>
 																	<Power className='mr-2 h-4 w-4' />
 																	Deactivate

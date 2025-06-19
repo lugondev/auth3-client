@@ -1,7 +1,12 @@
 // DID Types for Auth3 Client - Based on Backend DTOs
 
 export type DIDMethod = 'key' | 'web' | 'ethr' | 'ion' | 'peer';
-export type DIDStatus = 'active' | 'deactivated' | 'revoked';
+
+export enum DIDStatus {
+  ACTIVE = 'active',
+  DEACTIVATED = 'deactivated',
+  REVOKED = 'revoked',
+}
 
 // Core DID Document structure based on W3C DID Core v1.0
 export interface DIDDocument {
@@ -60,6 +65,7 @@ export interface DIDAuthProof {
 // DID Creation - Based on CreateDIDRequest/Response
 export interface CreateDIDInput {
   method: DIDMethod;
+  key_type?: 'Ed25519' | 'secp256k1' | 'P-256';
   options?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }

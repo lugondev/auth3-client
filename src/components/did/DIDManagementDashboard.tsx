@@ -16,7 +16,7 @@ import {DIDCard} from './DIDCard'
 import {DIDCreate} from './DIDCreate'
 import {DIDDetails} from './DIDDetails'
 import {DIDStatusBadge} from './DIDStatusBadge'
-import type {DIDMethod, DIDStatus} from '@/types/did'
+import {DIDMethod, DIDStatus} from '@/types/did'
 import * as didService from '@/services/didService'
 
 /**
@@ -55,11 +55,11 @@ interface DIDStats {
 
 function getStatusIcon(status: DIDStatus) {
 	switch (status) {
-		case 'active':
+		case DIDStatus.ACTIVE:
 			return CheckCircle
-		case 'deactivated':
+		case DIDStatus.DEACTIVATED:
 			return XCircle
-		case 'revoked':
+		case DIDStatus.REVOKED:
 			return AlertTriangle
 		default:
 			return AlertCircle
@@ -68,11 +68,11 @@ function getStatusIcon(status: DIDStatus) {
 
 function getStatusColor(status: DIDStatus) {
 	switch (status) {
-		case 'active':
+		case DIDStatus.ACTIVE:
 			return 'text-green-600'
-		case 'deactivated':
+		case DIDStatus.DEACTIVATED:
 			return 'text-red-600'
-		case 'revoked':
+		case DIDStatus.REVOKED:
 			return 'text-red-800'
 		default:
 			return 'text-gray-600'
@@ -112,13 +112,13 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 
 			// Apply search filter on frontend (since API might not support search)
 			if (filters.search) {
-				fetchedDIDs = fetchedDIDs.filter((did) => did.did.toLowerCase().includes(filters.search.toLowerCase()) || (did.metadata && JSON.stringify(did.metadata).toLowerCase().includes(filters.search.toLowerCase())))
+				fetchedDIDs = fetchedDIDs.filter((did) => did.did.did.toLowerCase().includes(filters.search.toLowerCase()) || (did.metadata && JSON.stringify(did.metadata).toLowerCase().includes(filters.search.toLowerCase())))
 			}
 
 			// Convert API response to local DID format
 			const convertedDIDs: DID[] = fetchedDIDs.map((apiDID) => ({
 				id: apiDID.id,
-				did: apiDID.did,
+				did: apiDID.did.did,
 				method: apiDID.method as DIDMethod,
 				status: apiDID.status as DIDStatus,
 				created_at: apiDID.created_at,
@@ -131,11 +131,11 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 			// Fetch statistics
 			const statsResponse = await didService.getDIDStatistics()
 			const convertedStats: DIDStats = {
-				total: statsResponse.total,
-				active: statsResponse.active,
-				deactivated: statsResponse.deactivated,
-				revoked: statsResponse.revoked,
-				byMethod: statsResponse.by_method,
+				total: statsResponse.total_dids,
+				active: statsResponse.active_dids,
+				deactivated: statsResponse.deactivated_dids,
+				revoked: statsResponse.revoked_dids,
+				byMethod: statsResponse.dids_by_method,
 			}
 			setStats(convertedStats)
 		} catch (error) {
@@ -184,7 +184,7 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 			if (action === 'delete') {
 				setDids((prev) => prev.filter((did) => !selectedDids.includes(did.id)))
 			} else {
-				const newStatus = action === 'activate' ? 'active' : 'deactivated'
+				const newStatus = action === 'activate' ? DIDStatus.ACTIVE : DIDStatus.DEACTIVATED
 				setDids((prev) => prev.map((did) => (selectedDids.includes(did.id) ? {...did, status: newStatus, updated_at: new Date().toISOString()} : did)))
 			}
 
@@ -317,9 +317,9 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value='all'>All Status</SelectItem>
-								<SelectItem value='active'>Active</SelectItem>
-								<SelectItem value='deactivated'>Deactivated</SelectItem>
-								<SelectItem value='revoked'>Revoked</SelectItem>
+								<SelectItem value={DIDStatus.ACTIVE}>Active</SelectItem>
+								<SelectItem value={DIDStatus.DEACTIVATED}>Deactivated</SelectItem>
+								<SelectItem value={DIDStatus.REVOKED}>Revoked</SelectItem>
 							</SelectContent>
 						</Select>
 						<Select
@@ -373,45 +373,45 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 			) : viewMode === 'grid' ? (
 				<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
 					{filteredDids.map((did) => {
-						// Convert DID to DIDResponse format for DIDCard
-						const didResponse = {
-							id: did.id,
-							user_id: '', // Not available in current DID interface
-							did: did.did,
-							method: did.method,
-							identifier: did.did.split(':').slice(2).join(':'), // Extract identifier from DID
-							document: {
-								// Minimal document structure
-								'@context': ['https://www.w3.org/ns/did/v1'],
-								id: did.did,
-								verificationMethod: [],
-								authentication: [],
-								assertionMethod: [],
-								keyAgreement: [],
-								capabilityInvocation: [],
-								capabilityDelegation: [],
-								service: [],
-							},
-							status: did.status,
-							created_at: did.created_at,
-							updated_at: did.updated_at,
-							metadata: did.metadata,
-						}
+					// Convert DID to DIDData format for DIDCard
+					const didData = {
+						id: did.id,
+						user_id: '', // Not available in current DID interface
+						did: did.did,
+						method: did.method,
+						identifier: did.did.split(':').slice(2).join(':'), // Extract identifier from DID
+						document: {
+							// Minimal document structure
+							'@context': ['https://www.w3.org/ns/did/v1'],
+							id: did.did,
+							verificationMethod: [],
+							authentication: [],
+							assertionMethod: [],
+							keyAgreement: [],
+							capabilityInvocation: [],
+							capabilityDelegation: [],
+							service: [],
+						},
+						status: did.status,
+						created_at: did.created_at,
+						updated_at: did.updated_at,
+						metadata: did.metadata,
+					}
 
-						return (
-							<DIDCard
-								key={did.id}
-								did={didResponse}
-								onView={() => {
-									// Navigate to DID details
-									window.location.href = `/dashboard/dids/${did.id}`
-								}}
-								onDeactivate={() => handleDeleteDID(did.id)}
-								onRevoke={() => handleDeleteDID(did.id)}
-								onDelete={() => handleDeleteDID(did.id)}
-							/>
-						)
-					})}
+					return (
+						<DIDCard
+							key={did.did}
+							did={didData}
+							onView={() => {
+								// Navigate to DID details
+								window.location.href = `/dashboard/dids/${did.did}`
+							}}
+							onDeactivate={() => handleDeleteDID(did.did)}
+							onRevoke={() => handleDeleteDID(did.did)}
+							onDelete={() => handleDeleteDID(did.did)}
+						/>
+					)
+				})}
 				</div>
 			) : (
 				<Card>

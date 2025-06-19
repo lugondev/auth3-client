@@ -119,9 +119,15 @@ export default function IssueCredentialPage() {
 		}
 
 		const input: IssueCredentialInput = {
-			credentialSubject,
-			type: credentialType,
-			...(expirationDate && {expirationDate}),
+			credential: {
+				'@context': ['https://www.w3.org/2018/credentials/v1'],
+				id: `urn:uuid:${crypto.randomUUID()}`,
+				type: credentialType,
+				issuer: 'did:example:issuer',
+				issuanceDate: new Date().toISOString(),
+				credentialSubject,
+				...(expirationDate && {expirationDate}),
+			},
 		}
 
 		issueMutation.mutate(input)

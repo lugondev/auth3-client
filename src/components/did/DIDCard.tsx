@@ -5,16 +5,16 @@ import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {MoreHorizontal, Copy, Eye, Trash2, Power} from 'lucide-react'
-import {DIDResponse, DIDStatus} from '@/types/did'
+import {DIDData, DIDResponse, DIDStatus} from '@/types/did'
 import {toast} from 'sonner'
 import {DIDStatusBadge} from './DIDStatusBadge'
 
 interface DIDCardProps {
-	did: DIDResponse
-	onView?: (did: DIDResponse) => void
-	onDeactivate?: (did: DIDResponse) => void
-	onRevoke?: (did: DIDResponse) => void
-	onDelete?: (did: DIDResponse) => void
+	did: DIDData
+	onView?: (did: DIDData) => void
+	onDeactivate?: (did: DIDData) => void
+	onRevoke?: (did: DIDData) => void
+	onDelete?: (did: DIDData) => void
 }
 
 /**
@@ -78,13 +78,13 @@ export function DIDCard({did, onView, onDeactivate, onRevoke, onDelete}: DIDCard
 									<Copy className='mr-2 h-4 w-4' />
 									Copy DID
 								</DropdownMenuItem>
-								{did.status === 'active' && (
+								{did.status === DIDStatus.ACTIVE && (
 									<DropdownMenuItem onClick={() => onDeactivate?.(did)}>
 										<Power className='mr-2 h-4 w-4' />
 										Deactivate
 									</DropdownMenuItem>
 								)}
-								{did.status !== 'revoked' && (
+								{did.status !== DIDStatus.REVOKED && (
 									<DropdownMenuItem onClick={() => onRevoke?.(did)} className='text-destructive'>
 										<Trash2 className='mr-2 h-4 w-4' />
 										Revoke

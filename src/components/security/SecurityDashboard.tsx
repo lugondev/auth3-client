@@ -26,7 +26,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { AnalyticsCard } from '@/components/analytics/AnalyticsCard'
 import { AnalyticsChart } from '@/components/analytics/AnalyticsChart'
 import * as securityEventsService from '@/services/securityEventsService'
-import type { SecurityEvent, SecurityOverview, SecurityEventsFilter } from '@/services/securityEventsService'
+import type { SecurityEvent, SecurityOverview, SecurityEventsFilter } from '@/types/securityEvents'
 
 /**
  * Security Dashboard Component

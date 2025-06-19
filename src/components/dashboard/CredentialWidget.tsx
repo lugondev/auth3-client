@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { VerifiableCredential } from '@/types/credentials'
+import { CredentialMetadata, CredentialStatus } from '@/types/credentials'
 import * as vcService from '@/services/vcService'
 import { Award, Shield, Clock, AlertTriangle, Plus, Eye, FileCheck } from 'lucide-react'
 import Link from 'next/link'
@@ -71,16 +71,10 @@ const formatCredentialType = (types: string[]): string => {
   return displayTypes[0].replace(/([A-Z])/g, ' $1').trim()
 }
 
-/**
- * Check if credential is expired
- */
-const isExpired = (credential: VerifiableCredential): boolean => {
-  if (!credential.expirationDate) return false
-  return new Date(credential.expirationDate) < new Date()
-}
+
 
 export function CredentialWidget({ className }: CredentialWidgetProps) {
-  const [credentials, setCredentials] = useState<VerifiableCredential[]>([])
+  const [credentials, setCredentials] = useState<CredentialMetadata[]>([])
   const [stats, setStats] = useState<CredentialStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -102,13 +96,9 @@ export function CredentialWidget({ className }: CredentialWidgetProps) {
         
         const stats: CredentialStats = {
           total: userCredentials.length,
-          active: userCredentials.filter(cred => 
-            cred.credentialStatus === 'active' && !isExpired(cred)
-          ).length,
-          expired: userCredentials.filter(cred => isExpired(cred)).length,
-          revoked: userCredentials.filter(cred => 
-            cred.credentialStatus === 'revoked'
-          ).length,
+          active: userCredentials.filter(cred => cred.status === CredentialStatus.ACTIVE).length,
+          expired: userCredentials.filter(cred => cred.status === CredentialStatus.EXPIRED).length,
+          revoked: userCredentials.filter(cred => cred.status === CredentialStatus.REVOKED).length,
           recentlyIssued: userCredentials.filter(cred => 
             new Date(cred.issuanceDate) > thirtyDaysAgo
           ).length,
@@ -234,7 +224,7 @@ export function CredentialWidget({ className }: CredentialWidgetProps) {
             <h4 className="text-sm font-medium mb-2">Recent Credentials</h4>
             <div className="space-y-2">
               {credentials.slice(0, 2).map((credential) => {
-                const status = isExpired(credential) ? 'expired' : credential.credentialStatus || 'active'
+                const status = credential.status
                 return (
                   <div key={credential.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
                     <div className="flex items-center gap-2">

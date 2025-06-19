@@ -11,7 +11,8 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparat
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from '@/components/ui/alert-dialog'
 
-import type {VerifiableCredential, CredentialStatus} from '@/types/credentials'
+import type {VerifiableCredential} from '@/types/credentials'
+import {CredentialStatus} from '@/types/credentials'
 import {CredentialViewer} from './CredentialViewer'
 
 interface CredentialCardProps {
@@ -35,7 +36,7 @@ interface CredentialCardProps {
  * - Credential details modal
  * - Responsive design
  */
-export function CredentialCard({credential, status = 'active', onDelete, onShare, onView, onDownload, showActions = true, className = ''}: CredentialCardProps) {
+export function CredentialCard({credential, status = CredentialStatus.ACTIVE, onDelete, onShare, onView, onDownload, showActions = true, className = ''}: CredentialCardProps) {
 	const [showDetails, setShowDetails] = useState(false)
 	const [isDeleting, setIsDeleting] = useState(false)
 

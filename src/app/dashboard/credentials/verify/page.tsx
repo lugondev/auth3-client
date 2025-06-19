@@ -33,8 +33,7 @@ import {VerificationResults} from '@/components/credentials/VerificationResults'
 export default function VerifyCredentialPage() {
 	const [credentialInput, setCredentialInput] = useState('')
 	const [verificationOptions, setVerificationOptions] = useState<VerificationOptions>({
-		checkStatus: true,
-		checkExpiration: true,
+		skipRevocationCheck: false,
 	})
 	const [verificationResult, setVerificationResult] = useState<VerifyCredentialOutput | null>(null)
 	const [inputMethod, setInputMethod] = useState<'json' | 'file' | 'url'>('json')
@@ -228,18 +227,10 @@ export default function VerifyCredentialPage() {
 										<div className='space-y-4'>
 											<div className='flex items-center justify-between'>
 												<div className='space-y-0.5'>
-													<Label>Check Credential Status</Label>
-													<p className='text-sm text-muted-foreground'>Verify if the credential has been revoked or suspended</p>
+													<Label>Skip Revocation Check</Label>
+													<p className='text-sm text-muted-foreground'>Skip checking if the credential has been revoked</p>
 												</div>
-												<Switch checked={verificationOptions.checkStatus} onCheckedChange={(checked) => setVerificationOptions((prev) => ({...prev, checkStatus: checked}))} />
-											</div>
-
-											<div className='flex items-center justify-between'>
-												<div className='space-y-0.5'>
-													<Label>Check Expiration</Label>
-													<p className='text-sm text-muted-foreground'>Verify if the credential is still valid and not expired</p>
-												</div>
-												<Switch checked={verificationOptions.checkExpiration} onCheckedChange={(checked) => setVerificationOptions((prev) => ({...prev, checkExpiration: checked}))} />
+												<Switch checked={verificationOptions.skipRevocationCheck || false} onCheckedChange={(checked) => setVerificationOptions((prev) => ({...prev, skipRevocationCheck: checked}))} />
 											</div>
 
 											<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>

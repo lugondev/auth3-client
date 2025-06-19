@@ -41,14 +41,13 @@ export interface CredentialsBySubjectResponse {
 
 // Statistics for credentials
 export interface CredentialStatistics {
-  total: number;
-  active: number;
-  revoked: number;
-  expired: number;
-  byType: Record<string, number>;
-  byIssuer: Record<string, number>;
-  byStatus: Record<string, number>;
-  issuedLast30Days: number[];
+  totalCredentials: number;
+  activeCredentials: number;
+  revokedCredentials: number;
+  expiredCredentials: number;
+  issuedToday: number;
+  issuedThisWeek: number;
+  issuedThisMonth: number;
 }
 
 // Template listing output

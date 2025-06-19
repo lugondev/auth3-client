@@ -15,8 +15,8 @@ import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 
 import {listCredentials} from '@/services/vcService'
-import type {CredentialStatus, ListCredentialsInput, VerifiableCredential} from '@/types/credentials'
-import {CredentialCard} from '@/components/credentials/CredentialCard'
+import type {CredentialStatus, ListCredentialsInput, CredentialMetadata} from '@/types/credentials'
+import {CredentialMetadataCard} from '@/components/credentials/CredentialMetadataCard'
 
 /**
  * VC Dashboard Page - Main dashboard for managing Verifiable Credentials
@@ -41,43 +41,23 @@ export default function CredentialsDashboard() {
 		limit,
 		...(statusFilter !== 'all' && {status: statusFilter as CredentialStatus}),
 		...(typeFilter !== 'all' && {type: typeFilter}),
-		sortBy: 'issuedAt',
-		sortOrder: 'desc',
 	}
 
 	/**
 	 * Handle downloading a credential as JSON file
 	 * @param credential - The credential to download
 	 */
-	const handleDownloadCredential = (credential: VerifiableCredential) => {
+	const handleDownloadCredential = (credential: CredentialMetadata) => {
 		try {
-			// Create JSON blob with formatted credential data
-			const credentialData = {
-				'@context': credential['@context'] || ['https://www.w3.org/2018/credentials/v1'],
-				id: credential.id,
-				type: credential.type,
-				issuer: credential.issuer,
-				issuanceDate: credential.issuanceDate,
-				...(credential.expirationDate && { expirationDate: credential.expirationDate }),
-				credentialSubject: credential.credentialSubject,
-				...(credential.proof && { proof: credential.proof }),
-				...(credential.credentialStatus && { credentialStatus: credential.credentialStatus })
-			}
-
-			const dataStr = JSON.stringify(credentialData, null, 2)
-			const dataBlob = new Blob([dataStr], { type: 'application/json' })
-			const url = URL.createObjectURL(dataBlob)
-			
-			// Create download link
-			const link = document.createElement('a')
-			link.href = url
-			link.download = `credential-${credential.id || Date.now()}.json`
-			document.body.appendChild(link)
-			link.click()
-			document.body.removeChild(link)
+			// Create JSON blob with credential metadata
+			const blob = new Blob([JSON.stringify(credential, null, 2)], {type: 'application/json'})
+			const url = URL.createObjectURL(blob)
+			const a = document.createElement('a')
+			a.href = url
+			a.download = `credential-metadata-${credential.id}.json`
+			a.click()
 			URL.revokeObjectURL(url)
-
-			toast.success('Credential downloaded successfully')
+			toast.success('Credential metadata downloaded successfully')
 		} catch (error) {
 			console.error('Error downloading credential:', error)
 			toast.error('Failed to download credential')
@@ -101,16 +81,16 @@ export default function CredentialsDashboard() {
 			if (!searchTerm) return true
 			const searchLower = searchTerm.toLowerCase()
 			const issuerString = typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id || ''
-			const subjectString = credential.credentialSubject?.id || ''
+			const subjectString = credential.subject || ''
 			return credential.id.toLowerCase().includes(searchLower) || credential.type.some((type) => type.toLowerCase().includes(searchLower)) || issuerString.toLowerCase().includes(searchLower) || subjectString.toLowerCase().includes(searchLower)
 		}) || []
 
 	// Calculate statistics
 	const stats = {
 		total: credentialsData?.total || 0,
-		active: credentialsData?.credentials.filter((c) => c.credentialStatus === 'active').length || 0,
-		revoked: credentialsData?.credentials.filter((c) => c.credentialStatus === 'revoked').length || 0,
-		expired: credentialsData?.credentials.filter((c) => c.credentialStatus === 'expired').length || 0,
+		active: credentialsData?.credentials.filter((c) => c.status === 'active').length || 0,
+		revoked: credentialsData?.credentials.filter((c) => c.status === 'revoked').length || 0,
+		expired: credentialsData?.credentials.filter((c) => c.status === 'expired').length || 0,
 	}
 
 	return (
@@ -262,13 +242,13 @@ export default function CredentialsDashboard() {
 							) : (
 								<div className='space-y-4'>
 									{filteredCredentials.map((credential) => (
-										<CredentialCard
-											key={credential.id}
-											credential={credential}
-											onView={() => window.open(`/dashboard/credentials/${credential.id}`, '_blank')}
-											onDownload={() => handleDownloadCredential(credential)}
-										/>
-									))}
+						<CredentialMetadataCard
+							key={credential.id}
+							credential={credential}
+							onView={() => window.open(`/dashboard/credentials/${credential.id}`, '_blank')}
+							onDownload={() => handleDownloadCredential(credential)}
+						/>
+					))}
 								</div>
 							)}
 						</TabsContent>
@@ -287,15 +267,15 @@ export default function CredentialsDashboard() {
 					{credentialsData && credentialsData.total > limit && (
 						<div className='flex justify-center mt-6'>
 							<div className='flex gap-2'>
-								<Button variant='outline' onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>
-									Previous
-								</Button>
-								<span className='flex items-center px-4'>
-									Page {page} of {Math.ceil(credentialsData.total / limit)}
-								</span>
-								<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.pagination?.hasNext}>
-									Next
-								</Button>
+								<Button variant='outline' onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={!credentialsData.hasPrev}>
+								Previous
+							</Button>
+							<span className='flex items-center px-4'>
+								Page {page} of {Math.ceil(credentialsData.total / limit)}
+							</span>
+							<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.hasNext}>
+								Next
+							</Button>
 							</div>
 						</div>
 					)}

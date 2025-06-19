@@ -13,6 +13,7 @@ import Link from 'next/link'
 import {useRouter} from 'next/navigation'
 import * as didService from '@/services/didService'
 import type {DIDResponse, ListDIDsInput} from '@/types/did'
+import {DIDStatus} from '@/types/did'
 import {DIDSkeleton} from '@/components/did'
 
 // Types for DID data - using types from API
@@ -112,9 +113,9 @@ export default function DIDDashboardPage() {
 						Active
 					</Badge>
 				)
-			case 'deactivated':
+			case DIDStatus.DEACTIVATED:
 				return <Badge variant='secondary'>Deactivated</Badge>
-			case 'revoked':
+			case DIDStatus.REVOKED:
 				return <Badge variant='destructive'>Revoked</Badge>
 			default:
 				return <Badge variant='outline'>Unknown</Badge>
@@ -156,7 +157,7 @@ export default function DIDDashboardPage() {
 
 			// If we reach here, the operation was successful (no error thrown)
 			// Update the DID status in the UI immediately
-			setDids((prevDids) => prevDids.map((d) => (d.id === did.id ? {...d, status: 'deactivated'} : d)))
+			setDids((prevDids) => prevDids.map((d) => (d.id === did.id ? {...d, status: DIDStatus.DEACTIVATED} : d)))
 
 			// Update statistics
 			if (stats) {
@@ -187,12 +188,12 @@ export default function DIDDashboardPage() {
 
 			// If we reach here, the operation was successful (no error thrown)
 			// Update the DID status in the UI immediately
-			setDids((prevDids) => prevDids.map((d) => (d.id === did.id ? {...d, status: 'revoked'} : d)))
+			setDids((prevDids) => prevDids.map((d) => (d.id === did.id ? {...d, status: DIDStatus.REVOKED} : d)))
 
 			// Update statistics
 			if (stats) {
-				const wasActive = did.status === 'active'
-				const wasDeactivated = did.status === 'deactivated'
+				const wasActive = did.status === DIDStatus.ACTIVE
+				const wasDeactivated = did.status === DIDStatus.DEACTIVATED
 
 				setStats({
 					...stats,
@@ -387,13 +388,13 @@ export default function DIDDashboardPage() {
 															<Eye className='h-4 w-4 mr-2' />
 															View Details
 														</DropdownMenuItem>
-														{did.status === 'active' && (
+														{did.status === DIDStatus.ACTIVE && (
 															<DropdownMenuItem onClick={() => handleDeactivate(did)} className='text-orange-600'>
 																<Power className='h-4 w-4 mr-2' />
 																Deactivate
 															</DropdownMenuItem>
 														)}
-														{did.status !== 'revoked' && (
+														{did.status !== DIDStatus.REVOKED && (
 															<DropdownMenuItem onClick={() => handleRevoke(did)} className='text-red-600'>
 																<Trash2 className='h-4 w-4 mr-2' />
 																Revoke

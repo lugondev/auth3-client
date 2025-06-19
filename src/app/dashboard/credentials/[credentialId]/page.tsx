@@ -10,7 +10,7 @@ import {ScrollArea} from '@/components/ui/scroll-area'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ArrowLeft, Download, Share2, Shield, Clock, User, Building, FileText, History, Copy, ExternalLink, AlertTriangle, CheckCircle, XCircle} from 'lucide-react'
 import {toast} from 'sonner'
-import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput} from '@/types/credentials'
+import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput, VerificationStatus} from '@/types/credentials'
 import {CredentialViewer} from '@/components/credentials/CredentialViewer'
 import {VerificationResults} from '@/components/credentials/VerificationResults'
 import * as vcService from '@/services/vcService'
@@ -50,15 +50,14 @@ export default function CredentialDetailsPage() {
 				const mockHistory: VerifyCredentialOutput[] = [
 					{
 						verified: true,
-						status: 'verified',
+						status: VerificationStatus.SUCCESS,
 						checks: [
-							{check: 'signature', status: 'passed', message: 'Signature is valid'},
-							{check: 'expiration', status: 'passed', message: 'Credential is not expired'},
-							{check: 'revocation', status: 'passed', message: 'Credential is not revoked'},
-							{check: 'issuer', status: 'passed', message: 'Issuer is trusted'},
-							{check: 'schema', status: 'passed', message: 'Schema is valid'},
+							{check: 'signature', status: VerificationStatus.SUCCESS, message: 'Signature is valid'},
+							{check: 'expiration', status: VerificationStatus.SUCCESS, message: 'Credential is not expired'},
+							{check: 'revocation', status: VerificationStatus.SUCCESS, message: 'Credential is not revoked'},
+							{check: 'issuer', status: VerificationStatus.SUCCESS, message: 'Issuer is trusted'},
+							{check: 'schema', status: VerificationStatus.SUCCESS, message: 'Schema is valid'},
 						],
-						verifiedAt: new Date().toISOString(),
 					},
 				]
 				setVerificationHistory(mockHistory)
@@ -84,16 +83,15 @@ export default function CredentialDetailsPage() {
 
 		try {
 			setVerifying(true)
-			const response = await vcService.verifyCredential({
+			const result = await vcService.verifyCredential({
 				credential: credential,
 				options: {
-					checkStatus: true,
-					checkExpiration: true,
+					checks: ['signature', 'expiration', 'revocation', 'issuer', 'schema'],
 				},
 			})
 
 			// Add new verification to history
-			setVerificationHistory((prev) => [response, ...prev])
+			setVerificationHistory((prev) => [result, ...prev])
 			toast.success('Credential verified successfully')
 		} catch (err) {
 			console.error('Error verifying credential:', err)
@@ -271,7 +269,7 @@ export default function CredentialDetailsPage() {
 							</CardTitle>
 							<CardDescription>Issued by {typeof credential.issuer === 'object' ? credential.issuer?.name || credential.issuer?.id : credential.issuer || 'Unknown Issuer'}</CardDescription>
 						</div>
-						<Badge className={getStatusColor('active')}>Active</Badge>
+						<Badge className={getStatusColor(CredentialStatus.ACTIVE)}>Active</Badge>
 					</div>
 				</CardHeader>
 				<CardContent>
@@ -382,11 +380,11 @@ export default function CredentialDetailsPage() {
 								<div className='space-y-2'>
 									<div>
 										<p className='text-sm font-medium'>Schema ID</p>
-										<p className='text-sm text-gray-600 break-all'>{credential.credentialSchema?.[0]?.id || 'Not specified'}</p>
+										<p className='text-sm text-gray-600 break-all'>{credential.credentialSchema?.id || 'Not specified'}</p>
 									</div>
 									<div>
 										<p className='text-sm font-medium'>Type</p>
-										<p className='text-sm text-gray-600'>{credential.credentialSchema?.[0]?.type || 'Not specified'}</p>
+										<p className='text-sm text-gray-600'>{credential.credentialSchema?.type || 'Not specified'}</p>
 									</div>
 								</div>
 							</CardContent>
@@ -430,7 +428,7 @@ export default function CredentialDetailsPage() {
 								<ScrollArea className='h-64'>
 									<div className='space-y-4'>
 										{verificationHistory.map((result, index) => {
-											const passedChecks = result.checks.filter((check) => check.status === 'passed').length
+											const passedChecks = result.checks.filter((check) => check.status === VerificationStatus.SUCCESS).length
 											const score = Math.round((passedChecks / result.checks.length) * 100)
 											return (
 												<div key={index} className='border rounded-lg p-4'>
@@ -440,7 +438,7 @@ export default function CredentialDetailsPage() {
 															<span className='font-medium'>{result.verified ? 'Valid' : 'Invalid'}</span>
 															<Badge variant='outline'>Score: {score}%</Badge>
 														</div>
-														<span className='text-sm text-gray-600'>{result.verifiedAt ? formatDate(result.verifiedAt) : 'Unknown'}</span>
+														<span className='text-sm text-gray-600'>{new Date().toLocaleDateString()}</span>
 													</div>
 													<p className='text-sm text-gray-600'>Status: {result.status}</p>
 													<div className='text-sm text-gray-600 mt-1'>

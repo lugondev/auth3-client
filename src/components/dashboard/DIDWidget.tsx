@@ -8,7 +8,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {Skeleton} from '@/components/ui/skeleton'
-import {DIDResponse} from '@/types/did'
+import {DIDResponse, DIDStatus} from '@/types/did'
 import * as didService from '@/services/didService'
 import {Key, Globe, Coins, Hash, Users, Plus, Eye} from 'lucide-react'
 import Link from 'next/link'
@@ -89,7 +89,7 @@ export function DIDWidget({className}: DIDWidgetProps) {
 				// Calculate stats
 				const stats: DIDStats = {
 					total: userDIDs.length,
-					active: userDIDs.filter((did) => did.status === 'active').length,
+					active: userDIDs.filter((did) => did.status === DIDStatus.ACTIVE).length,
 					methods: {
 						key: userDIDs.filter((did) => did.method === 'key').length,
 						web: userDIDs.filter((did) => did.method === 'web').length,
@@ -203,9 +203,9 @@ export function DIDWidget({className}: DIDWidgetProps) {
 								<div key={did.id} className='flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded'>
 									<div className='flex items-center gap-2'>
 										{getMethodIcon(did.method)}
-										<span className='text-sm font-mono truncate max-w-[120px]'>{did.did}</span>
+										<span className='text-sm font-mono truncate max-w-[120px]'>{did.did.did}</span>
 									</div>
-									<Badge variant={did.status === 'active' ? 'default' : 'secondary'} className='text-xs'>
+									<Badge variant={did.status === DIDStatus.ACTIVE ? 'default' : 'secondary'} className='text-xs'>
 										{did.status}
 									</Badge>
 								</div>

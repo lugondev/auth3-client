@@ -12,6 +12,9 @@ import {
   ToggleMethodEnabledInput
 } from '../types/didMethod';
 
+// Re-export types for external use
+export type { DIDMethodConfig, NetworkConfig };
+
 // Get all DID method configurations
 export const getMethodConfigurations = withErrorHandling(
   async (): Promise<GetMethodConfigurationsOutput> => {

@@ -170,7 +170,7 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 				},
 			})
 
-			setCreatedDID(response.did)
+			setCreatedDID(response.did.did)
 			setStep('complete')
 
 			toast.success('DID created successfully!')

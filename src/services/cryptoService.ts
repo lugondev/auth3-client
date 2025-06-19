@@ -34,8 +34,6 @@ class CryptoService {
         case 'P-256':
           return await this.generateP256KeyPair();
         case 'secp256k1':
-          // secp256k1 is not natively supported by Web Crypto API
-          // Using @noble/secp256k1 library for real implementation
           return await this.generateSecp256k1KeyPair();
         default:
           throw new Error(`Unsupported key type: ${keyType}`);
@@ -116,11 +114,11 @@ class CryptoService {
       const publicKeyBytes = secp256k1.getPublicKey(privateKeyBytes, false); // uncompressed format
 
       // Convert to hex strings
-       const privateKeyHex = this.bufferToHex(privateKeyBytes.buffer as ArrayBuffer);
-       const publicKeyHex = this.bufferToHex(publicKeyBytes.buffer as ArrayBuffer);
-       
-       // Generate key ID from public key
-       const keyId = this.generateKeyId(publicKeyBytes.buffer as ArrayBuffer);
+      const privateKeyHex = this.bufferToHex(privateKeyBytes.buffer as ArrayBuffer);
+      const publicKeyHex = this.bufferToHex(publicKeyBytes.buffer as ArrayBuffer);
+
+      // Generate key ID from public key
+      const keyId = this.generateKeyId(publicKeyBytes.buffer as ArrayBuffer);
 
       return {
         publicKey: publicKeyHex,

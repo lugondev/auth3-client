@@ -18,21 +18,21 @@ export function DIDStatusBadge({ status, showIcon = true, size = 'md' }: DIDStat
   // Get status configuration
   const getStatusConfig = (status: DIDStatus) => {
     switch (status) {
-      case 'active':
+      case DIDStatus.ACTIVE:
         return {
           variant: 'default' as const,
           className: 'bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300',
           icon: CheckCircle,
           label: 'Active'
         };
-      case 'deactivated':
+      case DIDStatus.DEACTIVATED:
         return {
           variant: 'secondary' as const,
           className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300',
           icon: AlertCircle,
           label: 'Deactivated'
         };
-      case 'revoked':
+      case DIDStatus.REVOKED:
         return {
           variant: 'destructive' as const,
           className: 'bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300',
@@ -81,21 +81,21 @@ export function DIDStatusBadge({ status, showIcon = true, size = 'md' }: DIDStat
  */
 export function DIDStatusIndicator({ status }: { status: DIDStatus }) {
   const config = {
-    active: {
+    [DIDStatus.ACTIVE]: {
       color: 'text-green-600',
       bgColor: 'bg-green-100',
       icon: CheckCircle,
       label: 'Active',
       description: 'DID is active and can be used for authentication'
     },
-    deactivated: {
+    [DIDStatus.DEACTIVATED]: {
       color: 'text-yellow-600',
       bgColor: 'bg-yellow-100',
       icon: AlertCircle,
       label: 'Deactivated',
       description: 'DID has been deactivated and cannot be used'
     },
-    revoked: {
+    [DIDStatus.REVOKED]: {
       color: 'text-red-600',
       bgColor: 'bg-red-100',
       icon: XCircle,

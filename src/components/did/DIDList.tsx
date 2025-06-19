@@ -8,16 +8,16 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Badge} from '@/components/ui/badge'
 import {Skeleton} from '@/components/ui/skeleton'
 import {Search, Filter, Plus, RefreshCw} from 'lucide-react'
-import {DIDResponse, DIDMethod, DIDStatus, DIDManagementFilters, DIDActivity} from '@/types/did'
+import {DIDResponse, DIDMethod, DIDStatus, DIDManagementFilters, DIDActivity, DIDData} from '@/types/did'
 import {DIDCard} from './DIDCard'
 import {toast} from 'sonner'
 import * as didService from '@/services/didService'
 
 interface DIDListProps {
 	onCreateNew?: () => void
-	onViewDetails?: (did: DIDResponse) => void
-	onDeactivate?: (did: DIDResponse) => void
-	onDelete?: (did: DIDResponse) => void
+	onViewDetails?: (did: DIDData) => void
+	onDeactivate?: (did: DIDData) => void
+	onDelete?: (did: DIDData) => void
 	className?: string
 }
 
@@ -57,12 +57,18 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 			const response = await didService.listDIDs({
 				method: filters.method,
 				status: filters.status,
-				limit: 50,
-				offset: 0,
+				limit: pageSize,
+				offset: (currentPage - 1) * pageSize,
 			})
 			setDids(response.dids)
 			if (response.stats) {
-				setStats(response.stats)
+				setStats({
+					total: response.stats.total_dids,
+					active: response.stats.active_dids,
+					deactivated: response.stats.deactivated_dids,
+					revoked: response.stats.revoked_dids,
+					by_method: response.stats.dids_by_method,
+				})
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to fetch DIDs')
@@ -102,7 +108,7 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 	 * Filter DIDs based on search term and filters
 	 */
 	const filteredDIDs = dids.filter((did) => {
-		const matchesSearch = !searchTerm || did.did.toLowerCase().includes(searchTerm.toLowerCase()) || did.method.toLowerCase().includes(searchTerm.toLowerCase())
+		const matchesSearch = !searchTerm || did.did.did.toLowerCase().includes(searchTerm.toLowerCase()) || did.method.toLowerCase().includes(searchTerm.toLowerCase())
 
 		const matchesMethod = !filters.method || did.method === filters.method
 		const matchesStatus = !filters.status || did.status === filters.status
@@ -305,7 +311,7 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 						</CardContent>
 					</Card>
 				) : (
-					filteredDIDs.map((did) => <DIDCard key={did.id} did={did} onView={onViewDetails} onDeactivate={onDeactivate} onDelete={onDelete} />)
+					filteredDIDs.map((did) => <DIDCard key={did.did.id} did={did.did} onView={onViewDetails} onDeactivate={onDeactivate} onDelete={onDelete} />)
 				)}
 			</div>
 

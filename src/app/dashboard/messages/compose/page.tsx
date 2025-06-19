@@ -54,7 +54,7 @@ export default function ComposeMessagePage() {
 				const response = await listDIDs()
 				setMyDids(response.dids)
 				if (response.dids.length > 0) {
-					setFormData((prev) => ({...prev, from: response.dids[0].did}))
+					setFormData((prev) => ({...prev, from: response.dids[0].did.did}))
 				}
 			} catch (error) {
 				console.error('Error loading DIDs:', error)
@@ -211,15 +211,15 @@ export default function ComposeMessagePage() {
 									</SelectTrigger>
 									<SelectContent>
 										{myDids.map((did) => (
-											<SelectItem key={did.id} value={did.did}>
-												<div className='flex flex-col'>
-													<span className='font-mono text-sm'>{did.did.length > 50 ? `${did.did.substring(0, 50)}...` : did.did}</span>
-													<span className='text-xs text-muted-foreground'>
-														{did.method} • {did.status}
-													</span>
-												</div>
-											</SelectItem>
-										))}
+								<SelectItem key={did.id} value={did.did.did}>
+									<div className='flex flex-col'>
+										<span className='font-mono text-sm'>{did.did.did.length > 50 ? `${did.did.did.substring(0, 50)}...` : did.did.did}</span>
+										<span className='text-xs text-muted-foreground'>
+											{did.did.method} • {did.did.status}
+										</span>
+									</div>
+								</SelectItem>
+							))}
 									</SelectContent>
 								</Select>
 							</div>

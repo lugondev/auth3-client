@@ -170,8 +170,8 @@ export default function CreateDIDPage() {
 			// Prepare API input
 			const createInput: CreateDIDInput = {
 				method: form.method as DIDMethod,
+				key_type: form.keyType,
 				options: {
-					keyType: form.keyType,
 					...(form.method === 'web' && {
 						domain: form.domain,
 						path: form.path,
@@ -356,22 +356,23 @@ export default function CreateDIDPage() {
 						<CardDescription>Configure your {getMethodInfo(form.method).title}</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-4'>
-						{/* Key Method Configuration */}
-						{form.method === 'key' && (
-							<div>
-								<Label htmlFor='keyType'>Key Type</Label>
-								<Select value={form.keyType} onValueChange={(value: 'Ed25519' | 'secp256k1' | 'P-256') => setForm((prev) => ({...prev, keyType: value}))}>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value='Ed25519'>Ed25519 (Recommended)</SelectItem>
-										<SelectItem value='secp256k1'>secp256k1</SelectItem>
-										<SelectItem value='P-256'>P-256</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						)}
+						{/* Key Type Selection - Available for all methods */}
+						<div>
+							<Label htmlFor='keyType'>Key Type</Label>
+							<Select value={form.keyType} onValueChange={(value: 'Ed25519' | 'secp256k1' | 'P-256') => setForm((prev) => ({...prev, keyType: value}))}>
+								<SelectTrigger>
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value='Ed25519'>Ed25519 (Recommended)</SelectItem>
+									<SelectItem value='secp256k1'>secp256k1</SelectItem>
+									<SelectItem value='P-256'>P-256</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+
+						{/* Method-specific Configuration */}
+						{form.method === 'key' && <div className='text-sm text-gray-500 dark:text-gray-400'>No additional configuration required for did:key method.</div>}
 
 						{/* Web Method Configuration */}
 						{form.method === 'web' && (

@@ -194,18 +194,16 @@ export function CredentialViewer({credential, className = '', showActions = true
 										</div>
 									)}
 
-									{credential.credentialSchema && credential.credentialSchema.length > 0 && (
+									{credential.credentialSchema && (
 										<div>
 											<Label className='text-sm font-medium text-muted-foreground'>Schema</Label>
-											{credential.credentialSchema.map((schema, index) => (
-												<div key={index} className='mb-2 last:mb-0'>
-													<div className='flex items-center gap-2'>
-														<FileText className='h-4 w-4 text-muted-foreground' />
-														<p className='text-sm font-mono break-all'>{schema.id}</p>
-													</div>
-													<p className='text-xs text-muted-foreground mt-1'>Type: {schema.type}</p>
+											<div className='mb-2'>
+												<div className='flex items-center gap-2'>
+													<FileText className='h-4 w-4 text-muted-foreground' />
+													<p className='text-sm font-mono break-all'>{credential.credentialSchema.id}</p>
 												</div>
-											))}
+												<p className='text-xs text-muted-foreground mt-1'>Type: {credential.credentialSchema.type}</p>
+											</div>
 										</div>
 									)}
 								</div>

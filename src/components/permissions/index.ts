@@ -49,4 +49,4 @@ export type {
   BulkPermissionCheckRequest,
   BulkPermissionCheckResponse,
   UserPermissionsResponse
-} from '@/services/permissionService'
+} from '@/types/permission'
