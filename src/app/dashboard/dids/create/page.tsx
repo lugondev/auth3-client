@@ -14,7 +14,8 @@ import {Key, Globe, Coins, Network, Users, Eye, EyeOff, Copy, Check} from 'lucid
 import {useRouter} from 'next/navigation'
 import {toast} from 'sonner'
 import {createDID} from '@/services/didService'
-import type {CreateDIDInput, DIDMethod, DIDDocument} from '@/types/did'
+import type {CreateDIDInput, CreateDIDOutput, DIDMethod, DIDDocument} from '@/types/did'
+import {ETHEREUM_NETWORKS, ETHEREUM_NETWORK_LABELS, DID_METHOD_INFO, RECOMMENDED_KEY_TYPES, VALIDATION_PATTERNS} from '@/constants/did'
 
 // Types for DID creation
 interface DIDCreationForm {
@@ -33,6 +34,7 @@ interface ServiceEndpoint {
 	id: string
 	type: string
 	serviceEndpoint: string
+	description?: string
 }
 
 interface VerificationMethod {
@@ -57,6 +59,7 @@ export default function CreateDIDPage() {
 	const [previewDocument, setPreviewDocument] = useState<DIDDocument | null>(null)
 	const [showPreview, setShowPreview] = useState(false)
 	const [generatedKeys, setGeneratedKeys] = useState<{publicKey: string; privateKey: string} | null>(null)
+	const [didResponse, setDidResponse] = useState<CreateDIDOutput | null>(null)
 	const [showPrivateKey, setShowPrivateKey] = useState(false)
 	const [copiedField, setCopiedField] = useState<string | null>(null)
 
@@ -64,43 +67,28 @@ export default function CreateDIDPage() {
 	 * Get method icon and description
 	 */
 	const getMethodInfo = (method: string) => {
-		switch (method) {
-			case 'key':
-				return {
-					icon: <Key className='h-5 w-5' />,
-					title: 'DID:Key',
-					description: 'Simple cryptographic key-based DID method',
-				}
-			case 'web':
-				return {
-					icon: <Globe className='h-5 w-5' />,
-					title: 'DID:Web',
-					description: 'Web-based DID method using domain verification',
-				}
-			case 'ethr':
-				return {
-					icon: <Coins className='h-5 w-5' />,
-					title: 'DID:Ethr',
-					description: 'Ethereum-based DID method',
-				}
-			case 'ion':
-				return {
-					icon: <Network className='h-5 w-5' />,
-					title: 'DID:ION',
-					description: 'Bitcoin-anchored DID method by Microsoft',
-				}
-			case 'peer':
-				return {
-					icon: <Users className='h-5 w-5' />,
-					title: 'DID:Peer',
-					description: 'Peer-to-peer DID method for direct communication',
-				}
-			default:
-				return {
-					icon: <Key className='h-5 w-5' />,
-					title: 'Unknown',
-					description: 'Unknown DID method',
-				}
+		const info = DID_METHOD_INFO[method as keyof typeof DID_METHOD_INFO]
+		if (!info) {
+			return {
+				icon: <Key className='h-5 w-5' />,
+				title: 'Unknown',
+				description: 'Unknown DID method',
+			}
+		}
+
+		const IconComponent =
+			{
+				Key,
+				Globe,
+				Coins,
+				Network,
+				Users,
+			}[info.icon] || Key
+
+		return {
+			icon: <IconComponent className='h-5 w-5' />,
+			title: info.title,
+			description: info.description,
 		}
 	}
 
@@ -118,13 +106,15 @@ export default function CreateDIDPage() {
 				didId = `did:web:${form.domain || '[domain-required]'}${form.path ? ':' + form.path.replace(/\//g, ':') : ''}`
 				break
 			case 'ethr':
-				didId = `did:ethr:${form.networkId || 'mainnet'}:${form.ethereumAddress || '[ethereum-address-required]'}`
+				const network = form.networkId || 'mainnet'
+				const address = form.ethereumAddress || '[generated-or-provided-address]'
+				didId = `did:ethr:${network}:${address}`
 				break
 			case 'ion':
-				didId = 'did:ion:[generated-ion-id-will-be-here]'
+				didId = 'did:ion:[generated-ion-id-anchored-on-bitcoin]'
 				break
 			case 'peer':
-				didId = 'did:peer:[generated-peer-id-will-be-here]'
+				didId = 'did:peer:[generated-peer-id-for-p2p-communication]'
 				break
 		}
 
@@ -167,42 +157,77 @@ export default function CreateDIDPage() {
 		setLoading(true)
 
 		try {
-			// Prepare API input
+			// Client-side validation
+			if (form.method === 'web' && !form.domain) {
+				toast.error('Domain is required for did:web method')
+				return
+			}
+
+			if (form.method === 'web' && form.domain && !VALIDATION_PATTERNS.DOMAIN.test(form.domain)) {
+				toast.error('Invalid domain format')
+				return
+			}
+
+			if (form.method === 'peer' && form.peerEndpoint) {
+				if (!VALIDATION_PATTERNS.URL.test(form.peerEndpoint)) {
+					toast.error('Peer endpoint must be a valid HTTP/HTTPS URL')
+					return
+				}
+			}
+
+			if (form.method === 'ethr' && form.ethereumAddress) {
+				if (!VALIDATION_PATTERNS.ETHEREUM_ADDRESS.test(form.ethereumAddress)) {
+					toast.error('Invalid Ethereum address format')
+					return
+				}
+			}
+
+			// Prepare API input to match backend DTO structure
 			const createInput: CreateDIDInput = {
 				method: form.method as DIDMethod,
 				key_type: form.keyType,
-				options: {
-					...(form.method === 'web' && {
-						domain: form.domain,
-						path: form.path,
-					}),
-					...(form.method === 'ethr' && {
-						ethereumAddress: form.ethereumAddress,
-						networkId: form.networkId,
-					}),
-					...(form.method === 'peer' && {
-						peerEndpoint: form.peerEndpoint,
-					}),
-					serviceEndpoints: form.serviceEndpoints,
-				},
+				// Send method-specific fields directly (not in options)
+				...(form.method === 'web' && {
+					domain: form.domain,
+					path: form.path,
+				}),
+				...(form.method === 'ethr' && {
+					ethereumAddress: form.ethereumAddress,
+					networkId: form.networkId || ETHEREUM_NETWORKS.MAINNET,
+				}),
+				...(form.method === 'peer' && {
+					peerEndpoint: form.peerEndpoint,
+				}),
+				// Send service endpoints with snake_case
+				service_endpoints:
+					form.serviceEndpoints?.map((endpoint) => ({
+						id: endpoint.id,
+						type: endpoint.type,
+						service_endpoint: endpoint.serviceEndpoint, // Backend expects snake_case
+						description: endpoint.description,
+					})) || [],
+				// Additional options and metadata
+				options: {},
+				metadata: {},
 			}
 
 			// Call actual API
 			const response = await createDID(createInput)
 			console.log('API Response:', response)
 
-			// Extract keys from response metadata and document
-			const publicKey = response.did.metadata?.publicKey || response.did.document?.verificationMethod?.[0]?.publicKeyMultibase || response.did
+			// Extract keys from response - backend returns flat structure
+			const publicKey = response.did.metadata?.publicKey || response.did.document?.verificationMethod?.[0]?.publicKeyMultibase || response.did || 'Generated successfully'
 
 			const privateKey = response.did.metadata?.privateKey || 'Private key is securely stored on the server'
 
 			const keys = {
 				publicKey: typeof publicKey === 'string' ? publicKey : JSON.stringify(publicKey),
-				privateKey: typeof privateKey === 'string' ? privateKey : 'Private key is securely stored on the server',
+				privateKey: typeof privateKey !== 'string' ? JSON.stringify(privateKey) : 'Private key is securely stored on the server',
 			}
 
 			setGeneratedKeys(keys)
-			// Store the response for navigation
+			setDidResponse(response)
+			// Store the response document for navigation
 			if (response.did.document) {
 				setPreviewDocument(response.did.document)
 			}
@@ -307,7 +332,7 @@ export default function CreateDIDPage() {
 							<Button onClick={() => router.push('/dashboard/dids')} className='flex-1 hover:bg-blue-600 dark:hover:bg-blue-800 transition-colors'>
 								Go to DID Dashboard
 							</Button>
-							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(previewDocument?.id || generatedKeys.publicKey)}`)} className='flex-1 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
+							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(previewDocument?.id || didResponse?.did.did || '')}`)} className='flex-1 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 								View DID Details
 							</Button>
 						</div>
@@ -329,7 +354,19 @@ export default function CreateDIDPage() {
 						<CardDescription>Choose the DID method that best fits your use case</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<RadioGroup value={form.method} onValueChange={(value: 'key' | 'web' | 'ethr' | 'ion' | 'peer') => setForm((prev) => ({...prev, method: value}))} className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+						<RadioGroup
+							value={form.method}
+							onValueChange={(value: 'key' | 'web' | 'ethr' | 'ion' | 'peer') => {
+								// Auto-select recommended key type for each method
+								const recommendedKeyType = RECOMMENDED_KEY_TYPES[value] || 'Ed25519'
+
+								setForm((prev) => ({
+									...prev,
+									method: value,
+									keyType: recommendedKeyType,
+								}))
+							}}
+							className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
 							{['key', 'web', 'ethr', 'ion', 'peer'].map((method) => {
 								const info = getMethodInfo(method)
 								return (
@@ -364,11 +401,18 @@ export default function CreateDIDPage() {
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value='Ed25519'>Ed25519 (Recommended)</SelectItem>
-									<SelectItem value='secp256k1'>secp256k1</SelectItem>
-									<SelectItem value='P-256'>P-256</SelectItem>
+									<SelectItem value='Ed25519'>Ed25519 (Recommended for most methods)</SelectItem>
+									<SelectItem value='secp256k1'>secp256k1 (Recommended for Ethereum)</SelectItem>
+									<SelectItem value='P-256'>P-256 (NIST curve)</SelectItem>
 								</SelectContent>
 							</Select>
+							<div className='text-sm text-gray-500 mt-1'>
+								{form.method === 'ethr' && 'secp256k1 is recommended for Ethereum-based DIDs'}
+								{form.method === 'key' && 'Ed25519 is recommended for did:key method'}
+								{form.method === 'web' && 'Ed25519 is recommended for did:web method'}
+								{form.method === 'ion' && 'Ed25519 is recommended for did:ion method'}
+								{form.method === 'peer' && 'Ed25519 is recommended for did:peer method'}
+							</div>
 						</div>
 
 						{/* Method-specific Configuration */}
@@ -390,33 +434,48 @@ export default function CreateDIDPage() {
 
 						{/* Ethereum Method Configuration */}
 						{form.method === 'ethr' && (
-							<div>
+							<div className='space-y-4'>
 								<div>
-									<Label htmlFor='ethereumAddress'>Ethereum Address</Label>
+									<Label htmlFor='ethereumAddress'>Ethereum Address (optional)</Label>
 									<Input id='ethereumAddress' value={form.ethereumAddress || ''} onChange={(e) => setForm((prev) => ({...prev, ethereumAddress: e.target.value}))} placeholder='0x1234567890123456789012345678901234567890' />
+									<div className='text-sm text-gray-500 mt-1'>Leave empty to generate a new address</div>
 								</div>
 								<div>
-									<Label htmlFor='networkId'>Network</Label>
-									<Select value={form.networkId || 'mainnet'} onValueChange={(value) => setForm((prev) => ({...prev, networkId: value}))}>
+									<Label htmlFor='networkId'>Ethereum Network</Label>
+									<Select value={form.networkId || ETHEREUM_NETWORKS.MAINNET} onValueChange={(value) => setForm((prev) => ({...prev, networkId: value}))}>
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value='mainnet'>Mainnet</SelectItem>
-											<SelectItem value='goerli'>Goerli</SelectItem>
-											<SelectItem value='sepolia'>Sepolia</SelectItem>
-											<SelectItem value='polygon'>Polygon</SelectItem>
+											{Object.entries(ETHEREUM_NETWORK_LABELS).map(([value, label]) => (
+												<SelectItem key={value} value={value}>
+													{label}
+												</SelectItem>
+											))}
 										</SelectContent>
 									</Select>
 								</div>
 							</div>
 						)}
 
+						{/* ION Method Configuration */}
+						{form.method === 'ion' && (
+							<div className='space-y-4'>
+								<div className='text-sm text-gray-500 dark:text-gray-400'>
+									<p>ION is a Layer 2 DID method anchored on Bitcoin blockchain.</p>
+									<p>No additional configuration required - the system will use Bitcoin mainnet by default.</p>
+								</div>
+							</div>
+						)}
+
 						{/* Peer Method Configuration */}
 						{form.method === 'peer' && (
-							<div>
-								<Label htmlFor='peerEndpoint'>Peer Endpoint</Label>
-								<Input id='peerEndpoint' value={form.peerEndpoint || ''} onChange={(e) => setForm((prev) => ({...prev, peerEndpoint: e.target.value}))} placeholder='https://peer.example.com/didcomm' />
+							<div className='space-y-4'>
+								<div>
+									<Label htmlFor='peerEndpoint'>DIDComm Endpoint (optional)</Label>
+									<Input id='peerEndpoint' value={form.peerEndpoint || ''} onChange={(e) => setForm((prev) => ({...prev, peerEndpoint: e.target.value}))} placeholder='https://peer.example.com/didcomm' />
+									<div className='text-sm text-gray-500 mt-1'>URL for DIDComm messaging. Must be HTTPS.</div>
+								</div>
 							</div>
 						)}
 					</CardContent>

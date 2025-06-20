@@ -35,7 +35,7 @@ export interface VerificationMethod {
 export interface ServiceEndpoint {
   id: string;
   type: string;
-  serviceEndpoint: string | object;
+  serviceEndpoint: string | object; // camelCase for DID document
   description?: string;
   routingKeys?: string[];
   accept?: string[];
@@ -62,12 +62,35 @@ export interface DIDAuthProof {
   jws: string;
 }
 
-// DID Creation - Based on CreateDIDRequest/Response
+// DID Creation - Based on CreateDIDRequest backend DTO
+// Supports all DID methods: key, web, ethr, ion, peer
 export interface CreateDIDInput {
   method: DIDMethod;
   key_type?: 'Ed25519' | 'secp256k1' | 'P-256';
-  options?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+
+  // Web method specific fields (did:web)
+  domain?: string;           // Domain for did:web method (required for web)
+  path?: string;             // Optional path for did:web method
+
+  // Ethereum method specific fields (did:ethr)
+  ethereumAddress?: string;  // Ethereum address for did:ethr method
+  networkId?: string;        // Ethereum network (mainnet, goerli, sepolia, polygon, etc.)
+
+  // Peer method specific fields (did:peer)
+  peerEndpoint?: string;     // DIDComm endpoint for did:peer method
+
+  // Common fields for all methods
+  service_endpoints?: ServiceEndpointInput[]; // Service endpoints to add to DID document
+  options?: Record<string, unknown>;          // Additional method-specific options
+  metadata?: Record<string, unknown>;         // Additional metadata
+}
+
+// Service endpoint input for DID creation
+export interface ServiceEndpointInput {
+  id: string;
+  type: string;
+  service_endpoint: string; // snake_case to match backend DTO
+  description?: string;
 }
 
 export interface DIDOutput {
