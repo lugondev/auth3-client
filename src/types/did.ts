@@ -503,3 +503,57 @@ export interface DIDImportOptions {
     algorithm?: string;
   };
 }
+
+export type EthereumNetwork = 'mainnet' | 'goerli' | 'sepolia' | 'polygon' | 'local';
+
+// DID Settings types
+export interface DIDSettingsResponse {
+  // General Settings
+  defaultMethod: 'key' | 'web' | 'ethr' | 'ion' | 'peer';
+  enableNotifications: boolean;
+  notificationEmail: string;
+  maxDIDsPerUser: number;
+
+  // Security Settings
+  requireMFA: boolean;
+  allowWeakKeys: boolean;
+  requireApprovalForRevocation: boolean;
+
+  // Network Settings
+  ethereumNetwork: EthereumNetwork;
+  ethereumRpcUrl: string;
+  ionNodeUrl: string;
+  ipfsGateway: string;
+
+  // Advanced Settings
+  customResolvers: string[];
+  enableBatchOperations: boolean;
+  maxBatchSize: number;
+
+  // Metadata
+  updatedAt: string;
+}
+
+export interface UpdateDIDSettingsRequest {
+  // General Settings
+  defaultMethod?: 'key' | 'web' | 'ethr' | 'ion' | 'peer';
+  enableNotifications?: boolean;
+  notificationEmail?: string;
+  maxDIDsPerUser?: number;
+
+  // Security Settings
+  requireMFA?: boolean;
+  allowWeakKeys?: boolean;
+  requireApprovalForRevocation?: boolean;
+
+  // Network Settings
+  ethereumNetwork?: EthereumNetwork;
+  ethereumRpcUrl?: string;
+  ionNodeUrl?: string;
+  ipfsGateway?: string;
+
+  // Advanced Settings
+  customResolvers?: string[];
+  enableBatchOperations?: boolean;
+  maxBatchSize?: number;
+}

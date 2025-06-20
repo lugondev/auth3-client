@@ -18,6 +18,8 @@ import type {
   VerifyChallengeOutput,
   DIDAuthInput,
   DIDAuthOutput,
+  AuthenticateDIDInput,
+  AuthenticateDIDOutput,
   ValidateSignatureInput,
   ValidateSignatureOutput,
   InitiateDIDAuthInput,
@@ -28,8 +30,8 @@ import type {
   ValidateOwnershipOutput,
   DIDStatisticsInput,
   DIDStatisticsOutput,
-  AuthenticateDIDInput,
-  AuthenticateDIDOutput,
+  DIDSettingsResponse,
+  UpdateDIDSettingsRequest,
 } from '@/types';
 
 /**
@@ -256,6 +258,25 @@ export const completeDIDAuth = withErrorHandling(
   }
 );
 
+/**
+ * Get DID settings for the authenticated user
+ */
+export const getDIDSettings = withErrorHandling(
+  async (): Promise<DIDSettingsResponse> => {
+    const response = await apiClient.get<DIDSettingsResponse>('/api/v1/dids/settings');
+    return response.data;
+  }
+);
+
+/**
+ * Update DID settings for the authenticated user
+ */
+export const updateDIDSettings = withErrorHandling(
+  async (settings: UpdateDIDSettingsRequest): Promise<DIDSettingsResponse> => {
+    const response = await apiClient.put<DIDSettingsResponse>('/api/v1/dids/settings', settings);
+    return response.data;
+  }
+);
 
 // Export all functions as default service object
 export const didService = {
@@ -269,6 +290,8 @@ export const didService = {
   authenticateDID,
   didAuth,
   getDIDStatistics,
+  getDIDSettings,
+  updateDIDSettings,
 };
 
 export default didService;
