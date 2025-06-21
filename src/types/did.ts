@@ -319,13 +319,13 @@ export interface DIDOperationResult {
 
 // DID Ownership Validation
 export interface ValidateOwnershipInput {
-  did_string: string;
+  did: string;
   user_id?: string;
 }
 
 export interface ValidateOwnershipOutput {
   valid: boolean;
-  did_string: string;
+  did: string;
   user_id: string;
   message?: string;
 }
@@ -349,7 +349,7 @@ export interface DIDStatisticsOutput {
 }
 
 export interface DIDActivity {
-  did_string: string;
+  did: string;
   action: string;
   timestamp: string;
   user_id: string;
@@ -358,14 +358,14 @@ export interface DIDActivity {
 
 // Authenticate DID - Based on AuthenticateDIDRequest/Response
 export interface AuthenticateDIDInput {
-  did_string: string;
+  did: string;
   verification_method_id: string;
   data: Uint8Array;
   signature: Uint8Array;
 }
 
 export interface AuthenticateDIDOutput {
-  did_string: string;
+  did: string;
   authenticated: boolean;
   verification_method: string;
   timestamp: string;

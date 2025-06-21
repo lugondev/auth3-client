@@ -13,7 +13,7 @@ export enum CredentialStatus {
 export enum PresentationStatus {
   VALID = 'valid',
   INVALID = 'invalid',
-  EXPIRED = 'expired',
+  PRESENTATION_EXPIRED = 'presentation_expired',
 }
 
 export enum VerificationStatus {
@@ -101,6 +101,20 @@ export interface VerifiablePresentation {
   proof?: Proof;
 }
 
+// Issued credential result type
+export interface IssuedCredential {
+  id: string;
+  status: string;
+  issuedAt: string;
+  expiresAt?: string;
+  recipientDid?: string;
+  recipientEmail?: string;
+  templateName: string;
+  templateVersion: string;
+  credentialTypes: string[];
+  credentialSubject: Record<string, unknown>;
+}
+
 // API Input/Output types
 export interface IssueCredentialInput {
   credential: Omit<VerifiableCredential, 'proof'>;
@@ -160,9 +174,7 @@ export interface GetCredentialInput {
   format?: string;
 }
 
-export interface GetCredentialOutput {
-  credential: VerifiableCredential;
-  metadata: CredentialMetadata;
+export interface GetCredentialOutput extends VerifiableCredential {
 }
 
 export interface CredentialMetadata {

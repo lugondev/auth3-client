@@ -161,7 +161,7 @@ export const authenticateDID = withErrorHandling(
  */
 export const validateOwnership = withErrorHandling(
   async (input: ValidateOwnershipInput): Promise<ValidateOwnershipOutput> => {
-    const response = await apiClient.post<ValidateOwnershipOutput>(`/api/v1/dids/${input.did_string}/validate-ownership`, input);
+    const response = await apiClient.post<ValidateOwnershipOutput>(`/api/v1/dids/${input.did}/validate-ownership`, input);
     return response.data;
   }
 );

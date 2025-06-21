@@ -53,7 +53,7 @@ export default function DIDDetailsPage() {
 				// Convert DID data to history format for display
 				const historyData: DIDActivity[] = [
 					{
-						did_string: didResponse.did.did,
+						did: didResponse.did.did,
 						action: 'created',
 						timestamp: didResponse.did.created_at,
 						user_id: didResponse.did.user_id,
@@ -62,7 +62,7 @@ export default function DIDDetailsPage() {
 
 				if (didResponse.did.updated_at !== didResponse.did.created_at) {
 					historyData.push({
-						did_string: didResponse.did.did,
+						did: didResponse.did.did,
 						action: 'updated',
 						timestamp: didResponse.did.updated_at,
 						user_id: didResponse.did.user_id,

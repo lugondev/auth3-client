@@ -43,7 +43,7 @@ export default function CredentialDetailsPage() {
 
 				// Load credential details
 				const credentialResponse = await vcService.getCredential({credentialId})
-				setCredential(credentialResponse.credential)
+				setCredential(credentialResponse)
 
 				// Load verification history (mock data for now)
 				// In real implementation, this would come from the backend
