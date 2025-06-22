@@ -23,6 +23,7 @@ import {
 	Eye, // For view actions
 	ChevronsLeft, // For sidebar collapse
 	ChevronsRight, // For sidebar expand
+	Presentation, // For presentations
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -76,6 +77,18 @@ const systemAdminLinks: NavLink[] = [
 			{href: '/dashboard/admin/credentials', label: 'VC Dashboard', icon: LayoutDashboard, permission: 'admin:credentials:read'},
 			{href: '/dashboard/admin/credentials/templates', label: 'Templates Management', icon: FileText, permission: 'admin:credentials:templates'},
 			{href: '/dashboard/admin/credentials/revocation', label: 'Revocation Management', icon: ShieldCheck, permission: 'admin:credentials:revoke'},
+		],
+	},
+	{
+		href: '/dashboard/admin/presentations',
+		label: 'VP Administration',
+		icon: Presentation,
+		permission: 'admin:presentations:read',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/admin/presentations', label: 'VP Dashboard', icon: LayoutDashboard, permission: 'admin:presentations:read'},
+			{href: '/dashboard/admin/presentations/verification', label: 'Verification Management', icon: Eye, permission: 'admin:presentations:verify'},
+			{href: '/dashboard/admin/presentations/analytics', label: 'Analytics', icon: ListChecks, permission: 'admin:presentations:analytics'},
 		],
 	},
 	{
@@ -153,6 +166,18 @@ const userLinks: NavLink[] = [
 		],
 	},
 	{
+		href: '/dashboard/presentations',
+		label: 'Presentations',
+		icon: Presentation,
+		permission: 'presentations:view',
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/presentations', label: 'Overview', icon: Presentation, permission: 'presentations:view'},
+			{href: '/dashboard/presentations/create', label: 'Create Presentation', icon: Plus, permission: 'presentations:create'},
+			{href: '/dashboard/presentations/verify', label: 'Verify Presentation', icon: Eye, permission: 'presentations:verify'},
+		],
+	},
+	{
 		href: '/dashboard/messages',
 		label: 'Messages',
 		icon: MessageSquare,
@@ -216,7 +241,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 	// Check if a link is active (current page or parent of current page)
 	const isLinkActive = (href: string): boolean => {
 		if (href === '#') return false
-		
+
 		// Handle fragment URLs (URLs with #)
 		if (href.includes('#')) {
 			// Extract the base path without the fragment
@@ -224,10 +249,10 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 			// Check if current path matches the base path exactly
 			return pathname === basePath
 		}
-		
+
 		// Check if current path matches exactly
 		if (pathname === href) return true
-		
+
 		// For submenu items, we don't want to highlight parent items
 		// For example, when on /dashboard/dids/create, we don't want /dashboard/dids to be active
 		// This is to prevent multiple items in the same submenu from being highlighted
