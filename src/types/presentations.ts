@@ -53,13 +53,13 @@ export interface Proof {
 
 // Presentation Creation
 export interface CreatePresentationRequest {
+	'@context': string[]
+	challenge: string
+	credentials: string[] // credential IDs (UUID strings)
+	domain: string
 	holderDID: string
-	challenge?: string
-	domain?: string
-	credentials: string[] // credential IDs
-	type?: string[]
-	'@context'?: string[]
-	metadata?: Record<string, any>
+	metadata: Record<string, any>
+	type: string[]
 }
 
 export interface CreatePresentationResponse {
@@ -73,10 +73,9 @@ export interface CreatePresentationResponse {
 // Verification Types
 export interface VerificationOptions {
 	verifySignature: boolean
-	verifyCredentials: boolean
+	verifyExpiration: boolean
 	verifyRevocation: boolean
 	verifyIssuerTrust: boolean
-	verifyExpiration: boolean
 	verifySchema: boolean
 	verifyChallenge: boolean
 	verifyDomain: boolean
@@ -89,10 +88,9 @@ export interface VerifyPresentationRequest {
 	challenge?: string
 	domain?: string
 	verifySignature: boolean
-	verifyCredentials: boolean
+	verifyExpiration: boolean
 	verifyRevocation: boolean
 	verifyIssuerTrust: boolean
-	verifyExpiration: boolean
 	verifySchema: boolean
 }
 
@@ -181,6 +179,13 @@ export interface VerificationRecord {
 	domain?: string
 	trustScore: number
 	metadata?: Record<string, any>
+}
+
+// Verification History Response
+export interface VerificationHistoryResponse {
+	records: VerificationRecord[]
+	pagination: PaginationResponse
+	total: number
 }
 
 // Statistics and Lists

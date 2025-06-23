@@ -1,17 +1,17 @@
 'use client'
 
 import {useState} from 'react'
-import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, CheckCircle, Clock} from 'lucide-react'
+import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, Clock} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
-import {Badge} from '@/components/ui/badge'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from '@/components/ui/alert-dialog'
 
-import type {CredentialMetadata, CredentialStatus} from '@/types/credentials'
+import type {CredentialMetadata} from '@/types/credentials'
 import {CredentialStatusBadge} from './CredentialStatusBadge'
+import {formatDate} from '@/lib/utils'
 
 interface CredentialMetadataCardProps {
 	credential: CredentialMetadata
@@ -51,15 +51,6 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 		return {
 			id: credential.issuer.id,
 			name: credential.issuer.name || credential.issuer.id,
-		}
-	}
-
-	// Format date for display
-	const formatDate = (dateString: string) => {
-		try {
-			return new Date(dateString).toLocaleDateString()
-		} catch {
-			return dateString
 		}
 	}
 
@@ -106,9 +97,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 		<Card className={`transition-all duration-200 hover:shadow-md ${className}`}>
 			<CardHeader className='flex flex-row items-start justify-between space-y-0 pb-2'>
 				<div className='space-y-1 flex-1'>
-					<CardTitle className='text-base font-medium line-clamp-1'>
-						{credentialTypes.length > 0 ? credentialTypes.join(', ') : 'Verifiable Credential'}
-					</CardTitle>
+					<CardTitle className='text-base font-medium line-clamp-1'>{credentialTypes.length > 0 ? credentialTypes.join(', ') : 'Verifiable Credential'}</CardTitle>
 					<CardDescription className='text-sm text-muted-foreground line-clamp-1'>ID: {credential.id}</CardDescription>
 				</div>
 				<div className='flex items-center space-x-2'>
@@ -151,9 +140,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 											<AlertDialogContent>
 												<AlertDialogHeader>
 													<AlertDialogTitle>Delete Credential</AlertDialogTitle>
-													<AlertDialogDescription>
-														Are you sure you want to delete this credential? This action cannot be undone.
-													</AlertDialogDescription>
+													<AlertDialogDescription>Are you sure you want to delete this credential? This action cannot be undone.</AlertDialogDescription>
 												</AlertDialogHeader>
 												<AlertDialogFooter>
 													<AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -207,9 +194,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 					)}
 
 					{/* Last Updated */}
-					<div className='text-xs text-muted-foreground'>
-						Last updated: {formatDate(credential.lastUpdated)}
-					</div>
+					<div className='text-xs text-muted-foreground'>Last updated: {formatDate(credential.updatedAt)}</div>
 				</div>
 			</CardContent>
 		</Card>

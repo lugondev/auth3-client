@@ -19,7 +19,6 @@ import {
 } from '../types/credentials';
 
 import {
-  CredentialApiResponse,
   CredentialListQuery,
   CredentialListResponse,
   CredentialsBySubjectResponse,

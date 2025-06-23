@@ -9,9 +9,12 @@ import type {
 	VerifyPresentationRequest,
 	VerifyPresentationResponse,
 	PresentationListResponse,
-	PresentationDetailResponse,
 	VerifiablePresentation,
-	PresentationFilters
+	PresentationFilters,
+	EnhancedVerificationResponse,
+	EnhancedVerificationRequest,
+	PresentationStatistics,
+	VerificationHistoryResponse
 } from '@/types/presentations';
 
 const API_BASE_URL = '/api/v1/presentations';
@@ -31,13 +34,13 @@ export async function getMyPresentations(filters?: PresentationFilters): Promise
 	try {
 		const params = new URLSearchParams();
 
-		if (filters?.status) params.append('status', filters.status);
-		if (filters?.purpose) params.append('purpose', filters.purpose);
-		if (filters?.verifierDID) params.append('verifier_did', filters.verifierDID);
+		// Use 'page' instead of 'offset' to match handler
+		const page = filters?.offset ? Math.floor(filters.offset / (filters.limit || 10)) + 1 : 1;
+		params.append('page', page.toString());
+
 		if (filters?.limit) params.append('limit', filters.limit.toString());
-		if (filters?.offset) params.append('offset', filters.offset.toString());
-		if (filters?.sortBy) params.append('sort_by', filters.sortBy);
-		if (filters?.sortOrder) params.append('sort_order', filters.sortOrder);
+		if (filters?.holderDID) params.append('holderDID', filters.holderDID);
+		if (filters?.status) params.append('status', filters.status);
 
 		const queryString = params.toString();
 		const url = queryString ? `${API_BASE_URL}?${queryString}` : `${API_BASE_URL}`;
@@ -50,7 +53,7 @@ export async function getMyPresentations(filters?: PresentationFilters): Promise
 			presentations: Array.isArray(data?.presentations) ? data.presentations : [],
 			pagination: data?.pagination || {
 				currentPage: 1,
-				pageSize: 20,
+				pageSize: 10,
 				totalItems: 0,
 				totalPages: 0,
 				hasPrevious: false,
@@ -66,7 +69,7 @@ export async function getMyPresentations(filters?: PresentationFilters): Promise
 			presentations: [],
 			pagination: {
 				currentPage: 1,
-				pageSize: 20,
+				pageSize: 10,
 				totalItems: 0,
 				totalPages: 0,
 				hasPrevious: false,
@@ -80,9 +83,57 @@ export async function getMyPresentations(filters?: PresentationFilters): Promise
 /**
  * Get presentation details by ID
  */
-export async function getPresentationById(presentationId: string): Promise<PresentationDetailResponse> {
+export async function getPresentationById(presentationId: string): Promise<{ presentation: VerifiablePresentation }> {
 	const response = await apiClient.get(`${API_BASE_URL}/${presentationId}`);
-	return response.data as PresentationDetailResponse;
+	return response.data as { presentation: VerifiablePresentation };
+}
+
+/**
+ * Get presentations by holder DID
+ */
+export async function getPresentationsByHolder(
+	holderDID: string,
+	page: number = 1,
+	limit: number = 10
+): Promise<PresentationListResponse> {
+	try {
+		const params = new URLSearchParams();
+		params.append('page', page.toString());
+		params.append('limit', limit.toString());
+
+		const queryString = params.toString();
+		const url = `${API_BASE_URL}/holder/${encodeURIComponent(holderDID)}?${queryString}`;
+
+		const response = await apiClient.get(url);
+		const data = response.data as PresentationListResponse;
+
+		return {
+			presentations: Array.isArray(data?.presentations) ? data.presentations : [],
+			pagination: data?.pagination || {
+				currentPage: 1,
+				pageSize: 10,
+				totalItems: 0,
+				totalPages: 0,
+				hasPrevious: false,
+				hasNext: false
+			},
+			total: data?.total || 0
+		};
+	} catch (error) {
+		console.error('Error fetching presentations by holder:', error);
+		return {
+			presentations: [],
+			pagination: {
+				currentPage: 1,
+				pageSize: 10,
+				totalItems: 0,
+				totalPages: 0,
+				hasPrevious: false,
+				hasNext: false
+			},
+			total: 0
+		};
+	}
 }
 
 /**
@@ -94,13 +145,37 @@ export async function verifyPresentation(request: VerifyPresentationRequest): Pr
 }
 
 /**
- * Update presentation status
+ * Enhanced verify a presentation with trust scoring
  */
-export async function updatePresentationStatus(
+export async function verifyPresentationEnhanced(request: EnhancedVerificationRequest): Promise<EnhancedVerificationResponse> {
+	const response = await apiClient.post(`${API_BASE_URL}/verify/enhanced`, request);
+	return response.data as EnhancedVerificationResponse;
+}
+
+/**
+ * Get presentation statistics
+ */
+export async function getPresentationStatistics(): Promise<PresentationStatistics> {
+	const response = await apiClient.get(`${API_BASE_URL}/statistics`);
+	return response.data as PresentationStatistics;
+}
+
+/**
+ * Get verification history for a presentation
+ */
+export async function getPresentationVerificationHistory(
 	presentationId: string,
-	status: 'submitted' | 'verified' | 'rejected'
-): Promise<void> {
-	await apiClient.patch(`${API_BASE_URL}/${presentationId}/status`, { status });
+	page: number = 1,
+	limit: number = 10
+): Promise<VerificationHistoryResponse> {
+	const params = new URLSearchParams();
+	params.append('page', page.toString());
+	params.append('limit', limit.toString());
+
+	const response = await apiClient.get(
+		`${API_BASE_URL}/${encodeURIComponent(presentationId)}/verifications?${params.toString()}`
+	);
+	return response.data as VerificationHistoryResponse;
 }
 
 /**
@@ -108,106 +183,4 @@ export async function updatePresentationStatus(
  */
 export async function deletePresentation(presentationId: string): Promise<void> {
 	await apiClient.delete(`${API_BASE_URL}/${presentationId}`);
-}
-
-/**
- * Share presentation with verifier
- */
-export async function sharePresentation(
-	presentationId: string,
-	verifierDID: string,
-	purpose?: string
-): Promise<{ shareUrl: string; expiresAt: string }> {
-	const response = await apiClient.post(`${API_BASE_URL}/${presentationId}/share`, {
-		verifierDID,
-		purpose
-	});
-	return response.data as { shareUrl: string; expiresAt: string };
-}
-
-/**
- * Get verification history for a presentation
- */
-export async function getPresentationVerificationHistory(
-	presentationId: string
-): Promise<Array<{
-	id: string;
-	verifierDID: string;
-	verifiedAt: string;
-	result: 'valid' | 'invalid';
-	trustScore: number;
-	errors: string[];
-}>> {
-	const response = await apiClient.get(`${API_BASE_URL}/${presentationId}/verifications`);
-	return response.data as Array<{
-		id: string;
-		verifierDID: string;
-		verifiedAt: string;
-		result: 'valid' | 'invalid';
-		trustScore: number;
-		errors: string[];
-	}>;
-}
-
-/**
- * Export presentation as JSON
- */
-export async function exportPresentation(presentationId: string): Promise<VerifiablePresentation> {
-	const response = await apiClient.get(`${API_BASE_URL}/${presentationId}/export`);
-	return response.data as VerifiablePresentation;
-}
-
-/**
- * Batch operations for presentations
- */
-export async function bulkDeletePresentations(presentationIds: string[]): Promise<{
-	successCount: number;
-	failureCount: number;
-	errors: Array<{ id: string; error: string }>;
-}> {
-	try {
-		const response = await apiClient.post(`${API_BASE_URL}/bulk/delete`, {
-			presentationIds
-		});
-		const data = response.data as {
-			successCount?: number;
-			failureCount?: number;
-			errors?: Array<{ id: string; error: string }>;
-		};
-
-		// Ensure we always return the expected structure
-		return {
-			successCount: data?.successCount || 0,
-			failureCount: data?.failureCount || 0,
-			errors: Array.isArray(data?.errors) ? data.errors : []
-		};
-	} catch (error) {
-		console.error('Error in bulk delete:', error);
-
-		// Return failure response on error
-		return {
-			successCount: 0,
-			failureCount: presentationIds.length,
-			errors: presentationIds.map(id => ({ id, error: 'Network error' }))
-		};
-	}
-}
-
-export async function bulkUpdatePresentationStatus(
-	presentationIds: string[],
-	status: 'submitted' | 'verified' | 'rejected'
-): Promise<{
-	successCount: number;
-	failureCount: number;
-	errors: Array<{ id: string; error: string }>;
-}> {
-	const response = await apiClient.post(`${API_BASE_URL}/bulk/status`, {
-		presentationIds,
-		status
-	});
-	return response.data as {
-		successCount: number;
-		failureCount: number;
-		errors: Array<{ id: string; error: string }>;
-	};
 }

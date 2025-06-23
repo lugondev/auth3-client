@@ -1,7 +1,8 @@
 'use client'
 
-import React, {useState, useEffect, useRef, useCallback} from 'react'
+import React, {useState, useEffect, useCallback} from 'react'
 import Image from 'next/image'
+import QRCode from 'qrcode'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
@@ -18,20 +19,22 @@ interface CredentialQRCodeProps {
 	shareUrl?: string
 	onGenerate?: (qrData: string) => void
 	className?: string
+	enableDeepLink?: boolean // New prop for enabling/disabling deep linking
+	enableOfflineSupport?: boolean // New prop for enabling/disabling offline support
 }
 
 /**
  * CredentialQRCode Component
  * Generates and displays QR codes for credential sharing
  */
-export function CredentialQRCode({credential, size = 256, includeMetadata = true, shareUrl, onGenerate, className = ''}: CredentialQRCodeProps) {
+export function CredentialQRCode({credential, size = 256, includeMetadata = true, shareUrl, onGenerate, className = '', enableDeepLink = true, enableOfflineSupport = true}: CredentialQRCodeProps) {
 	// State management
 	const [qrDataUrl, setQrDataUrl] = useState<string>('')
 	const [qrData, setQrData] = useState<string>('')
 	const [loading, setLoading] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [showFullData, setShowFullData] = useState(false)
-	const canvasRef = useRef<HTMLCanvasElement>(null)
+	const [qrMode, setQrMode] = useState<'online' | 'offline'>(enableOfflineSupport ? 'offline' : 'online')
 
 	/**
 	 * Generate QR code data based on credential and options
@@ -43,6 +46,19 @@ export function CredentialQRCode({credential, size = 256, includeMetadata = true
 			if (shareUrl) {
 				// Use share URL if provided
 				data = shareUrl
+			} else if (qrMode === 'offline' && enableOfflineSupport) {
+				// Include full credential data for offline verification
+				data = JSON.stringify(credential)
+			} else if (enableDeepLink) {
+				// Create a deep link for mobile wallet apps
+				const baseUrl = `auth3://credentials/view`
+				const params = new URLSearchParams({
+					id: credential.id,
+					issuer: typeof credential.issuer === 'string' ? credential.issuer : credential.issuer?.id || '',
+					type: Array.isArray(credential.type) ? credential.type.join(',') : credential.type,
+					callback: `${window.location.origin}/credentials/verify/${credential.id}`,
+				})
+				data = `${baseUrl}?${params.toString()}`
 			} else if (includeMetadata) {
 				// Include full credential data
 				data = JSON.stringify(credential)
@@ -62,67 +78,30 @@ export function CredentialQRCode({credential, size = 256, includeMetadata = true
 			console.error('Error generating QR data:', err)
 			throw new Error('Failed to generate QR data')
 		}
-	}, [credential, shareUrl, includeMetadata])
+	}, [credential, shareUrl, includeMetadata, qrMode, enableOfflineSupport, enableDeepLink])
 
 	/**
-	 * Generate QR code using a QR code library (mock implementation)
-	 * In a real implementation, you would use a library like 'qrcode' or 'qr-code-generator'
+	 * Generate QR code using the qrcode library
 	 */
 	const generateQRCode = useCallback(async (data: string, size: number): Promise<string> => {
-		return new Promise((resolve, reject) => {
-			try {
-				// Mock QR code generation - in real implementation use a QR library
-				const canvas = canvasRef.current
-				if (!canvas) {
-					reject(new Error('Canvas not available'))
-					return
-				}
+		try {
+			// Generate QR code using the qrcode library
+			const qrCodeDataUrl = await QRCode.toDataURL(data, {
+				width: size,
+				margin: 2,
+				color: {
+					dark: '#000000',
+					light: '#FFFFFF',
+				},
+				errorCorrectionLevel: 'M',
+			})
 
-				const ctx = canvas.getContext('2d')
-				if (!ctx) {
-					reject(new Error('Canvas context not available'))
-					return
-				}
-
-				// Set canvas size
-				canvas.width = size
-				canvas.height = size
-
-				// Create a simple pattern (replace with actual QR code generation)
-				ctx.fillStyle = '#ffffff'
-				ctx.fillRect(0, 0, size, size)
-
-				ctx.fillStyle = '#000000'
-				const cellSize = size / 25
-
-				// Generate a simple pattern based on data hash
-				const hash = data.split('').reduce((a, b) => {
-					a = (a << 5) - a + b.charCodeAt(0)
-					return a & a
-				}, 0)
-
-				for (let i = 0; i < 25; i++) {
-					for (let j = 0; j < 25; j++) {
-						if ((hash + i * j) % 3 === 0) {
-							ctx.fillRect(i * cellSize, j * cellSize, cellSize, cellSize)
-						}
-					}
-				}
-
-				// Add corner markers
-				const markerSize = cellSize * 3
-				ctx.fillRect(0, 0, markerSize, markerSize)
-				ctx.fillRect(size - markerSize, 0, markerSize, markerSize)
-				ctx.fillRect(0, size - markerSize, markerSize, markerSize)
-
-				// Convert to data URL
-				const dataUrl = canvas.toDataURL('image/png')
-				resolve(dataUrl)
-			} catch (err) {
-				reject(err)
-			}
-		})
-	}, [canvasRef])
+			return qrCodeDataUrl
+		} catch (err) {
+			console.error('Error generating QR code:', err)
+			throw new Error('Failed to generate QR code')
+		}
+	}, [])
 
 	/**
 	 * Generate QR code
@@ -135,38 +114,47 @@ export function CredentialQRCode({credential, size = 256, includeMetadata = true
 			const data = generateQRData()
 			setQrData(data)
 
-			const dataUrl = await generateQRCode(data, size)
-			setQrDataUrl(dataUrl)
+			// Generate QR code using the qrcode library with appropriate options
+			const qrCodeDataUrl = await generateQRCode(data, size)
+			setQrDataUrl(qrCodeDataUrl)
 
 			if (onGenerate) {
 				onGenerate(data)
 			}
-
-			toast.success('QR code generated successfully')
 		} catch (err) {
 			console.error('Error generating QR code:', err)
-			const errorMessage = err instanceof Error ? err.message : 'Failed to generate QR code'
-			setError(errorMessage)
-			toast.error(errorMessage)
+			setError('Failed to generate QR code')
 		} finally {
 			setLoading(false)
 		}
-	}, [size, onGenerate, generateQRCode, generateQRData])
+	}, [generateQRData, generateQRCode, size, onGenerate])
 
 	/**
-	 * Download QR code as image
+	 * Toggle QR code mode (online/offline)
+	 */
+	const toggleQrMode = useCallback(() => {
+		const newMode = qrMode === 'online' ? 'offline' : 'online'
+		setQrMode(newMode)
+
+		// Regenerate QR code with new mode
+		toast.info(`Switched to ${newMode} mode QR code`)
+	}, [qrMode])
+
+	/**
+	 * Download QR code
 	 */
 	const handleDownload = useCallback(() => {
 		if (!qrDataUrl) return
 
+		// Create a temporary link element
 		const link = document.createElement('a')
 		link.href = qrDataUrl
-		link.download = `credential-qr-${credential.id || 'unknown'}.png`
+		link.download = `credential-${credential.id.substring(0, 8)}.png`
 		document.body.appendChild(link)
 		link.click()
 		document.body.removeChild(link)
 
-		toast.success('QR code downloaded successfully')
+		toast.success('QR code downloaded')
 	}, [qrDataUrl, credential.id])
 
 	/**
@@ -239,22 +227,51 @@ export function CredentialQRCode({credential, size = 256, includeMetadata = true
 							<RefreshCw className='h-8 w-8 animate-spin text-gray-400' />
 						</div>
 					) : error ? (
-						<Alert className='max-w-sm'>
+						<Alert className='mt-4' variant='destructive'>
 							<AlertTriangle className='h-4 w-4' />
 							<AlertDescription>{error}</AlertDescription>
 						</Alert>
 					) : qrDataUrl ? (
-						<div className='relative'>
-							<Image src={qrDataUrl} alt='Credential QR Code' className='border rounded-lg shadow-sm' style={{width: size, height: size}} />
-							<Badge className='absolute -top-2 -right-2 bg-green-100 text-green-800' variant='outline'>
-								Ready
-							</Badge>
+						<div className='flex flex-col items-center mt-4 space-y-2'>
+							<div className='relative bg-white p-2 rounded'>
+								<Image
+									src={qrDataUrl}
+									alt='Credential QR Code'
+									width={size}
+									height={size}
+									className='rounded'
+									unoptimized // Required for data URLs
+								/>
+							</div>
+
+							{enableOfflineSupport && (
+								<Badge variant={qrMode === 'offline' ? 'default' : 'outline'} className='cursor-pointer' onClick={toggleQrMode}>
+									{qrMode === 'offline' ? 'Offline Mode' : 'Online Mode'}
+								</Badge>
+							)}
+
+							{enableDeepLink && qrMode === 'online' && (
+								<Badge variant='secondary' className='flex gap-1'>
+									<Smartphone className='h-3 w-3' />
+									<span>Deep Link Enabled</span>
+								</Badge>
+							)}
+
+							<div className='flex space-x-2 mt-2'>
+								<Button variant='outline' size='sm' onClick={handleDownload}>
+									<Download className='h-4 w-4 mr-1' />
+									Download
+								</Button>
+								{onGenerate && (
+									<Button variant='outline' size='sm' onClick={handleGenerateQR}>
+										<RefreshCw className='h-4 w-4 mr-1' />
+										Refresh
+									</Button>
+								)}
+							</div>
 						</div>
 					) : null}
 				</div>
-
-				{/* Hidden canvas for QR generation */}
-				<canvas ref={canvasRef} style={{display: 'none'}} />
 
 				{/* QR Data Information */}
 				{qrData && (
@@ -272,6 +289,14 @@ export function CredentialQRCode({credential, size = 256, includeMetadata = true
 				)}
 
 				<Separator />
+
+				{/* QR Mode Selection */}
+				<div className='flex items-center justify-between'>
+					<span className='text-sm font-medium'>QR Code Mode:</span>
+					<Button onClick={toggleQrMode} variant='outline' size='sm' className='whitespace-nowrap'>
+						{qrMode === 'online' ? 'Switch to Offline' : 'Switch to Online'}
+					</Button>
+				</div>
 
 				{/* Action Buttons */}
 				<div className='flex flex-wrap gap-2'>

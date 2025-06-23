@@ -186,7 +186,8 @@ export interface CredentialMetadata {
   expirationDate?: string;
   status: CredentialStatus;
   statusReason?: string;
-  lastUpdated: string;
+  updatedAt: string;
+  createdAt: string;
 }
 
 export interface ListCredentialsInput {

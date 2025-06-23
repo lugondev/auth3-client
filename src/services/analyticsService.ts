@@ -15,6 +15,276 @@ export interface AnalyticsQuery {
 	interval?: 'day' | 'week' | 'month';
 }
 
+// Credential Analytics Types
+export interface TimeSeriesStat {
+	timestamp: string;
+	count: number;
+	value?: number;
+}
+
+export interface IssuerStat {
+	issuerDid: string;
+	issuerName: string;
+	count: number;
+}
+
+export interface TemplateStat {
+	templateId: string;
+	templateName: string;
+	count: number;
+}
+
+export interface CredentialTypeStat {
+	typeUri: string;
+	count: number;
+}
+
+export interface StatusStat {
+	status: string;
+	count: number;
+}
+
+export interface ResultStat {
+	result: string;
+	count: number;
+}
+
+export interface MethodStat {
+	method: string;
+	count: number;
+}
+
+export interface VerifierStat {
+	verifierDid: string;
+	verifierName: string;
+	count: number;
+}
+
+export interface FailureReasonStat {
+	reason: string;
+	count: number;
+}
+
+export interface UsageDistributionStat {
+	category: string;
+	count: number;
+}
+
+export interface IssuanceStatistics {
+	totalIssued: number;
+	issuedToday: number;
+	issuedThisWeek: number;
+	issuedThisMonth: number;
+	avgIssuanceTime: number;
+	topIssuers: IssuerStat[];
+	topTemplates: TemplateStat[];
+	issuanceByTime: TimeSeriesStat[];
+	issuanceByCredentialType: CredentialTypeStat[];
+	issuanceByStatus: StatusStat[];
+}
+
+export interface VerificationStatistics {
+	totalVerifications: number;
+	verificationsToday: number;
+	verificationsThisWeek: number;
+	verificationsThisMonth: number;
+	successRate: number;
+	avgVerificationTime: number;
+	verificationsByResult: ResultStat[];
+	verificationsByTime: TimeSeriesStat[];
+	verificationsByMethod: MethodStat[];
+	topVerifiers: VerifierStat[];
+	commonFailureReasons: FailureReasonStat[];
+}
+
+export interface TemplateUsageStats {
+	templateId: string;
+	templateName: string;
+	totalCredentialsIssued: number;
+	issuedThisMonth: number;
+	issuedThisWeek: number;
+	issuanceByTime: TimeSeriesStat[];
+	topIssuers: IssuerStat[];
+	usageDistribution: UsageDistributionStat[];
+	avgIssuanceTime: number;
+}
+
+export interface IssuerMetrics {
+	issuerDid: string;
+	issuerName: string;
+	totalCredentialsIssued: number;
+	issuedThisMonth: number;
+	issuanceByTime: TimeSeriesStat[];
+	trustScore: number;
+	credentialsByType: CredentialTypeStat[];
+	credentialsByStatus: StatusStat[];
+	responseTime: number;
+	upTime: number;
+}
+
+// Credential Analytics API Methods
+
+/**
+ * Get credential issuance statistics
+ */
+export const getIssuanceStatistics = withErrorHandling(
+	async (query?: AnalyticsQuery): Promise<IssuanceStatistics> => {
+		const params = new URLSearchParams();
+
+		if (query?.time_range?.start_date) {
+			params.append('start_date', query.time_range.start_date);
+		}
+		if (query?.time_range?.end_date) {
+			params.append('end_date', query.time_range.end_date);
+		}
+		if (query?.interval) {
+			params.append('interval', query.interval);
+		}
+		if (query?.limit) {
+			params.append('limit', query.limit.toString());
+		}
+		if (query?.offset) {
+			params.append('offset', query.offset.toString());
+		}
+
+		const queryString = params.toString();
+		const url = `/api/v1/credentials/analytics/issuance${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<IssuanceStatistics>(url);
+		return response.data;
+	}
+);
+
+/**
+ * Get credential verification statistics
+ */
+export const getVerificationStatistics = withErrorHandling(
+	async (query?: AnalyticsQuery): Promise<VerificationStatistics> => {
+		const params = new URLSearchParams();
+
+		if (query?.time_range?.start_date) {
+			params.append('start_date', query.time_range.start_date);
+		}
+		if (query?.time_range?.end_date) {
+			params.append('end_date', query.time_range.end_date);
+		}
+		if (query?.interval) {
+			params.append('interval', query.interval);
+		}
+		if (query?.limit) {
+			params.append('limit', query.limit.toString());
+		}
+		if (query?.offset) {
+			params.append('offset', query.offset.toString());
+		}
+
+		const queryString = params.toString();
+		const url = `/api/v1/credentials/analytics/verification${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<VerificationStatistics>(url);
+		return response.data;
+	}
+);
+
+/**
+ * Get template usage statistics
+ */
+export const getTemplateUsageStatistics = withErrorHandling(
+	async (templateId: string, query?: AnalyticsQuery): Promise<TemplateUsageStats> => {
+		const params = new URLSearchParams();
+
+		if (query?.time_range?.start_date) {
+			params.append('start_date', query.time_range.start_date);
+		}
+		if (query?.time_range?.end_date) {
+			params.append('end_date', query.time_range.end_date);
+		}
+		if (query?.interval) {
+			params.append('interval', query.interval);
+		}
+		if (query?.limit) {
+			params.append('limit', query.limit.toString());
+		}
+		if (query?.offset) {
+			params.append('offset', query.offset.toString());
+		}
+
+		const queryString = params.toString();
+		const url = `/api/v1/credentials/analytics/templates/${templateId}${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<TemplateUsageStats>(url);
+		return response.data;
+	}
+);
+
+/**
+ * Get issuer performance metrics
+ */
+export const getIssuerPerformanceMetrics = withErrorHandling(
+	async (issuerDid: string, query?: AnalyticsQuery): Promise<IssuerMetrics> => {
+		const params = new URLSearchParams();
+
+		if (query?.time_range?.start_date) {
+			params.append('start_date', query.time_range.start_date);
+		}
+		if (query?.time_range?.end_date) {
+			params.append('end_date', query.time_range.end_date);
+		}
+		if (query?.interval) {
+			params.append('interval', query.interval);
+		}
+		if (query?.limit) {
+			params.append('limit', query.limit.toString());
+		}
+		if (query?.offset) {
+			params.append('offset', query.offset.toString());
+		}
+
+		const queryString = params.toString();
+		const url = `/api/v1/credentials/analytics/issuers/${issuerDid}${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<IssuerMetrics>(url);
+		return response.data;
+	}
+);
+
+/**
+ * Interface for compliance report response
+ */
+export interface ComplianceReportResponse {
+	reportId: string;
+	name: string;
+	type: string;
+	period: {
+		start_date: string;
+		end_date: string;
+	};
+	status: 'completed' | 'processing' | 'failed';
+	url?: string;
+	totalCredentialsIssued: number;
+	totalCredentialsVerified: number;
+	totalCredentialsRevoked: number;
+	complianceRate: number;
+	createdAt: string;
+}
+
+/**
+ * Generate compliance report
+ */
+export const generateComplianceReport = withErrorHandling(
+	async (startDate: string, endDate: string, reportType: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'): Promise<ComplianceReportResponse> => {
+		const url = `/api/v1/credentials/analytics/reports/compliance`;
+
+		const response = await apiClient.post<ComplianceReportResponse>(url, {
+			start_date: startDate,
+			end_date: endDate,
+			type: reportType
+		});
+
+		return response.data;
+	}
+);
+
 // Personal Dashboard Analytics
 export interface PersonalDashboardAnalytics {
 	total_logins: number;

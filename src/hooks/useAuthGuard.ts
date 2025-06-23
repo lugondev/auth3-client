@@ -3,8 +3,7 @@
 
 import React, { useEffect, ComponentType } from 'react'; // Added ComponentType and React
 import { useRouter } from 'next/navigation';
-// Assuming you have an AuthContext similar to the one in README.md
-// import { useAuth } from '@/contexts/AuthContext'; 
+import { useAuth } from './useAuth'; // Use our real authentication hook
 
 // Define a user type (adjust according to your actual user object structure)
 interface User {
@@ -14,27 +13,6 @@ interface User {
 	tenants?: string[]; // e.g., ['tenantId1', 'tenantId2']
 	// Add other relevant user properties
 }
-
-// Placeholder for auth context hook
-const useAuth = (): { user: User | null; loading: boolean } => {
-	// Replace with your actual auth context logic
-	// This is a mock implementation
-	console.warn(
-		"useAuth is a placeholder. Implement with your actual AuthContext."
-	);
-	// Simulate a logged-in system admin for testing admin routes
-	// Simulate a user part of a tenant for testing tenant routes
-	const mockUser: User = {
-		id: 'mock-user-id',
-		email: 'admin@example.com',
-		roles: ['system:admin', 'tenant:tenant-abc:member'],
-		tenants: ['tenant-abc', 'tenant-xyz'],
-	};
-	return { user: mockUser, loading: false };
-	// return { user: null, loading: false }; // Simulate logged out
-	// return { user: { id: 'user1', roles: ['user'], tenants: ['tenant-abc'] }, loading: false }; // Simulate regular user
-};
-
 
 type RoleOrCheckerFn = string | ((user: User | null) => boolean);
 
@@ -47,7 +25,7 @@ export function useAuthGuard(
 	requiredRoleOrFn: RoleOrCheckerFn,
 	redirectPath: string = '/login'
 ) {
-	const { user, loading } = useAuth();
+	const { user, isLoading: loading } = useAuth();
 	const router = useRouter();
 
 	useEffect(() => {
@@ -84,7 +62,7 @@ export function withRoleGuard<P extends object>( // Changed {} to object as per 
 ): React.FC<P> {
 	const ComponentWithAuthGuard: React.FC<P> = (props) => {
 		useAuthGuard(requiredRoleOrFn, redirectPath);
-		const { user, loading } = useAuth();
+		const { user, isLoading: loading } = useAuth();
 
 		if (loading || !user) {
 			// You might want to render a loading spinner or null

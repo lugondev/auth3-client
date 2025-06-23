@@ -31,6 +31,22 @@ function getUserDID(userId?: string): string {
 	return 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH' // Default DID for demo
 }
 
+/**
+ * Validate and parse JSON string
+ */
+function validateAndParseJson(jsonString: string): {valid: boolean; data?: Record<string, unknown>; error?: string} {
+	if (!jsonString.trim()) {
+		return {valid: true, data: {}}
+	}
+
+	try {
+		const data = JSON.parse(jsonString) as Record<string, unknown>
+		return {valid: true, data}
+	} catch (error) {
+		return {valid: false, error: error instanceof Error ? error.message : 'Invalid JSON'}
+	}
+}
+
 export default function CreatePresentationPage() {
 	const router = useRouter()
 	const {user: currentUser} = useAuth()
@@ -41,7 +57,13 @@ export default function CreatePresentationPage() {
 		presentationType: '',
 		credentials: [] as string[],
 		presentationDefinition: '',
+		challenge: '',
+		domain: '',
+		context: ['https://www.w3.org/2018/credentials/v1'],
+		type: ['VerifiablePresentation'],
+		customMetadata: '',
 	})
+	const [showPreview, setShowPreview] = useState(false)
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
@@ -54,31 +76,65 @@ export default function CreatePresentationPage() {
 				return
 			}
 
+			// Validate credentials array
+			if (formData.credentials.length === 0) {
+				toast.error('At least one credential is required')
+				return
+			}
+
+			// Validate credentials are UUIDs (basic validation)
+			const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+			const invalidCredentials = formData.credentials.filter((cred) => !uuidRegex.test(cred.trim()))
+			if (invalidCredentials.length > 0) {
+				toast.error(`Invalid credential UUIDs: ${invalidCredentials.join(', ')}`)
+				return
+			}
+
+			// Validate context and type arrays
+			if (formData.context.length === 0) {
+				toast.error('At least one context is required')
+				return
+			}
+
+			if (formData.type.length === 0) {
+				toast.error('At least one type is required')
+				return
+			}
+
 			// Parse presentation definition if provided
 			let parsedDefinition = null
 			if (formData.presentationDefinition.trim()) {
-				try {
-					parsedDefinition = JSON.parse(formData.presentationDefinition)
-				} catch {
-					toast.error('Invalid JSON in presentation definition')
+				const definitionResult = validateAndParseJson(formData.presentationDefinition)
+				if (!definitionResult.valid) {
+					toast.error(`Invalid JSON in presentation definition: ${definitionResult.error}`)
 					return
 				}
+				parsedDefinition = definitionResult.data
 			}
+
+			// Parse custom metadata if provided
+			const metadataResult = validateAndParseJson(formData.customMetadata)
+			if (!metadataResult.valid) {
+				toast.error(`Invalid JSON in custom metadata: ${metadataResult.error}`)
+				return
+			}
+			const customMetadata = metadataResult.data || {}
 
 			// Create the presentation request
 			const request: CreatePresentationRequest = {
-				holderDID: getUserDID(currentUser?.id),
-				challenge: `challenge-${Date.now()}`,
-				domain: window.location.origin,
+				'@context': formData.context,
+				challenge: formData.challenge || `challenge-${Date.now()}`,
 				credentials: formData.credentials,
-				type: ['VerifiablePresentation'],
-				'@context': ['https://www.w3.org/2018/credentials/v1', 'https://www.w3.org/2018/credentials/examples/v1'],
+				domain: formData.domain || window.location.origin,
+				holderDID: getUserDID(currentUser?.id),
 				metadata: {
 					name: formData.name,
 					description: formData.description,
 					purpose: formData.presentationType || 'general',
 					presentationDefinition: parsedDefinition || generateDefaultDefinition(),
+					...customMetadata,
 				},
+				type: formData.type,
 			}
 
 			// Call the API to create the presentation
@@ -246,6 +302,42 @@ export default function CreatePresentationPage() {
 						</div>
 
 						<div className='space-y-2'>
+							<Label htmlFor='credentials'>Credentials (UUIDs)</Label>
+							<Textarea id='credentials' value={formData.credentials.join('\n')} onChange={(e) => setFormData({...formData, credentials: e.target.value.split('\n').filter((id) => id.trim())})} placeholder='Enter credential UUIDs, one per line' rows={3} />
+							<p className='text-sm text-muted-foreground'>Enter credential UUIDs that will be included in this presentation</p>
+						</div>
+
+						<div className='space-y-2'>
+							<Label htmlFor='challenge'>Challenge</Label>
+							<Input id='challenge' value={formData.challenge} onChange={(e) => setFormData({...formData, challenge: e.target.value})} placeholder='Leave empty for auto-generation' />
+							<p className='text-sm text-muted-foreground'>Optional: Custom challenge string</p>
+						</div>
+
+						<div className='space-y-2'>
+							<Label htmlFor='domain'>Domain</Label>
+							<Input id='domain' value={formData.domain} onChange={(e) => setFormData({...formData, domain: e.target.value})} placeholder='Leave empty to use current domain' />
+							<p className='text-sm text-muted-foreground'>Optional: Custom domain for the presentation</p>
+						</div>
+
+						<div className='space-y-2'>
+							<Label htmlFor='context'>Context (@context)</Label>
+							<Textarea id='context' value={formData.context.join('\n')} onChange={(e) => setFormData({...formData, context: e.target.value.split('\n').filter((ctx) => ctx.trim())})} placeholder='Enter context URLs, one per line' rows={2} className='font-mono text-sm' />
+							<p className='text-sm text-muted-foreground'>Context URLs for the presentation</p>
+						</div>
+
+						<div className='space-y-2'>
+							<Label htmlFor='type'>Type</Label>
+							<Textarea id='type' value={formData.type.join('\n')} onChange={(e) => setFormData({...formData, type: e.target.value.split('\n').filter((t) => t.trim())})} placeholder='Enter presentation types, one per line' rows={2} className='font-mono text-sm' />
+							<p className='text-sm text-muted-foreground'>Type identifiers for the presentation</p>
+						</div>
+
+						<div className='space-y-2'>
+							<Label htmlFor='customMetadata'>Custom Metadata (JSON)</Label>
+							<Textarea id='customMetadata' value={formData.customMetadata} onChange={(e) => setFormData({...formData, customMetadata: e.target.value})} placeholder='Enter additional metadata as JSON object' rows={4} className='font-mono text-sm' />
+							<p className='text-sm text-muted-foreground'>Optional: Additional metadata properties in JSON format</p>
+						</div>
+
+						<div className='space-y-2'>
 							<Label htmlFor='presentationDefinition'>Presentation Definition (JSON)</Label>
 							<Textarea id='presentationDefinition' value={formData.presentationDefinition} onChange={(e) => setFormData({...formData, presentationDefinition: e.target.value})} placeholder='Enter presentation definition JSON or leave empty for auto-generation' rows={6} className='font-mono text-sm' />
 							<p className='text-sm text-muted-foreground'>Optional: Provide a specific presentation definition. If left empty, one will be generated based on your selections.</p>
@@ -265,6 +357,9 @@ export default function CreatePresentationPage() {
 									</>
 								)}
 							</Button>
+							<Button type='button' variant='outline' onClick={() => setShowPreview(!showPreview)} disabled={isCreating}>
+								{showPreview ? 'Hide Preview' : 'Show Preview'}
+							</Button>
 							<Link href='/dashboard/presentations'>
 								<Button type='button' variant='outline' disabled={isCreating}>
 									Cancel
@@ -272,6 +367,34 @@ export default function CreatePresentationPage() {
 							</Link>
 						</div>
 					</form>
+
+					{showPreview && (
+						<div className='mt-6 pt-6 border-t'>
+							<h3 className='text-lg font-semibold mb-4'>Request Preview</h3>
+							<div className='bg-muted p-4 rounded-lg'>
+								<pre className='text-sm font-mono whitespace-pre-wrap overflow-auto max-h-96'>
+									{JSON.stringify(
+										{
+											'@context': formData.context.filter((ctx) => ctx.trim()),
+											challenge: formData.challenge || `challenge-${Date.now()}`,
+											credentials: formData.credentials.filter((cred) => cred.trim()),
+											domain: formData.domain || window.location.origin,
+											holderDID: getUserDID(currentUser?.id),
+											metadata: {
+												name: formData.name,
+												description: formData.description,
+												purpose: formData.presentationType || 'general',
+												...(formData.customMetadata.trim() && validateAndParseJson(formData.customMetadata).valid ? validateAndParseJson(formData.customMetadata).data : {}),
+											},
+											type: formData.type.filter((t) => t.trim()),
+										},
+										null,
+										2,
+									)}
+								</pre>
+							</div>
+						</div>
+					)}
 				</CardContent>
 			</Card>
 		</div>

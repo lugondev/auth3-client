@@ -15,7 +15,7 @@ import {Checkbox} from '@/components/ui/checkbox'
 import {PresentationCard} from './PresentationCard'
 
 import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions} from '@/types/presentations'
-import {getMyPresentations, deletePresentation, bulkDeletePresentations} from '@/services/presentationService'
+import {getMyPresentations, deletePresentation} from '@/services/presentationService'
 
 interface PresentationListProps {
 	className?: string
@@ -131,17 +131,21 @@ export function PresentationList({className = ''}: PresentationListProps) {
 
 		setBulkDeleting(true)
 		try {
-			const result = await bulkDeletePresentations(Array.from(selectedPresentations))
+			const presentationIds = Array.from(selectedPresentations)
+			const results = await Promise.allSettled(presentationIds.map((id) => deletePresentation(id)))
 
-			if (result.successCount > 0) {
+			const successCount = results.filter((r) => r.status === 'fulfilled').length
+			const failureCount = results.filter((r) => r.status === 'rejected').length
+
+			if (successCount > 0) {
 				// Remove successfully deleted presentations
 				setPresentations((prev) => (prev || []).filter((p) => !selectedPresentations.has(p.id)))
 				setSelectedPresentations(new Set())
-				toast.success(`${result.successCount} presentation${result.successCount !== 1 ? 's' : ''} deleted`)
+				toast.success(`${successCount} presentation${successCount !== 1 ? 's' : ''} deleted`)
 			}
 
-			if (result.failureCount > 0) {
-				toast.error(`Failed to delete ${result.failureCount} presentation${result.failureCount !== 1 ? 's' : ''}`)
+			if (failureCount > 0) {
+				toast.error(`Failed to delete ${failureCount} presentation${failureCount !== 1 ? 's' : ''}`)
 			}
 		} catch (error) {
 			console.error('Bulk delete error:', error)
