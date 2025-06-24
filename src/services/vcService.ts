@@ -26,7 +26,6 @@ import {
   CredentialStatistics,
   ListTemplatesOutput
 } from '../types/vc';
-import { convertToUTC } from '@/utils/dateUtils';
 
 // Re-export types for convenience
 export type { CredentialStatistics } from '../types/vc';
@@ -80,12 +79,7 @@ export const verifyCredential = withErrorHandling(
 export const getCredential = withErrorHandling(
   async ({ credentialId }: { credentialId: string }): Promise<GetCredentialOutput> => {
     const response = await apiClient.get<GetCredentialOutput>(`/api/v1/credentials/${credentialId}`);
-    const data = response.data;
-    const { expirationDate } = data;
-    return {
-      ...data,
-      expirationDate: expirationDate ? convertToUTC(expirationDate.toString()) : undefined,
-    };
+    return response.data;
   }
 );
 
@@ -256,7 +250,6 @@ export const deleteTemplate = withErrorHandling(
 export const cleanCredentialForVerification = (credential: VerifiableCredential | Record<string, unknown>): VerifiableCredential => {
   // Extract only the W3C VC fields, excluding database metadata
   const {
-    expirationDate,
     proof,
     credentialSchema,
     refreshService,
@@ -269,13 +262,6 @@ export const cleanCredentialForVerification = (credential: VerifiableCredential 
     ...credential
   };
 
-  // Add optional fields only if they exist
-  // For expirationDate, ensure it's in the original format (avoid timezone conversion issues)
-  if (expirationDate) {
-    // If expirationDate is a string and looks like it was converted from UTC to local timezone,
-    // we might need to preserve the original format. For now, use as-is.
-    cleanCredential.expirationDate = convertToUTC(expirationDate.toString());
-  }
   if (proof) cleanCredential.proof = proof;
   if (credentialSchema) cleanCredential.credentialSchema = credentialSchema;
   if (refreshService) cleanCredential.refreshService = refreshService;
