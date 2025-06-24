@@ -43,7 +43,6 @@ export default function VerifyPresentationPage() {
 				challenge: presentation.proof?.challenge || `verify-${Date.now()}`,
 				domain: window.location.origin,
 				verifySignature: true,
-				verifyCredentials: true,
 				verifyRevocation: true,
 				verifyIssuerTrust: true,
 				verifyExpiration: true,

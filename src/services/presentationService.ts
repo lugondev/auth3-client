@@ -23,8 +23,32 @@ const API_BASE_URL = '/api/v1/presentations';
  * Create a new verifiable presentation
  */
 export async function createPresentation(request: CreatePresentationRequest): Promise<CreatePresentationResponse> {
-	const response = await apiClient.post(`${API_BASE_URL}/create`, request);
-	return response.data as CreatePresentationResponse;
+	try {
+		const response = await apiClient.post(`${API_BASE_URL}/create`, request);
+		return response.data as CreatePresentationResponse;
+	} catch (error) {
+		// Re-throw with enhanced error information for better handling in UI
+		if (error && typeof error === 'object' && 'response' in error) {
+			const axiosError = error as {
+				response?: {
+					data?: {
+						message?: string;
+						errors?: string[];
+						details?: Record<string, unknown>;
+					};
+					status?: number;
+				}
+			};
+
+			// Enhance validation errors for credential UUIDs
+			if (axiosError.response?.status === 400 && axiosError.response?.data?.message?.includes('credentials')) {
+				const enhancedError = new Error('Invalid credential UUIDs provided. Please ensure all credential IDs are valid UUID format.');
+				enhancedError.name = 'ValidationError';
+				throw enhancedError;
+			}
+		}
+		throw error;
+	}
 }
 
 /**

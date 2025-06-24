@@ -14,6 +14,7 @@ import {toast} from 'sonner'
 import {createPresentation} from '@/services/presentationService'
 import type {CreatePresentationRequest} from '@/types/presentations'
 import {useAuth} from '@/hooks/useAuth'
+import {validateRequired, validateMinArrayLength, validateJSON, sanitizeAndValidateUUIDArray} from '@/utils/validation'
 
 /**
  * Get the DID for the current user
@@ -29,22 +30,6 @@ function getUserDID(userId?: string): string {
 			.padEnd(44, '0')}`
 	}
 	return 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH' // Default DID for demo
-}
-
-/**
- * Validate and parse JSON string
- */
-function validateAndParseJson(jsonString: string): {valid: boolean; data?: Record<string, unknown>; error?: string} {
-	if (!jsonString.trim()) {
-		return {valid: true, data: {}}
-	}
-
-	try {
-		const data = JSON.parse(jsonString) as Record<string, unknown>
-		return {valid: true, data}
-	} catch (error) {
-		return {valid: false, error: error instanceof Error ? error.message : 'Invalid JSON'}
-	}
 }
 
 export default function CreatePresentationPage() {
@@ -71,41 +56,47 @@ export default function CreatePresentationPage() {
 
 		try {
 			// Validate required fields
-			if (!formData.name.trim()) {
-				toast.error('Presentation name is required')
+			const nameValidation = validateRequired(formData.name.trim(), 'Presentation name')
+			if (!nameValidation.isValid) {
+				toast.error(nameValidation.error)
 				return
 			}
 
-			// Validate credentials array
-			if (formData.credentials.length === 0) {
-				toast.error('At least one credential is required')
-				return
-			}
+			// Validate and sanitize credentials array
+			const credentialsInput = formData.credentials.join('\n')
+			const {uuids: validatedCredentials, validation: credentialsValidation} = sanitizeAndValidateUUIDArray(credentialsInput)
 
-			// Validate credentials are UUIDs (basic validation)
-			const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-			const invalidCredentials = formData.credentials.filter((cred) => !uuidRegex.test(cred.trim()))
-			if (invalidCredentials.length > 0) {
-				toast.error(`Invalid credential UUIDs: ${invalidCredentials.join(', ')}`)
+			if (!credentialsValidation.isValid) {
+				toast.error(credentialsValidation.error)
 				return
 			}
 
 			// Validate context and type arrays
-			if (formData.context.length === 0) {
-				toast.error('At least one context is required')
+			const contextValidation = validateMinArrayLength(
+				formData.context.filter((ctx) => ctx.trim()),
+				1,
+				'Context',
+			)
+			if (!contextValidation.isValid) {
+				toast.error(contextValidation.error)
 				return
 			}
 
-			if (formData.type.length === 0) {
-				toast.error('At least one type is required')
+			const typeValidation = validateMinArrayLength(
+				formData.type.filter((t) => t.trim()),
+				1,
+				'Type',
+			)
+			if (!typeValidation.isValid) {
+				toast.error(typeValidation.error)
 				return
 			}
 
 			// Parse presentation definition if provided
 			let parsedDefinition = null
 			if (formData.presentationDefinition.trim()) {
-				const definitionResult = validateAndParseJson(formData.presentationDefinition)
-				if (!definitionResult.valid) {
+				const definitionResult = validateJSON(formData.presentationDefinition)
+				if (!definitionResult.isValid) {
 					toast.error(`Invalid JSON in presentation definition: ${definitionResult.error}`)
 					return
 				}
@@ -113,8 +104,8 @@ export default function CreatePresentationPage() {
 			}
 
 			// Parse custom metadata if provided
-			const metadataResult = validateAndParseJson(formData.customMetadata)
-			if (!metadataResult.valid) {
+			const metadataResult = validateJSON(formData.customMetadata)
+			if (!metadataResult.isValid) {
 				toast.error(`Invalid JSON in custom metadata: ${metadataResult.error}`)
 				return
 			}
@@ -122,9 +113,9 @@ export default function CreatePresentationPage() {
 
 			// Create the presentation request
 			const request: CreatePresentationRequest = {
-				'@context': formData.context,
+				'@context': formData.context.filter((ctx) => ctx.trim()),
 				challenge: formData.challenge || `challenge-${Date.now()}`,
-				credentials: formData.credentials,
+				credentials: validatedCredentials, // Use validated UUIDs
 				domain: formData.domain || window.location.origin,
 				holderDID: getUserDID(currentUser?.id),
 				metadata: {
@@ -134,7 +125,7 @@ export default function CreatePresentationPage() {
 					presentationDefinition: parsedDefinition || generateDefaultDefinition(),
 					...customMetadata,
 				},
-				type: formData.type,
+				type: formData.type.filter((t) => t.trim()),
 			}
 
 			// Call the API to create the presentation
@@ -147,7 +138,15 @@ export default function CreatePresentationPage() {
 			router.push('/dashboard/presentations')
 		} catch (error) {
 			console.error('Failed to create presentation:', error)
-			toast.error('Failed to create presentation. Please try again.')
+
+			// Enhanced error handling for backend validation errors
+			if (error && typeof error === 'object' && 'response' in error) {
+				const axiosError = error as {response?: {data?: {message?: string; errors?: string[]}}}
+				const errorMessage = axiosError.response?.data?.message || (axiosError.response?.data?.errors ? axiosError.response.data.errors.join(', ') : 'Failed to create presentation. Please try again.')
+				toast.error(errorMessage)
+			} else {
+				toast.error('Failed to create presentation. Please try again.')
+			}
 		} finally {
 			setIsCreating(false)
 		}
@@ -384,7 +383,7 @@ export default function CreatePresentationPage() {
 												name: formData.name,
 												description: formData.description,
 												purpose: formData.presentationType || 'general',
-												...(formData.customMetadata.trim() && validateAndParseJson(formData.customMetadata).valid ? validateAndParseJson(formData.customMetadata).data : {}),
+												...(formData.customMetadata.trim() && validateJSON(formData.customMetadata).isValid ? validateJSON(formData.customMetadata).data : {}),
 											},
 											type: formData.type.filter((t) => t.trim()),
 										},

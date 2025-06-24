@@ -56,7 +56,9 @@ export class VerificationCacheService {
 		// Enforce maximum cache size by removing oldest items
 		if (this.cache.size >= this.config.maxItems) {
 			const oldestKey = this.cache.keys().next().value;
-			this.cache.delete(oldestKey);
+			if (oldestKey) {
+				this.cache.delete(oldestKey);
+			}
 		}
 
 		// Calculate expiration time
@@ -125,7 +127,7 @@ export class VerificationCacheService {
 	 * @param options - Verification options that affect the result
 	 * @returns Cache key
 	 */
-	createCacheKey(presentationId: string, options?: Record<string, any>): string {
+	createCacheKey(presentationId: string, options?: Record<string, unknown>): string {
 		if (!options) {
 			return presentationId;
 		}

@@ -47,9 +47,28 @@ export default function VerifyCredentialPage() {
 			setActiveTab('results')
 			toast.success('Credential verification completed')
 		},
-		onError: (error) => {
-			console.log('Error verifying credential: ', error)
-			toast.error(error.message || 'Failed to verify credential')
+		onError: (error: Error & {response?: {data?: {message?: string}}}) => {
+			console.error('Error verifying credential:', error)
+
+			// Extract meaningful error message
+			let errorMessage = 'Failed to verify credential'
+
+			if (error?.response?.data?.message) {
+				errorMessage = error.response.data.message
+			} else if (error?.message) {
+				errorMessage = error.message
+			}
+
+			// Check for specific error types and provide better messages
+			if (errorMessage.includes("credential subject must have an 'id' field")) {
+				errorMessage = "The credential subject is missing a required 'id' field. Please ensure the credential subject includes an identifier."
+			} else if (errorMessage.includes('signature verification failed')) {
+				errorMessage = "Signature verification failed. The credential may have been tampered with or the issuer's verification method cannot be resolved."
+			} else if (errorMessage.includes('invalid credential format')) {
+				errorMessage = "Invalid credential format. Please ensure you're providing a valid JSON verifiable credential."
+			}
+
+			toast.error(errorMessage)
 			setVerificationResult(null)
 		},
 	})
@@ -84,7 +103,43 @@ export default function VerifyCredentialPage() {
 				return
 			} else {
 				// Parse JSON input
-				credential = JSON.parse(credentialInput)
+				try {
+					credential = JSON.parse(credentialInput)
+				} catch {
+					toast.error('Invalid JSON format. Please check your credential format.')
+					return
+				}
+
+				// Basic validation of required fields
+				if (!credential['@context'] || !Array.isArray(credential['@context'])) {
+					toast.error('Credential must have a valid @context field (array)')
+					return
+				}
+
+				if (!credential.type || !Array.isArray(credential.type)) {
+					toast.error('Credential must have a valid type field (array)')
+					return
+				}
+
+				if (!credential.type.includes('VerifiableCredential')) {
+					toast.error('Credential type must include "VerifiableCredential"')
+					return
+				}
+
+				if (!credential.issuer) {
+					toast.error('Credential must have an issuer field')
+					return
+				}
+
+				if (!credential.issuanceDate) {
+					toast.error('Credential must have an issuanceDate field')
+					return
+				}
+
+				if (!credential.credentialSubject) {
+					toast.error('Credential must have a credentialSubject field')
+					return
+				}
 			}
 
 			const input: VerifyCredentialInput = {
@@ -94,8 +149,8 @@ export default function VerifyCredentialPage() {
 
 			verifyMutation.mutate(input)
 		} catch (error) {
-			console.log('Invalid credential format: ', error)
-			toast.error('Invalid credential format. Please check your input.')
+			console.error('Error preparing credential for verification:', error)
+			toast.error('Error preparing credential for verification. Please check your input.')
 		}
 	}
 
@@ -183,6 +238,17 @@ export default function VerifyCredentialPage() {
 												<div className='space-y-2'>
 													<Label htmlFor='credential-json'>Credential JSON</Label>
 													<Textarea id='credential-json' placeholder='Paste the verifiable credential JSON here...' value={credentialInput} onChange={(e) => setCredentialInput(e.target.value)} rows={12} className='font-mono text-sm' />
+													<div className='text-sm text-muted-foreground'>
+														<p className='mb-2'>Expected format: W3C Verifiable Credential JSON with:</p>
+														<ul className='list-disc list-inside space-y-1 ml-4'>
+															<li>@context array including "https://www.w3.org/2018/credentials/v1"</li>
+															<li>type array including "VerifiableCredential"</li>
+															<li>issuer field (DID or URL)</li>
+															<li>issuanceDate (ISO 8601 format)</li>
+															<li>credentialSubject object</li>
+															<li>proof object (optional for verification)</li>
+														</ul>
+													</div>
 												</div>
 											</TabsContent>
 
@@ -375,39 +441,6 @@ export default function VerifyCredentialPage() {
 								<strong>Issuer Verification:</strong>
 								<p className='text-muted-foreground mt-1'>Confirms the issuer's identity and authority</p>
 							</div>
-						</CardContent>
-					</Card>
-
-					{/* Sample Credential */}
-					<Card>
-						<CardHeader>
-							<CardTitle className='text-lg'>Sample Credential</CardTitle>
-							<CardDescription>Use this sample for testing</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<Button
-								variant='outline'
-								size='sm'
-								className='w-full'
-								onClick={() => {
-									const sampleCredential = {
-										'@context': ['https://www.w3.org/2018/credentials/v1'],
-										'type': ['VerifiableCredential', 'UniversityDegreeCredential'],
-										'issuer': 'did:example:university',
-										'issuanceDate': '2023-01-01T00:00:00Z',
-										'credentialSubject': {
-											'id': 'did:example:student123',
-											'name': 'John Doe',
-											'degree': 'Bachelor of Science',
-											'university': 'Example University',
-										},
-									}
-									setCredentialInput(JSON.stringify(sampleCredential, null, 2))
-									setInputMethod('json')
-									toast.success('Sample credential loaded')
-								}}>
-								Load Sample
-							</Button>
 						</CardContent>
 					</Card>
 				</div>
