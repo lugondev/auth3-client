@@ -59,7 +59,7 @@ export function VerificationInterface({className = '', onVerificationComplete}: 
 				verificationOptions: {
 					verifySignature: true,
 					verifyExpiration: true,
-					verifyRevocation: true,
+					verifyRevocation: false,
 					verifyIssuerTrust: true,
 					verifySchema: true,
 					verifyChallenge: true,

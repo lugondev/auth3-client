@@ -132,23 +132,26 @@ export interface IssueCredentialOutput {
 
 export interface VerifyCredentialInput {
   credential: VerifiableCredential;
-  options?: VerificationOptions;
-}
-
-export interface VerificationOptions {
-  checks?: string[];
-  domain?: string;
+  verifySignature?: boolean;
+  verifyExpiration?: boolean;
+  verifyRevocation?: boolean;
+  verifyIssuer?: boolean;
   challenge?: string;
-  purpose?: string;
-  skipRevocationCheck?: boolean;
+  domain?: string;
 }
 
 export interface VerifyCredentialOutput {
-  verified: boolean;
-  status: VerificationStatus;
-  checks: VerificationCheck[];
-  warnings?: string[];
+  valid: boolean;
+  signatureValid: boolean;
+  notExpired: boolean;
+  notRevoked: boolean;
+  issuerTrusted: boolean;
+  schemaValid: boolean;
+  proofValid: boolean;
   errors?: string[];
+  warnings?: string[];
+  message?: string;
+  verificationTime: string;
 }
 
 export interface VerificationCheck {
@@ -234,13 +237,18 @@ export interface CreatePresentationOutput {
 
 export interface VerifyPresentationInput {
   presentation: VerifiablePresentation;
-  options?: VerificationOptions;
+  options?: {
+    checks?: string[];
+    domain?: string;
+    challenge?: string;
+    purpose?: string;
+    skipRevocationCheck?: boolean;
+  };
 }
 
 export interface VerifyPresentationOutput {
   verified: boolean;
   status: VerificationStatus;
-  checks: VerificationCheck[];
   credentialResults: VerifyCredentialOutput[];
   warnings?: string[];
   errors?: string[];

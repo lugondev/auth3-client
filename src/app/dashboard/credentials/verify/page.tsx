@@ -17,8 +17,18 @@ import {Switch} from '@/components/ui/switch'
 import {Input} from '@/components/ui/input'
 
 import {verifyCredential} from '@/services/vcService'
-import type {VerifyCredentialInput, VerifyCredentialOutput, VerifiableCredential, VerificationOptions} from '@/types/credentials'
+import type {VerifyCredentialInput, VerifyCredentialOutput, VerifiableCredential} from '@/types/credentials'
 import {VerificationResults} from '@/components/credentials/VerificationResults'
+
+// Local interface for verification options
+interface VerificationOptions {
+	verifySignature?: boolean
+	verifyExpiration?: boolean
+	verifyRevocation?: boolean
+	verifyIssuer?: boolean
+	challenge?: string
+	domain?: string
+}
 
 /**
  * Verify Credential Page - Interface for verifying verifiable credentials
@@ -33,7 +43,10 @@ import {VerificationResults} from '@/components/credentials/VerificationResults'
 export default function VerifyCredentialPage() {
 	const [credentialInput, setCredentialInput] = useState('')
 	const [verificationOptions, setVerificationOptions] = useState<VerificationOptions>({
-		skipRevocationCheck: false,
+		verifySignature: true,
+		verifyExpiration: true,
+		verifyRevocation: false,
+		verifyIssuer: true,
 	})
 	const [verificationResult, setVerificationResult] = useState<VerifyCredentialOutput | null>(null)
 	const [inputMethod, setInputMethod] = useState<'json' | 'file' | 'url'>('json')
@@ -144,7 +157,7 @@ export default function VerifyCredentialPage() {
 
 			const input: VerifyCredentialInput = {
 				credential,
-				options: verificationOptions,
+				...verificationOptions,
 			}
 
 			verifyMutation.mutate(input)
@@ -293,21 +306,45 @@ export default function VerifyCredentialPage() {
 										<div className='space-y-4'>
 											<div className='flex items-center justify-between'>
 												<div className='space-y-0.5'>
-													<Label>Skip Revocation Check</Label>
-													<p className='text-sm text-muted-foreground'>Skip checking if the credential has been revoked</p>
+													<Label>Verify Signature</Label>
+													<p className='text-sm text-muted-foreground'>Verify the digital signature of the credential</p>
 												</div>
-												<Switch checked={verificationOptions.skipRevocationCheck || false} onCheckedChange={(checked) => setVerificationOptions((prev) => ({...prev, skipRevocationCheck: checked}))} />
+												<Switch checked={verificationOptions.verifySignature || false} onCheckedChange={(checked) => setVerificationOptions((prev: VerificationOptions) => ({...prev, verifySignature: checked}))} />
+											</div>
+
+											<div className='flex items-center justify-between'>
+												<div className='space-y-0.5'>
+													<Label>Verify Expiration</Label>
+													<p className='text-sm text-muted-foreground'>Check if the credential has expired</p>
+												</div>
+												<Switch checked={verificationOptions.verifyExpiration || false} onCheckedChange={(checked) => setVerificationOptions((prev: VerificationOptions) => ({...prev, verifyExpiration: checked}))} />
+											</div>
+
+											<div className='flex items-center justify-between'>
+												<div className='space-y-0.5'>
+													<Label>Verify Revocation</Label>
+													<p className='text-sm text-muted-foreground'>Check if the credential has been revoked</p>
+												</div>
+												<Switch checked={verificationOptions.verifyRevocation || false} onCheckedChange={(checked) => setVerificationOptions((prev: VerificationOptions) => ({...prev, verifyRevocation: checked}))} />
+											</div>
+
+											<div className='flex items-center justify-between'>
+												<div className='space-y-0.5'>
+													<Label>Verify Issuer</Label>
+													<p className='text-sm text-muted-foreground'>Verify the issuer is trusted</p>
+												</div>
+												<Switch checked={verificationOptions.verifyIssuer || false} onCheckedChange={(checked) => setVerificationOptions((prev: VerificationOptions) => ({...prev, verifyIssuer: checked}))} />
 											</div>
 
 											<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
 												<div className='space-y-2'>
 													<Label htmlFor='challenge'>Challenge (Optional)</Label>
-													<Input id='challenge' placeholder='Verification challenge' value={verificationOptions.challenge || ''} onChange={(e) => setVerificationOptions((prev) => ({...prev, challenge: e.target.value || undefined}))} />
+													<Input id='challenge' placeholder='Verification challenge' value={verificationOptions.challenge || ''} onChange={(e) => setVerificationOptions((prev: VerificationOptions) => ({...prev, challenge: e.target.value || undefined}))} />
 												</div>
 
 												<div className='space-y-2'>
 													<Label htmlFor='domain'>Domain (Optional)</Label>
-													<Input id='domain' placeholder='example.com' value={verificationOptions.domain || ''} onChange={(e) => setVerificationOptions((prev) => ({...prev, domain: e.target.value || undefined}))} />
+													<Input id='domain' placeholder='example.com' value={verificationOptions.domain || ''} onChange={(e) => setVerificationOptions((prev: VerificationOptions) => ({...prev, domain: e.target.value || undefined}))} />
 												</div>
 											</div>
 										</div>
@@ -335,10 +372,10 @@ export default function VerifyCredentialPage() {
 											{/* Verification Status */}
 											<div className='flex items-center justify-between'>
 												<div className='flex items-center gap-3'>
-													{verificationResult.verified ? <CheckCircle className='h-8 w-8 text-green-600' /> : <XCircle className='h-8 w-8 text-red-600' />}
+													{verificationResult.valid ? <CheckCircle className='h-8 w-8 text-green-600' /> : <XCircle className='h-8 w-8 text-red-600' />}
 													<div>
-														<h3 className='text-lg font-semibold'>{verificationResult.verified ? 'Credential Verified' : 'Verification Failed'}</h3>
-														<p className='text-sm text-muted-foreground'>Status: {verificationResult.status}</p>
+														<h3 className='text-lg font-semibold'>{verificationResult.valid ? 'Credential Verified' : 'Verification Failed'}</h3>
+														<p className='text-sm text-muted-foreground'>Verified at: {new Date(verificationResult.verificationTime).toLocaleString()}</p>
 													</div>
 												</div>
 

@@ -10,7 +10,7 @@ import {ScrollArea} from '@/components/ui/scroll-area'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ArrowLeft, Download, Share2, Shield, Clock, User, Building, FileText, History, Copy, ExternalLink, AlertTriangle, CheckCircle, XCircle} from 'lucide-react'
 import {toast} from 'sonner'
-import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput, VerificationStatus} from '@/types/credentials'
+import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput} from '@/types/credentials'
 import {CredentialViewer} from '@/components/credentials/CredentialViewer'
 import {VerificationResults} from '@/components/credentials/VerificationResults'
 import * as vcService from '@/services/vcService'
@@ -49,15 +49,15 @@ export default function CredentialDetailsPage() {
 				// In real implementation, this would come from the backend
 				const mockHistory: VerifyCredentialOutput[] = [
 					{
-						verified: true,
-						status: VerificationStatus.SUCCESS,
-						checks: [
-							{check: 'signature', status: VerificationStatus.SUCCESS, message: 'Signature is valid'},
-							{check: 'expiration', status: VerificationStatus.SUCCESS, message: 'Credential is not expired'},
-							{check: 'revocation', status: VerificationStatus.SUCCESS, message: 'Credential is not revoked'},
-							{check: 'issuer', status: VerificationStatus.SUCCESS, message: 'Issuer is trusted'},
-							{check: 'schema', status: VerificationStatus.SUCCESS, message: 'Schema is valid'},
-						],
+						valid: true,
+						signatureValid: true,
+						notExpired: true,
+						notRevoked: true,
+						issuerTrusted: true,
+						schemaValid: true,
+						proofValid: true,
+						message: 'Credential is valid',
+						verificationTime: new Date().toISOString(),
 					},
 				]
 				setVerificationHistory(mockHistory)
@@ -83,11 +83,14 @@ export default function CredentialDetailsPage() {
 
 		try {
 			setVerifying(true)
+			// Clean the credential to remove database fields before verification
+			const cleanCredential = vcService.cleanCredentialForVerification(credential)
 			const result = await vcService.verifyCredential({
-				credential: credential,
-				options: {
-					checks: ['signature', 'expiration', 'revocation', 'issuer', 'schema'],
-				},
+				credential: cleanCredential,
+				verifySignature: true,
+				verifyExpiration: true,
+				verifyRevocation: false,
+				verifyIssuer: true,
 			})
 
 			// Add new verification to history
@@ -428,24 +431,32 @@ export default function CredentialDetailsPage() {
 								<ScrollArea className='h-64'>
 									<div className='space-y-4'>
 										{verificationHistory.map((result, index) => {
-											const passedChecks = result.checks.filter((check) => check.status === VerificationStatus.SUCCESS).length
-											const score = Math.round((passedChecks / result.checks.length) * 100)
+											// Calculate score from individual boolean flags
+											const checks = [result.signatureValid, result.notExpired, result.notRevoked, result.issuerTrusted, result.schemaValid, result.proofValid]
+											const passedChecks = checks.filter((check) => check === true).length
+											const score = Math.round((passedChecks / checks.length) * 100)
+
 											return (
 												<div key={index} className='border rounded-lg p-4'>
 													<div className='flex items-center justify-between mb-2'>
 														<div className='flex items-center space-x-2'>
-															{result.verified ? <CheckCircle className='h-4 w-4 text-green-600' /> : <XCircle className='h-4 w-4 text-red-600' />}
-															<span className='font-medium'>{result.verified ? 'Valid' : 'Invalid'}</span>
+															{result.valid ? <CheckCircle className='h-4 w-4 text-green-600' /> : <XCircle className='h-4 w-4 text-red-600' />}
+															<span className='font-medium'>{result.valid ? 'Valid' : 'Invalid'}</span>
 															<Badge variant='outline'>Score: {score}%</Badge>
 														</div>
-														<span className='text-sm text-gray-600'>{new Date().toLocaleDateString()}</span>
+														<span className='text-sm text-gray-600'>{new Date(result.verificationTime).toLocaleDateString()}</span>
 													</div>
-													<p className='text-sm text-gray-600'>Status: {result.status}</p>
+													{result.message && <p className='text-sm text-gray-600'>Message: {result.message}</p>}
 													<div className='text-sm text-gray-600 mt-1'>
 														<p>
-															Checks: {passedChecks}/{result.checks.length} passed
+															Checks: {passedChecks}/{checks.length} passed
 														</p>
 													</div>
+													{result.errors && result.errors.length > 0 && (
+														<div className='text-sm text-red-600 mt-1'>
+															<p>Errors: {result.errors.join(', ')}</p>
+														</div>
+													)}
 												</div>
 											)
 										})}

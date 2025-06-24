@@ -16,6 +16,7 @@ import {
   ListTemplatesInput,
   CredentialTemplate,
   GetCredentialOutput,
+  VerifiableCredential,
 } from '../types/credentials';
 
 import {
@@ -25,6 +26,7 @@ import {
   CredentialStatistics,
   ListTemplatesOutput
 } from '../types/vc';
+import { convertToUTC } from '@/utils/dateUtils';
 
 // Re-export types for convenience
 export type { CredentialStatistics } from '../types/vc';
@@ -78,7 +80,12 @@ export const verifyCredential = withErrorHandling(
 export const getCredential = withErrorHandling(
   async ({ credentialId }: { credentialId: string }): Promise<GetCredentialOutput> => {
     const response = await apiClient.get<GetCredentialOutput>(`/api/v1/credentials/${credentialId}`);
-    return response.data;
+    const data = response.data;
+    const { expirationDate } = data;
+    return {
+      ...data,
+      expirationDate: expirationDate ? convertToUTC(expirationDate.toString()) : undefined,
+    };
   }
 );
 
@@ -241,3 +248,39 @@ export const deleteTemplate = withErrorHandling(
     return response.data;
   }
 );
+
+/**
+ * Cleans a database credential object to create a proper W3C Verifiable Credential
+ * for verification purposes. Removes database-specific fields and ensures timezone consistency.
+ */
+export const cleanCredentialForVerification = (credential: VerifiableCredential | Record<string, unknown>): VerifiableCredential => {
+  // Extract only the W3C VC fields, excluding database metadata
+  const {
+    expirationDate,
+    proof,
+    credentialSchema,
+    refreshService,
+    termsOfUse,
+    evidence
+  } = credential;
+
+  // Build clean credential object with only W3C VC fields
+  const cleanCredential: Record<string, unknown> = {
+    ...credential
+  };
+
+  // Add optional fields only if they exist
+  // For expirationDate, ensure it's in the original format (avoid timezone conversion issues)
+  if (expirationDate) {
+    // If expirationDate is a string and looks like it was converted from UTC to local timezone,
+    // we might need to preserve the original format. For now, use as-is.
+    cleanCredential.expirationDate = convertToUTC(expirationDate.toString());
+  }
+  if (proof) cleanCredential.proof = proof;
+  if (credentialSchema) cleanCredential.credentialSchema = credentialSchema;
+  if (refreshService) cleanCredential.refreshService = refreshService;
+  if (termsOfUse) cleanCredential.termsOfUse = termsOfUse;
+  if (evidence) cleanCredential.evidence = evidence;
+
+  return cleanCredential as unknown as VerifiableCredential;
+};

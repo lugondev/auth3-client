@@ -91,3 +91,19 @@ export function isValidRFC3339(rfc3339String: string): boolean {
 		return false;
 	}
 }
+
+/**
+ * Convert a date string to UTC in RFC3339 format
+ * @param dateString - Date string in RFC3339 format
+ * @returns Date string in UTC RFC3339 format
+ */
+export function convertToUTC(dateString: string): string {
+	if (!dateString || !isValidRFC3339(dateString)) return '';
+
+	try {
+		const date = new Date(dateString);
+		return date.toISOString(); // Converts to UTC in RFC3339 format
+	} catch {
+		return '';
+	}
+}
