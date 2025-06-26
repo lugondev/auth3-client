@@ -12,7 +12,8 @@ export { PresentationStatusBadge } from './PresentationStatusBadge'
 export { PresentationStats } from './PresentationStats'
 export { PresentationFilters } from './PresentationFilters'
 
-// TODO: Export modal components when they are implemented
-// export { CreatePresentationModal } from './CreatePresentationModal'
-// export { VerifyPresentationModal } from './VerifyPresentationModal'
-// export { SharePresentationModal } from './SharePresentationModal'
+// Modal Components
+export { CreatePresentationModal } from './CreatePresentationModal'
+export { VerifyPresentationModal } from './VerifyPresentationModal'
+export { SharePresentationModal } from './SharePresentationModal'
+export { VerificationResultModal } from './VerificationResultModal'

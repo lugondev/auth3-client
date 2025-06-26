@@ -140,18 +140,24 @@ export interface VerifyCredentialInput {
   domain?: string;
 }
 
-export interface VerifyCredentialOutput {
-  valid: boolean;
+// Nested verification results structure from backend
+export interface VerificationResults {
   signatureValid: boolean;
   notExpired: boolean;
   notRevoked: boolean;
   issuerTrusted: boolean;
   schemaValid: boolean;
   proofValid: boolean;
+  message?: string;
+}
+
+// Main verification response structure from backend
+export interface VerifyCredentialOutput {
+  valid: boolean;
+  verificationResults: VerificationResults;
   errors?: string[];
   warnings?: string[];
-  message?: string;
-  verificationTime: string;
+  verifiedAt: string;
 }
 
 export interface VerificationCheck {

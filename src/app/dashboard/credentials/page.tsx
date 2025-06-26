@@ -16,7 +16,7 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 
 import {listCredentials} from '@/services/vcService'
 import type {CredentialStatus, ListCredentialsInput, CredentialMetadata} from '@/types/credentials'
-import {CredentialMetadataCard} from '@/components/credentials/CredentialMetadataCard'
+import {CredentialMetadataCard, VerifyCredentialModal} from '@/components/credentials'
 
 /**
  * VC Dashboard Page - Main dashboard for managing Verifiable Credentials
@@ -33,6 +33,7 @@ export default function CredentialsDashboard() {
 	const [typeFilter, setTypeFilter] = useState<string>('all')
 	const [activeTab, setActiveTab] = useState<'issued' | 'received'>('issued')
 	const [page, setPage] = useState(1)
+	const [showVerifyModal, setShowVerifyModal] = useState(false)
 	const limit = 10
 
 	// Query parameters for API call
@@ -113,6 +114,10 @@ export default function CredentialsDashboard() {
 							<Shield className='h-4 w-4 mr-2' />
 							Verify Credential
 						</Link>
+					</Button>
+					<Button variant='outline' onClick={() => setShowVerifyModal(true)}>
+						<Shield className='h-4 w-4 mr-2' />
+						Verify with Modal
 					</Button>
 				</div>
 			</div>
@@ -242,13 +247,8 @@ export default function CredentialsDashboard() {
 							) : (
 								<div className='space-y-4'>
 									{filteredCredentials.map((credential) => (
-						<CredentialMetadataCard
-							key={credential.id}
-							credential={credential}
-							onView={() => window.open(`/dashboard/credentials/${credential.id}`, '_blank')}
-							onDownload={() => handleDownloadCredential(credential)}
-						/>
-					))}
+										<CredentialMetadataCard key={credential.id} credential={credential} onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} onDownload={() => handleDownloadCredential(credential)} />
+									))}
 								</div>
 							)}
 						</TabsContent>
@@ -268,19 +268,22 @@ export default function CredentialsDashboard() {
 						<div className='flex justify-center mt-6'>
 							<div className='flex gap-2'>
 								<Button variant='outline' onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={!credentialsData.hasPrev}>
-								Previous
-							</Button>
-							<span className='flex items-center px-4'>
-								Page {page} of {Math.ceil(credentialsData.total / limit)}
-							</span>
-							<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.hasNext}>
-								Next
-							</Button>
+									Previous
+								</Button>
+								<span className='flex items-center px-4'>
+									Page {page} of {Math.ceil(credentialsData.total / limit)}
+								</span>
+								<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.hasNext}>
+									Next
+								</Button>
 							</div>
 						</div>
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Verify Credential Modal */}
+			<VerifyCredentialModal isOpen={showVerifyModal} onClose={() => setShowVerifyModal(false)} />
 		</div>
 	)
 }

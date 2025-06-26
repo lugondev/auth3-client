@@ -11,8 +11,7 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ArrowLeft, Download, Share2, Shield, Clock, User, Building, FileText, History, Copy, ExternalLink, AlertTriangle, CheckCircle, XCircle} from 'lucide-react'
 import {toast} from 'sonner'
 import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput} from '@/types/credentials'
-import {CredentialViewer} from '@/components/credentials/CredentialViewer'
-import {VerificationResults} from '@/components/credentials/VerificationResults'
+import {CredentialViewer, VerificationResults, CredentialVerificationResultModal} from '@/components/credentials'
 import * as vcService from '@/services/vcService'
 
 /**
@@ -31,6 +30,8 @@ export default function CredentialDetailsPage() {
 	const [verifying, setVerifying] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [activeTab, setActiveTab] = useState('overview')
+	const [showResultModal, setShowResultModal] = useState(false)
+	const [currentVerificationResult, setCurrentVerificationResult] = useState<VerifyCredentialOutput | null>(null)
 
 	/**
 	 * Load credential details and verification history
@@ -50,14 +51,18 @@ export default function CredentialDetailsPage() {
 				const mockHistory: VerifyCredentialOutput[] = [
 					{
 						valid: true,
-						signatureValid: true,
-						notExpired: true,
-						notRevoked: true,
-						issuerTrusted: true,
-						schemaValid: true,
-						proofValid: true,
-						message: 'Credential is valid',
-						verificationTime: new Date().toISOString(),
+						verificationResults: {
+							signatureValid: true,
+							notExpired: true,
+							notRevoked: true,
+							issuerTrusted: true,
+							schemaValid: true,
+							proofValid: true,
+							message: 'Credential is valid',
+						},
+						errors: [],
+						warnings: [],
+						verifiedAt: new Date().toISOString(),
 					},
 				]
 				setVerificationHistory(mockHistory)
@@ -95,6 +100,11 @@ export default function CredentialDetailsPage() {
 
 			// Add new verification to history
 			setVerificationHistory((prev) => [result, ...prev])
+
+			// Show result in modal
+			setCurrentVerificationResult(result)
+			setShowResultModal(true)
+
 			toast.success('Credential verified successfully')
 		} catch (err) {
 			console.error('Error verifying credential:', err)
@@ -248,7 +258,7 @@ export default function CredentialDetailsPage() {
 				<div className='flex items-center space-x-2'>
 					<Button onClick={handleVerifyCredential} disabled={verifying} variant='outline'>
 						<Shield className='h-4 w-4 mr-2' />
-						{verifying ? 'Verifying...' : 'Verify'}
+						{verifying ? 'Verifying...' : 'Quick Verify'}
 					</Button>
 					<Button onClick={handleDownload} variant='outline'>
 						<Download className='h-4 w-4 mr-2' />
@@ -432,7 +442,7 @@ export default function CredentialDetailsPage() {
 									<div className='space-y-4'>
 										{verificationHistory.map((result, index) => {
 											// Calculate score from individual boolean flags
-											const checks = [result.signatureValid, result.notExpired, result.notRevoked, result.issuerTrusted, result.schemaValid, result.proofValid]
+											const checks = [result.verificationResults.signatureValid, result.verificationResults.notExpired, result.verificationResults.notRevoked, result.verificationResults.issuerTrusted, result.verificationResults.schemaValid, result.verificationResults.proofValid]
 											const passedChecks = checks.filter((check) => check === true).length
 											const score = Math.round((passedChecks / checks.length) * 100)
 
@@ -444,9 +454,9 @@ export default function CredentialDetailsPage() {
 															<span className='font-medium'>{result.valid ? 'Valid' : 'Invalid'}</span>
 															<Badge variant='outline'>Score: {score}%</Badge>
 														</div>
-														<span className='text-sm text-gray-600'>{new Date(result.verificationTime).toLocaleDateString()}</span>
+														<span className='text-sm text-gray-600'>{new Date(result.verifiedAt).toLocaleDateString()}</span>
 													</div>
-													{result.message && <p className='text-sm text-gray-600'>Message: {result.message}</p>}
+													{result.verificationResults.message && <p className='text-sm text-gray-600'>Message: {result.verificationResults.message}</p>}
 													<div className='text-sm text-gray-600 mt-1'>
 														<p>
 															Checks: {passedChecks}/{checks.length} passed
@@ -472,6 +482,9 @@ export default function CredentialDetailsPage() {
 					</Card>
 				</TabsContent>
 			</Tabs>
+
+			{/* Credential Verification Result Modal */}
+			<CredentialVerificationResultModal isOpen={showResultModal} onClose={() => setShowResultModal(false)} results={currentVerificationResult} />
 		</div>
 	)
 }

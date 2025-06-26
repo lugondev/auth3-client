@@ -375,7 +375,7 @@ export default function VerifyCredentialPage() {
 													{verificationResult.valid ? <CheckCircle className='h-8 w-8 text-green-600' /> : <XCircle className='h-8 w-8 text-red-600' />}
 													<div>
 														<h3 className='text-lg font-semibold'>{verificationResult.valid ? 'Credential Verified' : 'Verification Failed'}</h3>
-														<p className='text-sm text-muted-foreground'>Verified at: {new Date(verificationResult.verificationTime).toLocaleString()}</p>
+														<p className='text-sm text-muted-foreground'>Verified at: {new Date(verificationResult.verifiedAt).toLocaleString()}</p>
 													</div>
 												</div>
 

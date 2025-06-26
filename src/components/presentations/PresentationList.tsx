@@ -19,6 +19,7 @@ import {getMyPresentations, deletePresentation} from '@/services/presentationSer
 
 interface PresentationListProps {
 	className?: string
+	onShare?: (presentation: VerifiablePresentation) => void
 }
 
 /**
@@ -32,7 +33,7 @@ interface PresentationListProps {
  * - Pagination and sorting
  * - Real-time updates
  */
-export function PresentationList({className = ''}: PresentationListProps) {
+export function PresentationList({className = '', onShare}: PresentationListProps) {
 	const [presentations, setPresentations] = useState<VerifiablePresentation[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
@@ -156,8 +157,12 @@ export function PresentationList({className = ''}: PresentationListProps) {
 		}
 	}
 
-	const handleShare = () => {
-		toast.info('Share presentation feature coming soon')
+	const handleShare = (presentation: VerifiablePresentation) => {
+		if (onShare) {
+			onShare(presentation)
+		} else {
+			toast.info('Share presentation feature coming soon')
+		}
 	}
 
 	const handleVerify = () => {
@@ -339,7 +344,7 @@ export function PresentationList({className = ''}: PresentationListProps) {
 								<div key={presentation.id} className='flex items-center space-x-4'>
 									<Checkbox checked={presentation.id ? selectedPresentations.has(presentation.id) : false} onCheckedChange={(checked) => presentation.id && handleSelectPresentation(presentation.id, checked as boolean)} />
 									<div className='flex-1'>
-										<PresentationCard presentation={presentation} status={presentation.status} onDelete={handleDelete} onShare={handleShare} onVerify={() => handleVerify()} showActions={true} className='w-full' />
+										<PresentationCard presentation={presentation} status={presentation.status} onDelete={handleDelete} onShare={() => handleShare(presentation)} onVerify={() => handleVerify()} showActions={true} className='w-full' />
 									</div>
 								</div>
 							))}

@@ -6,11 +6,19 @@ import {Badge} from '@/components/ui/badge'
 import {Progress} from '@/components/ui/progress'
 import {Separator} from '@/components/ui/separator'
 import {Label} from '@/components/ui/label'
-import type {VerifyCredentialOutput} from '@/types/credentials'
+import type {VerificationResults as VerificationResultsType} from '@/types/credentials'
+
+// Interface for verification results data
+interface VerificationResultsData {
+	valid: boolean
+	verificationResults: VerificationResultsType
+	errors?: string[]
+	warnings?: string[]
+	verifiedAt: string
+}
 
 // Extended interface for component props to include additional verification details
-interface ExtendedVerificationResult extends VerifyCredentialOutput {
-	verifiedAt?: string
+interface ExtendedVerificationResult extends VerificationResultsData {
 	issuerVerification?: {
 		verified: boolean
 		issuerDid?: string
@@ -31,6 +39,7 @@ interface ExtendedVerificationResult extends VerifyCredentialOutput {
 interface VerificationResultsProps {
 	result: ExtendedVerificationResult
 	className?: string
+	hideMessages?: boolean
 }
 
 // Utility function to format timestamps
@@ -52,10 +61,13 @@ function formatTimestamp(timestamp: string): string {
  * - Detailed check information
  * - Visual indicators for each check
  */
-export function VerificationResults({result, className = ''}: VerificationResultsProps) {
+export function VerificationResults({result, className = '', hideMessages = false}: VerificationResultsProps) {
+	// Extract verification results from nested structure
+	const verificationResults = result.verificationResults
+
 	// Calculate verification score from individual boolean flags
 	const calculateScore = () => {
-		const checks = [result.signatureValid, result.notExpired, result.notRevoked, result.issuerTrusted, result.schemaValid, result.proofValid]
+		const checks = [verificationResults.signatureValid, verificationResults.notExpired, verificationResults.notRevoked, verificationResults.issuerTrusted, verificationResults.schemaValid, verificationResults.proofValid]
 
 		const passedChecks = checks.filter((check) => check === true).length
 		return Math.round((passedChecks / checks.length) * 100)
@@ -95,12 +107,12 @@ export function VerificationResults({result, className = ''}: VerificationResult
 
 	// Create individual check objects for display
 	const checks = [
-		{name: 'Signature', valid: result.signatureValid, icon: 'signature'},
-		{name: 'Not Expired', valid: result.notExpired, icon: 'expiration'},
-		{name: 'Not Revoked', valid: result.notRevoked, icon: 'status'},
-		{name: 'Issuer Trusted', valid: result.issuerTrusted, icon: 'issuer'},
-		{name: 'Schema Valid', valid: result.schemaValid, icon: 'schema'},
-		{name: 'Proof Valid', valid: result.proofValid, icon: 'proof'},
+		{name: 'Signature', valid: verificationResults.signatureValid, icon: 'signature'},
+		{name: 'Not Expired', valid: verificationResults.notExpired, icon: 'expiration'},
+		{name: 'Not Revoked', valid: verificationResults.notRevoked, icon: 'status'},
+		{name: 'Issuer Trusted', valid: verificationResults.issuerTrusted, icon: 'issuer'},
+		{name: 'Schema Valid', valid: verificationResults.schemaValid, icon: 'schema'},
+		{name: 'Proof Valid', valid: verificationResults.proofValid, icon: 'proof'},
 	]
 
 	const passedChecks = checks.filter((check) => check.valid).length
@@ -116,7 +128,7 @@ export function VerificationResults({result, className = ''}: VerificationResult
 							{result.valid ? <CheckCircle className='h-6 w-6 text-green-600' /> : <XCircle className='h-6 w-6 text-red-600' />}
 							<div>
 								<CardTitle className='text-lg'>{result.valid ? 'Verification Successful' : 'Verification Failed'}</CardTitle>
-								<CardDescription>Verified at {result.verificationTime ? formatTimestamp(result.verificationTime) : 'Unknown'}</CardDescription>
+								<CardDescription>Verified at {result.verifiedAt ? formatTimestamp(result.verifiedAt) : 'Unknown'}</CardDescription>
 							</div>
 						</div>
 						<div className='text-right'>
@@ -168,7 +180,7 @@ export function VerificationResults({result, className = ''}: VerificationResult
 			</Card>
 
 			{/* Messages */}
-			{(result.message || result.errors?.length || result.warnings?.length) && (
+			{!hideMessages && (verificationResults.message || result.errors?.length || result.warnings?.length) && (
 				<Card>
 					<CardHeader>
 						<CardTitle className='flex items-center gap-2'>
@@ -177,10 +189,10 @@ export function VerificationResults({result, className = ''}: VerificationResult
 						</CardTitle>
 					</CardHeader>
 					<CardContent className='space-y-3'>
-						{result.message && (
+						{verificationResults.message && (
 							<div className='flex items-center gap-2'>
 								<CheckCircle className='h-4 w-4 text-green-600' />
-								<span className='text-sm'>{result.message}</span>
+								<span className='text-sm'>{verificationResults.message}</span>
 							</div>
 						)}
 
