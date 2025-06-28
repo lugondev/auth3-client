@@ -1,7 +1,7 @@
 'use client'
 
 import {useState} from 'react'
-import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, CheckCircle, AlertTriangle, Clock, FileText} from 'lucide-react'
+import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, CheckCircle, AlertTriangle, Clock, FileText, RefreshCw} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
@@ -23,6 +23,7 @@ interface PresentationCardProps {
 	onVerify?: () => void
 	onDownload?: () => void
 	showActions?: boolean
+	isVerifying?: boolean
 	className?: string
 }
 
@@ -36,7 +37,7 @@ interface PresentationCardProps {
  * - Presentation details modal
  * - Responsive design
  */
-export function PresentationCard({presentation, status = PresentationStatus.DRAFT, onDelete, onShare, onView, onVerify, onDownload, showActions = true, className = ''}: PresentationCardProps) {
+export function PresentationCard({presentation, status = PresentationStatus.DRAFT, onDelete, onShare, onView, onVerify, onDownload, showActions = true, isVerifying = false, className = ''}: PresentationCardProps) {
 	const [showDetails, setShowDetails] = useState(false)
 	const [isDeleting, setIsDeleting] = useState(false)
 
@@ -166,9 +167,18 @@ export function PresentationCard({presentation, status = PresentationStatus.DRAF
 										View Details
 									</DropdownMenuItem>
 									{onVerify && (
-										<DropdownMenuItem onClick={onVerify}>
-											<Shield className='mr-2 h-4 w-4' />
-											Verify
+										<DropdownMenuItem onClick={onVerify} disabled={isVerifying}>
+											{isVerifying ? (
+												<>
+													<RefreshCw className='mr-2 h-4 w-4 animate-spin' />
+													Verifying...
+												</>
+											) : (
+												<>
+													<Shield className='mr-2 h-4 w-4' />
+													Verify
+												</>
+											)}
 										</DropdownMenuItem>
 									)}
 									<DropdownMenuItem onClick={handleDownload}>

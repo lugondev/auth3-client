@@ -36,16 +36,17 @@ export function PresentationVerificationResults({
 }: PresentationVerificationResultsProps) {
 	const isEnhanced = 'trustScore' in results
 	const overallValid = results.valid
+	// Trust score is now a value between 0 and 1 (not percent)
 	const trustScore = isEnhanced ? results.trustScore : 0
 
 	// Get the presentation results - different property names for different response types
 	const presentationResults = isEnhanced ? (results as EnhancedVerificationResponse).presentationResults : (results as VerifyPresentationResponse).verificationResults
 
-	// Get trust score color
+	// Get trust score color (score: 0-1)
 	const getTrustScoreColor = (score: number) => {
-		if (score >= 90) return 'text-green-600'
-		if (score >= 70) return 'text-blue-600'
-		if (score >= 50) return 'text-yellow-600'
+		if (score >= 0.9) return 'text-green-600'
+		if (score >= 0.7) return 'text-blue-600'
+		if (score >= 0.5) return 'text-yellow-600'
 		return 'text-red-600'
 	}
 
@@ -74,8 +75,8 @@ export function PresentationVerificationResults({
 						{/* Trust Score */}
 						{isEnhanced && (
 							<div className='text-center'>
-								<div className={`text-2xl font-bold ${getTrustScoreColor(trustScore)}`}>{trustScore}%</div>
-								<div className='text-sm text-muted-foreground'>Trust Score</div>
+								<div className={`text-2xl font-bold ${getTrustScoreColor(trustScore)}`}>{trustScore.toFixed(2)}</div>
+								<div className='text-sm text-muted-foreground'>Trust Score (0-1)</div>
 							</div>
 						)}
 					</div>
@@ -84,11 +85,11 @@ export function PresentationVerificationResults({
 				{isEnhanced && (
 					<CardContent className='pt-0'>
 						<div className='space-y-2'>
-							<div className='flex justify-between text-sm'>
+							<div className='flex justify-between text-sm text-muted-foreground'>
 								<span>Trust Score</span>
-								<span className={getTrustScoreColor(trustScore)}>{trustScore}%</span>
+								<span className={getTrustScoreColor(trustScore)}>{trustScore.toFixed(2)}</span>
 							</div>
-							<Progress value={trustScore} className='h-2' />
+							<Progress value={trustScore * 100} max={100} className='h-2' />
 							<div className='text-xs text-muted-foreground'>Based on signature validity, issuer trust, and compliance checks</div>
 						</div>
 					</CardContent>

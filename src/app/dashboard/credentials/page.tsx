@@ -109,15 +109,9 @@ export default function CredentialsDashboard() {
 							Issue Credential
 						</Link>
 					</Button>
-					<Button variant='outline' asChild>
-						<Link href='/dashboard/credentials/verify'>
-							<Shield className='h-4 w-4 mr-2' />
-							Verify Credential
-						</Link>
-					</Button>
 					<Button variant='outline' onClick={() => setShowVerifyModal(true)}>
 						<Shield className='h-4 w-4 mr-2' />
-						Verify with Modal
+						Verify Credential
 					</Button>
 				</div>
 			</div>

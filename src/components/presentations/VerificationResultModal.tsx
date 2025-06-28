@@ -6,12 +6,13 @@ import {Button} from '@/components/ui/button'
 import {CheckCircle, XCircle, Download, Copy} from 'lucide-react'
 import {toast} from 'sonner'
 import {PresentationVerificationResults} from '@/components/presentations'
-import type {VerifyPresentationResponse, EnhancedVerificationResponse} from '@/types/presentations'
+import type {VerifyPresentationResponse, EnhancedVerificationResponse, VerifiablePresentation} from '@/types/presentations'
 
 interface VerificationResultModalProps {
 	isOpen: boolean
 	onClose: () => void
 	results: VerifyPresentationResponse | EnhancedVerificationResponse | null
+	presentation?: VerifiablePresentation
 	className?: string
 }
 
@@ -25,7 +26,7 @@ interface VerificationResultModalProps {
  * - Success/failure status indication
  * - Responsive design
  */
-export function VerificationResultModal({isOpen, onClose, results, className = ''}: VerificationResultModalProps) {
+export function VerificationResultModal({isOpen, onClose, results, presentation, className = ''}: VerificationResultModalProps) {
 	if (!results) {
 		return null
 	}
@@ -69,6 +70,10 @@ export function VerificationResultModal({isOpen, onClose, results, className = '
 	// Get modal title based on verification type and result
 	const getModalTitle = () => {
 		const baseTitle = isEnhanced ? 'Enhanced Verification' : 'Basic Verification'
+		if (presentation) {
+			const presentationId = presentation.id?.substring(0, 8) || 'Unknown'
+			return `${baseTitle} - ${presentationId}...`
+		}
 		return `${baseTitle} Results`
 	}
 

@@ -13,13 +13,15 @@ import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, A
 import {Checkbox} from '@/components/ui/checkbox'
 
 import {PresentationCard} from './PresentationCard'
+import {VerificationResultModal} from './VerificationResultModal'
 
-import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions} from '@/types/presentations'
-import {getMyPresentations, deletePresentation} from '@/services/presentationService'
+import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions, VerifyPresentationResponse, EnhancedVerificationResponse} from '@/types/presentations'
+import {getMyPresentations, deletePresentation, verifyPresentationEnhanced} from '@/services/presentationService'
 
 interface PresentationListProps {
 	className?: string
 	onShare?: (presentation: VerifiablePresentation) => void
+	onVerify?: (presentation: VerifiablePresentation) => void
 }
 
 /**
@@ -33,7 +35,7 @@ interface PresentationListProps {
  * - Pagination and sorting
  * - Real-time updates
  */
-export function PresentationList({className = '', onShare}: PresentationListProps) {
+export function PresentationList({className = '', onShare, onVerify}: PresentationListProps) {
 	const [presentations, setPresentations] = useState<VerifiablePresentation[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
@@ -48,15 +50,15 @@ export function PresentationList({className = '', onShare}: PresentationListProp
 		limit: 20,
 	})
 
-	// Modal states - commented out until modals are implemented
-	// const [showCreateModal, setShowCreateModal] = useState(false)
-	// const [showVerifyModal, setShowVerifyModal] = useState(false)
-	// const [showShareModal, setShowShareModal] = useState(false)
-	// const [selectedPresentation, setSelectedPresentation] = useState<VerifiablePresentation | null>(null)
-
 	// Bulk delete state
 	const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
 	const [bulkDeleting, setBulkDeleting] = useState(false)
+
+	// Verification result state
+	const [showVerificationResult, setShowVerificationResult] = useState(false)
+	const [verificationResults, setVerificationResults] = useState<VerifyPresentationResponse | EnhancedVerificationResponse | null>(null)
+	const [verifyingPresentation, setVerifyingPresentation] = useState<VerifiablePresentation | null>(null)
+	const [isVerifying, setIsVerifying] = useState(false)
 
 	// Load presentations
 	const loadPresentations = useCallback(async () => {
@@ -165,12 +167,92 @@ export function PresentationList({className = '', onShare}: PresentationListProp
 		}
 	}
 
-	const handleVerify = () => {
-		toast.info('Verify presentation feature coming soon')
+	const handleVerify = async (presentation: VerifiablePresentation) => {
+		console.log('Verifying presentation:', presentation)
+
+		// If onVerify callback is provided, use it (for external control)
+		if (onVerify) {
+			onVerify(presentation)
+			return
+		}
+
+		// Auto-verify the presentation and show results
+		setIsVerifying(true)
+		setVerifyingPresentation(presentation)
+
+		try {
+			toast.info('Verifying presentation...')
+
+			// Perform enhanced verification with comprehensive options
+			const verificationRequest = {
+				presentation,
+				verificationOptions: {
+					verifySignature: true,
+					verifyExpiration: true,
+					verifyRevocation: true,
+					verifyIssuerTrust: true,
+					verifySchema: true,
+					verifyChallenge: true,
+					verifyDomain: true,
+					strictMode: false,
+					recordVerification: true,
+				},
+				metadata: {
+					source: 'presentation_list',
+					timestamp: new Date().toISOString(),
+					userAgent: navigator.userAgent,
+				},
+			}
+
+			const results = await verifyPresentationEnhanced(verificationRequest)
+
+			// Show success/failure toast
+			if (results.valid) {
+				const trustScore = results.trustScore ? Math.round(results.trustScore * 100) : 0
+				toast.success(`Verification completed! Trust Score: ${trustScore}%`)
+			} else {
+				toast.error('Verification failed - see results for details')
+			}
+
+			// Set results and show modal
+			setVerificationResults(results)
+			setShowVerificationResult(true)
+		} catch (error) {
+			console.error('Verification error:', error)
+			toast.error('Failed to verify presentation')
+
+			// Create error result
+			const errorResult: EnhancedVerificationResponse = {
+				valid: false,
+				trustScore: 0,
+				presentationResults: {
+					signatureValid: false,
+					proofValid: false,
+					challengeValid: false,
+					domainValid: false,
+					holderVerified: false,
+					credentialsValid: false,
+					message: 'Verification service error',
+				},
+				errors: [error instanceof Error ? error.message : 'Unknown verification error'],
+				verifiedAt: new Date().toISOString(),
+			}
+
+			setVerificationResults(errorResult)
+			setShowVerificationResult(true)
+		} finally {
+			setIsVerifying(false)
+		}
 	}
 
 	const handleRefresh = () => {
 		loadPresentations()
+	}
+
+	const handleCloseVerificationResult = () => {
+		setShowVerificationResult(false)
+		setVerificationResults(null)
+		setVerifyingPresentation(null)
 	}
 
 	const isAllSelected = filteredPresentations.length > 0 && filteredPresentations.every((p) => p.id && selectedPresentations.has(p.id))
@@ -344,7 +426,7 @@ export function PresentationList({className = '', onShare}: PresentationListProp
 								<div key={presentation.id} className='flex items-center space-x-4'>
 									<Checkbox checked={presentation.id ? selectedPresentations.has(presentation.id) : false} onCheckedChange={(checked) => presentation.id && handleSelectPresentation(presentation.id, checked as boolean)} />
 									<div className='flex-1'>
-										<PresentationCard presentation={presentation} status={presentation.status} onDelete={handleDelete} onShare={() => handleShare(presentation)} onVerify={() => handleVerify()} showActions={true} className='w-full' />
+										<PresentationCard presentation={presentation} status={presentation.status} onDelete={handleDelete} onShare={() => handleShare(presentation)} onVerify={() => handleVerify(presentation)} showActions={true} className='w-full' isVerifying={isVerifying && verifyingPresentation?.id === presentation.id} />
 									</div>
 								</div>
 							))}
@@ -352,6 +434,9 @@ export function PresentationList({className = '', onShare}: PresentationListProp
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Verification Result Modal */}
+			{verifyingPresentation && <VerificationResultModal isOpen={showVerificationResult} onClose={handleCloseVerificationResult} results={verificationResults} presentation={verifyingPresentation} />}
 		</div>
 	)
 }

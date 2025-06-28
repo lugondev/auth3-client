@@ -1,13 +1,13 @@
 'use client'
 
 import React, {useState, useEffect} from 'react'
-import {PresentationList, CreatePresentationModal, VerifyPresentationModal, SharePresentationModal} from '@/components/presentations'
+import {PresentationList, CreatePresentationModal, VerifyPresentationModal, SharePresentationModal, VerificationResultModal} from '@/components/presentations'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Plus, Eye, BarChart3} from 'lucide-react'
 import {toast} from 'sonner'
-import {getPresentationStatistics} from '@/services/presentationService'
-import type {PresentationStatistics, VerifiablePresentation} from '@/types/presentations'
+import {getPresentationStatistics, verifyPresentationEnhanced} from '@/services/presentationService'
+import type {PresentationStatistics, VerifiablePresentation, EnhancedVerificationResponse} from '@/types/presentations'
 
 export default function PresentationsPage() {
 	const [statistics, setStatistics] = useState<PresentationStatistics | null>(null)
@@ -17,6 +17,10 @@ export default function PresentationsPage() {
 	const [showShareModal, setShowShareModal] = useState(false)
 	const [selectedPresentation, setSelectedPresentation] = useState<VerifiablePresentation | null>(null)
 	const [refreshKey, setRefreshKey] = useState(0)
+
+	// Verification state
+	const [verificationResults, setVerificationResults] = useState<EnhancedVerificationResponse | null>(null)
+	const [showVerificationModal, setShowVerificationModal] = useState(false)
 
 	// Load presentation statistics
 	useEffect(() => {
@@ -39,6 +43,56 @@ export default function PresentationsPage() {
 	const handlePresentationCreated = () => {
 		toast.success('Presentation created successfully!')
 		setRefreshKey((prev) => prev + 1) // Trigger refresh
+	}
+
+	// Auto-verify presentation and show results
+	const handleAutoVerify = async (presentation: VerifiablePresentation) => {
+		setSelectedPresentation(presentation)
+
+		try {
+			toast.info('Verifying presentation...')
+
+			// Perform enhanced verification with comprehensive options
+			const verificationRequest = {
+				presentation,
+				verificationOptions: {
+					verifySignature: true,
+					verifyExpiration: true,
+					verifyRevocation: true,
+					verifyIssuerTrust: true,
+					verifySchema: true,
+					verifyChallenge: false,
+					verifyDomain: false,
+					strictMode: false,
+					recordVerification: true,
+				},
+				includeCredentialVerification: true,
+				includeTrustScore: true,
+				includeComplianceChecks: true,
+				metadata: {
+					source: 'dashboard_auto_verify',
+					timestamp: new Date().toISOString(),
+					userAgent: navigator.userAgent,
+				},
+			}
+
+			const results = await verifyPresentationEnhanced(verificationRequest)
+
+			// Show success/failure toast
+			if (results.valid) {
+				const trustScore = results.trustScore ? Math.round(results.trustScore) : 0
+				toast.success(`Verification completed! Trust Score: ${trustScore}%`)
+			} else {
+				toast.error('Verification failed - see results for details')
+			}
+
+			// Set results and show modal
+			setVerificationResults(results)
+			setShowVerificationModal(true)
+		} catch (error) {
+			console.error('Verification error:', error)
+			toast.error(error instanceof Error ? error.message : 'Verification failed')
+		}
 	}
 
 	return (
@@ -120,6 +174,7 @@ export default function PresentationsPage() {
 							setSelectedPresentation(presentation)
 							setShowShareModal(true)
 						}}
+						onVerify={handleAutoVerify}
 					/>
 				</CardContent>
 			</Card>
@@ -127,7 +182,14 @@ export default function PresentationsPage() {
 			{/* Modals */}
 			<CreatePresentationModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={handlePresentationCreated} />
 
-			<VerifyPresentationModal isOpen={showVerifyModal} onClose={() => setShowVerifyModal(false)} />
+			<VerifyPresentationModal
+				isOpen={showVerifyModal}
+				onClose={() => {
+					setShowVerifyModal(false)
+					setSelectedPresentation(null)
+				}}
+				initialPresentation={selectedPresentation ? JSON.stringify(selectedPresentation, null, 2) : ''}
+			/>
 
 			{selectedPresentation && (
 				<SharePresentationModal
@@ -136,6 +198,20 @@ export default function PresentationsPage() {
 						setShowShareModal(false)
 						setSelectedPresentation(null)
 					}}
+					presentation={selectedPresentation}
+				/>
+			)}
+
+			{/* Verification Results Modal */}
+			{verificationResults && selectedPresentation && (
+				<VerificationResultModal
+					isOpen={showVerificationModal}
+					onClose={() => {
+						setShowVerificationModal(false)
+						setVerificationResults(null)
+						setSelectedPresentation(null)
+					}}
+					results={verificationResults}
 					presentation={selectedPresentation}
 				/>
 			)}
