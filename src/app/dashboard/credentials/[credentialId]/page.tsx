@@ -10,7 +10,8 @@ import {ScrollArea} from '@/components/ui/scroll-area'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ArrowLeft, Download, Share2, Shield, Clock, User, Building, FileText, History, Copy, ExternalLink, AlertTriangle, CheckCircle, XCircle} from 'lucide-react'
 import {toast} from 'sonner'
-import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput} from '@/types/credentials'
+import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput, VerificationResults as VerificationResultsType} from '@/types/credentials'
+import {getVerificationHistory} from '@/services/verificationReportService'
 import {CredentialViewer, VerificationResults, CredentialVerificationResultModal} from '@/components/credentials'
 import * as vcService from '@/services/vcService'
 
@@ -46,26 +47,23 @@ export default function CredentialDetailsPage() {
 				const credentialResponse = await vcService.getCredential({credentialId})
 				setCredential(credentialResponse)
 
-				// Load verification history (mock data for now)
-				// In real implementation, this would come from the backend
-				const mockHistory: VerifyCredentialOutput[] = [
-					{
-						valid: true,
-						verificationResults: {
-							signatureValid: true,
-							notExpired: true,
-							notRevoked: true,
-							issuerTrusted: true,
-							schemaValid: true,
-							proofValid: true,
-							message: 'Credential is valid',
-						},
-						errors: [],
-						warnings: [],
-						verifiedAt: new Date().toISOString(),
-					},
-				]
-				setVerificationHistory(mockHistory)
+				// Load verification history from API
+				try {
+					const historyResponse = await getVerificationHistory({resource_id: credentialId, resource_type: 'credential'})
+					// Map VerificationHistory[] to VerifyCredentialOutput[]
+					const mapped = (historyResponse.data || []).map((item) => {
+						return {
+							valid: item.result?.valid || false,
+							verificationResults: item.result ?? ({} as VerificationResultsType),
+							errors: item.errorMessage ? [item.errorMessage] : [],
+							warnings: [],
+							verifiedAt: item.verifiedAt || item.createdAt,
+						}
+					})
+					setVerificationHistory(mapped)
+				} catch {
+					setVerificationHistory([])
+				}
 			} catch (err) {
 				console.error('Error loading credential details:', err)
 				setError('Failed to load credential details')
@@ -454,7 +452,7 @@ export default function CredentialDetailsPage() {
 															<span className='font-medium'>{result.valid ? 'Valid' : 'Invalid'}</span>
 															<Badge variant='outline'>Score: {score}%</Badge>
 														</div>
-														<span className='text-sm text-gray-600'>{new Date(result.verifiedAt).toLocaleDateString()}</span>
+														<span className='text-sm text-gray-600'>{formatDate(result.verifiedAt)}</span>
 													</div>
 													{result.verificationResults.message && <p className='text-sm text-gray-600'>Message: {result.verificationResults.message}</p>}
 													<div className='text-sm text-gray-600 mt-1'>

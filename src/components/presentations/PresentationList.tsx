@@ -272,10 +272,6 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 						<RefreshCw className='h-4 w-4 mr-2' />
 						Refresh
 					</Button>
-					<Button onClick={() => toast.info('Create presentation feature coming soon')}>
-						<Plus className='h-4 w-4 mr-2' />
-						Create Presentation
-					</Button>
 				</div>
 			</div>
 

@@ -81,7 +81,7 @@ export default function PresentationsPage() {
 			// Show success/failure toast
 			if (results.valid) {
 				const trustScore = results.trustScore ? Math.round(results.trustScore) : 0
-				toast.success(`Verification completed! Trust Score: ${trustScore}%`)
+				toast.success(`Verification completed! Trust Score: ${trustScore}`)
 			} else {
 				toast.error('Verification failed - see results for details')
 			}

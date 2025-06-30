@@ -92,7 +92,7 @@ export function VerificationResultModal({isOpen, onClose, results, presentation,
 					<DialogTitle className='flex items-center gap-3'>
 						{getStatusIcon()}
 						<span>{getModalTitle()}</span>
-						{isEnhanced && <span className={`text-lg font-bold ${trustScore >= 90 ? 'text-green-600' : trustScore >= 70 ? 'text-blue-600' : trustScore >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>({trustScore}% Trust Score)</span>}
+						{isEnhanced && <span className={`text-lg font-bold ${trustScore >= 0.9 ? 'text-green-600' : trustScore >= 0.7 ? 'text-blue-600' : trustScore >= 0.5 ? 'text-yellow-600' : 'text-red-600'}`}>({trustScore} Trust Score)</span>}
 					</DialogTitle>
 				</DialogHeader>
 
@@ -126,7 +126,7 @@ export function VerificationResultModal({isOpen, onClose, results, presentation,
 							</div>
 
 							{/* Policy Results Summary */}
-							{isEnhanced && (results as EnhancedVerificationResponse).policyResults && (
+							{(results as EnhancedVerificationResponse).policyResults && (
 								<div className='space-y-2'>
 									<h5 className='font-medium text-slate-700'>Policy Verification</h5>
 									<div className='space-y-1'>
@@ -141,20 +141,22 @@ export function VerificationResultModal({isOpen, onClose, results, presentation,
 					)}
 
 					{/* Verification Summary Stats */}
-					<div className='bg-gray-50 rounded-lg p-4 space-y-2'>
-						<h4 className='font-semibold text-gray-800'>Summary</h4>
+					<div className='bg-slate-50 rounded-lg p-4 space-y-2'>
+						<h4 className='font-semibold text-slate-800'>Summary</h4>
 						<div className='grid grid-cols-1 md:grid-cols-3 gap-4 text-sm'>
 							<div>
-								<span className='text-gray-600'>Verification Type:</span>
-								<span className='ml-2 font-medium'>{isEnhanced ? 'Enhanced' : 'Basic'}</span>
+								<span className='text-slate-600'>Verification Type:</span>
+								<span className='ml-2 font-medium'>
+									<span className={isEnhanced ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-200'}>{isEnhanced ? 'Enhanced' : 'Basic'}</span>
+								</span>
 							</div>
 							<div>
-								<span className='text-gray-600'>Overall Status:</span>
+								<span className='text-slate-600'>Overall Status:</span>
 								<span className={`ml-2 font-medium ${isValid ? 'text-green-600' : 'text-red-600'}`}>{isValid ? 'Valid' : 'Invalid'}</span>
 							</div>
 							<div>
-								<span className='text-gray-600'>Verified At:</span>
-								<span className='ml-2 font-medium'>{new Date().toLocaleString()}</span>
+								<span className='text-slate-600'>Verified At:</span>
+								<span className='ml-2 font-medium text-slate-800 dark:text-gray-300'>{new Date().toLocaleString()}</span>
 							</div>
 						</div>
 					</div>

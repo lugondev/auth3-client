@@ -112,6 +112,12 @@ export interface PresentationVerificationResults {
 	holderVerified: boolean
 	credentialsValid: boolean
 	message?: string
+	issuerTrusted?: boolean
+	notExpired?: boolean
+	notRevoked?: boolean
+	schemaValid?: boolean
+	valid?: boolean
+	verificationTime?: string
 }
 
 export interface CredentialVerificationResult {
@@ -171,12 +177,14 @@ export interface VerificationRecord {
 	presentationID: string
 	verifierDID?: string
 	valid: boolean
-	results: any // JSON data
+	result: PresentationVerificationResults // changed from any to typed results
 	errors?: string[]
 	warnings?: string[]
 	verifiedAt: string
 	challenge?: string
 	domain?: string
+	status?: string
+	errorMessage?: string
 	trustScore: number
 	metadata?: Record<string, any>
 }

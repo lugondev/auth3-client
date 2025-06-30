@@ -1,6 +1,6 @@
 'use client'
 
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {ChevronDown, ChevronRight, Copy, Shield, FileText, Link, Hash} from 'lucide-react'
 import {toast} from 'sonner'
 
@@ -20,6 +20,9 @@ interface PresentationViewerProps {
 	className?: string
 }
 
+import {getPresentationVerificationHistory} from '@/services/presentationService'
+import type {VerificationRecord} from '@/types/presentations'
+
 /**
  * PresentationViewer Component - Displays detailed presentation data
  *
@@ -38,7 +41,34 @@ export function PresentationViewer({presentation, status, showCredentials = true
 		proof: false,
 		context: false,
 		raw: false,
+		history: false,
 	})
+
+	const [history, setHistory] = useState<VerificationRecord[]>([])
+	const [historyLoading, setHistoryLoading] = useState(false)
+	const [historyError, setHistoryError] = useState<string | null>(null)
+
+	useEffect(() => {
+		if (!expandedSections.history) return
+		let cancelled = false
+		const fetchHistory = async () => {
+			setHistoryLoading(true)
+			setHistoryError(null)
+			try {
+				const res = await getPresentationVerificationHistory(presentation.id, 1, 10)
+				if (!cancelled) setHistory(res.records || [])
+			} catch (e) {
+				console.log('Error fetching verification history:', e)
+				if (!cancelled) setHistoryError('Failed to load verification history')
+			} finally {
+				if (!cancelled) setHistoryLoading(false)
+			}
+		}
+		fetchHistory()
+		return () => {
+			cancelled = true
+		}
+	}, [expandedSections.history, presentation.id])
 
 	const toggleSection = (section: string) => {
 		setExpandedSections((prev) => ({
@@ -138,7 +168,6 @@ export function PresentationViewer({presentation, status, showCredentials = true
 										)}
 									</div>
 								</div>
-
 								{/* Holder */}
 								<div className='flex items-center justify-between'>
 									<span className='text-sm font-medium'>Holder:</span>
@@ -151,7 +180,6 @@ export function PresentationViewer({presentation, status, showCredentials = true
 										)}
 									</div>
 								</div>
-
 								{/* Type */}
 								<div className='flex items-center justify-between'>
 									<span className='text-sm font-medium'>Type:</span>
@@ -169,7 +197,6 @@ export function PresentationViewer({presentation, status, showCredentials = true
 										)}
 									</div>
 								</div>
-
 								{/* Challenge & Domain */}
 								{(presentation.challenge || presentation.domain) && (
 									<>
@@ -259,7 +286,6 @@ export function PresentationViewer({presentation, status, showCredentials = true
 																  )}
 														</div>
 													</div>
-
 													{/* Issuer */}
 													{credential.issuer && (
 														<div className='flex items-center gap-2'>
@@ -267,7 +293,6 @@ export function PresentationViewer({presentation, status, showCredentials = true
 															<span className='font-mono text-xs bg-muted px-2 py-1 rounded max-w-xs truncate'>{typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id}</span>
 														</div>
 													)}
-
 													{/* Dates */}
 													{credential.issuanceDate && (
 														<div className='flex items-center gap-2'>
@@ -338,6 +363,85 @@ export function PresentationViewer({presentation, status, showCredentials = true
 									</div>
 								))}
 							</div>
+						</CardContent>
+					</CollapsibleContent>
+				</Collapsible>
+			</Card>
+
+			{/* Verification History */}
+			<Card>
+				<Collapsible open={expandedSections.history} onOpenChange={() => toggleSection('history')}>
+					<CollapsibleTrigger asChild>
+						<CardHeader className='cursor-pointer hover:bg-muted/50 transition-colors'>
+							<CardTitle className='flex items-center justify-between'>
+								<span className='flex items-center gap-2'>
+									<FileText className='h-5 w-5' />
+									Verification History
+								</span>
+								{expandedSections.history ? <ChevronDown className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />}
+							</CardTitle>
+						</CardHeader>
+					</CollapsibleTrigger>
+					<CollapsibleContent>
+						<CardContent className='pt-0'>
+							{historyLoading ? (
+								<div className='text-center text-sm text-muted-foreground py-4'>Loading...</div>
+							) : historyError ? (
+								<div className='text-center text-sm text-red-500 py-4'>{historyError}</div>
+							) : history.length === 0 ? (
+								<div className='text-center text-sm text-muted-foreground py-4'>No verification history found.</div>
+							) : (
+								<div className='space-y-2'>
+									{history.map((item, idx) => (
+										<div key={item.id || idx} className='border rounded p-2 bg-muted/50'>
+											<div className='flex items-center justify-between mb-1'>
+												<span className='font-mono text-xs'>#{history.length - idx}</span>
+												<span className='text-xs'>{formatDateTime(item.verifiedAt)}</span>
+											</div>
+											<div className='grid grid-cols-2 gap-x-2 gap-y-1 text-xs'>
+												<span className='font-semibold'>Status:</span>
+												<span>{item.status === 'success' ? <span className='text-green-700'>Success</span> : <span className='text-red-700 capitalize'>{item.status || 'Unknown'}</span>}</span>
+												<span className='font-semibold'>Valid:</span>
+												<span>{item.result?.valid ? 'Yes' : 'No'}</span>
+												<span className='font-semibold'>Verifier:</span>
+												<span>{item.verifierDID || 'system'}</span>
+											</div>
+											{item.result && (
+												<div className='mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs'>
+													<span className='font-semibold'>Signature:</span>
+													<span>{item.result.signatureValid ? <span className='text-green-700'>Valid</span> : <span className='text-red-700'>Invalid</span>}</span>
+													<span className='font-semibold'>Proof:</span>
+													<span>{item.result.proofValid ? <span className='text-green-700'>Valid</span> : <span className='text-red-700'>Invalid</span>}</span>
+													<span className='font-semibold'>Schema:</span>
+													<span>{item.result.schemaValid ? <span className='text-green-700'>Valid</span> : <span className='text-red-700'>Invalid</span>}</span>
+													<span className='font-semibold'>Not Expired:</span>
+													<span>{item.result.notExpired ? <span className='text-green-700'>Yes</span> : <span className='text-red-700'>No</span>}</span>
+													<span className='font-semibold'>Not Revoked:</span>
+													<span>{item.result.notRevoked ? <span className='text-green-700'>Yes</span> : <span className='text-red-700'>No</span>}</span>
+													<span className='font-semibold'>Issuer Trusted:</span>
+													<span>{item.result.issuerTrusted ? <span className='text-green-700'>Yes</span> : <span className='text-red-700'>No</span>}</span>
+													{item.result.message && (
+														<>
+															<span className='font-semibold'>Message:</span>
+															<span className='col-span-1'>{item.result.message}</span>
+														</>
+													)}
+												</div>
+											)}
+											{item.errorMessage && (
+												<div className='mt-1 text-xs text-red-500'>
+													<span className='font-semibold'>Error:</span> {item.errorMessage}
+												</div>
+											)}
+											{item.trustScore !== undefined && (
+												<div className='text-xs'>
+													<span className='font-semibold'>Trust Score:</span> {item.trustScore}
+												</div>
+											)}
+										</div>
+									))}
+								</div>
+							)}
 						</CardContent>
 					</CollapsibleContent>
 				</Collapsible>
