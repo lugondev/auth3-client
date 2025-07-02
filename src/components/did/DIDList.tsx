@@ -240,7 +240,7 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 								<SelectItem value='key'>DID:Key</SelectItem>
 								<SelectItem value='web'>DID:Web</SelectItem>
 								<SelectItem value='ethr'>DID:Ethr</SelectItem>
-								<SelectItem value='ion'>DID:ION</SelectItem>
+								<SelectItem value='VBSN'>DID:VBSN</SelectItem>
 								<SelectItem value='peer'>DID:Peer</SelectItem>
 							</SelectContent>
 						</Select>

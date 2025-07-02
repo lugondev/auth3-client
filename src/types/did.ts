@@ -1,6 +1,6 @@
 // DID Types for Auth3 Client - Based on Backend DTOs
 
-export type DIDMethod = 'key' | 'web' | 'ethr' | 'ion' | 'peer';
+export type DIDMethod = 'key' | 'web' | 'ethr' | 'VBSN' | 'peer';
 
 export enum DIDStatus {
   ACTIVE = 'active',
@@ -63,7 +63,7 @@ export interface DIDAuthProof {
 }
 
 // DID Creation - Based on CreateDIDRequest backend DTO
-// Supports all DID methods: key, web, ethr, ion, peer
+// Supports all DID methods: key, web, ethr, VBSN, peer
 export interface CreateDIDInput {
   method: DIDMethod;
   key_type?: 'Ed25519' | 'secp256k1' | 'P-256';
@@ -509,7 +509,7 @@ export type EthereumNetwork = 'mainnet' | 'goerli' | 'sepolia' | 'polygon' | 'lo
 // DID Settings types
 export interface DIDSettingsResponse {
   // General Settings
-  defaultMethod: 'key' | 'web' | 'ethr' | 'ion' | 'peer';
+  defaultMethod: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer';
   enableNotifications: boolean;
   notificationEmail: string;
   maxDIDsPerUser: number;
@@ -522,7 +522,7 @@ export interface DIDSettingsResponse {
   // Network Settings
   ethereumNetwork: EthereumNetwork;
   ethereumRpcUrl: string;
-  ionNodeUrl: string;
+  vbsnNodeUrl: string;
   ipfsGateway: string;
 
   // Advanced Settings
@@ -536,7 +536,7 @@ export interface DIDSettingsResponse {
 
 export interface UpdateDIDSettingsRequest {
   // General Settings
-  defaultMethod?: 'key' | 'web' | 'ethr' | 'ion' | 'peer';
+  defaultMethod?: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer';
   enableNotifications?: boolean;
   notificationEmail?: string;
   maxDIDsPerUser?: number;
@@ -549,7 +549,7 @@ export interface UpdateDIDSettingsRequest {
   // Network Settings
   ethereumNetwork?: EthereumNetwork;
   ethereumRpcUrl?: string;
-  ionNodeUrl?: string;
+  vbsnNodeUrl?: string;
   ipfsGateway?: string;
 
   // Advanced Settings

@@ -14,6 +14,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Calendar} from '@/components/ui/calendar'
 import {Popover, PopoverContent, PopoverTrigger} from '@/components/ui/popover'
 import {Badge} from '@/components/ui/badge'
+import {EnhancedDatePicker} from '@/components/ui/enhanced-date-picker'
 import {CalendarIcon, User, Mail, AlertCircle, Info, Plus, X, CheckCircle} from 'lucide-react'
 import {format} from 'date-fns'
 
@@ -208,23 +209,21 @@ export function DataEntryStep({template, credentialData, recipientInfo, issuance
 						/>
 					)
 				} else if (property.format === 'date') {
-					// Date picker
+					// Enhanced date picker with month/year navigation and direct input
 					return (
 						<Controller
 							name={fieldName}
 							control={control}
 							render={({field}) => (
-								<Popover>
-									<PopoverTrigger asChild>
-										<Button variant='outline' className={`w-full justify-start text-left font-normal ${!field.value && 'text-muted-foreground'} ${fieldError ? 'border-red-500' : ''}`}>
-											<CalendarIcon className='mr-2 h-4 w-4' />
-											{field.value ? format(new Date(field.value as string), 'PPP') : 'Pick a date'}
-										</Button>
-									</PopoverTrigger>
-									<PopoverContent className='w-auto p-0'>
-										<Calendar mode='single' selected={field.value ? new Date(field.value as string) : undefined} onSelect={(date) => field.onChange(date?.toISOString().split('T')[0])} initialFocus />
-									</PopoverContent>
-								</Popover>
+								<EnhancedDatePicker
+									value={field.value as string}
+									onChange={(date) => {
+										field.onChange(date)
+										handleDataChange(fieldName, date)
+									}}
+									placeholder={`Select ${property.title || fieldName}`}
+									className={fieldError ? 'border-red-500' : ''}
+								/>
 							)}
 						/>
 					)
@@ -586,11 +585,20 @@ export function DataEntryStep({template, credentialData, recipientInfo, issuance
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
 								<div className='space-y-2'>
 									<Label htmlFor='issuanceDate'>Issuance Date</Label>
-									<Input id='issuanceDate' type='date' value={issuanceOptions.issuanceDate || getCurrentDateString()} onChange={(e) => onOptionsChangeRef.current({...issuanceOptions, issuanceDate: e.target.value})} />
+									<EnhancedDatePicker
+										value={issuanceOptions.issuanceDate || getCurrentDateString()}
+										onChange={(date) => onOptionsChangeRef.current({...issuanceOptions, issuanceDate: date})}
+										placeholder='Select issuance date'
+									/>
 								</div>
 								<div className='space-y-2'>
 									<Label htmlFor='expirationDate'>Expiration Date (Optional)</Label>
-									<Input id='expirationDate' type='date' value={issuanceOptions.expirationDate || ''} onChange={(e) => onOptionsChangeRef.current({...issuanceOptions, expirationDate: e.target.value || undefined})} />
+									<EnhancedDatePicker
+										value={issuanceOptions.expirationDate || ''}
+										onChange={(date) => onOptionsChangeRef.current({...issuanceOptions, expirationDate: date || undefined})}
+										placeholder='Select expiration date'
+										minDate={issuanceOptions.issuanceDate ? new Date(issuanceOptions.issuanceDate) : new Date()}
+									/>
 								</div>
 							</div>
 

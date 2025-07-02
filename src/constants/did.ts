@@ -4,7 +4,7 @@ export const DID_METHODS = {
 	KEY: 'key',
 	WEB: 'web',
 	ETHR: 'ethr',
-	ION: 'ion',
+	VBSN: 'VBSN',
 	PEER: 'peer'
 } as const;
 
@@ -38,7 +38,7 @@ export const RECOMMENDED_KEY_TYPES = {
 	[DID_METHODS.KEY]: KEY_TYPES.ED25519,
 	[DID_METHODS.WEB]: KEY_TYPES.ED25519,
 	[DID_METHODS.ETHR]: KEY_TYPES.SECP256K1,
-	[DID_METHODS.ION]: KEY_TYPES.ED25519,
+	[DID_METHODS.VBSN]: KEY_TYPES.ED25519,
 	[DID_METHODS.PEER]: KEY_TYPES.ED25519
 } as const;
 
@@ -58,9 +58,9 @@ export const DID_METHOD_INFO = {
 		description: 'Ethereum-based DID method',
 		icon: 'Coins'
 	},
-	[DID_METHODS.ION]: {
-		title: 'DID:ION',
-		description: 'Bitcoin-anchored DID method by Microsoft',
+	[DID_METHODS.VBSN]: {
+		title: 'DID:VBSN',
+		description: 'Vietnam Blockchain Service Network DID method',
 		icon: 'Network'
 	},
 	[DID_METHODS.PEER]: {

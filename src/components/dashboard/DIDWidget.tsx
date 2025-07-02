@@ -24,7 +24,7 @@ interface DIDStats {
 		key: number
 		web: number
 		ethr: number
-		ion: number
+		VBSN: number
 		peer: number
 	}
 }
@@ -40,7 +40,7 @@ const getMethodIcon = (method: string) => {
 			return <Globe className='h-4 w-4' />
 		case 'ethr':
 			return <Coins className='h-4 w-4' />
-		case 'ion':
+		case 'VBSN':
 			return <Hash className='h-4 w-4' />
 		case 'peer':
 			return <Users className='h-4 w-4' />
@@ -60,7 +60,7 @@ const getMethodColor = (method: string) => {
 			return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
 		case 'ethr':
 			return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
-		case 'ion':
+		case 'VBSN':
 			return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
 		case 'peer':
 			return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300'
@@ -94,7 +94,7 @@ export function DIDWidget({className}: DIDWidgetProps) {
 						key: userDIDs.filter((did) => did.method === 'key').length,
 						web: userDIDs.filter((did) => did.method === 'web').length,
 						ethr: userDIDs.filter((did) => did.method === 'ethr').length,
-						ion: userDIDs.filter((did) => did.method === 'ion').length,
+						VBSN: userDIDs.filter((did) => did.method === 'VBSN').length,
 						peer: userDIDs.filter((did) => did.method === 'peer').length,
 					},
 				}

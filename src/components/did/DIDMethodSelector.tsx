@@ -54,15 +54,15 @@ export function DIDMethodSelector({ selectedMethod, onMethodChange, disabled = f
       details: 'Leverages Ethereum blockchain for maximum decentralization. Requires ETH for transactions.'
     },
     {
-      id: 'ion' as DIDMethod,
-      name: 'DID:ION',
+      id: 'VBSN' as DIDMethod,
+      name: 'DID:VBSN',
       icon: Cloud,
-      description: 'Microsoft ION network DID method',
-      features: ['Bitcoin anchored', 'Scalable', 'Enterprise-ready'],
-      complexity: 'Complex',
-      cost: 'Network fees',
+      description: 'Vietnam Blockchain Service Network DID method',
+      features: ['Key-based', 'Lightweight', 'Vietnam-focused'],
+      complexity: 'Simple',
+      cost: 'Free',
       recommended: false,
-      details: 'Built on Bitcoin blockchain with Layer 2 scaling. Enterprise-grade solution.'
+      details: 'Simple key-based DID method for Vietnam Blockchain Service Network.'
     },
     {
       id: 'peer' as DIDMethod,

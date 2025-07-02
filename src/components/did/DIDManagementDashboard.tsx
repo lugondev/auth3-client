@@ -338,7 +338,7 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 								<SelectItem value='key'>did:key</SelectItem>
 								<SelectItem value='web'>did:web</SelectItem>
 								<SelectItem value='ethr'>did:ethr</SelectItem>
-								<SelectItem value='ion'>did:ion</SelectItem>
+								<SelectItem value='VBSN'>did:VBSN</SelectItem>
 								<SelectItem value='sov'>did:sov</SelectItem>
 							</SelectContent>
 						</Select>

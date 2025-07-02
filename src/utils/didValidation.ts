@@ -71,7 +71,7 @@ export const validateFormByMethod = (method: string, formData: FormData): Valida
 			return { isValid: true };
 
 		case 'key':
-		case 'ion':
+		case 'VBSN':
 		default:
 			return { isValid: true };
 	}

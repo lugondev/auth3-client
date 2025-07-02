@@ -17,9 +17,48 @@ import {createDID} from '@/services/didService'
 import type {CreateDIDInput, CreateDIDOutput, DIDMethod, DIDDocument} from '@/types/did'
 import {ETHEREUM_NETWORKS, ETHEREUM_NETWORK_LABELS, DID_METHOD_INFO, RECOMMENDED_KEY_TYPES, VALIDATION_PATTERNS} from '@/constants/did'
 
+// Service endpoint types with descriptions
+const SERVICE_ENDPOINT_TYPES = {
+	'MessagingService': {
+		label: 'Messaging',
+		description: 'Secure messaging service',
+		placeholder: 'https://messaging.example.com/api'
+	},
+	'CredentialRepositoryService': {
+		label: 'Credential Exchange', 
+		description: 'Digital credential exchange',
+		placeholder: 'https://credentials.example.com/exchange'
+	},
+	'IdentityHub': {
+		label: 'Identity Hub',
+		description: 'Personal data storage',
+		placeholder: 'https://hub.example.com/identity'
+	},
+	'PaymentService': {
+		label: 'Payment Services',
+		description: 'Payment service provider',
+		placeholder: 'https://payment.example.com/api'
+	},
+	'DIDCommMessaging': {
+		label: 'DIDComm Messaging',
+		description: 'DIDComm communication',
+		placeholder: 'https://didcomm.example.com/messages'
+	},
+	'LinkedDomains': {
+		label: 'Linked Domains',
+		description: 'Domain verification',
+		placeholder: 'https://example.com/.well-known/did-configuration.json'
+	},
+	'Custom': {
+		label: 'Custom',
+		description: 'Custom service type',
+		placeholder: 'https://example.com/custom-service'
+	}
+} as const
+
 // Types for DID creation
 interface DIDCreationForm {
-	method: 'key' | 'web' | 'ethr' | 'ion' | 'peer'
+	method: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer'
 	keyType?: 'Ed25519' | 'secp256k1' | 'P-256'
 	domain?: string
 	path?: string
@@ -35,6 +74,7 @@ interface ServiceEndpoint {
 	type: string
 	serviceEndpoint: string
 	description?: string
+	customType?: string
 }
 
 interface VerificationMethod {
@@ -110,8 +150,8 @@ export default function CreateDIDPage() {
 				const address = form.ethereumAddress || '[generated-or-provided-address]'
 				didId = `did:ethr:${network}:${address}`
 				break
-			case 'ion':
-				didId = 'did:ion:[generated-ion-id-anchored-on-bitcoin]'
+			case 'VBSN':
+				didId = 'did:VBSN:[generated-vbsn-id-using-ed25519-keys]'
 				break
 			case 'peer':
 				didId = 'did:peer:[generated-peer-id-for-p2p-communication]'
@@ -140,7 +180,7 @@ export default function CreateDIDPage() {
 			service:
 				form.serviceEndpoints?.map((endpoint) => ({
 					id: `${didId}#${endpoint.id}`,
-					type: endpoint.type,
+					type: endpoint.type === 'Custom' ? (endpoint.customType || 'CustomService') : endpoint.type,
 					serviceEndpoint: endpoint.serviceEndpoint,
 				})) || [],
 		}
@@ -202,7 +242,7 @@ export default function CreateDIDPage() {
 				service_endpoints:
 					form.serviceEndpoints?.map((endpoint) => ({
 						id: endpoint.id,
-						type: endpoint.type,
+						type: endpoint.type === 'Custom' ? (endpoint.customType || 'CustomService') : endpoint.type,
 						service_endpoint: endpoint.serviceEndpoint, // Backend expects snake_case
 						description: endpoint.description,
 					})) || [],
@@ -259,9 +299,14 @@ export default function CreateDIDPage() {
 	 * Add service endpoint
 	 */
 	const addServiceEndpoint = () => {
+		const randomId = Math.random().toString(36).substring(2, 8)
 		setForm((prev) => ({
 			...prev,
-			serviceEndpoints: [...(prev.serviceEndpoints || []), {id: `service-${Date.now()}`, type: 'LinkedDomains', serviceEndpoint: ''}],
+			serviceEndpoints: [...(prev.serviceEndpoints || []), {
+				id: randomId, 
+				type: 'MessagingService', 
+				serviceEndpoint: ''
+			}],
 		}))
 	}
 
@@ -273,6 +318,27 @@ export default function CreateDIDPage() {
 			...prev,
 			serviceEndpoints: prev.serviceEndpoints?.filter((_, i) => i !== index) || [],
 		}))
+	}
+
+	/**
+	 * Update service endpoint field
+	 */
+	const updateServiceEndpoint = (index: number, field: keyof ServiceEndpoint, value: string) => {
+		setForm((prev) => {
+			const newEndpoints = [...(prev.serviceEndpoints || [])]
+			newEndpoints[index] = {
+				...newEndpoints[index],
+				[field]: value
+			}
+			return {...prev, serviceEndpoints: newEndpoints}
+		})
+	}
+
+	/**
+	 * Get placeholder for service endpoint URL based on type
+	 */
+	const getServiceEndpointPlaceholder = (type: string) => {
+		return SERVICE_ENDPOINT_TYPES[type as keyof typeof SERVICE_ENDPOINT_TYPES]?.placeholder || 'https://example.com/service'
 	}
 
 	// Show success screen with generated keys
@@ -356,7 +422,7 @@ export default function CreateDIDPage() {
 					<CardContent>
 						<RadioGroup
 							value={form.method}
-							onValueChange={(value: 'key' | 'web' | 'ethr' | 'ion' | 'peer') => {
+							onValueChange={(value: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer') => {
 								// Auto-select recommended key type for each method
 								const recommendedKeyType = RECOMMENDED_KEY_TYPES[value] || 'Ed25519'
 
@@ -367,7 +433,7 @@ export default function CreateDIDPage() {
 								}))
 							}}
 							className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-							{['key', 'web', 'ethr', 'ion', 'peer'].map((method) => {
+							{['key', 'web', 'ethr', 'VBSN', 'peer'].map((method) => {
 								const info = getMethodInfo(method)
 								return (
 									<div key={method} className='flex items-center space-x-2'>
@@ -410,7 +476,7 @@ export default function CreateDIDPage() {
 								{form.method === 'ethr' && 'secp256k1 is recommended for Ethereum-based DIDs'}
 								{form.method === 'key' && 'Ed25519 is recommended for did:key method'}
 								{form.method === 'web' && 'Ed25519 is recommended for did:web method'}
-								{form.method === 'ion' && 'Ed25519 is recommended for did:ion method'}
+								{form.method === 'VBSN' && 'Ed25519 is recommended for did:VBSN method'}
 								{form.method === 'peer' && 'Ed25519 is recommended for did:peer method'}
 							</div>
 						</div>
@@ -458,12 +524,12 @@ export default function CreateDIDPage() {
 							</div>
 						)}
 
-						{/* ION Method Configuration */}
-						{form.method === 'ion' && (
+						{/* VBSN Method Configuration */}
+						{form.method === 'VBSN' && (
 							<div className='space-y-4'>
 								<div className='text-sm text-gray-500 dark:text-gray-400'>
-									<p>ION is a Layer 2 DID method anchored on Bitcoin blockchain.</p>
-									<p>No additional configuration required - the system will use Bitcoin mainnet by default.</p>
+									<p>VBSN (Vietnam Blockchain Service Network) is a key-based DID method.</p>
+									<p>No additional configuration required - the system will generate Ed25519 keys automatically.</p>
 								</div>
 							</div>
 						)}
@@ -485,42 +551,92 @@ export default function CreateDIDPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>Service Endpoints (Optional)</CardTitle>
-						<CardDescription>Add service endpoints to your DID document</CardDescription>
+						<CardDescription>Add service endpoints to your DID document for various services</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-4'>
 						{form.serviceEndpoints?.map((endpoint, index) => (
-							<div key={index} className='flex gap-2 items-end'>
-								<div className='flex-1'>
-									<Label>Service Type</Label>
-									<Input
-										value={endpoint.type}
-										onChange={(e) => {
-											const newEndpoints = [...(form.serviceEndpoints || [])]
-											newEndpoints[index].type = e.target.value
-											setForm((prev) => ({...prev, serviceEndpoints: newEndpoints}))
-										}}
-										placeholder='LinkedDomains'
-									/>
+							<div key={index} className='space-y-3 p-4 border rounded-lg bg-gray-50 dark:bg-gray-800/50'>
+								<div className='grid grid-cols-1 gap-3'>
+									<div>
+										<Label>Service Type</Label>
+										<Select 
+											value={endpoint.type} 
+											onValueChange={(value) => updateServiceEndpoint(index, 'type', value)}
+										>
+											<SelectTrigger>
+												<SelectValue placeholder="Select service type" />
+											</SelectTrigger>
+											<SelectContent>
+												{Object.entries(SERVICE_ENDPOINT_TYPES).map(([value, config]) => (
+													<SelectItem key={value} value={value}>
+														<div className='flex flex-col'>
+															<span className='font-medium'>{config.label}</span>
+															<span className='text-xs text-gray-500'>{config.description}</span>
+														</div>
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{endpoint.type === 'Custom' && (
+											<div className='mt-2'>
+												<Input
+													value={endpoint.customType || ''}
+													onChange={(e) => updateServiceEndpoint(index, 'customType', e.target.value)}
+													placeholder='Enter custom service type (e.g., FileStorageService)'
+													className='text-sm'
+												/>
+												<div className='text-xs text-gray-500 mt-1'>
+													Enter your custom service type name
+												</div>
+											</div>
+										)}
+										{endpoint.type && endpoint.type !== 'Custom' && (
+											<div className='text-xs text-gray-500 mt-1'>
+												{SERVICE_ENDPOINT_TYPES[endpoint.type as keyof typeof SERVICE_ENDPOINT_TYPES]?.description}
+											</div>
+										)}
+									</div>
 								</div>
-								<div className='flex-2'>
-									<Label>Service Endpoint</Label>
+								<div>
+									<Label>Service Endpoint URL</Label>
 									<Input
 										value={endpoint.serviceEndpoint}
-										onChange={(e) => {
-											const newEndpoints = [...(form.serviceEndpoints || [])]
-											newEndpoints[index].serviceEndpoint = e.target.value
-											setForm((prev) => ({...prev, serviceEndpoints: newEndpoints}))
-										}}
-										placeholder='https://example.com'
+										onChange={(e) => updateServiceEndpoint(index, 'serviceEndpoint', e.target.value)}
+										placeholder={getServiceEndpointPlaceholder(endpoint.type)}
+										className='text-sm'
 									/>
+									<div className='text-xs text-gray-500 mt-1'>
+										Service endpoint URL (must be HTTPS)
+									</div>
 								</div>
-								<Button type='button' variant='outline' onClick={() => removeServiceEndpoint(index)} className='hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800 transition-colors'>
-									Remove
-								</Button>
+								<div className='flex justify-end'>
+									<Button 
+										type='button' 
+										variant='outline' 
+										size='sm'
+										onClick={() => removeServiceEndpoint(index)} 
+										className='hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800 transition-colors'
+									>
+										Remove Service
+									</Button>
+								</div>
 							</div>
 						))}
-						<Button type='button' variant='outline' onClick={addServiceEndpoint} className='hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
-							Add Service Endpoint
+						
+						{form.serviceEndpoints && form.serviceEndpoints.length === 0 && (
+							<div className='text-sm text-gray-500 text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg'>
+								<div className='mb-2'>No service endpoints added yet</div>
+								<div className='text-xs'>Service endpoints allow your DID to provide services like messaging, credential exchange, identity hub, and payment services</div>
+							</div>
+						)}
+						
+						<Button 
+							type='button' 
+							variant='outline' 
+							onClick={addServiceEndpoint} 
+							className='w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'
+						>
+							+ Add Service Endpoint
 						</Button>
 					</CardContent>
 				</Card>
