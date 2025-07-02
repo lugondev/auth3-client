@@ -1,7 +1,7 @@
 'use client'
 
 import {useState} from 'react'
-import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, CheckCircle, Clock} from 'lucide-react'
+import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, CheckCircle, Clock, XCircle} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
@@ -14,6 +14,7 @@ import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, A
 import type {VerifiableCredential} from '@/types/credentials'
 import {CredentialStatus} from '@/types/credentials'
 import {CredentialViewer} from './CredentialViewer'
+import {RevokeCredentialModal} from './RevokeCredentialModal'
 
 interface CredentialCardProps {
 	credential: VerifiableCredential
@@ -22,6 +23,7 @@ interface CredentialCardProps {
 	onShare?: (credential: VerifiableCredential) => void
 	onView?: () => void
 	onDownload?: () => void
+	onRevoke?: (credentialId: string) => void
 	showActions?: boolean
 	className?: string
 }
@@ -36,8 +38,9 @@ interface CredentialCardProps {
  * - Credential details modal
  * - Responsive design
  */
-export function CredentialCard({credential, status = CredentialStatus.ACTIVE, onDelete, onShare, onView, onDownload, showActions = true, className = ''}: CredentialCardProps) {
+export function CredentialCard({credential, status = CredentialStatus.ACTIVE, onDelete, onShare, onView, onDownload, onRevoke, showActions = true, className = ''}: CredentialCardProps) {
 	const [showDetails, setShowDetails] = useState(false)
+	const [showRevokeModal, setShowRevokeModal] = useState(false)
 	const [isDeleting, setIsDeleting] = useState(false)
 
 	// Get credential types (excluding VerifiableCredential)
@@ -243,6 +246,17 @@ export function CredentialCard({credential, status = CredentialStatus.ACTIVE, on
 									Share
 								</DropdownMenuItem>
 
+								{/* Revoke option - only show for active credentials */}
+								{onRevoke && status === 'active' && (
+									<DropdownMenuItem 
+										onClick={() => setShowRevokeModal(true)}
+										className='text-red-600 focus:text-red-600'
+									>
+										<XCircle className='h-4 w-4 mr-2' />
+										Revoke
+									</DropdownMenuItem>
+								)}
+
 								{onDelete && (
 									<div>
 										<DropdownMenuSeparator />
@@ -341,6 +355,17 @@ export function CredentialCard({credential, status = CredentialStatus.ACTIVE, on
 					<CredentialViewer credential={credential} />
 				</DialogContent>
 			</Dialog>
+
+			{/* Revoke Credential Modal */}
+			<RevokeCredentialModal
+				isOpen={showRevokeModal}
+				credential={credential}
+				onClose={() => setShowRevokeModal(false)}
+				onRevoked={(credentialId) => {
+					onRevoke?.(credentialId)
+					setShowRevokeModal(false)
+				}}
+			/>
 		</Card>
 	)
 }

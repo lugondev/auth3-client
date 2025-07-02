@@ -1,5 +1,10 @@
 /**
- * Credentials Components Export Index
+ * Credentials Components Export # Enhanced Template Components
+export { TemplateSelector } from './templates/TemplateSelector'
+export { TemplateAnalytics } from './templates/TemplateAnalytics'
+export { SimpleTemplateAnalytics } from './templates/SimpleTemplateAnalytics'
+export { BulkTemplateIssuance } from './templates/BulkTemplateIssuance'
+export { TemplateSidebar } from './templates/TemplateSidebar'x
  */
 
 // Main Components
@@ -16,3 +21,26 @@ export { CredentialTemplateSelector } from './CredentialTemplateSelector'
 // Modal Components
 export { VerifyCredentialModal } from './VerifyCredentialModal'
 export { CredentialVerificationResultModal } from './CredentialVerificationResultModal'
+
+// Received Credentials Components
+export { ReceivedCredentialsTab } from './ReceivedCredentialsTab'
+export { ImportCredentialModal } from './ImportCredentialModal'
+export { CredentialAcceptanceModal } from './CredentialAcceptanceModal'
+
+// Revocation Components
+export { RevokeCredentialModal } from './RevokeCredentialModal'
+export { RevocationHistory } from './RevocationHistory'
+
+// Bulk Management Components
+export { BulkCredentialManager } from './BulkCredentialManager'
+
+// Advanced Verification Components
+export { AdvancedVerificationFlow } from './AdvancedVerificationFlow'
+
+// Real-time Monitoring Components
+export { RealTimeStatusMonitor } from './RealTimeStatusMonitor'
+
+// Enhanced Template Components
+export { TemplateSelector } from './templates/TemplateSelector'
+export { TemplateAnalytics } from './templates/TemplateAnalytics'
+export { BulkTemplateIssuance } from './templates/BulkTemplateIssuance'

@@ -13,6 +13,8 @@ import {toast} from 'sonner'
 import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput, VerificationResults as VerificationResultsType} from '@/types/credentials'
 import {getVerificationHistory} from '@/services/verificationReportService'
 import {CredentialViewer, VerificationResults, CredentialVerificationResultModal} from '@/components/credentials'
+import {RevocationHistory} from '@/components/credentials/RevocationHistory'
+import {AdvancedVerificationFlow} from '@/components/credentials/AdvancedVerificationFlow'
 import * as vcService from '@/services/vcService'
 
 /**
@@ -316,10 +318,12 @@ export default function CredentialDetailsPage() {
 
 			{/* Detailed Information Tabs */}
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<TabsList className='grid w-full grid-cols-4'>
+				<TabsList className='grid w-full grid-cols-6'>
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='credential'>Credential</TabsTrigger>
-					<TabsTrigger value='verification'>Verification</TabsTrigger>
+					<TabsTrigger value='verification'>Quick Verify</TabsTrigger>
+					<TabsTrigger value='advanced'>Advanced Verify</TabsTrigger>
+					<TabsTrigger value='revocation'>Revocation</TabsTrigger>
 					<TabsTrigger value='history'>History</TabsTrigger>
 				</TabsList>
 
@@ -423,6 +427,21 @@ export default function CredentialDetailsPage() {
 							</CardContent>
 						</Card>
 					)}
+				</TabsContent>
+
+				{/* Advanced Verification Tab */}
+				<TabsContent value='advanced'>
+					<AdvancedVerificationFlow 
+						credential={credential}
+						onVerificationComplete={(result) => {
+							setVerificationHistory(prev => [result, ...prev])
+						}}
+					/>
+				</TabsContent>
+
+				{/* Revocation Tab */}
+				<TabsContent value='revocation'>
+					<RevocationHistory credentialId={credentialId} />
 				</TabsContent>
 
 				{/* History Tab */}

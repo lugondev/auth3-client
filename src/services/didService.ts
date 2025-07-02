@@ -32,6 +32,18 @@ import type {
   DIDStatisticsOutput,
   DIDSettingsResponse,
   UpdateDIDSettingsRequest,
+  // DID-002: Enhanced Document Management Types
+  UpdateDIDDocumentRequest,
+  AddServiceEndpointRequest,
+  UpdateServiceEndpointRequest,
+  ServiceEndpointResponse,
+  ServiceEndpointsListResponse,
+  AddVerificationMethodRequest,
+  UpdateVerificationMethodRequest,
+  VerificationMethodResponse,
+  VerificationMethodsListResponse,
+  ResolutionOptions,
+  UniversalResolutionResponse,
 } from '@/types';
 
 /**
@@ -278,6 +290,139 @@ export const updateDIDSettings = withErrorHandling(
   }
 );
 
+// DID-002: Enhanced Document Management Services
+
+/**
+ * Update a complete DID document
+ * @param did - DID identifier
+ * @param request - DID document update request
+ * @returns Promise<DIDResponse> Updated DID information
+ */
+export const updateDIDDocument = withErrorHandling(
+  async (did: string, request: UpdateDIDDocumentRequest): Promise<DIDResponse> => {
+    const response = await apiClient.put<DIDResponse>(`/api/v1/dids/${did}/document`, request);
+    return response.data;
+  }
+);
+
+/**
+ * Add a service endpoint to a DID document
+ * @param did - DID identifier
+ * @param request - Service endpoint creation request
+ * @returns Promise<ServiceEndpointResponse> Created service endpoint
+ */
+export const addServiceEndpoint = withErrorHandling(
+  async (did: string, request: AddServiceEndpointRequest): Promise<ServiceEndpointResponse> => {
+    const response = await apiClient.post<ServiceEndpointResponse>(`/api/v1/dids/${did}/services`, request);
+    return response.data;
+  }
+);
+
+/**
+ * Update a service endpoint in a DID document
+ * @param did - DID identifier
+ * @param serviceId - Service endpoint identifier
+ * @param request - Service endpoint update request
+ * @returns Promise<ServiceEndpointResponse> Updated service endpoint
+ */
+export const updateServiceEndpoint = withErrorHandling(
+  async (did: string, serviceId: string, request: UpdateServiceEndpointRequest): Promise<ServiceEndpointResponse> => {
+    const response = await apiClient.put<ServiceEndpointResponse>(`/api/v1/dids/${did}/services/${serviceId}`, request);
+    return response.data;
+  }
+);
+
+/**
+ * Remove a service endpoint from a DID document
+ * @param did - DID identifier
+ * @param serviceId - Service endpoint identifier
+ * @returns Promise<void>
+ */
+export const removeServiceEndpoint = withErrorHandling(
+  async (did: string, serviceId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/dids/${did}/services/${serviceId}`);
+  }
+);
+
+/**
+ * Get all service endpoints for a DID
+ * @param did - DID identifier
+ * @returns Promise<ServiceEndpointsListResponse> List of service endpoints
+ */
+export const getServiceEndpoints = withErrorHandling(
+  async (did: string): Promise<ServiceEndpointsListResponse> => {
+    const response = await apiClient.get<ServiceEndpointsListResponse>(`/api/v1/dids/${did}/services`);
+    return response.data;
+  }
+);
+
+/**
+ * Add a verification method to a DID document
+ * @param did - DID identifier
+ * @param request - Verification method creation request
+ * @returns Promise<VerificationMethodResponse> Created verification method
+ */
+export const addVerificationMethod = withErrorHandling(
+  async (did: string, request: AddVerificationMethodRequest): Promise<VerificationMethodResponse> => {
+    const response = await apiClient.post<VerificationMethodResponse>(`/api/v1/dids/${did}/verification-methods`, request);
+    return response.data;
+  }
+);
+
+/**
+ * Update a verification method in a DID document
+ * @param did - DID identifier
+ * @param vmId - Verification method identifier
+ * @param request - Verification method update request
+ * @returns Promise<VerificationMethodResponse> Updated verification method
+ */
+export const updateVerificationMethod = withErrorHandling(
+  async (did: string, vmId: string, request: UpdateVerificationMethodRequest): Promise<VerificationMethodResponse> => {
+    const response = await apiClient.put<VerificationMethodResponse>(`/api/v1/dids/${did}/verification-methods/${vmId}`, request);
+    return response.data;
+  }
+);
+
+/**
+ * Remove a verification method from a DID document
+ * @param did - DID identifier
+ * @param vmId - Verification method identifier
+ * @returns Promise<void>
+ */
+export const removeVerificationMethod = withErrorHandling(
+  async (did: string, vmId: string): Promise<void> => {
+    await apiClient.delete(`/api/v1/dids/${did}/verification-methods/${vmId}`);
+  }
+);
+
+/**
+ * Get all verification methods for a DID
+ * @param did - DID identifier
+ * @returns Promise<VerificationMethodsListResponse> List of verification methods
+ */
+export const getVerificationMethods = withErrorHandling(
+  async (did: string): Promise<VerificationMethodsListResponse> => {
+    const response = await apiClient.get<VerificationMethodsListResponse>(`/api/v1/dids/${did}/verification-methods`);
+    return response.data;
+  }
+);
+
+/**
+ * Resolve a DID with enhanced universal resolution
+ * @param did - DID identifier
+ * @param options - Resolution options
+ * @returns Promise<UniversalResolutionResponse> Enhanced resolution result
+ */
+export const resolveUniversalDID = withErrorHandling(
+  async (did: string, options?: ResolutionOptions): Promise<UniversalResolutionResponse> => {
+    const response = await apiClient.post<UniversalResolutionResponse>('/api/v1/dids/resolve/universal', {
+      did,
+      options
+    });
+    return response.data;
+  }
+);
+
 // Export all functions as default service object
 export const didService = {
   createDID,
@@ -292,6 +437,17 @@ export const didService = {
   getDIDStatistics,
   getDIDSettings,
   updateDIDSettings,
+  // DID-002: Enhanced Document Management
+  updateDIDDocument,
+  addServiceEndpoint,
+  updateServiceEndpoint,
+  removeServiceEndpoint,
+  getServiceEndpoints,
+  addVerificationMethod,
+  updateVerificationMethod,
+  removeVerificationMethod,
+  getVerificationMethods,
+  resolveUniversalDID,
 };
 
 export default didService;

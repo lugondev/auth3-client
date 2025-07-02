@@ -12,6 +12,7 @@ import {IssuedCredential} from '@/types/credentials'
 import {credentialService} from '@/services/credentialService'
 import {getCurrentDateString} from '@/utils/dateUtils'
 import {TemplateSelectionStep} from './TemplateSelectionStep'
+import {TemplateSelector} from '../templates/TemplateSelector'
 import {DataEntryStep} from './DataEntryStep'
 import {ReviewStep} from './ReviewStep'
 import {IssueResultStep} from './IssueResultStep'
@@ -370,7 +371,13 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 	const renderCurrentStep = () => {
 		switch (currentStep) {
 			case 0:
-				return <TemplateSelectionStep selectedTemplate={wizardData.selectedTemplate} onTemplateSelect={handleTemplateSelect} />
+				return (
+					<TemplateSelector
+						selectedTemplate={wizardData.selectedTemplate}
+						onTemplateSelect={(template) => handleTemplateSelect(template!)}
+						showAnalytics={true}
+					/>
+				)
 
 			case 1:
 				if (!wizardData.selectedTemplate) {

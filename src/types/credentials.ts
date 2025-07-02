@@ -332,3 +332,9 @@ export interface ValidateSchemaOutput {
     version: string;
   };
 }
+
+export interface RevokeCredentialInput {
+  credentialId: string;
+  issuerDID: string;
+  reason?: string;
+}

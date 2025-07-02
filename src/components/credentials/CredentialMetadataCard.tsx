@@ -1,7 +1,7 @@
 'use client'
 
 import {useState} from 'react'
-import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, Clock} from 'lucide-react'
+import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, Clock, XCircle} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
@@ -10,6 +10,7 @@ import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparat
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from '@/components/ui/alert-dialog'
 
 import type {CredentialMetadata} from '@/types/credentials'
+import {CredentialStatus} from '@/types/credentials'
 import {CredentialStatusBadge} from './CredentialStatusBadge'
 import {formatDate} from '@/lib/utils'
 
@@ -19,7 +20,9 @@ interface CredentialMetadataCardProps {
 	onShare?: (credential: CredentialMetadata) => void
 	onView?: () => void
 	onDownload?: () => void
+	onRevoke?: (credentialId: string) => void
 	showActions?: boolean
+	showRevokeOption?: boolean // Chỉ hiện revoke option cho credentials do user issue
 	className?: string
 }
 
@@ -32,8 +35,9 @@ interface CredentialMetadataCardProps {
  * - Action menu (view, download, share, delete)
  * - Responsive design
  */
-export function CredentialMetadataCard({credential, onDelete, onShare, onView, onDownload, showActions = true, className = ''}: CredentialMetadataCardProps) {
+export function CredentialMetadataCard({credential, onDelete, onShare, onView, onDownload, onRevoke, showActions = true, showRevokeOption = false, className = ''}: CredentialMetadataCardProps) {
 	const [isDeleting, setIsDeleting] = useState(false)
+	const [isRevoking, setIsRevoking] = useState(false)
 
 	// Get credential types (excluding VerifiableCredential)
 	const getCredentialTypes = () => {
@@ -67,6 +71,22 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 			toast.error('Failed to delete credential')
 		} finally {
 			setIsDeleting(false)
+		}
+	}
+
+	// Handle revoke action
+	const handleRevoke = async () => {
+		if (!onRevoke) return
+
+		try {
+			setIsRevoking(true)
+			await onRevoke(credential.id)
+			toast.success('Credential revoked successfully')
+		} catch (error) {
+			console.error('Error revoking credential:', error)
+			toast.error('Failed to revoke credential')
+		} finally {
+			setIsRevoking(false)
 		}
 	}
 
@@ -127,6 +147,44 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 									<Share2 className='mr-2 h-4 w-4' />
 									Share
 								</DropdownMenuItem>
+								
+								{/* Revoke option - chỉ hiện cho credentials do user issue và chưa bị revoke */}
+								{showRevokeOption && onRevoke && credential.status === CredentialStatus.ACTIVE && (
+									<>
+										<DropdownMenuSeparator />
+										<AlertDialog>
+											<AlertDialogTrigger asChild>
+												<DropdownMenuItem onSelect={(e) => e.preventDefault()} className='text-red-600 focus:text-red-600'>
+													<XCircle className='mr-2 h-4 w-4' />
+													Revoke
+												</DropdownMenuItem>
+											</AlertDialogTrigger>
+											<AlertDialogContent>
+												<AlertDialogHeader>
+													<AlertDialogTitle>Revoke Credential</AlertDialogTitle>
+													<AlertDialogDescription>
+														Are you sure you want to revoke this credential? This action will permanently invalidate the credential and cannot be undone.
+														<br /><br />
+														<strong>Credential:</strong> {credentialTypes.length > 0 ? credentialTypes.join(', ') : 'Verifiable Credential'}
+														<br />
+														<strong>ID:</strong> {credential.id}
+													</AlertDialogDescription>
+												</AlertDialogHeader>
+												<AlertDialogFooter>
+													<AlertDialogCancel>Cancel</AlertDialogCancel>
+													<AlertDialogAction 
+														onClick={handleRevoke} 
+														disabled={isRevoking}
+														className='bg-red-600 hover:bg-red-700'
+													>
+														{isRevoking ? 'Revoking...' : 'Revoke Credential'}
+													</AlertDialogAction>
+												</AlertDialogFooter>
+											</AlertDialogContent>
+										</AlertDialog>
+									</>
+								)}
+								
 								{onDelete && (
 									<>
 										<DropdownMenuSeparator />

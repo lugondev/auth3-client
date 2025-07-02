@@ -24,6 +24,8 @@ import {
 	ChevronsLeft, // For sidebar collapse
 	ChevronsRight, // For sidebar expand
 	Presentation, // For presentations
+	Share2, // For sharing
+	BarChart3, // For management dashboard
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -76,6 +78,7 @@ const systemAdminLinks: NavLink[] = [
 		children: [
 			{href: '/dashboard/admin/credentials', label: 'VC Dashboard', icon: LayoutDashboard, permission: 'admin:credentials:read'},
 			{href: '/dashboard/admin/credentials/templates', label: 'Templates Management', icon: FileText, permission: 'admin:credentials:templates'},
+			{href: '/dashboard/credentials/templates-enhanced', label: 'Templates Enhanced', icon: Settings, permission: 'admin:credentials:templates'},
 			{href: '/dashboard/admin/credentials/revocation', label: 'Revocation Management', icon: ShieldCheck, permission: 'admin:credentials:revoke'},
 		],
 	},
@@ -147,6 +150,7 @@ const userLinks: NavLink[] = [
 		isCollapsible: true,
 		children: [
 			{href: '/dashboard/dids', label: 'Overview', icon: KeyRound},
+			{href: '/dashboard/did-management', label: 'Management Dashboard', icon: BarChart3},
 			{href: '/dashboard/dids/create', label: 'Create DID', icon: Plus},
 			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings},
 		],
@@ -161,6 +165,7 @@ const userLinks: NavLink[] = [
 			{href: '/dashboard/credentials/issue', label: 'Issue Credential', icon: Plus},
 			{href: '/dashboard/credentials/verify', label: 'Verify Credential', icon: Eye},
 			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileText},
+			{href: '/dashboard/credentials/templates-enhanced', label: 'Templates Enhanced', icon: Settings},
 		],
 	},
 	{
@@ -172,6 +177,9 @@ const userLinks: NavLink[] = [
 			{href: '/dashboard/presentations', label: 'Overview', icon: Presentation},
 			{href: '/dashboard/presentations/create', label: 'Create Presentation', icon: Plus},
 			{href: '/dashboard/presentations/verify', label: 'Verify Presentation', icon: Eye},
+			{href: '/dashboard/presentations/templates', label: 'Templates', icon: FileText},
+			{href: '/dashboard/presentations/analytics', label: 'Analytics', icon: LayoutDashboard},
+			{href: '/dashboard/presentations/sharing', label: 'Sharing', icon: Share2},
 		],
 	},
 	{

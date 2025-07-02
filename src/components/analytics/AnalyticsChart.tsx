@@ -90,13 +90,12 @@ export function AnalyticsChart({title, data, type, dataKey = 'value', xAxisKey =
 					</AreaChart>
 				)
 
-			case 'pie':
-				return (
-					<PieChart>
-						<Pie data={data} cx='50%' cy='50%' outerRadius={80} fill={colors[0]} dataKey={dataKey} label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
-							{data.map((entry, index) => (
-								<Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-							))}
+			case 'pie':                        return (
+                                <PieChart>
+                                        <Pie data={data} cx='50%' cy='50%' outerRadius={80} fill={colors[0]} dataKey={dataKey} label={({name, percent}) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}>
+                                         {data.map((entry, index) => (
+                                         <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                                         ))}
 						</Pie>
 						<Tooltip
 							contentStyle={{

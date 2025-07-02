@@ -12,6 +12,9 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Copy, QrCode, Mail, Link2, Share2, Download, Check} from 'lucide-react'
 import {toast} from 'sonner'
 import type {VerifiablePresentation} from '@/types/presentations'
+import SharingOptions from './SharingOptions'
+import PresentationQRCode from './PresentationQRCode'
+import ShareHistory from './ShareHistory'
 
 interface SharePresentationModalProps {
 	isOpen: boolean
@@ -32,7 +35,7 @@ interface SharePresentationModalProps {
  * - Access control and expiration settings
  */
 export function SharePresentationModal({isOpen, onClose, presentation, className = ''}: SharePresentationModalProps) {
-	const [shareMethod, setShareMethod] = useState<'link' | 'qr' | 'email' | 'download'>('link')
+	const [shareMethod, setShareMethod] = useState<'link' | 'qr' | 'email' | 'download' | 'advanced' | 'history'>('link')
 	const [emailRecipient, setEmailRecipient] = useState('')
 	const [emailSubject, setEmailSubject] = useState('Verifiable Presentation Shared')
 	const [emailMessage, setEmailMessage] = useState('')
@@ -165,8 +168,8 @@ Best regards
 				</Card>
 
 				{/* Sharing Options */}
-				<Tabs value={shareMethod} onValueChange={(value) => setShareMethod(value as 'link' | 'qr' | 'email' | 'download')}>
-					<TabsList className='grid w-full grid-cols-4'>
+				<Tabs value={shareMethod} onValueChange={(value) => setShareMethod(value as 'link' | 'qr' | 'email' | 'download' | 'advanced' | 'history')}>
+					<TabsList className='grid w-full grid-cols-6'>
 						<TabsTrigger value='link' className='flex items-center gap-2'>
 							<Link2 className='h-4 w-4' />
 							Link
@@ -182,6 +185,14 @@ Best regards
 						<TabsTrigger value='download' className='flex items-center gap-2'>
 							<Download className='h-4 w-4' />
 							Download
+						</TabsTrigger>
+						<TabsTrigger value='advanced' className='flex items-center gap-2'>
+							<Share2 className='h-4 w-4' />
+							Advanced
+						</TabsTrigger>
+						<TabsTrigger value='history' className='flex items-center gap-2'>
+							<Share2 className='h-4 w-4' />
+							History
 						</TabsTrigger>
 					</TabsList>
 
@@ -233,19 +244,18 @@ Best regards
 					</TabsContent>
 
 					<TabsContent value='qr' className='space-y-4'>
-						<div className='text-center space-y-4'>
-							<div className='inline-block p-4 bg-white rounded-lg border'>
-								<div className='w-48 h-48 bg-gray-100 rounded flex items-center justify-center'>
-									<div className='text-center'>
-										<QrCode className='h-12 w-12 mx-auto mb-2 text-gray-400' />
-										<p className='text-sm text-gray-500'>QR Code</p>
-										<p className='text-xs text-gray-400'>Feature coming soon</p>
-									</div>
-								</div>
-							</div>
-							<p className='text-sm text-muted-foreground'>Scan this QR code to access the presentation</p>
-							<div className='flex justify-center'>{renderCopyButton(secureShareUrl, 'qr')}</div>
-						</div>
+						<PresentationQRCode
+							url={secureShareUrl}
+							presentationId={presentation.id}
+							metadata={{
+								title: 'Verifiable Presentation',
+								description: customMessage || 'Scan to access the shared presentation',
+								issuer: presentation.holder,
+								type: 'presentation',
+								validUntil: expirationDays ? new Date(Date.now() + expirationDays * 24 * 60 * 60 * 1000).toISOString() : undefined,
+								instructions: 'Position your camera 6-12 inches from the QR code and ensure good lighting'
+							}}
+						/>
 					</TabsContent>
 
 					<TabsContent value='email' className='space-y-4'>
@@ -289,6 +299,25 @@ Best regards
 								</div>
 							</div>
 						</div>
+					</TabsContent>
+
+					<TabsContent value='advanced' className='space-y-4'>
+						<SharingOptions
+							presentationId={presentation.id}
+							onShareCreated={(shareLink) => {
+								toast.success('Advanced share link created!')
+								// Could update the modal state or close it
+							}}
+						/>
+					</TabsContent>
+
+					<TabsContent value='history' className='space-y-4'>
+						<ShareHistory
+							presentationId={presentation.id}
+							onShareRevoked={(shareId) => {
+								toast.success('Share link revoked successfully')
+							}}
+						/>
 					</TabsContent>
 				</Tabs>
 

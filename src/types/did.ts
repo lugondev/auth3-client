@@ -557,3 +557,260 @@ export interface UpdateDIDSettingsRequest {
   enableBatchOperations?: boolean;
   maxBatchSize?: number;
 }
+
+// DID-002: Enhanced Document Management Types
+
+// Update DID Document - Enhanced full document update
+export interface UpdateDIDDocumentRequest {
+  context?: string[];
+  verificationMethod?: VerificationMethod[];
+  authentication?: (string | VerificationMethod)[];
+  assertionMethod?: (string | VerificationMethod)[];
+  keyAgreement?: (string | VerificationMethod)[];
+  capabilityInvocation?: (string | VerificationMethod)[];
+  capabilityDelegation?: (string | VerificationMethod)[];
+  service?: ServiceEndpoint[];
+  alsoKnownAs?: string[];
+  controller?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+// Service Endpoint Management Types
+export interface AddServiceEndpointRequest {
+  id: string;
+  type: string;
+  serviceEndpoint: string | object;
+  description?: string;
+  routingKeys?: string[];
+  accept?: string[];
+  priority?: number;
+  properties?: Record<string, unknown>;
+}
+
+export interface UpdateServiceEndpointRequest {
+  type?: string;
+  serviceEndpoint?: string | object;
+  description?: string;
+  routingKeys?: string[];
+  accept?: string[];
+  priority?: number;
+  properties?: Record<string, unknown>;
+}
+
+export interface ServiceEndpointResponse {
+  id: string;
+  type: string;
+  serviceEndpoint: string | object;
+  description?: string;
+  routingKeys?: string[];
+  accept?: string[];
+  priority?: number;
+  properties?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceEndpointsListResponse {
+  services: ServiceEndpointResponse[];
+  total: number;
+}
+
+// Verification Method Management Types
+export interface AddVerificationMethodRequest {
+  id: string;
+  type: string;
+  controller: string;
+  publicKeyJwk?: JWK;
+  publicKeyMultibase?: string;
+  publicKeyBase58?: string;
+  publicKeyPem?: string;
+  blockchainAccountId?: string;
+  ethereumAddress?: string;
+  properties?: Record<string, unknown>;
+}
+
+export interface UpdateVerificationMethodRequest {
+  type?: string;
+  controller?: string;
+  publicKeyJwk?: JWK;
+  publicKeyMultibase?: string;
+  publicKeyBase58?: string;
+  publicKeyPem?: string;
+  blockchainAccountId?: string;
+  ethereumAddress?: string;
+  properties?: Record<string, unknown>;
+}
+
+export interface VerificationMethodResponse {
+  id: string;
+  type: string;
+  controller: string;
+  publicKeyJwk?: JWK;
+  publicKeyMultibase?: string;
+  publicKeyBase58?: string;
+  publicKeyPem?: string;
+  blockchainAccountId?: string;
+  ethereumAddress?: string;
+  properties?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VerificationMethodsListResponse {
+  verificationMethods: VerificationMethodResponse[];
+  total: number;
+}
+
+// Universal DID Resolution Types
+export interface ResolutionOptions {
+  accept?: string;
+  noCache?: boolean;
+  versionId?: string;
+  versionTime?: string;
+}
+
+export interface UniversalResolutionResponse {
+  '@context'?: string[];
+  didDocument?: DIDDocument;
+  didResolutionMetadata: DIDResolutionMetadata;
+  didDocumentMetadata: DIDDocumentMetadata;
+  resolutionResult: string;
+  resolutionTime: string;
+  resolver: string;
+  cacheInfo: CacheInfo;
+  methodSpecificResolution?: Record<string, unknown>;
+}
+
+export interface CacheInfo {
+  cached: boolean;
+  cacheHit: boolean;
+  cacheExpiry?: string;
+  cacheSource?: string;
+}
+
+// Enhanced DID Document Editor Types
+export interface DIDDocumentEditContext {
+  originalDocument: DIDDocument;
+  workingDocument: DIDDocument;
+  hasChanges: boolean;
+  validationErrors: ValidationError[];
+  warnings: ValidationWarning[];
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  code: string;
+  severity: 'error' | 'warning';
+}
+
+export interface ValidationWarning {
+  field: string;
+  message: string;
+  suggestion?: string;
+}
+
+// DID Editor UI State Types
+export interface DIDEditorTab {
+  id: string;
+  label: string;
+  icon?: string;
+  component: React.ComponentType<any>;
+  badge?: number;
+  disabled?: boolean;
+}
+
+export interface DIDEditorAction {
+  id: string;
+  label: string;
+  icon?: string;
+  variant: 'default' | 'secondary' | 'destructive' | 'link' | 'outline' | 'ghost';
+  onClick: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+}
+
+// Advanced Resolution Interface Types
+export interface DIDResolutionHistory {
+  did: string;
+  timestamp: string;
+  result: UniversalResolutionResponse;
+  options?: ResolutionOptions;
+  duration: number;
+  status: 'success' | 'error' | 'cached';
+}
+
+export interface DIDResolutionComparison {
+  did: string;
+  baseline: UniversalResolutionResponse;
+  current: UniversalResolutionResponse;
+  differences: DIDDocumentDifference[];
+  comparedAt: string;
+}
+
+export interface DIDDocumentDifference {
+  path: string;
+  type: 'added' | 'removed' | 'modified';
+  oldValue?: unknown;
+  newValue?: unknown;
+  field: string;
+}
+
+// DID Document Validation Types
+export interface DIDDocumentValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
+  warnings: ValidationWarning[];
+  suggestions: ValidationSuggestion[];
+  score: number; // 0-100 quality score
+  compliance: ComplianceCheck[];
+}
+
+export interface ValidationSuggestion {
+  field: string;
+  message: string;
+  action: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
+export interface ComplianceCheck {
+  standard: string; // W3C DID Core, DIF standards, etc.
+  compliant: boolean;
+  version: string;
+  issues: string[];
+}
+
+// DID Document Preview Types
+export interface DIDDocumentPreview {
+  format: 'json' | 'json-ld' | 'yaml' | 'turtle';
+  content: string;
+  highlighted: boolean;
+  downloadable: boolean;
+}
+
+// Service Endpoint UI Types
+export interface ServiceEndpointFormData {
+  id: string;
+  type: string;
+  serviceEndpoint: string;
+  description: string;
+  routingKeys: string[];
+  accept: string[];
+  priority: number;
+  properties: Record<string, string>;
+}
+
+// Verification Method UI Types
+export interface VerificationMethodFormData {
+  id: string;
+  type: string;
+  controller: string;
+  keyFormat: 'jwk' | 'multibase' | 'base58' | 'pem' | 'blockchain';
+  publicKeyJwk?: JWK;
+  publicKeyMultibase?: string;
+  publicKeyBase58?: string;
+  publicKeyPem?: string;
+  blockchainAccountId?: string;
+  ethereumAddress?: string;
+  properties: Record<string, string>;
+}

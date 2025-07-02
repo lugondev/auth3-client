@@ -17,6 +17,7 @@ import {
   CredentialTemplate,
   GetCredentialOutput,
   VerifiableCredential,
+  RevokeCredentialInput,
 } from '../types/credentials';
 
 import {
@@ -148,12 +149,15 @@ export const verifyPresentation = withErrorHandling(
 
 /**
  * Revokes a credential by its ID
- * @param credentialId - The credential ID to revoke
+ * @param input - The revocation input with credential ID and issuer DID
  * @returns Promise resolving when revocation is complete
  */
 export const revokeCredential = withErrorHandling(
-  async (credentialId: string): Promise<void> => {
-    const response = await apiClient.post<void>(`/api/v1/credentials/${credentialId}/revoke`);
+  async (input: RevokeCredentialInput): Promise<void> => {
+    const response = await apiClient.post<void>(`/api/v1/credentials/${input.credentialId}/revoke`, {
+      issuerDID: input.issuerDID,
+      reason: input.reason || 'Revoked by issuer'
+    });
     return response.data;
   }
 );

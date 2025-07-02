@@ -1,6 +1,6 @@
 'use client'
 
-import {useState} from 'react'
+import {useState, useEffect} from 'react'
 import {useQuery} from '@tanstack/react-query'
 import {Plus, Search, Eye, Shield, AlertTriangle} from 'lucide-react'
 import Link from 'next/link'
@@ -15,8 +15,11 @@ import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 
 import {listCredentials} from '@/services/vcService'
+import * as vcService from '@/services/vcService'
 import type {CredentialStatus, ListCredentialsInput, CredentialMetadata} from '@/types/credentials'
 import {CredentialMetadataCard, VerifyCredentialModal} from '@/components/credentials'
+import {BulkCredentialManager} from '@/components/credentials/BulkCredentialManager'
+import {RealTimeStatusMonitor} from '@/components/credentials/RealTimeStatusMonitor'
 
 /**
  * VC Dashboard Page - Main dashboard for managing Verifiable Credentials
@@ -31,17 +34,36 @@ export default function CredentialsDashboard() {
 	const [searchTerm, setSearchTerm] = useState('')
 	const [statusFilter, setStatusFilter] = useState<CredentialStatus | 'all'>('all')
 	const [typeFilter, setTypeFilter] = useState<string>('all')
-	const [activeTab, setActiveTab] = useState<'issued' | 'received'>('issued')
-	const [page, setPage] = useState(1)
+	const [activeTab, setActiveTab] = useState<'issued' | 'received' | 'bulk' | 'monitor'>('issued')
+	const [issuedPage, setIssuedPage] = useState(1)
+	const [receivedPage, setReceivedPage] = useState(1)
 	const [showVerifyModal, setShowVerifyModal] = useState(false)
 	const limit = 10
 
-	// Query parameters for API call
-	const queryParams: ListCredentialsInput = {
-		page,
+	// Reset page to 1 when filters change
+	useEffect(() => {
+		setIssuedPage(1)
+		setReceivedPage(1)
+	}, [searchTerm, statusFilter, typeFilter])
+
+	// Query parameters for issued credentials (credentials I issued)
+	const issuedQueryParams: ListCredentialsInput = {
+		page: issuedPage,
 		limit,
 		...(statusFilter !== 'all' && {status: statusFilter as CredentialStatus}),
 		...(typeFilter !== 'all' && {type: typeFilter}),
+		...(searchTerm && {search: searchTerm}),
+		// TODO: Add issuer filter once we can get current user DID
+	}
+
+	// Query parameters for received credentials (credentials issued to me)
+	const receivedQueryParams: ListCredentialsInput = {
+		page: receivedPage,
+		limit,
+		...(statusFilter !== 'all' && {status: statusFilter as CredentialStatus}),
+		...(typeFilter !== 'all' && {type: typeFilter}),
+		...(searchTerm && {search: searchTerm}),
+		// TODO: Add subject filter once we can get current user DID
 	}
 
 	/**
@@ -65,26 +87,79 @@ export default function CredentialsDashboard() {
 		}
 	}
 
-	// Fetch credentials data
+	/**
+	 * Handle revoking a credential
+	 * @param credentialId - The credential ID to revoke
+	 */
+	const handleRevokeCredential = async (credentialId: string) => {
+		try {
+			// Find the credential to get issuer DID from current tab's data
+			const currentCredentials = activeTab === 'issued' 
+				? issuedCredentialsData?.credentials 
+				: receivedCredentialsData?.credentials
+			const credential = currentCredentials?.find(c => c.id === credentialId)
+			
+			if (!credential) {
+				toast.error('Credential not found')
+				return
+			}
+
+			// Extract issuer DID from credential
+			let issuerDID: string
+			if (typeof credential.issuer === 'string') {
+				issuerDID = credential.issuer
+			} else {
+				issuerDID = credential.issuer.id
+			}
+
+			await vcService.revokeCredential({
+				credentialId: credentialId,
+				issuerDID,
+				reason: 'Revoked by issuer'
+			})
+			
+			toast.success('Credential revoked successfully')
+			// Refresh the appropriate credentials list
+			if (activeTab === 'issued') {
+				await refetchIssued()
+			} else {
+				await refetchReceived()
+			}
+		} catch (error) {
+			console.error('Error revoking credential:', error)
+			toast.error('Failed to revoke credential. Please check if you have permission to revoke this credential.')
+		}
+	}
+
+	// Fetch issued credentials data (credentials I issued)
 	const {
-		data: credentialsData,
-		isLoading,
-		error,
+		data: issuedCredentialsData,
+		isLoading: isLoadingIssued,
+		error: errorIssued,
+		refetch: refetchIssued,
 	} = useQuery({
-		queryKey: ['credentials', activeTab, queryParams],
-		queryFn: () => listCredentials(queryParams),
+		queryKey: ['credentials', 'issued', issuedQueryParams],
+		queryFn: () => listCredentials(issuedQueryParams),
 		staleTime: 30000, // 30 seconds
 	})
 
-	// Filter credentials based on search term
-	const filteredCredentials =
-		credentialsData?.credentials.filter((credential) => {
-			if (!searchTerm) return true
-			const searchLower = searchTerm.toLowerCase()
-			const issuerString = typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id || ''
-			const subjectString = credential.subject || ''
-			return credential.id.toLowerCase().includes(searchLower) || credential.type.some((type) => type.toLowerCase().includes(searchLower)) || issuerString.toLowerCase().includes(searchLower) || subjectString.toLowerCase().includes(searchLower)
-		}) || []
+	// Fetch received credentials data (credentials issued to me)
+	const {
+		data: receivedCredentialsData,
+		isLoading: isLoadingReceived,
+		error: errorReceived,
+		refetch: refetchReceived,
+	} = useQuery({
+		queryKey: ['credentials', 'received', receivedQueryParams],
+		queryFn: () => listCredentials(receivedQueryParams),
+		staleTime: 30000, // 30 seconds
+	})
+
+	// For backward compatibility and current tab logic
+	const credentialsData = activeTab === 'issued' ? issuedCredentialsData : receivedCredentialsData
+	const isLoading = activeTab === 'issued' ? isLoadingIssued : isLoadingReceived
+	const error = activeTab === 'issued' ? errorIssued : errorReceived
+	const refetch = activeTab === 'issued' ? refetchIssued : refetchReceived
 
 	// Calculate statistics
 	const stats = {
@@ -205,30 +280,37 @@ export default function CredentialsDashboard() {
 						</Select>
 					</div>
 
-					{/* Tabs for Issued/Received */}
-					<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'issued' | 'received')}>
-						<TabsList className='grid w-full grid-cols-2'>
+					{/* Tabs for Issued/Received/Bulk */}
+					<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'issued' | 'received' | 'bulk' | 'monitor')}>
+						<TabsList className='grid w-full grid-cols-4'>
 							<TabsTrigger value='issued'>Issued by Me</TabsTrigger>
 							<TabsTrigger value='received'>Received by Me</TabsTrigger>
+							<TabsTrigger value='bulk'>Bulk Management</TabsTrigger>
+							<TabsTrigger value='monitor'>Status Monitor</TabsTrigger>
 						</TabsList>
 
 						<TabsContent value='issued' className='mt-6'>
-							{isLoading ? (
+							{isLoadingIssued ? (
 								<div className='space-y-4'>
 									{[...Array(3)].map((_, i) => (
 										<Skeleton key={i} className='h-32 w-full' />
 									))}
 								</div>
-							) : error ? (
+							) : errorIssued ? (
 								<Alert variant='destructive'>
 									<AlertTriangle className='h-4 w-4' />
-									<AlertDescription>Failed to load credentials. Please try again.</AlertDescription>
+									<AlertDescription>Failed to load issued credentials. Please try again.</AlertDescription>
 								</Alert>
-							) : filteredCredentials.length === 0 ? (
+							) : !issuedCredentialsData?.credentials || issuedCredentialsData.credentials.length === 0 ? (
 								<div className='text-center py-12'>
 									<Shield className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
-									<h3 className='text-lg font-semibold mb-2'>No credentials found</h3>
-									<p className='text-muted-foreground mb-4'>{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' ? 'No credentials match your current filters.' : "You haven't issued any credentials yet."}</p>
+									<h3 className='text-lg font-semibold mb-2'>No issued credentials found</h3>
+									<p className='text-muted-foreground mb-4'>
+										{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
+											? 'No credentials match your current filters.' 
+											: "You haven't issued any credentials yet."
+										}
+									</p>
 									{!searchTerm && statusFilter === 'all' && typeFilter === 'all' && (
 										<Button asChild>
 											<Link href='/dashboard/credentials/issue'>
@@ -239,40 +321,127 @@ export default function CredentialsDashboard() {
 									)}
 								</div>
 							) : (
-								<div className='space-y-4'>
-									{filteredCredentials.map((credential) => (
-										<CredentialMetadataCard key={credential.id} credential={credential} onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} onDownload={() => handleDownloadCredential(credential)} />
-									))}
-								</div>
+								<>
+									<div className='space-y-4'>
+										{issuedCredentialsData.credentials.map((credential) => (
+											<CredentialMetadataCard 
+												key={credential.id} 
+												credential={credential} 
+												onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} 
+												onDownload={() => handleDownloadCredential(credential)}
+												onRevoke={handleRevokeCredential}
+												showRevokeOption={true} // Hiện revoke option cho credentials do user issue
+											/>
+										))}
+									</div>
+									
+									{/* Pagination for Issued Credentials */}
+									{issuedCredentialsData && issuedCredentialsData.total > limit && (
+										<div className='flex justify-center mt-6'>
+											<div className='flex gap-2'>
+												<Button 
+													variant='outline' 
+													onClick={() => setIssuedPage((p) => Math.max(1, p - 1))} 
+													disabled={!issuedCredentialsData.hasPrev}
+												>
+													Previous
+												</Button>
+												<span className='flex items-center px-4'>
+													Page {issuedPage} of {Math.ceil(issuedCredentialsData.total / limit)}
+												</span>
+												<Button 
+													variant='outline' 
+													onClick={() => setIssuedPage((p) => p + 1)} 
+													disabled={!issuedCredentialsData.hasNext}
+												>
+													Next
+												</Button>
+											</div>
+										</div>
+									)}
+								</>
 							)}
 						</TabsContent>
 
 						<TabsContent value='received' className='mt-6'>
-							{/* Similar content for received credentials */}
-							<div className='text-center py-12'>
-								<Shield className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
-								<h3 className='text-lg font-semibold mb-2'>Received credentials</h3>
-								<p className='text-muted-foreground'>Credentials received from other issuers will appear here.</p>
-							</div>
+							{isLoadingReceived ? (
+								<div className='space-y-4'>
+									{[...Array(3)].map((_, i) => (
+										<Skeleton key={i} className='h-32 w-full' />
+									))}
+								</div>
+							) : errorReceived ? (
+								<Alert variant='destructive'>
+									<AlertTriangle className='h-4 w-4' />
+									<AlertDescription>Failed to load received credentials. Please try again.</AlertDescription>
+								</Alert>
+							) : !receivedCredentialsData?.credentials || receivedCredentialsData.credentials.length === 0 ? (
+								<div className='text-center py-12'>
+									<Shield className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
+									<h3 className='text-lg font-semibold mb-2'>No received credentials found</h3>
+									<p className='text-muted-foreground mb-4'>
+										{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
+											? 'No credentials match your current filters.' 
+											: "You haven't received any credentials yet."
+										}
+									</p>
+								</div>
+							) : (
+								<>
+									<div className='space-y-4'>
+										{receivedCredentialsData.credentials.map((credential) => (
+											<CredentialMetadataCard 
+												key={credential.id} 
+												credential={credential} 
+												onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} 
+												onDownload={() => handleDownloadCredential(credential)}
+												showRevokeOption={false} // No revoke option for received credentials
+											/>
+										))}
+									</div>
+									
+									{/* Pagination for Received Credentials */}
+									{receivedCredentialsData && receivedCredentialsData.total > limit && (
+										<div className='flex justify-center mt-6'>
+											<div className='flex gap-2'>
+												<Button 
+													variant='outline' 
+													onClick={() => setReceivedPage((p) => Math.max(1, p - 1))} 
+													disabled={!receivedCredentialsData.hasPrev}
+												>
+													Previous
+												</Button>
+												<span className='flex items-center px-4'>
+													Page {receivedPage} of {Math.ceil(receivedCredentialsData.total / limit)}
+												</span>
+												<Button 
+													variant='outline' 
+													onClick={() => setReceivedPage((p) => p + 1)} 
+													disabled={!receivedCredentialsData.hasNext}
+												>
+													Next
+												</Button>
+											</div>
+										</div>
+									)}
+								</>
+							)}
+						</TabsContent>
+
+						<TabsContent value='bulk' className='mt-6'>
+							<BulkCredentialManager
+								credentials={credentialsData?.credentials || []}
+								onCredentialsUpdated={() => refetch()}
+							/>
+						</TabsContent>
+
+						<TabsContent value='monitor' className='mt-6'>
+							<RealTimeStatusMonitor
+								credentials={credentialsData?.credentials || []}
+								onStatusChange={() => refetch()}
+							/>
 						</TabsContent>
 					</Tabs>
-
-					{/* Pagination */}
-					{credentialsData && credentialsData.total > limit && (
-						<div className='flex justify-center mt-6'>
-							<div className='flex gap-2'>
-								<Button variant='outline' onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={!credentialsData.hasPrev}>
-									Previous
-								</Button>
-								<span className='flex items-center px-4'>
-									Page {page} of {Math.ceil(credentialsData.total / limit)}
-								</span>
-								<Button variant='outline' onClick={() => setPage((p) => p + 1)} disabled={!credentialsData.hasNext}>
-									Next
-								</Button>
-							</div>
-						</div>
-					)}
 				</CardContent>
 			</Card>
 

@@ -1,10 +1,20 @@
 'use client'
 
 import React, {useState, useEffect} from 'react'
-import {PresentationList, CreatePresentationModal, VerifyPresentationModal, SharePresentationModal, VerificationResultModal} from '@/components/presentations'
+import {
+	PresentationList, 
+	CreatePresentationModal, 
+	VerifyPresentationModal, 
+	SharePresentationModal, 
+	VerificationResultModal,
+	SelectiveDisclosure,
+	BatchVerification
+} from '@/components/presentations'
+import PresentationAnalytics from '@/components/presentations/PresentationAnalytics'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
-import {Plus, Eye, BarChart3} from 'lucide-react'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {Plus, Eye, BarChart3, Shield, FileCheck} from 'lucide-react'
 import {toast} from 'sonner'
 import {getPresentationStatistics, verifyPresentationEnhanced} from '@/services/presentationService'
 import type {PresentationStatistics, VerifiablePresentation, EnhancedVerificationResponse} from '@/types/presentations'
@@ -21,6 +31,13 @@ export default function PresentationsPage() {
 	// Verification state
 	const [verificationResults, setVerificationResults] = useState<EnhancedVerificationResponse | null>(null)
 	const [showVerificationModal, setShowVerificationModal] = useState(false)
+
+	// Advanced features state
+	const [showSelectiveDisclosure, setShowSelectiveDisclosure] = useState(false)
+	const [selectedCredentialForSD, setSelectedCredentialForSD] = useState(null)
+	const [showBatchVerification, setShowBatchVerification] = useState(false)
+	const [selectedCredentialsForBatch, setSelectedCredentialsForBatch] = useState([])
+	const [activeTab, setActiveTab] = useState('presentations')
 
 	// Load presentation statistics
 	useEffect(() => {
@@ -100,7 +117,7 @@ export default function PresentationsPage() {
 			<div className='flex justify-between items-center'>
 				<div>
 					<h1 className='text-3xl font-bold tracking-tight'>Presentations</h1>
-					<p className='text-muted-foreground'>Manage your verifiable presentations and view verification status</p>
+					<p className='text-muted-foreground'>Manage your verifiable presentations and advanced features</p>
 				</div>
 				<div className='flex gap-2'>
 					<Button onClick={() => setShowCreateModal(true)}>
@@ -110,6 +127,10 @@ export default function PresentationsPage() {
 					<Button variant='outline' onClick={() => setShowVerifyModal(true)}>
 						<Eye className='mr-2 h-4 w-4' />
 						Verify Presentation
+					</Button>
+					<Button variant='outline' onClick={() => setShowBatchVerification(true)}>
+						<FileCheck className='mr-2 h-4 w-4' />
+						Batch Verify
 					</Button>
 				</div>
 			</div>
@@ -161,23 +182,37 @@ export default function PresentationsPage() {
 				</Card>
 			</div>
 
-			{/* Presentations List */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Your Presentations</CardTitle>
-					<CardDescription>View and manage all your verifiable presentations</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<PresentationList
-						key={refreshKey}
-						onShare={(presentation) => {
-							setSelectedPresentation(presentation)
-							setShowShareModal(true)
-						}}
-						onVerify={handleAutoVerify}
-					/>
-				</CardContent>
-			</Card>
+			{/* Main Content with Tabs */}
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+				<TabsList className="grid w-full grid-cols-2">
+					<TabsTrigger value="presentations">My Presentations</TabsTrigger>
+					<TabsTrigger value="analytics">Analytics & Insights</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="presentations" className="mt-6 space-y-6">
+					{/* Presentations List */}
+					<Card>
+						<CardHeader>
+							<CardTitle>Your Presentations</CardTitle>
+							<CardDescription>View and manage all your verifiable presentations</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<PresentationList
+								key={refreshKey}
+								onShare={(presentation) => {
+									setSelectedPresentation(presentation)
+									setShowShareModal(true)
+								}}
+								onVerify={handleAutoVerify}
+							/>
+						</CardContent>
+					</Card>
+				</TabsContent>
+
+				<TabsContent value="analytics" className="mt-6">
+					<PresentationAnalytics timeRange="30d" />
+				</TabsContent>
+			</Tabs>
 
 			{/* Modals */}
 			<CreatePresentationModal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} onSuccess={handlePresentationCreated} />
@@ -215,6 +250,36 @@ export default function PresentationsPage() {
 					presentation={selectedPresentation}
 				/>
 			)}
+
+			{/* Advanced Features Modals */}
+			{selectedCredentialForSD && (
+				<SelectiveDisclosure
+					isOpen={showSelectiveDisclosure}
+					onClose={() => {
+						setShowSelectiveDisclosure(false)
+						setSelectedCredentialForSD(null)
+					}}
+					credential={selectedCredentialForSD}
+					onSuccess={(sdCredential) => {
+						toast.success('Selective disclosure credential created!')
+						setShowSelectiveDisclosure(false)
+						setSelectedCredentialForSD(null)
+					}}
+				/>
+			)}
+
+			<BatchVerification
+				isOpen={showBatchVerification}
+				onClose={() => setShowBatchVerification(false)}
+				items={selectedCredentialsForBatch}
+				onComplete={(results) => {
+					toast.success(`Batch verification completed! ${results.filter(r => r.status === 'verified').length} verified, ${results.filter(r => r.status === 'failed').length} failed`)
+					setShowBatchVerification(false)
+					setSelectedCredentialsForBatch([])
+				}}
+				mode="credentials"
+			/>
+
 		</div>
 	)
 }
