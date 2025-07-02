@@ -90,7 +90,7 @@ interface VerificationMethod {
 export default function CreateDIDPage() {
 	const router = useRouter()
 	const [form, setForm] = useState<DIDCreationForm>({
-		method: 'key',
+		method: 'VBSN',
 		keyType: 'Ed25519',
 		serviceEndpoints: [],
 		verificationMethods: [],
@@ -139,6 +139,9 @@ export default function CreateDIDPage() {
 		let didId = ''
 
 		switch (form.method) {
+			case 'VBSN':
+				didId = 'did:VBSN:[generated-vbsn-id-using-ed25519-keys]'
+				break
 			case 'key':
 				didId = 'did:key:[generated-key-will-be-here]'
 				break
@@ -149,9 +152,6 @@ export default function CreateDIDPage() {
 				const network = form.networkId || 'mainnet'
 				const address = form.ethereumAddress || '[generated-or-provided-address]'
 				didId = `did:ethr:${network}:${address}`
-				break
-			case 'VBSN':
-				didId = 'did:VBSN:[generated-vbsn-id-using-ed25519-keys]'
 				break
 			case 'peer':
 				didId = 'did:peer:[generated-peer-id-for-p2p-communication]'
@@ -422,7 +422,7 @@ export default function CreateDIDPage() {
 					<CardContent>
 						<RadioGroup
 							value={form.method}
-							onValueChange={(value: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer') => {
+							onValueChange={(value: 'VBSN' | 'key' | 'web' | 'ethr' | 'peer') => {
 								// Auto-select recommended key type for each method
 								const recommendedKeyType = RECOMMENDED_KEY_TYPES[value] || 'Ed25519'
 
@@ -433,15 +433,26 @@ export default function CreateDIDPage() {
 								}))
 							}}
 							className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-							{['key', 'web', 'ethr', 'VBSN', 'peer'].map((method) => {
+							{['VBSN', 'key', 'web', 'ethr', 'peer'].map((method) => {
 								const info = getMethodInfo(method)
+								const isDisabled = method === 'ethr' || method === 'peer'
 								return (
 									<div key={method} className='flex items-center space-x-2'>
-										<RadioGroupItem value={method} id={method} />
-										<Label htmlFor={method} className='flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 flex-1'>
+										<RadioGroupItem value={method} id={method} disabled={isDisabled} />
+										<Label 
+											htmlFor={method} 
+											className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 flex-1 ${
+												isDisabled 
+													? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700' 
+													: 'hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
+											}`}
+										>
 											{info.icon}
 											<div>
-												<div className='font-medium'>{info.title}</div>
+												<div className='font-medium'>
+													{info.title}
+													{isDisabled && <span className='text-xs text-gray-400 ml-1'>(Coming Soon)</span>}
+												</div>
 												<div className='text-sm text-gray-500 dark:text-gray-400'>{info.description}</div>
 											</div>
 										</Label>
@@ -480,6 +491,16 @@ export default function CreateDIDPage() {
 								{form.method === 'peer' && 'Ed25519 is recommended for did:peer method'}
 							</div>
 						</div>
+
+						{/* VBSN Method Configuration */}
+						{form.method === 'VBSN' && (
+							<div className='space-y-4'>
+								<div className='text-sm text-gray-500 dark:text-gray-400'>
+									<p>VBSN (Vietnam Blockchain Service Network) is a key-based DID method.</p>
+									<p>No additional configuration required - the system will generate Ed25519 keys automatically.</p>
+								</div>
+							</div>
+						)}
 
 						{/* Method-specific Configuration */}
 						{form.method === 'key' && <div className='text-sm text-gray-500 dark:text-gray-400'>No additional configuration required for did:key method.</div>}
@@ -520,16 +541,6 @@ export default function CreateDIDPage() {
 											))}
 										</SelectContent>
 									</Select>
-								</div>
-							</div>
-						)}
-
-						{/* VBSN Method Configuration */}
-						{form.method === 'VBSN' && (
-							<div className='space-y-4'>
-								<div className='text-sm text-gray-500 dark:text-gray-400'>
-									<p>VBSN (Vietnam Blockchain Service Network) is a key-based DID method.</p>
-									<p>No additional configuration required - the system will generate Ed25519 keys automatically.</p>
 								</div>
 							</div>
 						)}
