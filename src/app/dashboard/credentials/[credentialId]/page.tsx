@@ -318,10 +318,9 @@ export default function CredentialDetailsPage() {
 
 			{/* Detailed Information Tabs */}
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<TabsList className='grid w-full grid-cols-6'>
+				<TabsList className='grid w-full grid-cols-5'>
 					<TabsTrigger value='overview'>Overview</TabsTrigger>
 					<TabsTrigger value='credential'>Credential</TabsTrigger>
-					<TabsTrigger value='verification'>Quick Verify</TabsTrigger>
 					<TabsTrigger value='advanced'>Advanced Verify</TabsTrigger>
 					<TabsTrigger value='revocation'>Revocation</TabsTrigger>
 					<TabsTrigger value='history'>History</TabsTrigger>
@@ -410,23 +409,6 @@ export default function CredentialDetailsPage() {
 				{/* Credential Tab */}
 				<TabsContent value='credential'>
 					<CredentialViewer credential={credential} />
-				</TabsContent>
-
-				{/* Verification Tab */}
-				<TabsContent value='verification' className='space-y-4'>
-					{verificationHistory.length > 0 ? (
-						<VerificationResults result={verificationHistory[0]} />
-					) : (
-						<Card>
-							<CardContent className='text-center py-8'>
-								<Shield className='h-12 w-12 text-gray-400 mx-auto mb-4' />
-								<p className='text-gray-600'>No verification results available</p>
-								<Button onClick={handleVerifyCredential} disabled={verifying} className='mt-4'>
-									{verifying ? 'Verifying...' : 'Verify Credential'}
-								</Button>
-							</CardContent>
-						</Card>
-					)}
 				</TabsContent>
 
 				{/* Advanced Verification Tab */}

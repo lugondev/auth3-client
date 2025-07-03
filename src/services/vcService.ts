@@ -124,6 +124,58 @@ export const listCredentials = withErrorHandling(
 );
 
 /**
+ * Lists credentials issued by current user
+ * @param query - Query parameters for filtering and pagination
+ * @returns Promise resolving to paginated credential list
+ */
+export const listMyIssuedCredentials = withErrorHandling(
+  async (query?: CredentialListQuery): Promise<CredentialListResponse> => {
+    const params = new URLSearchParams();
+
+    if (query) {
+      if (query.page) params.append('page', query.page.toString());
+      if (query.limit) params.append('limit', query.limit.toString());
+      if (query.status) params.append('status', query.status);
+      if (query.type) params.append('type', query.type);
+      if (query.search) params.append('search', query.search);
+      // TODO: Add userDID from auth context when available
+    }
+
+    const queryString = params.toString();
+    const url = queryString ? `/api/v1/credentials/me/issued?${queryString}` : '/api/v1/credentials/me/issued';
+
+    const response = await apiClient.get<CredentialListResponse>(url);
+    return response.data;
+  }
+);
+
+/**
+ * Lists credentials received by current user
+ * @param query - Query parameters for filtering and pagination
+ * @returns Promise resolving to paginated credential list
+ */
+export const listMyReceivedCredentials = withErrorHandling(
+  async (query?: CredentialListQuery): Promise<CredentialListResponse> => {
+    const params = new URLSearchParams();
+
+    if (query) {
+      if (query.page) params.append('page', query.page.toString());
+      if (query.limit) params.append('limit', query.limit.toString());
+      if (query.status) params.append('status', query.status);
+      if (query.type) params.append('type', query.type);
+      if (query.search) params.append('search', query.search);
+      // TODO: Add userDID from auth context when available
+    }
+
+    const queryString = params.toString();
+    const url = queryString ? `/api/v1/credentials/me/received?${queryString}` : '/api/v1/credentials/me/received';
+
+    const response = await apiClient.get<CredentialListResponse>(url);
+    return response.data;
+  }
+);
+
+/**
  * Creates a verifiable presentation from credentials
  * @param input - Presentation creation parameters
  * @returns Promise resolving to the created presentation

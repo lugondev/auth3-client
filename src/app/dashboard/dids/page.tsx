@@ -58,6 +58,7 @@ export default function DIDDashboardPage() {
 				const params: ListDIDsInput = {
 					limit: pageSize,
 					page: page,
+					sort: 'created_at_desc', // Sort by creation date, newest first
 				}
 
 				// Fetch user's DIDs with pagination

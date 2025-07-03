@@ -187,6 +187,7 @@ export interface ListDIDsInput {
   user_id?: string;
   status?: DIDStatus;
   method?: string;
+  sort?: 'created_at_desc' | 'created_at_asc'; // Sort order for DIDs
 }
 
 export interface ListDIDsOutput {

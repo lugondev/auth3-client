@@ -101,6 +101,7 @@ export const listDIDs = withErrorHandling(
     if (input?.method) params.append('method', input.method);
     if (input?.status) params.append('status', input.status);
     if (input?.limit) params.append('limit', input.limit.toString());
+    if (input?.sort) params.append('sort', input.sort);
 
     if (input?.page) {
       // If page is provided, use it

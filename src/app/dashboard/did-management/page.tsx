@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,35 +79,46 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Pagination state
+  const [didsPage, setDidsPage] = useState(1);
+  const [didsHasMore, setDidsHasMore] = useState(true);
+  const [didsLoading, setDidsLoading] = useState(false);
+  const [showAllDIDs, setShowAllDIDs] = useState(false);
+  const [totalDIDs, setTotalDIDs] = useState(0); // Track total count from API
+
   // Editor state
   const [isEditing, setIsEditing] = useState(false);
   const [showCreateNew, setShowCreateNew] = useState(false);
 
   // Resolution state
   const [recentResolutions, setRecentResolutions] = useState<UniversalResolutionResponse[]>([]);
+  const [resolutionsPage, setResolutionsPage] = useState(1);
+  const [resolutionsHasMore, setResolutionsHasMore] = useState(true);
+  const [resolutionsLoading, setResolutionsLoading] = useState(false);
+  const [showAllResolutions, setShowAllResolutions] = useState(false);
 
-  // Load user DIDs and stats
-  useEffect(() => {
-    if (userId) {
-      loadUserDIDs();
-      loadStats();
-    }
-  }, [userId, tenantId]);
-
-  const loadUserDIDs = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch user's DIDs from backend
-      const response = await didService.listDIDs({
-        limit: 100, // Get all user DIDs for dashboard
-        page: 1
-      });
+  // Load user DIDs function with useCallback
+  const loadUserDIDs = useCallback(async (page: number = 1, append: boolean = false) => {
+    const handleLoadSuccess = (response: any) => {
+      const newDIDs = response.dids as unknown as DIDItem[] || [];
       
-      // Cast to DIDItem[] since the actual response structure matches DIDItem
-      setUserDIDs(response.dids as unknown as DIDItem[] || []);
-    } catch (err: any) {
+      // Update total count from API response
+      if (response.total !== undefined) {
+        setTotalDIDs(response.total);
+      }
+      
+      if (append && page > 1) {
+        setUserDIDs(prev => [...prev, ...newDIDs]);
+      } else {
+        setUserDIDs(newDIDs);
+      }
+      
+      // Check if there are more items to load
+      setDidsHasMore(newDIDs.length === 5 && !showAllDIDs); // Only check for 5-item pagination
+      setDidsPage(page);
+    };
+
+    const handleLoadError = (err: any) => {
       const errorMessage = err.message || 'Failed to load DIDs';
       setError(errorMessage);
       toast({
@@ -115,32 +126,63 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({
         description: errorMessage,
         variant: 'destructive'
       });
+    };
+
+    try {
+      if (page === 1) {
+        setLoading(true);
+      } else {
+        setDidsLoading(true);
+      }
+      setError(null);
+
+      // Fetch user's DIDs from backend with pagination
+      const limit = showAllDIDs ? (totalDIDs || 100) : 5;
+      console.log(`Loading DIDs: page=${page}, limit=${limit}, showAll=${showAllDIDs}`);
+      
+      const response = await didService.listDIDs({
+        limit,
+        page,
+        sort: 'created_at_desc' // Sort by creation date, newest first
+      });
+      
+      handleLoadSuccess(response);
+    } catch (err: any) {
+      handleLoadError(err);
     } finally {
       setLoading(false);
+      setDidsLoading(false);
     }
-  };
+  }, [totalDIDs, showAllDIDs]);
+
+  // Load user DIDs and stats
+  useEffect(() => {
+    if (userId) {
+      loadUserDIDs(1, false);
+      loadStats();
+    }
+  }, [userId, tenantId, loadUserDIDs]);
 
   const loadStats = async () => {
     try {
       // Fetch statistics from backend
-      const [statsResponse, userDIDsResponse] = await Promise.all([
-        didService.getDIDStatistics(),
-        userDIDs.length === 0 ? didService.listDIDs({ limit: 100, page: 1 }) : Promise.resolve({ dids: userDIDs as unknown as any[] })
+      const [statsResponse] = await Promise.all([
+        didService.getDIDStatistics()
       ]);
 
-      const currentDIDs = (userDIDsResponse.dids as unknown as DIDItem[]) || userDIDs;
+      // For stats, we can use the totalDIDs or current userDIDs
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-      // Calculate local stats from user DIDs
+      // Calculate local stats from user DIDs (if we have them)
       const stats: DIDStats = {
-        total: currentDIDs.length,
-        active: currentDIDs.filter(item => item.status === 'active').length,
-        updated24h: currentDIDs.filter(item => {
+        total: totalDIDs || userDIDs.length, // Use totalDIDs from API
+        active: userDIDs.filter(item => item.status === 'active').length,
+        updated24h: userDIDs.filter(item => {
           const updatedAt = new Date(item.updated_at);
           return updatedAt >= yesterday;
         }).length,
-        methods: currentDIDs.reduce((acc, item) => {
+        methods: userDIDs.reduce((acc, item) => {
           const method = item.method;
           acc[method] = (acc[method] || 0) + 1;
           return acc;
@@ -150,12 +192,12 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({
       setStats(stats);
     } catch (err) {
       console.error('Failed to load stats:', err);
-      // Fallback to local calculation if backend stats fail
+      // Fallback to local calculation
       const now = new Date();
       const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
       const fallbackStats: DIDStats = {
-        total: userDIDs.length,
+        total: totalDIDs || userDIDs.length,
         active: userDIDs.filter(item => item.status === 'active').length,
         updated24h: userDIDs.filter(item => {
           const updatedAt = new Date(item.updated_at);
@@ -171,6 +213,18 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({
       setStats(fallbackStats);
     }
   };
+
+  // Load more DIDs function
+  const loadMoreDIDs = useCallback(async () => {
+    if (didsLoading || !didsHasMore) return;
+    await loadUserDIDs(didsPage + 1, true);
+  }, [didsLoading, didsHasMore, didsPage, loadUserDIDs]);
+
+  // Load all DIDs function
+  const loadAllDIDs = useCallback(async () => {
+    setShowAllDIDs(true);
+    await loadUserDIDs(1, false);
+  }, [loadUserDIDs]);
 
   const handleDIDSaved = async (savedDID: DIDDocument) => {
     try {
@@ -382,6 +436,14 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({
                   recentResolutions={recentResolutions}
                   onDIDSelected={handleDIDSelected}
                   onCreateNew={() => setShowCreateNew(true)}
+                  didsHasMore={didsHasMore}
+                  didsLoading={didsLoading}
+                  onLoadMoreDIDs={loadMoreDIDs}
+                  onLoadAllDIDs={loadAllDIDs}
+                  showAllDIDs={showAllDIDs}
+                  resolutionsHasMore={resolutionsHasMore}
+                  resolutionsLoading={resolutionsLoading}
+                  showAllResolutions={showAllResolutions}
                 />
               </TabsContent>
 
@@ -475,13 +537,29 @@ interface OverviewContentProps {
   recentResolutions: UniversalResolutionResponse[];
   onDIDSelected: (didItem: DIDItem) => void;
   onCreateNew: () => void;
+  didsHasMore: boolean;
+  didsLoading: boolean;
+  onLoadMoreDIDs: () => void;
+  onLoadAllDIDs: () => void;
+  showAllDIDs: boolean;
+  resolutionsHasMore: boolean;
+  resolutionsLoading: boolean;
+  showAllResolutions: boolean;
 }
 
 const OverviewContent: React.FC<OverviewContentProps> = ({
   userDIDs,
   recentResolutions,
   onDIDSelected,
-  onCreateNew
+  onCreateNew,
+  didsHasMore,
+  didsLoading,
+  onLoadMoreDIDs,
+  onLoadAllDIDs,
+  showAllDIDs,
+  resolutionsHasMore,
+  resolutionsLoading,
+  showAllResolutions
 }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -514,7 +592,7 @@ const OverviewContent: React.FC<OverviewContentProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {userDIDs.slice(0, 5).map((didItem, index) => (
+              {userDIDs.map((didItem, index) => (
                 <div 
                   key={didItem.id || index}
                   className="flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
@@ -567,14 +645,38 @@ const OverviewContent: React.FC<OverviewContentProps> = ({
                   </div>
                 </div>
               ))}
-              {userDIDs.length > 5 && (
+              
+              {/* Action Buttons */}
+              {(didsHasMore || !showAllDIDs) && (
                 <div className="text-center pt-3">
                   <p className="text-sm text-muted-foreground mb-2">
-                    And {userDIDs.length - 5} more DID{userDIDs.length - 5 > 1 ? 's' : ''}...
+                    {showAllDIDs 
+                      ? `Showing all ${userDIDs.length} DID${userDIDs.length > 1 ? 's' : ''}`
+                      : `Showing ${userDIDs.length} DID${userDIDs.length > 1 ? 's' : ''}`
+                    }
                   </p>
-                  <Button variant="outline" size="sm">
-                    View All ({userDIDs.length})
-                  </Button>
+                  <div className="flex gap-2 justify-center">
+                    {didsHasMore && !showAllDIDs && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={onLoadMoreDIDs}
+                        disabled={didsLoading}
+                      >
+                        {didsLoading ? 'Loading...' : 'View More (+5)'}
+                      </Button>
+                    )}
+                    {!showAllDIDs && (
+                      <Button 
+                        variant="secondary" 
+                        size="sm"
+                        onClick={onLoadAllDIDs}
+                        disabled={didsLoading}
+                      >
+                        {didsLoading ? 'Loading...' : 'Show All'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

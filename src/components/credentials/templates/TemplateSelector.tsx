@@ -8,6 +8,7 @@ import {Badge} from '@/components/ui/badge'
 import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ScrollArea} from '@/components/ui/scroll-area'
+import {Label} from '@/components/ui/label'
 import {
 	Select,
 	SelectContent,
@@ -27,12 +28,21 @@ import {
 	Star,
 	TrendingUp,
 	Clock,
-	Users,
-	Filter,
 	SortAsc,
 	SortDesc,
+	Plus,
+	Grid3x3,
+	List,
+	MoreHorizontal,
 } from 'lucide-react'
 import {toast} from 'sonner'
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 import {CredentialTemplate, TemplateFilters} from '@/types/template'
 import {templateService} from '@/services/templateService'
@@ -46,6 +56,8 @@ interface TemplateSelectorProps {
 	enableBulkSelection?: boolean
 	selectedTemplates?: CredentialTemplate[]
 	onBulkSelectionChange?: (templates: CredentialTemplate[]) => void
+	viewMode?: 'grid' | 'list'
+	compactMode?: boolean
 }
 
 interface TemplateStats {
@@ -69,9 +81,11 @@ interface EnhancedTemplate extends CredentialTemplate {
  * - Advanced template search and filtering
  * - Template analytics and usage statistics
  * - Bulk template selection for batch operations
+ * - Grid/List view modes with compact option
  * - Popular and recommended templates highlighting
- * - Category-based organization
  * - Template preview and detailed information
+ * - Custom credential creation option
+ * - Responsive design with mobile optimization
  */
 export function TemplateSelector({
 	selectedTemplate,
@@ -82,15 +96,17 @@ export function TemplateSelector({
 	enableBulkSelection = false,
 	selectedTemplates = [],
 	onBulkSelectionChange,
+	viewMode: initialViewMode = 'grid',
+	compactMode = false,
 }: TemplateSelectorProps) {
 	const [templates, setTemplates] = useState<EnhancedTemplate[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [searchTerm, setSearchTerm] = useState('')
-	const [selectedCategory, setSelectedCategory] = useState<string>('all')
 	const [sortBy, setSortBy] = useState<'name' | 'usage' | 'recent' | 'rating'>('name')
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
-	const [filters, setFilters] = useState<TemplateFilters>({
+	const [viewMode, setViewMode] = useState<'grid' | 'list'>(initialViewMode)
+	const [filters] = useState<TemplateFilters>({
 		page: 1,
 		limit: 100, // Load all for better UX
 		active: true,
@@ -106,7 +122,6 @@ export function TemplateSelector({
 				const response = await templateService.listTemplates({
 					...filters,
 					search: searchTerm || undefined,
-					type: selectedCategory !== 'all' ? selectedCategory : undefined,
 				})
 
 				// Enhance templates with analytics data if enabled
@@ -154,7 +169,7 @@ export function TemplateSelector({
 		}
 
 		loadTemplates()
-	}, [filters, searchTerm, selectedCategory, showAnalytics])
+	}, [filters, searchTerm, showAnalytics])
 
 	// Get template icon based on type/category
 	const getTemplateIcon = (template: EnhancedTemplate) => {
@@ -179,28 +194,16 @@ export function TemplateSelector({
 		return <FileText className="h-5 w-5" />
 	}
 
-	// Get unique categories
-	const getCategories = () => {
-		const categories = new Set<string>()
-		templates.forEach((template) => {
-			if (template.category) {
-				categories.add(template.category)
-			}
-		})
-		return Array.from(categories).sort()
-	}
-
 	// Filter and sort templates
 	const getFilteredAndSortedTemplates = () => {
-		let filtered = templates.filter((template) => {
+		const filtered = templates.filter((template) => {
 			const matchesSearch = !searchTerm || 
 				template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-				(template.category && template.category.toLowerCase().includes(searchTerm.toLowerCase()))
+				(template.category && template.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+				(template.type && template.type.some(type => type.toLowerCase().includes(searchTerm.toLowerCase())))
 
-			const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory
-
-			return matchesSearch && matchesCategory
+			return matchesSearch
 		})
 
 		// Sort templates
@@ -271,7 +274,178 @@ export function TemplateSelector({
 	}
 
 	const filteredTemplates = getFilteredAndSortedTemplates()
-	const categories = getCategories()
+
+	// Render template card based on view mode
+	const renderTemplateCard = (template: EnhancedTemplate) => {
+		const isSelected = enableBulkSelection
+			? selectedTemplates.some(t => t.id === template.id)
+			: selectedTemplate?.id === template.id
+
+		const cardClasses = `cursor-pointer transition-all hover:shadow-md ${
+			isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
+		} ${compactMode ? 'p-3' : 'p-4'}`
+
+		if (viewMode === 'list') {
+			return (
+				<Card
+					key={template.id}
+					className={cardClasses}
+					onClick={() => handleTemplateSelect(template)}
+				>
+					<CardContent className={compactMode ? 'p-3' : 'p-4'}>
+						<div className="flex items-center gap-4">
+							{/* Icon */}
+							<div className="flex-shrink-0">
+								{getTemplateIcon(template)}
+							</div>
+
+							{/* Content */}
+							<div className="flex-1 min-w-0">
+								<div className="flex items-center justify-between gap-2">
+									<div className="flex-1">
+										<h4 className={`font-semibold ${compactMode ? 'text-sm' : 'text-base'} line-clamp-1`}>
+											{template.name}
+										</h4>
+										<p className={`text-muted-foreground ${compactMode ? 'text-xs' : 'text-sm'} line-clamp-1 mt-1`}>
+											{template.description}
+										</p>
+									</div>
+
+									{/* Selection Indicator */}
+									{isSelected && (
+										<Check className="h-5 w-5 text-primary flex-shrink-0" />
+									)}
+								</div>
+
+								{/* Badges and Stats - Horizontal layout for list view */}
+								<div className="flex items-center gap-2 mt-2 flex-wrap">
+									{template.category && (
+										<Badge variant="secondary" className="text-xs">
+											{template.category}
+										</Badge>
+									)}
+
+									{template.isPopular && (
+										<Badge variant="default" className="text-xs bg-orange-100 text-orange-800">
+											<Star className="h-3 w-3 mr-1" />
+											Popular
+										</Badge>
+									)}
+
+									{showAnalytics && template.stats && template.stats.usageCount > 0 && (
+										<Badge variant="outline" className="text-xs">
+											<TrendingUp className="h-3 w-3 mr-1" />
+											{template.stats.usageCount} uses
+										</Badge>
+									)}
+								</div>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)
+		}
+
+		// Grid view (default)
+		return (
+			<Card
+				key={template.id}
+				className={cardClasses}
+				onClick={() => handleTemplateSelect(template)}
+			>
+				<CardContent className={compactMode ? 'p-3' : 'p-4'}>
+					<div className="flex items-start gap-3">
+						{/* Icon */}
+						<div className="flex-shrink-0 mt-1">
+							{getTemplateIcon(template)}
+						</div>
+
+						{/* Content */}
+						<div className="flex-1 min-w-0">
+							<div className="flex items-start justify-between gap-2">
+								<div className="flex-1">
+									<h4 className={`font-semibold ${compactMode ? 'text-sm' : 'text-base'} line-clamp-1`}>
+										{template.name}
+									</h4>
+									<p className={`text-muted-foreground ${compactMode ? 'text-xs' : 'text-sm'} line-clamp-2 mt-1`}>
+										{template.description}
+									</p>
+								</div>
+
+								{/* Selection Indicator */}
+								{isSelected && (
+									<Check className="h-5 w-5 text-primary flex-shrink-0" />
+								)}
+							</div>
+
+							{/* Badges and Stats */}
+							<div className="flex items-center gap-2 mt-3 flex-wrap">
+								{template.category && (
+									<Badge variant="secondary" className="text-xs">
+										{template.category}
+									</Badge>
+								)}
+
+								{template.isPopular && (
+									<Badge variant="default" className="text-xs bg-orange-100 text-orange-800">
+										<Star className="h-3 w-3 mr-1" />
+										Popular
+									</Badge>
+								)}
+
+								{template.isRecent && (
+									<Badge variant="default" className="text-xs bg-green-100 text-green-800">
+										<Clock className="h-3 w-3 mr-1" />
+										Recent
+									</Badge>
+								)}
+
+								{showAnalytics && template.stats && (
+									<>
+										{template.stats.usageCount > 0 && (
+											<Badge variant="outline" className="text-xs">
+												<TrendingUp className="h-3 w-3 mr-1" />
+												{template.stats.usageCount} uses
+											</Badge>
+										)}
+										{template.stats.averageRating && (
+											<Badge variant="outline" className="text-xs">
+												<Star className="h-3 w-3 mr-1" />
+												{template.stats.averageRating.toFixed(1)}
+											</Badge>
+										)}
+									</>
+								)}
+							</div>
+
+							{/* Schema fields preview for grid view */}
+							{!compactMode && template.schema && typeof template.schema === 'object' && (
+								<div className="mt-3">
+									<Label className="text-xs text-muted-foreground">
+										Fields ({Object.keys(template.schema).length})
+									</Label>
+									<div className="flex flex-wrap gap-1 mt-1">
+										{Object.keys(template.schema)
+											.slice(0, 3)
+											.map((field, index) => (
+												<Badge key={index} variant="outline" className="text-xs">
+													{field}
+												</Badge>
+											))}
+										{Object.keys(template.schema).length > 3 && (
+											<Badge variant="outline" className="text-xs">
+												+{Object.keys(template.schema).length - 3}
+											</Badge>
+										)}
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+		)
+	}
 
 	if (loading) {
 		return (
@@ -308,21 +482,66 @@ export function TemplateSelector({
 
 	return (
 		<Card className={className}>
-			<CardHeader>
+			<CardHeader className={compactMode ? 'pb-4' : 'pb-6'}>
 				<CardTitle className="flex items-center justify-between">
-					<span>Select Template</span>
-					{enableBulkSelection && (
-						<Badge variant="outline">
-							{selectedTemplates.length} selected
-						</Badge>
-					)}
+					<span>{compactMode ? 'Templates' : 'Select Template'}</span>
+					<div className="flex items-center gap-2">
+						{enableBulkSelection && (
+							<Badge variant="outline">
+								{selectedTemplates.length} selected
+							</Badge>
+						)}
+						
+						{/* View Mode Toggle */}
+						<div className="flex items-center border rounded-md">
+							<Button
+								variant={viewMode === 'grid' ? 'default' : 'ghost'}
+								size="sm"
+								className="rounded-r-none"
+								onClick={() => setViewMode('grid')}
+							>
+								<Grid3x3 className="h-4 w-4" />
+							</Button>
+							<Button
+								variant={viewMode === 'list' ? 'default' : 'ghost'}
+								size="sm"
+								className="rounded-l-none"
+								onClick={() => setViewMode('list')}
+							>
+								<List className="h-4 w-4" />
+							</Button>
+						</div>
+
+						{/* More Options */}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="sm">
+									<MoreHorizontal className="h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
+									Switch to {viewMode === 'grid' ? 'List' : 'Grid'} View
+								</DropdownMenuItem>
+								<DropdownMenuSeparator />
+								{onCreateCustom && (
+									<DropdownMenuItem onClick={onCreateCustom}>
+										<Plus className="h-4 w-4 mr-2" />
+										Create Custom
+									</DropdownMenuItem>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
 				</CardTitle>
-				<CardDescription>
-					{enableBulkSelection 
-						? 'Select multiple templates for bulk operations'
-						: 'Choose a template for credential issuance'
-					}
-				</CardDescription>
+				{!compactMode && (
+					<CardDescription>
+						{enableBulkSelection 
+							? 'Select multiple templates for bulk operations'
+							: 'Choose a template for credential issuance or create a custom one'
+						}
+					</CardDescription>
+				)}
 			</CardHeader>
 			<CardContent className="space-y-4">
 				{/* Search and Filters */}
@@ -340,23 +559,8 @@ export function TemplateSelector({
 
 					{/* Filters Row */}
 					<div className="flex gap-2 flex-wrap">
-						{/* Category Filter */}
-						<Select value={selectedCategory} onValueChange={setSelectedCategory}>
-							<SelectTrigger className="w-[180px]">
-								<SelectValue placeholder="Category" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Categories</SelectItem>
-								{categories.map((category) => (
-									<SelectItem key={category} value={category}>
-										{category}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-
 						{/* Sort By */}
-						<Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+						<Select value={sortBy} onValueChange={(value: 'name' | 'usage' | 'recent' | 'rating') => setSortBy(value)}>
 							<SelectTrigger className="w-[140px]">
 								<SelectValue />
 							</SelectTrigger>
@@ -394,128 +598,139 @@ export function TemplateSelector({
 				</div>
 
 				{/* Templates List */}
-				<ScrollArea className="h-[400px] w-full">
+				<ScrollArea className={compactMode ? "h-[300px] w-full" : "h-[500px] w-full"}>
 					{filteredTemplates.length === 0 ? (
 						<div className="text-center py-12">
 							<FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
 							<h3 className="text-lg font-semibold mb-2">No templates found</h3>
 							<p className="text-muted-foreground mb-4">
-								{searchTerm || selectedCategory !== 'all'
-									? 'No templates match your current filters.'
+								{searchTerm
+									? 'No templates match your current search.'
 									: 'No templates are available.'}
 							</p>
 							{onCreateCustom && (
 								<Button onClick={onCreateCustom} variant="outline">
-									<FileText className="h-4 w-4 mr-2" />
+									<Plus className="h-4 w-4 mr-2" />
 									Create Custom Template
 								</Button>
 							)}
 						</div>
 					) : (
-						<div className="space-y-3">
-							{filteredTemplates.map((template) => {
-								const isSelected = enableBulkSelection
-									? selectedTemplates.some(t => t.id === template.id)
-									: selectedTemplate?.id === template.id
-
-								return (
-									<Card
-										key={template.id}
-										className={`cursor-pointer transition-all hover:shadow-md ${
-											isSelected ? 'ring-2 ring-primary bg-primary/5' : ''
-										}`}
-										onClick={() => handleTemplateSelect(template)}
-									>
-										<CardContent className="p-4">
-											<div className="flex items-start gap-3">
-												{/* Icon */}
-												<div className="flex-shrink-0 mt-1">
-													{getTemplateIcon(template)}
-												</div>
-
-												{/* Content */}
-												<div className="flex-1 min-w-0">
-													<div className="flex items-start justify-between gap-2">
-														<div className="flex-1">
-															<h4 className="font-semibold text-sm line-clamp-1">
-																{template.name}
-															</h4>
-															<p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-																{template.description}
-															</p>
-														</div>
-
-														{/* Selection Indicator */}
-														{isSelected && (
-															<Check className="h-5 w-5 text-primary flex-shrink-0" />
-														)}
-													</div>
-
-													{/* Badges and Stats */}
-													<div className="flex items-center gap-2 mt-3 flex-wrap">
-														{/* Category */}
-														{template.category && (
-															<Badge variant="secondary" className="text-xs">
-																{template.category}
-															</Badge>
-														)}
-
-														{/* Popular Badge */}
-														{template.isPopular && (
-															<Badge variant="default" className="text-xs bg-orange-100 text-orange-800">
-																<Star className="h-3 w-3 mr-1" />
-																Popular
-															</Badge>
-														)}
-
-														{/* Recent Badge */}
-														{template.isRecent && (
-															<Badge variant="default" className="text-xs bg-green-100 text-green-800">
-																<Clock className="h-3 w-3 mr-1" />
-																Recent
-															</Badge>
-														)}
-
-														{/* Analytics Stats */}
-														{showAnalytics && template.stats && (
-															<>
-																{template.stats.usageCount > 0 && (
-																	<Badge variant="outline" className="text-xs">
-																		<TrendingUp className="h-3 w-3 mr-1" />
-																		{template.stats.usageCount} uses
-																	</Badge>
-																)}
-																{template.stats.averageRating && (
-																	<Badge variant="outline" className="text-xs">
-																		<Star className="h-3 w-3 mr-1" />
-																		{template.stats.averageRating.toFixed(1)}
-																	</Badge>
-																)}
-															</>
-														)}
-													</div>
-												</div>
+						<div className="space-y-4">
+							{/* Custom Template Option */}
+							{onCreateCustom && !enableBulkSelection && (
+								<Card
+									className={`cursor-pointer transition-all hover:shadow-md border-dashed ${
+										!selectedTemplate ? 'ring-2 ring-primary bg-primary/5' : 'hover:border-primary/50'
+									}`}
+									onClick={() => onTemplateSelect(null)}
+								>
+									<CardContent className={compactMode ? 'p-3' : 'p-4'}>
+										<div className="flex items-center gap-3">
+											<div className="p-2 bg-primary/10 rounded-lg">
+												<Plus className="h-5 w-5 text-primary" />
 											</div>
-										</CardContent>
-									</Card>
-								)
-							})}
+											<div className="flex-1">
+												<h4 className={`font-semibold ${compactMode ? 'text-sm' : 'text-base'}`}>
+													Custom Credential
+												</h4>
+												<p className={`text-muted-foreground ${compactMode ? 'text-xs' : 'text-sm'} mt-1`}>
+													Create a credential with custom fields and structure
+												</p>
+											</div>
+											{!selectedTemplate && (
+												<Check className="h-5 w-5 text-primary" />
+											)}
+										</div>
+									</CardContent>
+								</Card>
+							)}
+
+							{/* Templates Grid/List */}
+							<div className={`${
+								viewMode === 'grid' 
+									? `grid ${compactMode ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-3`
+									: 'space-y-2'
+							}`}>
+								{filteredTemplates.map(renderTemplateCard)}
+							</div>
 						</div>
 					)}
 				</ScrollArea>
 
-				{/* Custom Template Option */}
-				{onCreateCustom && !enableBulkSelection && (
-					<div className="pt-3 border-t">
-						<Button
-							variant="outline"
-							onClick={onCreateCustom}
-							className="w-full"
-						>
-							<FileText className="h-4 w-4 mr-2" />
-							Create Custom Credential (No Template)
-						</Button>
-					</div>
+				{/* Selected Template Details */}
+				{selectedTemplate && !compactMode && (
+					<Card className="mt-4 bg-muted/50">
+						<CardHeader className="pb-3">
+							<CardTitle className="text-base flex items-center gap-2">
+								{getTemplateIcon(selectedTemplate)}
+								Selected: {selectedTemplate.name}
+							</CardTitle>
+							<CardDescription>
+								{selectedTemplate.description}
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<div className="space-y-3">
+								{/* Template Schema */}
+								{selectedTemplate.schema && typeof selectedTemplate.schema === 'object' && (
+									<div>
+										<Label className="text-sm font-medium">Schema Fields</Label>
+										<div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+											{Object.entries(selectedTemplate.schema).map(([fieldName, field]) => (
+												<div key={fieldName} className="text-sm">
+													<span className="font-medium">{fieldName}</span>
+													<span className="text-muted-foreground ml-1">
+														({typeof field === 'object' && field !== null ? 'object' : typeof field})
+													</span>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* Template Context */}
+								{selectedTemplate['@context'] && (
+									<div>
+										<Label className="text-sm font-medium">Context</Label>
+										<div className="flex flex-wrap gap-1 mt-1">
+											{selectedTemplate['@context'].map((context, index) => (
+												<Badge key={index} variant="outline" className="text-xs font-mono">
+													{context}
+												</Badge>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* Template Type */}
+								<div>
+									<Label className="text-sm font-medium">Type</Label>
+									<div className="flex flex-wrap gap-1 mt-1">
+										{selectedTemplate.type.map((type, index) => (
+											<Badge key={index} variant="secondary" className="text-xs">
+												{type}
+											</Badge>
+										))}
+									</div>
+								</div>
+
+								{/* Template Tags */}
+								{selectedTemplate.tags && selectedTemplate.tags.length > 0 && (
+									<div>
+										<Label className="text-sm font-medium">Tags</Label>
+										<div className="flex flex-wrap gap-1 mt-1">
+											{selectedTemplate.tags.map((tag, index) => (
+												<Badge key={index} variant="outline" className="text-xs">
+													{tag}
+												</Badge>
+											))}
+										</div>
+									</div>
+								)}
+							</div>
+						</CardContent>
+					</Card>
 				)}
 			</CardContent>
 		</Card>

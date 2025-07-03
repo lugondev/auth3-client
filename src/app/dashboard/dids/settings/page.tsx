@@ -67,7 +67,6 @@ export default function DIDSettingsPage() {
 				requireApprovalForRevocation: settings.requireApprovalForRevocation,
 				ethereumNetwork: settings.ethereumNetwork,
 				ethereumRpcUrl: settings.ethereumRpcUrl,
-				ionNodeUrl: settings.ionNodeUrl,
 				ipfsGateway: settings.ipfsGateway,
 				customResolvers: settings.customResolvers,
 				enableBatchOperations: settings.enableBatchOperations,
@@ -102,7 +101,7 @@ export default function DIDSettingsPage() {
 				requireApprovalForRevocation: true,
 				ethereumNetwork: 'mainnet',
 				ethereumRpcUrl: '',
-				ionNodeUrl: 'https://ion.msidentity.com',
+				vbsnNodeUrl: '',
 				ipfsGateway: 'https://ipfs.io',
 				customResolvers: [],
 				enableBatchOperations: true,
@@ -224,7 +223,7 @@ export default function DIDSettingsPage() {
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 								<div className='space-y-2'>
 									<Label htmlFor='defaultMethod'>Default DID Method</Label>
-									<Select value={settings.defaultMethod} onValueChange={(value: 'key' | 'web' | 'ethr' | 'ion' | 'peer') => updateSettings({defaultMethod: value})}>
+									<Select value={settings.defaultMethod} onValueChange={(value: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer') => updateSettings({defaultMethod: value})}>
 										<SelectTrigger>
 											<SelectValue />
 										</SelectTrigger>
@@ -342,11 +341,6 @@ export default function DIDSettingsPage() {
 								<div className='space-y-2'>
 									<Label htmlFor='ethereumRpcUrl'>Ethereum RPC URL</Label>
 									<Input id='ethereumRpcUrl' value={settings.ethereumRpcUrl} onChange={(e) => updateSettings({ethereumRpcUrl: e.target.value})} placeholder='https://mainnet.infura.io/v3/YOUR-PROJECT-ID' />
-								</div>
-
-								<div className='space-y-2'>
-									<Label htmlFor='ionNodeUrl'>ION Node URL</Label>
-									<Input id='ionNodeUrl' value={settings.ionNodeUrl} onChange={(e) => updateSettings({ionNodeUrl: e.target.value})} placeholder='https://ion.msidentity.com' />
 								</div>
 
 								<div className='space-y-2'>

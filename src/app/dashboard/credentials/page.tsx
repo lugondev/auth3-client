@@ -14,7 +14,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 
-import {listCredentials} from '@/services/vcService'
+import {listCredentials, listMyIssuedCredentials, listMyReceivedCredentials} from '@/services/vcService'
 import * as vcService from '@/services/vcService'
 import type {CredentialStatus, ListCredentialsInput, CredentialMetadata} from '@/types/credentials'
 import {CredentialMetadataCard, VerifyCredentialModal} from '@/components/credentials'
@@ -45,6 +45,18 @@ export default function CredentialsDashboard() {
 		setIssuedPage(1)
 		setReceivedPage(1)
 	}, [searchTerm, statusFilter, typeFilter])
+
+	// Refetch data when page changes
+	useEffect(() => {
+		// This will automatically trigger the queries due to query key dependency
+		// but we can also explicitly refetch if needed
+		if (issuedPage > 1) {
+			console.log('Issued page changed to:', issuedPage)
+		}
+		if (receivedPage > 1) {
+			console.log('Received page changed to:', receivedPage)
+		}
+	}, [issuedPage, receivedPage])
 
 	// Query parameters for issued credentials (credentials I issued)
 	const issuedQueryParams: ListCredentialsInput = {
@@ -139,7 +151,7 @@ export default function CredentialsDashboard() {
 		refetch: refetchIssued,
 	} = useQuery({
 		queryKey: ['credentials', 'issued', issuedQueryParams],
-		queryFn: () => listCredentials(issuedQueryParams),
+		queryFn: () => listMyIssuedCredentials(issuedQueryParams),
 		staleTime: 30000, // 30 seconds
 	})
 
@@ -151,7 +163,7 @@ export default function CredentialsDashboard() {
 		refetch: refetchReceived,
 	} = useQuery({
 		queryKey: ['credentials', 'received', receivedQueryParams],
-		queryFn: () => listCredentials(receivedQueryParams),
+		queryFn: () => listMyReceivedCredentials(receivedQueryParams),
 		staleTime: 30000, // 30 seconds
 	})
 
@@ -322,7 +334,7 @@ export default function CredentialsDashboard() {
 								</div>
 							) : (
 								<>
-									<div className='space-y-4'>
+									<div className={`space-y-4 ${isLoadingIssued ? 'opacity-60 pointer-events-none' : ''}`}>
 										{issuedCredentialsData.credentials.map((credential) => (
 											<CredentialMetadataCard 
 												key={credential.id} 
@@ -341,20 +353,24 @@ export default function CredentialsDashboard() {
 											<div className='flex gap-2'>
 												<Button 
 													variant='outline' 
-													onClick={() => setIssuedPage((p) => Math.max(1, p - 1))} 
-													disabled={!issuedCredentialsData.hasPrev}
+													onClick={() => {
+														setIssuedPage((p) => Math.max(1, p - 1))
+													}} 
+													disabled={issuedPage <= 1 || isLoadingIssued}
 												>
-													Previous
+													{isLoadingIssued && issuedPage > 1 ? 'Loading...' : 'Previous'}
 												</Button>
 												<span className='flex items-center px-4'>
 													Page {issuedPage} of {Math.ceil(issuedCredentialsData.total / limit)}
 												</span>
 												<Button 
 													variant='outline' 
-													onClick={() => setIssuedPage((p) => p + 1)} 
-													disabled={!issuedCredentialsData.hasNext}
+													onClick={() => {
+														setIssuedPage((p) => p + 1)
+													}} 
+													disabled={issuedPage >= Math.ceil(issuedCredentialsData.total / limit) || isLoadingIssued}
 												>
-													Next
+													{isLoadingIssued ? 'Loading...' : 'Next'}
 												</Button>
 											</div>
 										</div>
@@ -388,7 +404,7 @@ export default function CredentialsDashboard() {
 								</div>
 							) : (
 								<>
-									<div className='space-y-4'>
+									<div className={`space-y-4 ${isLoadingReceived ? 'opacity-60 pointer-events-none' : ''}`}>
 										{receivedCredentialsData.credentials.map((credential) => (
 											<CredentialMetadataCard 
 												key={credential.id} 
@@ -406,20 +422,24 @@ export default function CredentialsDashboard() {
 											<div className='flex gap-2'>
 												<Button 
 													variant='outline' 
-													onClick={() => setReceivedPage((p) => Math.max(1, p - 1))} 
-													disabled={!receivedCredentialsData.hasPrev}
+													onClick={() => {
+														setReceivedPage((p) => Math.max(1, p - 1))
+													}} 
+													disabled={receivedPage <= 1 || isLoadingReceived}
 												>
-													Previous
+													{isLoadingReceived && receivedPage > 1 ? 'Loading...' : 'Previous'}
 												</Button>
 												<span className='flex items-center px-4'>
 													Page {receivedPage} of {Math.ceil(receivedCredentialsData.total / limit)}
 												</span>
 												<Button 
 													variant='outline' 
-													onClick={() => setReceivedPage((p) => p + 1)} 
-													disabled={!receivedCredentialsData.hasNext}
+													onClick={() => {
+														setReceivedPage((p) => p + 1)
+													}} 
+													disabled={receivedPage >= Math.ceil(receivedCredentialsData.total / limit) || isLoadingReceived}
 												>
-													Next
+													{isLoadingReceived ? 'Loading...' : 'Next'}
 												</Button>
 											</div>
 										</div>
