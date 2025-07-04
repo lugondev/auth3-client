@@ -83,7 +83,7 @@ export function CreatePresentationModal({isOpen, onClose, onSuccess, className =
 	const filteredCredentials = credentials.filter((credential) => {
 		if (!searchQuery) return true
 		const query = searchQuery.toLowerCase()
-		return credential.id?.toLowerCase().includes(query) || credential.subject?.toLowerCase().includes(query) || (typeof credential.issuer === 'string' ? credential.issuer.toLowerCase().includes(query) : credential.issuer?.id?.toLowerCase().includes(query)) || (Array.isArray(credential.type) && credential.type.some((type) => typeof type === 'string' && type.toLowerCase().includes(query)))
+		return credential.id?.toLowerCase().includes(query) || credential.subjectDID?.toLowerCase().includes(query) || (typeof credential.issuer === 'string' ? credential.issuer.toLowerCase().includes(query) : credential.issuer?.id?.toLowerCase().includes(query)) || (Array.isArray(credential.type) && credential.type.some((type) => typeof type === 'string' && type.toLowerCase().includes(query)))
 	})
 
 	const handleCredentialSelection = (credentialId: string, selected: boolean) => {
@@ -271,7 +271,7 @@ export function CreatePresentationModal({isOpen, onClose, onSuccess, className =
 											<div className='flex-1 min-w-0'>
 												<div className='flex items-center gap-2 mb-1'>
 													<Shield className='h-4 w-4 text-green-600' />
-													<span className='font-medium truncate'>{credential.subject || credential.id?.substring(0, 8) || 'Unknown Credential'}</span>
+													<span className='font-medium truncate'>{credential.subjectDID || credential.id?.substring(0, 8) || 'Unknown Credential'}</span>
 												</div>
 												<p className='text-sm text-muted-foreground truncate'>Issuer: {typeof credential.issuer === 'string' ? credential.issuer.substring(0, 20) : credential.issuer?.id?.substring(0, 20) || 'Unknown'}...</p>
 												<div className='flex gap-1 mt-1'>

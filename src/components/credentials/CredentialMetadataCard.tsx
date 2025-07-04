@@ -64,7 +64,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 
 		try {
 			setIsDeleting(true)
-			await onDelete(credential.id)
+			onDelete(credential.id)
 			toast.success('Credential deleted successfully')
 		} catch (error) {
 			console.error('Error deleting credential:', error)
@@ -111,7 +111,6 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 	}
 
 	const credentialTypes = getCredentialTypes()
-	const issuerInfo = getIssuerInfo()
 
 	return (
 		<Card className={`transition-all duration-200 hover:shadow-md ${className}`}>
@@ -220,13 +219,13 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 					{/* Issuer Information */}
 					<div className='flex items-center space-x-2 text-sm text-muted-foreground'>
 						<User className='h-4 w-4' />
-						<span className='line-clamp-1'>Issued by: {issuerInfo.name}</span>
+						<span className='line-clamp-1'>Issued by: {credential.issuerDID}</span>
 					</div>
 
 					{/* Subject Information */}
 					<div className='flex items-center space-x-2 text-sm text-muted-foreground'>
 						<Shield className='h-4 w-4' />
-						<span className='line-clamp-1'>Subject: {credential.subject}</span>
+						<span className='line-clamp-1'>Subject: {credential.subjectDID}</span>
 					</div>
 
 					{/* Dates */}

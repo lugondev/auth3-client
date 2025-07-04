@@ -1,6 +1,6 @@
 // DID Types for Auth3 Client - Based on Backend DTOs
 
-export type DIDMethod = 'key' | 'web' | 'ethr' | 'VBSN' | 'peer';
+export type DIDMethod = 'key' | 'web' | 'ethr' | 'VBSN' | 'peer' | 'ion';
 
 export enum DIDStatus {
   ACTIVE = 'active',

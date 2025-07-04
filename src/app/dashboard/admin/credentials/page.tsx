@@ -110,7 +110,7 @@ export default function VCAdminDashboard() {
 
 	// Filter credentials based on search and filters
 	const filteredCredentials = credentials.filter((cred) => {
-		const matchesSearch = searchTerm === '' || cred.id.toLowerCase().includes(searchTerm.toLowerCase()) || cred.subject.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof cred.issuer === 'string' ? cred.issuer.toLowerCase().includes(searchTerm.toLowerCase()) : false)
+		const matchesSearch = searchTerm === '' || cred.id.toLowerCase().includes(searchTerm.toLowerCase()) || cred.subjectDID.toLowerCase().includes(searchTerm.toLowerCase()) || (typeof cred.issuer === 'string' ? cred.issuer.toLowerCase().includes(searchTerm.toLowerCase()) : false)
 
 		const matchesStatus = statusFilter === 'all' || cred.status === statusFilter
 		const matchesType = typeFilter === 'all' || (Array.isArray(cred.type) ? cred.type.includes(typeFilter) : cred.type === typeFilter)
@@ -385,7 +385,7 @@ export default function VCAdminDashboard() {
 												</TableCell>
 												<TableCell>
 												<div>
-													<div className='font-medium'>{cred.subject || 'N/A'}</div>
+													<div className='font-medium'>{cred.subjectDID || 'N/A'}</div>
 												</div>
 											</TableCell>
 												<TableCell>

@@ -189,7 +189,8 @@ export interface GetCredentialOutput extends VerifiableCredential {
 export interface CredentialMetadata {
   id: string;
   issuer: string | Issuer;
-  subject: string;
+  issuerDID: string ;
+  subjectDID: string;
   type: string[];
   issuanceDate: string;
   expirationDate?: string;

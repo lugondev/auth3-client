@@ -63,6 +63,7 @@ export async function getMyPresentations(filters?: PresentationFilters): Promise
 		params.append('page', page.toString());
 
 		if (filters?.limit) params.append('limit', filters.limit.toString());
+		if (filters?.holderId) params.append('holderId', filters.holderId);
 		if (filters?.holderDID) params.append('holderDID', filters.holderDID);
 		if (filters?.status) params.append('status', filters.status);
 

@@ -28,8 +28,23 @@ import {
   ListTemplatesOutput
 } from '../types/vc';
 
+import {
+  CredentialAnalyticsQuery,
+  UserCredentialAnalyticsResponse,
+  AnalyticsServiceError
+} from '../types/analytics';
+
 // Re-export types for convenience
 export type { CredentialStatistics } from '../types/vc';
+export type { 
+  UserCredentialAnalyticsResponse, 
+  CredentialAnalyticsQuery,
+  OverviewMetrics,
+  IssuanceMetrics,
+  ReceivedMetrics,
+  StatusMetrics,
+  CompleteTrendAnalysis
+} from '../types/analytics';
 
 /**
  * Custom error class for credential service operations
@@ -296,6 +311,45 @@ export const deleteTemplate = withErrorHandling(
   async (templateId: string): Promise<void> => {
     const response = await apiClient.delete<void>(`/api/v1/credentials/templates/${templateId}`);
     return response.data;
+  }
+);
+
+/**
+ * Gets comprehensive credential analytics for the current user
+ * @param query - Query parameters for analytics filtering
+ * @returns Promise resolving to comprehensive analytics data
+ */
+export const getUserCredentialAnalytics = withErrorHandling(
+  async (query?: CredentialAnalyticsQuery): Promise<UserCredentialAnalyticsResponse> => {
+    const params = new URLSearchParams();
+
+    if (query) {
+      if (query.start_date) params.append('start_date', query.start_date);
+      if (query.end_date) params.append('end_date', query.end_date);
+      if (query.interval) params.append('interval', query.interval);
+      if (query.limit) params.append('limit', query.limit.toString());
+      if (query.offset) params.append('offset', query.offset.toString());
+      if (query.tenant_id) params.append('tenant_id', query.tenant_id);
+      if (query.issuer_did) params.append('issuer_did', query.issuer_did);
+      if (query.tags) params.append('tags', query.tags);
+    }
+
+    const queryString = params.toString();
+    const url = queryString ? `/api/v1/credentials/analytics/me?${queryString}` : '/api/v1/credentials/analytics/me';
+
+    try {
+      const response = await apiClient.get<UserCredentialAnalyticsResponse>(url);
+      return response.data;
+    } catch (error: any) {
+      // Handle specific analytics errors
+      if (error.response?.status === 401) {
+        throw new AnalyticsServiceError('Authentication required for analytics', 'AUTH_REQUIRED');
+      }
+      if (error.response?.status === 400) {
+        throw new AnalyticsServiceError('Invalid analytics query parameters', 'INVALID_PARAMS', error.response?.data);
+      }
+      throw new AnalyticsServiceError('Failed to fetch analytics data', 'FETCH_ERROR', { originalError: error });
+    }
   }
 );
 

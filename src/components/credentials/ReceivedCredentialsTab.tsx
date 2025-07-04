@@ -117,7 +117,7 @@ export function ReceivedCredentialsTab({
 		if (searchTerm) {
 			const searchLower = searchTerm.toLowerCase()
 			const issuerString = typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id || ''
-			const subjectString = credential.subject || ''
+			const subjectString = credential.subjectDID || ''
 			
 			return (
 				credential.id.toLowerCase().includes(searchLower) ||
@@ -173,7 +173,8 @@ export function ReceivedCredentialsTab({
 			const importedCredential: ReceivedCredential = {
 				id: credentialData.id || `imported-${Date.now()}`,
 				issuer: credentialData.issuer,
-				subject: credentialData.credentialSubject?.id || userDID || '',
+				issuerDID: credentialData.issuer || '',
+				subjectDID: credentialData.credentialSubject?.id || userDID || '',
 				type: credentialData.type || ['VerifiableCredential'],
 				issuanceDate: credentialData.issuanceDate || new Date().toISOString(),
 				expirationDate: credentialData.expirationDate,
@@ -184,7 +185,8 @@ export function ReceivedCredentialsTab({
 				issuerTrustLevel: determineTrustLevel({
 					id: credentialData.id,
 					issuer: credentialData.issuer,
-					subject: credentialData.credentialSubject?.id || '',
+					issuerDID: credentialData.issuer || '',
+					subjectDID: credentialData.credentialSubject?.id || '',
 					type: credentialData.type || [],
 					issuanceDate: credentialData.issuanceDate || '',
 					status: 'active' as CredentialStatus,

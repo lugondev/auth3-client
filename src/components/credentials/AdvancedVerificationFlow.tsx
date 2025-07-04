@@ -221,9 +221,34 @@ export function AdvancedVerificationFlow({
 				await simulateVerificationStep(step, stepResult, details)
 			}
 
-			// Calculate overall score
-			const completedSteps = verificationSteps.filter(s => s.status === 'completed')
-			const score = Math.round((completedSteps.length / verificationSteps.length) * 100)
+			// Calculate overall score based on successful steps
+			const successfulSteps = steps.filter((_, index) => {
+				const stepId = steps[index].id
+				let stepResult = false
+				
+				switch (stepId) {
+					case 'signature':
+						stepResult = result.verificationResults.signatureValid
+						break
+					case 'expiration':
+						stepResult = result.verificationResults.notExpired
+						break
+					case 'revocation':
+						stepResult = result.verificationResults.notRevoked
+						break
+					case 'issuer':
+						stepResult = result.verificationResults.issuerTrusted
+						break
+					case 'schema':
+						stepResult = result.verificationResults.schemaValid
+						break
+					case 'proof':
+						stepResult = result.verificationResults.proofValid
+						break
+				}
+				return stepResult
+			})
+			const score = Math.round((successfulSteps.length / steps.length) * 100)
 			setOverallScore(score)
 			
 			setVerificationResult(result)

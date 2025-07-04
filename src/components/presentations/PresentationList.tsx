@@ -17,6 +17,9 @@ import {VerificationResultModal} from './VerificationResultModal'
 
 import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions, VerifyPresentationResponse, EnhancedVerificationResponse} from '@/types/presentations'
 import {getMyPresentations, deletePresentation, verifyPresentationEnhanced} from '@/services/presentationService'
+import {listDIDs} from '@/services/didService'
+import {useAuth} from '@/contexts/AuthContext'
+import type {DIDResponse} from '@/types'
 
 interface PresentationListProps {
 	className?: string
@@ -36,11 +39,18 @@ interface PresentationListProps {
  * - Real-time updates
  */
 export function PresentationList({className = '', onShare, onVerify}: PresentationListProps) {
+	const {user} = useAuth()
 	const [presentations, setPresentations] = useState<VerifiablePresentation[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [selectedPresentations, setSelectedPresentations] = useState<Set<string>>(new Set())
 	const [searchQuery, setSearchQuery] = useState('')
+	
+	// DID state
+	const [userDIDs, setUserDIDs] = useState<DIDResponse[]>([])
+	const [selectedDID, setSelectedDID] = useState<string>('all')
+	const [loadingDIDs, setLoadingDIDs] = useState(false)
+	
 	const [filters, setFilters] = useState<PresentationFilterOptions>({
 		status: undefined,
 		purpose: '',
@@ -60,6 +70,31 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 	const [verifyingPresentation, setVerifyingPresentation] = useState<VerifiablePresentation | null>(null)
 	const [isVerifying, setIsVerifying] = useState(false)
 
+	// Load user's DIDs
+	const loadUserDIDs = useCallback(async () => {
+		if (!user?.id) return
+
+		try {
+			setLoadingDIDs(true)
+			const response = await listDIDs({
+				limit: 100, // Get all user's DIDs
+				sort: 'created_at_desc',
+			})
+			console.log('DIDs response:', response)
+			console.log('DIDs array:', response.dids)
+			if (response.dids && response.dids.length > 0) {
+				console.log('First DID structure:', response.dids[0])
+			}
+			setUserDIDs(response.dids || [])
+		} catch (err) {
+			console.error('Failed to load user DIDs:', err)
+			toast.error('Failed to load DIDs')
+			setUserDIDs([])
+		} finally {
+			setLoadingDIDs(false)
+		}
+	}, [user?.id])
+
 	// Load presentations
 	const loadPresentations = useCallback(async () => {
 		try {
@@ -68,6 +103,8 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 
 			const response = await getMyPresentations({
 				...filters,
+				holderId: user?.id, // Set holderId to current user's ID when authenticated
+				holderDID: selectedDID === 'all' ? undefined : selectedDID, // Set holderDID based on selection
 				offset: ((filters.page || 1) - 1) * (filters.limit || 20),
 			})
 
@@ -82,12 +119,22 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 		} finally {
 			setLoading(false)
 		}
-	}, [filters])
+	}, [filters, user?.id, selectedDID])
 
 	// Load presentations on mount and filter changes
 	useEffect(() => {
 		loadPresentations()
 	}, [loadPresentations])
+
+	// Load DIDs when user changes
+	useEffect(() => {
+		if (user?.id) {
+			loadUserDIDs()
+		} else {
+			setUserDIDs([])
+			setSelectedDID('all')
+		}
+	}, [user?.id, loadUserDIDs])
 
 	// Search functionality
 	const filteredPresentations = (presentations || []).filter((presentation) => {
@@ -264,11 +311,15 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 			{/* Header */}
 			<div className='flex items-center justify-between'>
 				<div>
-					<h1 className='text-3xl font-bold tracking-tight'>Presentations</h1>
-					<p className='text-muted-foreground'>Manage your verifiable presentations and share credentials securely</p>
+					<h1 className='text-3xl font-bold tracking-tight'>
+						{user ? `${user.first_name || user.email}'s Presentations` : 'Presentations'}
+					</h1>
+					<p className='text-muted-foreground'>
+						{user ? 'Manage your verifiable presentations and share credentials securely' : 'Please log in to manage your presentations'}
+					</p>
 				</div>
 				<div className='flex gap-2'>
-					<Button onClick={handleRefresh} variant='outline' size='sm'>
+					<Button onClick={handleRefresh} variant='outline' size='sm' disabled={!user?.id}>
 						<RefreshCw className='h-4 w-4 mr-2' />
 						Refresh
 					</Button>
@@ -309,6 +360,58 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 								<SelectItem value={PresentationStatus.SUBMITTED}>Submitted</SelectItem>
 								<SelectItem value={PresentationStatus.VERIFIED}>Verified</SelectItem>
 								<SelectItem value={PresentationStatus.REJECTED}>Rejected</SelectItem>
+							</SelectContent>
+						</Select>
+
+						{/* DID Filter */}
+						<Select
+							value={selectedDID}
+							onValueChange={(value) => setSelectedDID(value)}
+							disabled={loadingDIDs || !user?.id}
+						>
+							<SelectTrigger className='w-56'>
+								<SelectValue placeholder='Select DID' />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value='all'>All DIDs</SelectItem>
+								{userDIDs.map((didResponse) => {
+									// Safe access to DID string - handle different possible structures
+									let didString: string = 'Unknown DID'
+									
+									if (typeof didResponse.did === 'string') {
+										didString = didResponse.did
+									} else if (didResponse.did && typeof didResponse.did === 'object' && 'did' in didResponse.did) {
+										didString = didResponse.did.did as string
+									} else if (didResponse.identifier) {
+										didString = didResponse.identifier
+									}
+									
+									const method = didResponse.method || 'Unknown'
+									const status = didResponse.status || 'Unknown'
+									
+									return (
+										<SelectItem key={didResponse.id} value={didString}>
+											<div className='flex flex-col items-start'>
+												<span className='font-medium'>
+													{didString.length > 24 ? `${didString.slice(0, 24)}...` : didString}
+												</span>
+												<span className='text-xs text-muted-foreground'>
+													{method.toUpperCase()} • {status}
+												</span>
+											</div>
+										</SelectItem>
+									)
+								})}
+								{userDIDs.length === 0 && !loadingDIDs && user?.id && (
+									<SelectItem value='no-dids' disabled>
+										No DIDs found
+									</SelectItem>
+								)}
+								{loadingDIDs && (
+									<SelectItem value='loading' disabled>
+										Loading DIDs...
+									</SelectItem>
+								)}
 							</SelectContent>
 						</Select>
 
@@ -379,13 +482,15 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 			{/* Presentations List */}
 			<Card>
 				<CardHeader>
-					<div className='flex items-center justify-between'>
-						<div>
-							<CardTitle>Your Presentations</CardTitle>
-							<CardDescription>
-								{filteredPresentations.length} presentation{filteredPresentations.length !== 1 ? 's' : ''} found
-							</CardDescription>
-						</div>
+					<div className='flex items-center justify-between'>					<div>
+						<CardTitle>Your Presentations</CardTitle>
+						<CardDescription>
+							{user?.id 
+								? `${filteredPresentations.length} presentation${filteredPresentations.length !== 1 ? 's' : ''} found for ${user.email}${selectedDID !== 'all' ? ` • DID: ${selectedDID.length > 24 ? `${selectedDID.slice(0, 24)}...` : selectedDID}` : ''}`
+								: 'Please log in to view presentations'
+							}
+						</CardDescription>
+					</div>
 
 						{/* Select All */}
 						{filteredPresentations.length > 0 && (
@@ -410,6 +515,10 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 							<Button onClick={handleRefresh} variant='outline'>
 								Try Again
 							</Button>
+						</div>
+					) : !user?.id ? (
+						<div className='text-center py-12'>
+							<p className='text-muted-foreground mb-4'>Please log in to view your presentations</p>
 						</div>
 					) : filteredPresentations.length === 0 ? (
 						<div className='text-center py-12'>

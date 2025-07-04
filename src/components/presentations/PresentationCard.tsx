@@ -1,18 +1,18 @@
 'use client'
 
-import {useState} from 'react'
-import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, CheckCircle, AlertTriangle, Clock, FileText, RefreshCw} from 'lucide-react'
-import {toast} from 'sonner'
+import { useState } from 'react'
+import { MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, CheckCircle, AlertTriangle, Clock, FileText, RefreshCw } from 'lucide-react'
+import { toast } from 'sonner'
 
-import {Button} from '@/components/ui/button'
-import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
-import {Badge} from '@/components/ui/badge'
-import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '@/components/ui/dialog'
-import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 
-import {VerifiablePresentation, PresentationStatus} from '@/types/presentations'
-import {PresentationViewer} from './PresentationViewer'
+import { VerifiablePresentation, PresentationStatus } from '@/types/presentations'
+import { PresentationViewer } from './PresentationViewer'
 
 interface PresentationCardProps {
 	presentation: VerifiablePresentation
@@ -37,7 +37,7 @@ interface PresentationCardProps {
  * - Presentation details modal
  * - Responsive design
  */
-export function PresentationCard({presentation, status = PresentationStatus.DRAFT, onDelete, onShare, onView, onVerify, onDownload, showActions = true, isVerifying = false, className = ''}: PresentationCardProps) {
+export function PresentationCard({ presentation, status = PresentationStatus.DRAFT, onDelete, onShare, onView, onVerify, onDownload, showActions = true, isVerifying = false, className = '' }: PresentationCardProps) {
 	const [showDetails, setShowDetails] = useState(false)
 	const [isDeleting, setIsDeleting] = useState(false)
 
@@ -61,15 +61,15 @@ export function PresentationCard({presentation, status = PresentationStatus.DRAF
 	const getStatusDisplay = () => {
 		switch (status) {
 			case PresentationStatus.DRAFT:
-				return {color: 'bg-gray-100 text-gray-800', icon: FileText, label: 'Draft'}
+				return { color: 'bg-gray-100 text-gray-800', icon: FileText, label: 'Draft' }
 			case PresentationStatus.SUBMITTED:
-				return {color: 'bg-blue-100 text-blue-800', icon: Clock, label: 'Submitted'}
+				return { color: 'bg-blue-100 text-blue-800', icon: Clock, label: 'Submitted' }
 			case PresentationStatus.VERIFIED:
-				return {color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Verified'}
+				return { color: 'bg-green-100 text-green-800', icon: CheckCircle, label: 'Verified' }
 			case PresentationStatus.REJECTED:
-				return {color: 'bg-red-100 text-red-800', icon: AlertTriangle, label: 'Rejected'}
+				return { color: 'bg-red-100 text-red-800', icon: AlertTriangle, label: 'Rejected' }
 			default:
-				return {color: 'bg-gray-100 text-gray-800', icon: FileText, label: 'Unknown'}
+				return { color: 'bg-gray-100 text-gray-800', icon: FileText, label: 'Unknown' }
 		}
 	}
 
@@ -139,7 +139,7 @@ export function PresentationCard({presentation, status = PresentationStatus.DRAF
 						<div className='space-y-2 flex-1'>
 							<div className='flex items-center gap-2'>
 								<Shield className='h-4 w-4 text-blue-600' />
-								<CardTitle className='text-lg leading-none'>{presentation.id ? `Presentation ${presentation.id.slice(0, 8)}...` : 'New Presentation'}</CardTitle>
+								<CardTitle className='text-lg leading-none'>{presentation.metadata?.name || presentation.id ? `Presentation ${presentation.id.slice(0, 8)}...` : 'New Presentation'}</CardTitle>
 							</div>
 							<div className='flex items-center gap-2'>
 								<Badge variant='outline' className={`${statusDisplay.color} border-0 text-xs`}>

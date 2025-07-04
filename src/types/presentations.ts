@@ -268,6 +268,7 @@ export interface VerifierProfile {
 // Filter Options
 export interface PresentationFilterOptions {
 	holderDID?: string
+	holderId?: string
 	verifierDID?: string
 	status?: PresentationStatus
 	purpose?: string

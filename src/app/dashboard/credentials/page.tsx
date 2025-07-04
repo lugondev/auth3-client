@@ -16,10 +16,12 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 
 import {listCredentials, listMyIssuedCredentials, listMyReceivedCredentials} from '@/services/vcService'
 import * as vcService from '@/services/vcService'
+import {useOverviewMetrics, useCredentialAnalytics, getAnalyticsQueryPresets} from '@/hooks/useCredentialAnalytics'
 import type {CredentialStatus, ListCredentialsInput, CredentialMetadata} from '@/types/credentials'
 import {CredentialMetadataCard, VerifyCredentialModal} from '@/components/credentials'
 import {BulkCredentialManager} from '@/components/credentials/BulkCredentialManager'
 import {RealTimeStatusMonitor} from '@/components/credentials/RealTimeStatusMonitor'
+import {AnalyticsOverview} from '@/components/credentials/AnalyticsOverview'
 
 /**
  * VC Dashboard Page - Main dashboard for managing Verifiable Credentials
@@ -34,7 +36,7 @@ export default function CredentialsDashboard() {
 	const [searchTerm, setSearchTerm] = useState('')
 	const [statusFilter, setStatusFilter] = useState<CredentialStatus | 'all'>('all')
 	const [typeFilter, setTypeFilter] = useState<string>('all')
-	const [activeTab, setActiveTab] = useState<'issued' | 'received' | 'bulk' | 'monitor'>('issued')
+	const [activeTab, setActiveTab] = useState<'issued' | 'received' | 'bulk' | 'monitor' | 'analytics'>('issued')
 	const [issuedPage, setIssuedPage] = useState(1)
 	const [receivedPage, setReceivedPage] = useState(1)
 	const [showVerifyModal, setShowVerifyModal] = useState(false)
@@ -173,11 +175,22 @@ export default function CredentialsDashboard() {
 	const error = activeTab === 'issued' ? errorIssued : errorReceived
 	const refetch = activeTab === 'issued' ? refetchIssued : refetchReceived
 
-	// Calculate statistics
+	// Get analytics query presets for different time periods
+	const analyticsPresets = getAnalyticsQueryPresets()
+
+	// Fetch analytics data for enhanced statistics
+	const {
+		data: analyticsData,
+		isLoading: isLoadingAnalytics,
+		error: analyticsError,
+	} = useCredentialAnalytics(analyticsPresets.lastMonth)
+
+	// Calculate statistics with enhanced analytics data
 	const stats = {
-		total: credentialsData?.total || 0,
-		active: credentialsData?.credentials.filter((c) => c.status === 'active').length || 0,
-		revoked: credentialsData?.credentials.filter((c) => c.status === 'revoked').length || 0,
+		total: analyticsData?.overview_metrics?.total_credentials || credentialsData?.total || 0,
+		active: analyticsData?.overview_metrics?.active_credentials || credentialsData?.credentials.filter((c) => c.status === 'active').length || 0,
+		revoked: analyticsData?.overview_metrics?.revoked_credentials || credentialsData?.credentials.filter((c) => c.status === 'revoked').length || 0,
+		deactivated: analyticsData?.overview_metrics?.deactivated_credentials || 0,
 		expired: credentialsData?.credentials.filter((c) => c.status === 'expired').length || 0,
 	}
 
@@ -203,51 +216,131 @@ export default function CredentialsDashboard() {
 				</div>
 			</div>
 
-			{/* Statistics Cards */}
+			{/* Time Period Filter */}
+			<Card>
+				<CardContent className="pt-6">
+					<div className="flex items-center gap-4">
+						<label className="text-sm font-medium">Time Period:</label>
+						<Select defaultValue="month">
+							<SelectTrigger className="w-[180px]">
+								<SelectValue placeholder="Select period" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="day">Last 24 Hours</SelectItem>
+								<SelectItem value="week">Last 7 Days</SelectItem>
+								<SelectItem value="month">Last 30 Days</SelectItem>
+								<SelectItem value="custom">Custom Range</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Statistics Cards - VC Issued, VC Received, Revoked, Active */}
 			<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>Total Credentials</CardTitle>
-						<Eye className='h-4 w-4 text-muted-foreground' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold'>{stats.total}</div>
-						<p className='text-xs text-muted-foreground'>All credentials in your wallet</p>
+				<Card className="border-l-4 border-l-blue-500">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-muted-foreground">VC Issued</p>
+								<div className="text-3xl font-bold text-blue-600">
+									{isLoadingAnalytics ? (
+										<Skeleton className="h-8 w-16" />
+									) : (
+										analyticsData?.issuance_metrics?.total_issued || 0
+									)}
+								</div>
+							</div>
+							<div className="p-3 bg-blue-50 rounded-full">
+								<Plus className="h-6 w-6 text-blue-600" />
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2">
+							+{analyticsData?.issuance_metrics?.issued_this_month || 0} this month
+						</p>
 					</CardContent>
 				</Card>
 
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>Active</CardTitle>
-						<Shield className='h-4 w-4 text-green-600' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold text-green-600'>{stats.active}</div>
-						<p className='text-xs text-muted-foreground'>Valid and active credentials</p>
+				<Card className="border-l-4 border-l-green-500">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-muted-foreground">VC Received</p>
+								<div className="text-3xl font-bold text-green-600">
+									{isLoadingAnalytics ? (
+										<Skeleton className="h-8 w-16" />
+									) : (
+										analyticsData?.received_metrics?.total_received || 0
+									)}
+								</div>
+							</div>
+							<div className="p-3 bg-green-50 rounded-full">
+								<Eye className="h-6 w-6 text-green-600" />
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2">
+							+{analyticsData?.received_metrics?.received_this_month || 0} this month
+						</p>
 					</CardContent>
 				</Card>
 
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>Revoked</CardTitle>
-						<AlertTriangle className='h-4 w-4 text-red-600' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold text-red-600'>{stats.revoked}</div>
-						<p className='text-xs text-muted-foreground'>Revoked credentials</p>
+				<Card className="border-l-4 border-l-red-500">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-muted-foreground">Revoked</p>
+								<div className="text-3xl font-bold text-red-600">
+									{isLoadingAnalytics ? (
+										<Skeleton className="h-8 w-16" />
+									) : (
+										analyticsData?.overview_metrics?.revoked_credentials || stats.revoked
+									)}
+								</div>
+							</div>
+							<div className="p-3 bg-red-50 rounded-full">
+								<AlertTriangle className="h-6 w-6 text-red-600" />
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2">
+							{analyticsData?.status_metrics?.revoked_credentials?.revoked_this_month || 0} this month
+						</p>
 					</CardContent>
 				</Card>
 
-				<Card>
-					<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-						<CardTitle className='text-sm font-medium'>Expired</CardTitle>
-						<AlertTriangle className='h-4 w-4 text-orange-600' />
-					</CardHeader>
-					<CardContent>
-						<div className='text-2xl font-bold text-orange-600'>{stats.expired}</div>
-						<p className='text-xs text-muted-foreground'>Expired credentials</p>
+				<Card className="border-l-4 border-l-orange-500">
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-muted-foreground">Deactivated</p>
+								<div className="text-3xl font-bold text-orange-600">
+									{isLoadingAnalytics ? (
+										<Skeleton className="h-8 w-16" />
+									) : (
+										analyticsData?.overview_metrics?.deactivated_credentials || stats.deactivated
+									)}
+								</div>
+							</div>
+							<div className="p-3 bg-orange-50 rounded-full">
+								<AlertTriangle className="h-6 w-6 text-orange-600" />
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground mt-2">
+							{analyticsData?.status_metrics?.deactivated_credentials?.deactivated_this_month || 0} this month
+						</p>
 					</CardContent>
 				</Card>
+
+				{/* Analytics Error Alert */}
+				{analyticsError && (
+					<div className="col-span-full">
+						<Alert variant="default">
+							<AlertTriangle className="h-4 w-4" />
+							<AlertDescription>
+								Enhanced analytics temporarily unavailable. Showing basic statistics.
+							</AlertDescription>
+						</Alert>
+					</div>
+				)}
 			</div>
 
 			{/* Filters and Search */}
@@ -292,13 +385,14 @@ export default function CredentialsDashboard() {
 						</Select>
 					</div>
 
-					{/* Tabs for Issued/Received/Bulk */}
-					<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'issued' | 'received' | 'bulk' | 'monitor')}>
-						<TabsList className='grid w-full grid-cols-4'>
+					{/* Tabs for Issued/Received/Bulk/Monitor/Analytics */}
+					<Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'issued' | 'received' | 'bulk' | 'monitor' | 'analytics')}>
+						<TabsList className='grid w-full grid-cols-5'>
 							<TabsTrigger value='issued'>Issued by Me</TabsTrigger>
 							<TabsTrigger value='received'>Received by Me</TabsTrigger>
 							<TabsTrigger value='bulk'>Bulk Management</TabsTrigger>
 							<TabsTrigger value='monitor'>Status Monitor</TabsTrigger>
+							<TabsTrigger value='analytics'>Analytics</TabsTrigger>
 						</TabsList>
 
 						<TabsContent value='issued' className='mt-6'>
@@ -460,6 +554,10 @@ export default function CredentialsDashboard() {
 								credentials={credentialsData?.credentials || []}
 								onStatusChange={() => refetch()}
 							/>
+						</TabsContent>
+
+						<TabsContent value='analytics' className='mt-6'>
+							<AnalyticsOverview />
 						</TabsContent>
 					</Tabs>
 				</CardContent>
