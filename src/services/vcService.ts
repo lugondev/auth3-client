@@ -43,7 +43,6 @@ export type {
   IssuanceMetrics,
   ReceivedMetrics,
   StatusMetrics,
-  CompleteTrendAnalysis
 } from '../types/analytics';
 
 /**

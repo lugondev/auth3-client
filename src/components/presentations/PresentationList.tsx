@@ -17,6 +17,7 @@ import {VerificationResultModal} from './VerificationResultModal'
 
 import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions, VerifyPresentationResponse, EnhancedVerificationResponse} from '@/types/presentations'
 import {getMyPresentations, deletePresentation, verifyPresentationEnhanced} from '@/services/presentationService'
+import {triggerVPStateTransition, useVPStateMachine} from '@/services/vpStateMachineService'
 import {listDIDs} from '@/services/didService'
 import {useAuth} from '@/contexts/AuthContext'
 import type {DIDResponse} from '@/types'
@@ -531,7 +532,17 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 								<div key={presentation.id} className='flex items-center space-x-4'>
 									<Checkbox checked={presentation.id ? selectedPresentations.has(presentation.id) : false} onCheckedChange={(checked) => presentation.id && handleSelectPresentation(presentation.id, checked as boolean)} />
 									<div className='flex-1'>
-										<PresentationCard presentation={presentation} status={presentation.status} onDelete={handleDelete} onShare={() => handleShare(presentation)} onVerify={() => handleVerify(presentation)} showActions={true} className='w-full' isVerifying={isVerifying && verifyingPresentation?.id === presentation.id} />
+										{/* PresentationCard will automatically load current status from VP state machine */}
+										<PresentationCard 
+											presentation={presentation} 
+											status={presentation.status} 
+											onDelete={handleDelete} 
+											onShare={() => handleShare(presentation)} 
+											onVerify={() => handleVerify(presentation)} 
+											showActions={true} 
+											className='w-full' 
+											isVerifying={isVerifying && verifyingPresentation?.id === presentation.id} 
+										/>
 									</div>
 								</div>
 							))}

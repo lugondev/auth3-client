@@ -114,6 +114,13 @@ export async function getPresentationById(presentationId: string): Promise<{ pre
 }
 
 /**
+ * Get presentation details by ID (alias for compatibility)
+ */
+export async function getPresentation(presentationId: string): Promise<{ presentation: VerifiablePresentation }> {
+	return getPresentationById(presentationId);
+}
+
+/**
  * Get presentations by holder DID
  */
 export async function getPresentationsByHolder(

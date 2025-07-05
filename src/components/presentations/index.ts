@@ -28,3 +28,7 @@ export { default as SelectiveDisclosure } from './SelectiveDisclosure'
 export type { default as PresentationTemplate } from './PresentationTemplate'
 export { default as BatchVerification } from './BatchVerification'
 export { PresentationAnalytics } from './PresentationAnalytics'
+
+// VP State Machine Components
+export { VPStateTimeline } from './VPStateTimeline'
+export { VPStateAnalytics } from './VPStateAnalytics'

@@ -11,12 +11,15 @@ import {
 	BatchVerification
 } from '@/components/presentations'
 import PresentationAnalytics from '@/components/presentations/PresentationAnalytics'
+import { VPStateAnalytics } from '@/components/presentations/VPStateAnalytics'
+import VPStateMachineDemo from '@/components/presentations/VPStateMachineDemo'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {Plus, Eye, BarChart3, Shield, FileCheck} from 'lucide-react'
+import {Plus, Eye, BarChart3, Shield, FileCheck, Activity} from 'lucide-react'
 import {toast} from 'sonner'
 import {getPresentationStatistics, verifyPresentationEnhanced} from '@/services/presentationService'
+import {triggerVPStateTransition} from '@/services/vpStateMachineService'
 import type {PresentationStatistics, VerifiablePresentation, EnhancedVerificationResponse} from '@/types/presentations'
 
 export default function PresentationsPage() {
@@ -62,7 +65,7 @@ export default function PresentationsPage() {
 		setRefreshKey((prev) => prev + 1) // Trigger refresh
 	}
 
-	// Auto-verify presentation and show results
+	// Auto-verify presentation and show results with state machine integration
 	const handleAutoVerify = async (presentation: VerifiablePresentation) => {
 		setSelectedPresentation(presentation)
 
@@ -94,6 +97,25 @@ export default function PresentationsPage() {
 			}
 
 			const results = await verifyPresentationEnhanced(verificationRequest)
+
+			// Automatically trigger state transition based on verification result
+			const newState = results.valid ? 'verified' : 'rejected'
+			try {
+				await triggerVPStateTransition({
+					presentationId: presentation.id,
+					newState,
+					actor: 'verification_system',
+					metadata: {
+						verification_result: results,
+						trust_score: results.trustScore,
+						verification_timestamp: new Date().toISOString(),
+						auto_triggered: true
+					}
+				})
+			} catch (stateError) {
+				console.warn('State transition failed:', stateError)
+				// Continue with showing results even if state transition fails
+			}
 
 			// Show success/failure toast
 			if (results.valid) {
@@ -184,9 +206,14 @@ export default function PresentationsPage() {
 
 			{/* Main Content with Tabs */}
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-				<TabsList className="grid w-full grid-cols-2">
+				<TabsList className="grid w-full grid-cols-4">
 					<TabsTrigger value="presentations">My Presentations</TabsTrigger>
 					<TabsTrigger value="analytics">Analytics & Insights</TabsTrigger>
+					<TabsTrigger value="state-machine">State Analytics</TabsTrigger>
+					<TabsTrigger value="demo">
+						<Activity className="mr-2 h-4 w-4" />
+						State Machine Demo
+					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="presentations" className="mt-6 space-y-6">
@@ -211,6 +238,20 @@ export default function PresentationsPage() {
 
 				<TabsContent value="analytics" className="mt-6">
 					<PresentationAnalytics timeRange="30d" />
+				</TabsContent>
+
+				<TabsContent value="state-machine" className="mt-6">
+					<VPStateAnalytics 
+						autoRefresh={true}
+						dateRange={{
+							startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+							endDate: new Date().toISOString()
+						}}
+					/>
+				</TabsContent>
+
+				<TabsContent value="demo" className="mt-6">
+					<VPStateMachineDemo />
 				</TabsContent>
 			</Tabs>
 
