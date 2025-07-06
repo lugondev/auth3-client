@@ -198,6 +198,67 @@ export async function isValidTransition(
 }
 
 /**
+ * Revoke a verifiable presentation
+ */
+export async function revokePresentation(
+  presentationId: string,
+  reason: string,
+  actor?: string
+): Promise<VPStateTransitionResponse> {
+  try {
+    const response = await apiClient.post(
+      `/api/v1/vp-public/presentations/${presentationId}/revoke`,
+      {
+        reason
+      }
+    )
+    
+    const result = response.data as VPStateTransitionResponse
+    
+    // Trigger presentation refresh if successful
+    if (result.success) {
+      console.log('🔄 VP revoked successfully, triggering presentation refresh');
+      await triggerPresentationRefresh();
+    }
+    
+    return result
+  } catch (error) {
+    console.error('Error revoking presentation:', error)
+    throw error
+  }
+}
+
+/**
+ * Reject a verifiable presentation
+ */
+export async function rejectPresentation(
+  presentationId: string,
+  reason: string
+): Promise<VPStateTransitionResponse> {
+  try {
+    const response = await apiClient.post(
+      `/api/v1/vp-public/presentations/${presentationId}/reject`,
+      {
+        reason
+      }
+    )
+    
+    const result = response.data as VPStateTransitionResponse
+    
+    // Trigger presentation refresh if successful
+    if (result.success) {
+      console.log('🔄 VP rejected successfully, triggering presentation refresh');
+      await triggerPresentationRefresh();
+    }
+    
+    return result
+  } catch (error) {
+    console.error('Error rejecting presentation:', error)
+    throw error
+  }
+}
+
+/**
  * VP State Machine Event Listener using WebSocket
  */
 export class VPStateEventListener {

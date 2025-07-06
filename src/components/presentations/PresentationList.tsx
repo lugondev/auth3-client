@@ -17,6 +17,7 @@ import {VerificationResultModal} from './VerificationResultModal'
 
 import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions, VerifyPresentationResponse, EnhancedVerificationResponse} from '@/types/presentations'
 import {getMyPresentations, deletePresentation, verifyPresentationEnhanced} from '@/services/presentationService'
+import {revokePresentation} from '@/services/vpStateMachineService'
 import {listDIDs} from '@/services/didService'
 import {useAuth} from '@/contexts/AuthContext'
 import type {DIDResponse} from '@/types'
@@ -136,42 +137,6 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 		return unsubscribe;
 	}, [setupRefreshListener])
 
-	// Auto-refresh when window gains focus (user comes back to tab)
-	useEffect(() => {
-		const handleFocus = () => {
-			console.log('🔄 Window focused, refreshing presentations...');
-			loadPresentations();
-		};
-
-		const handleVisibilityChange = () => {
-			if (!document.hidden) {
-				console.log('🔄 Tab visible, refreshing presentations...');
-				loadPresentations();
-			}
-		};
-
-		window.addEventListener('focus', handleFocus);
-		document.addEventListener('visibilitychange', handleVisibilityChange);
-
-		return () => {
-			window.removeEventListener('focus', handleFocus);
-			document.removeEventListener('visibilitychange', handleVisibilityChange);
-		};
-	}, [loadPresentations])
-
-	// Auto-refresh every 30 seconds if user is actively using the page
-	useEffect(() => {
-		const interval = setInterval(() => {
-			// Only refresh if document is visible and user is active
-			if (!document.hidden && user?.id) {
-				console.log('🕒 Auto-refreshing presentations (30s interval)...');
-				loadPresentations();
-			}
-		}, 30000); // 30 seconds
-
-		return () => clearInterval(interval);
-	}, [loadPresentations, user?.id])
-
 	// Load DIDs when user changes
 	useEffect(() => {
 		if (user?.id) {
@@ -257,6 +222,18 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 			onShare(presentation)
 		} else {
 			toast.info('Share presentation feature coming soon')
+		}
+	}
+
+	const handleRevoke = async (presentationId: string, reason: string) => {
+		try {
+			await revokePresentation(presentationId, reason)
+			toast.success('Presentation revoked successfully')
+			// Refresh presentations to show updated status
+			loadPresentations()
+		} catch (error: any) {
+			console.error('Revoke error:', error)
+			toast.error(error.message || 'Failed to revoke presentation')
 		}
 	}
 
@@ -584,7 +561,9 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 											onDelete={handleDelete} 
 											onShare={() => handleShare(presentation)} 
 											onVerify={() => handleVerify(presentation)} 
+											onRevoke={handleRevoke}
 											showActions={true} 
+											showRevokeOption={true}
 											className='w-full' 
 											isVerifying={isVerifying && verifyingPresentation?.id === presentation.id} 
 										/>

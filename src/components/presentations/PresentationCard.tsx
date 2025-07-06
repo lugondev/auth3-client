@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, CheckCircle, AlertTriangle, Clock, FileText, RefreshCw } from 'lucide-react'
+import { MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, CheckCircle, AlertTriangle, Clock, FileText, RefreshCw, XCircle, Ban } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -10,9 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 import { VerifiablePresentation, PresentationStatus } from '@/types/presentations'
-import { getCurrentVPState } from '@/services/vpStateMachineService'
+import { getCurrentVPState, revokePresentation, rejectPresentation } from '@/services/vpStateMachineService'
 
 interface PresentationCardProps {
 	presentation: VerifiablePresentation
@@ -22,7 +25,11 @@ interface PresentationCardProps {
 	onView?: () => void
 	onVerify?: () => void
 	onDownload?: () => void
+	onRevoke?: (presentationId: string, reason: string) => void
+	onReject?: (presentationId: string, reason: string) => void
 	showActions?: boolean
+	showRevokeOption?: boolean
+	showRejectOption?: boolean
 	isVerifying?: boolean
 	className?: string
 }
@@ -37,10 +44,29 @@ interface PresentationCardProps {
  * - Navigation to detail page
  * - Responsive design
  */
-export function PresentationCard({ presentation, status = PresentationStatus.DRAFT, onDelete, onShare, onView, onVerify, onDownload, showActions = true, isVerifying = false, className = '' }: PresentationCardProps) {
+export function PresentationCard({ 
+	presentation, 
+	status = PresentationStatus.DRAFT, 
+	onDelete, 
+	onShare, 
+	onView, 
+	onVerify, 
+	onDownload, 
+	onRevoke,
+	onReject,
+	showActions = true, 
+	showRevokeOption = false,
+	showRejectOption = false,
+	isVerifying = false, 
+	className = '' 
+}: PresentationCardProps) {
 	const router = useRouter()
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [currentStatus, setCurrentStatus] = useState<string | null>(null)
+	const [revokeReason, setRevokeReason] = useState('')
+	const [rejectReason, setRejectReason] = useState('')
+	const [isRevokeDialogOpen, setIsRevokeDialogOpen] = useState(false)
+	const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false)
 
 	// Load current status from VP state machine
 	useEffect(() => {
@@ -48,11 +74,8 @@ export function PresentationCard({ presentation, status = PresentationStatus.DRA
 			if (!presentation.id) return
 
 			try {
-				console.log('Loading current VP state for presentation:', presentation.id)
 				const response = await getCurrentVPState(presentation.id)
-				console.log('VP state response:', response)
 				if (response.currentState) {
-					console.log(`[PresentationCard] Setting status for ${presentation.id}: ${response.currentState}`)
 					setCurrentStatus(response.currentState)
 				}
 			} catch (error) {
@@ -62,25 +85,6 @@ export function PresentationCard({ presentation, status = PresentationStatus.DRA
 		}
 
 		loadCurrentStatus()
-
-		// Refresh when window gains focus (user returns from detail page)
-		const handleFocus = () => {
-			loadCurrentStatus()
-		}
-		
-		const handleVisibilityChange = () => {
-			if (!document.hidden) {
-				loadCurrentStatus()
-			}
-		}
-
-		window.addEventListener('focus', handleFocus)
-		document.addEventListener('visibilitychange', handleVisibilityChange)
-
-		return () => {
-			window.removeEventListener('focus', handleFocus)
-			document.removeEventListener('visibilitychange', handleVisibilityChange)
-		}
 	}, [presentation.id])
 
 	// Get presentation types (excluding VerifiablePresentation)
@@ -103,13 +107,6 @@ export function PresentationCard({ presentation, status = PresentationStatus.DRA
 	const getStatusDisplay = () => {
 		// Prioritize current status from VP state machine, fallback to prop status, then presentation status
 		const effectiveStatus = currentStatus || status || presentation.status || PresentationStatus.DRAFT
-		
-		console.log('Status display calculation:', {
-			currentStatus,
-			propStatus: status,
-			presentationStatus: presentation.status,
-			effectiveStatus
-		})
 		
 		switch (effectiveStatus.toLowerCase()) {
 			case 'draft':
@@ -201,6 +198,40 @@ export function PresentationCard({ presentation, status = PresentationStatus.DRA
 		}
 	}
 
+	const handleRevoke = async (reason: string) => {
+		if (!presentation.id) return
+
+		try {
+			if (onRevoke) {
+				await onRevoke(presentation.id, reason)
+			} else {
+				// Use direct API call
+				await revokePresentation(presentation.id, reason)
+			}
+			toast.success('Presentation revoked successfully')
+		} catch (error: any) {
+			console.error('Revoke error:', error)
+			toast.error(error.message || 'Failed to revoke presentation')
+		}
+	}
+
+	const handleReject = async (reason: string) => {
+		if (!presentation.id) return
+
+		try {
+			if (onReject) {
+				await onReject(presentation.id, reason)
+			} else {
+				// Use direct API call
+				await rejectPresentation(presentation.id, reason)
+			}
+			toast.success('Presentation rejected successfully')
+		} catch (error: any) {
+			console.error('Reject error:', error)
+			toast.error(error.message || 'Failed to reject presentation')
+		}
+	}
+
 	return (
 		<Card 
 			className={`transition-all duration-200 hover:shadow-md cursor-pointer ${className}`}
@@ -266,6 +297,116 @@ export function PresentationCard({ presentation, status = PresentationStatus.DRA
 										<Share2 className='mr-2 h-4 w-4' />
 										Share
 									</DropdownMenuItem>
+								)}
+								
+								{/* Revoke option */}
+								{showRevokeOption && (
+									<Dialog open={isRevokeDialogOpen} onOpenChange={setIsRevokeDialogOpen}>
+										<DialogTrigger asChild>
+											<DropdownMenuItem className='text-orange-600 focus:text-orange-600' onSelect={(e) => e.preventDefault()}>
+												<Ban className='mr-2 h-4 w-4' />
+												Revoke
+											</DropdownMenuItem>
+										</DialogTrigger>
+										<DialogContent onClick={(e) => e.stopPropagation()}>
+											<DialogHeader>
+												<DialogTitle>Revoke Presentation</DialogTitle>
+												<DialogDescription>
+													Please provide a reason for revoking this presentation. This action cannot be undone.
+												</DialogDescription>
+											</DialogHeader>
+											<div className="grid gap-4 py-4">
+												<div className="grid grid-cols-4 items-center gap-4">
+													<Label htmlFor="revoke-reason" className="text-right">
+														Reason
+													</Label>
+													<Input
+														id="revoke-reason"
+														value={revokeReason}
+														onChange={(e) => setRevokeReason(e.target.value)}
+														placeholder="Enter revocation reason..."
+														className="col-span-3"
+													/>
+												</div>
+											</div>
+											<DialogFooter>
+												<Button variant="outline" onClick={() => {
+													setIsRevokeDialogOpen(false)
+													setRevokeReason('')
+												}}>
+													Cancel
+												</Button>
+												<Button 
+													variant="destructive" 
+													onClick={async () => {
+														if (revokeReason.trim()) {
+															await handleRevoke(revokeReason.trim())
+															setIsRevokeDialogOpen(false)
+															setRevokeReason('')
+														}
+													}}
+													disabled={!revokeReason.trim()}
+												>
+													Revoke
+												</Button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
+								)}
+
+								{/* Reject option */}
+								{showRejectOption && (
+									<Dialog open={isRejectDialogOpen} onOpenChange={setIsRejectDialogOpen}>
+										<DialogTrigger asChild>
+											<DropdownMenuItem className='text-red-600 focus:text-red-600' onSelect={(e) => e.preventDefault()}>
+												<XCircle className='mr-2 h-4 w-4' />
+												Reject
+											</DropdownMenuItem>
+										</DialogTrigger>
+										<DialogContent onClick={(e) => e.stopPropagation()}>
+											<DialogHeader>
+												<DialogTitle>Reject Presentation</DialogTitle>
+												<DialogDescription>
+													Please provide a reason for rejecting this presentation. This action cannot be undone.
+												</DialogDescription>
+											</DialogHeader>
+											<div className="grid gap-4 py-4">
+												<div className="grid grid-cols-4 items-center gap-4">
+													<Label htmlFor="reject-reason" className="text-right">
+														Reason
+													</Label>
+													<Input
+														id="reject-reason"
+														value={rejectReason}
+														onChange={(e) => setRejectReason(e.target.value)}
+														placeholder="Enter rejection reason..."
+														className="col-span-3"
+													/>
+												</div>
+											</div>
+											<DialogFooter>
+												<Button variant="outline" onClick={() => {
+													setIsRejectDialogOpen(false)
+													setRejectReason('')
+												}}>
+													Cancel
+												</Button>
+												<Button 
+													variant="destructive" 
+													onClick={async () => {
+														if (rejectReason.trim()) {
+															await handleReject(rejectReason.trim())
+															setIsRejectDialogOpen(false)
+															setRejectReason('')
+														}
+													}}
+													disabled={!rejectReason.trim()}
+												>
+													Reject
+												</Button>
+											</DialogFooter>
+										</DialogContent>
+									</Dialog>
 								)}
 								{onDelete && (
 									<>

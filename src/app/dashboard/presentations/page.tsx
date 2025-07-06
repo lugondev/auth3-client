@@ -40,6 +40,7 @@ export default function PresentationsPage() {
 	const [showBatchVerification, setShowBatchVerification] = useState(false)
 	const [selectedCredentialsForBatch, setSelectedCredentialsForBatch] = useState([])
 	const [activeTab, setActiveTab] = useState('presentations')
+	const [stateAnalyticsRefreshKey, setStateAnalyticsRefreshKey] = useState(0)
 
 	// Load presentation statistics
 	useEffect(() => {
@@ -112,6 +113,11 @@ export default function PresentationsPage() {
 			console.error('Verification error:', error)
 			toast.error(error instanceof Error ? error.message : 'Verification failed')
 		}
+	}
+
+	const handleRefreshStateAnalytics = () => {
+		setStateAnalyticsRefreshKey(prev => prev + 1)
+		toast.success('State analytics refreshed!')
 	}
 
 	return (
@@ -212,13 +218,31 @@ export default function PresentationsPage() {
 				</TabsContent>
 
 				<TabsContent value="state-machine" className="mt-6">
-					<VPStateAnalytics 
-						autoRefresh={true}
-						dateRange={{
-							startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-							endDate: new Date().toISOString()
-						}}
-					/>
+					<div className="space-y-4">
+						<div className="flex justify-between items-center">
+							<div>
+								<h3 className="text-lg font-semibold">VP State Machine Analytics</h3>
+								<p className="text-sm text-muted-foreground">Track VP state transitions and performance</p>
+							</div>
+							<Button 
+								variant="outline" 
+								onClick={handleRefreshStateAnalytics}
+								className="flex items-center gap-2"
+							>
+								<Activity className="h-4 w-4" />
+								Refresh
+							</Button>
+						</div>
+						
+						<VPStateAnalytics 
+							key={stateAnalyticsRefreshKey}
+							autoRefresh={false}
+							dateRange={{
+								startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+								endDate: new Date().toISOString()
+							}}
+						/>
+					</div>
 				</TabsContent>
 			</Tabs>
 

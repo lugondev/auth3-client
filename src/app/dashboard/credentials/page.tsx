@@ -505,7 +505,8 @@ export default function CredentialsDashboard() {
 												credential={credential} 
 												onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} 
 												onDownload={() => handleDownloadCredential(credential)}
-												showRevokeOption={false} // No revoke option for received credentials
+												onRevoke={handleRevokeCredential}
+												showRevokeOption={true} // Cho phép holder revoke credentials họ nhận được
 											/>
 										))}
 									</div>
