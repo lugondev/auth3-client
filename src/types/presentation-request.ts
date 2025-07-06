@@ -1,3 +1,5 @@
+import { PaginationResponse } from "./presentations";
+
 export interface CredentialRequirement {
   type: string;
   format?: string;
@@ -87,15 +89,17 @@ export interface PresentationResponse {
 }
 
 export interface PresentationRequestListResponse {
-  data: PresentationRequest[];
+  requests: PresentationRequest[];
   total: number;
-  page: number;
-  pageSize: number;
+  pagination: PaginationResponse;
 }
 
 export interface PresentationResponseListResponse {
-  data: PresentationResponse[];
-  total: number;
-  page: number;
-  pageSize: number;
+  responses: PresentationResponse[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
 }

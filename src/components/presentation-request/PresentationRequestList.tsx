@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { presentationRequestService } from '@/services/presentation-request-service';
+import { PresentationRequestDetailModal } from './PresentationRequestDetailModal';
 import type { PresentationRequest } from '@/types/presentation-request';
 
 interface PresentationRequestListProps {
@@ -62,6 +63,8 @@ export function PresentationRequestList({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(10);
+  const [selectedRequest, setSelectedRequest] = useState<PresentationRequest | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -80,7 +83,7 @@ export function PresentationRequestList({
       }
 
       const response = await presentationRequestService.getRequests(params);
-      setRequests(response.data);
+      setRequests(response.requests);
       setTotalPages(Math.ceil(response.total / pageSize));
     } catch (error: any) {
       console.error('Failed to load presentation requests:', error);
@@ -93,6 +96,21 @@ export function PresentationRequestList({
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
     // In a real app, you might debounce this and trigger a new API call
+  };
+
+  const handleViewRequest = (request: PresentationRequest) => {
+    setSelectedRequest(request);
+    setShowDetailModal(true);
+    onViewRequest?.(request);
+  };
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedRequest(null);
+  };
+
+  const handleEditFromModal = (request: PresentationRequest) => {
+    onEditRequest?.(request);
   };
 
   const handleStatusFilter = (status: string) => {
@@ -313,12 +331,10 @@ export function PresentationRequestList({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          {onViewRequest && (
-                            <DropdownMenuItem onClick={() => onViewRequest(request)}>
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </DropdownMenuItem>
-                          )}
+                          <DropdownMenuItem onClick={() => handleViewRequest(request)}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
                           
                           <DropdownMenuItem onClick={() => handleGenerateQR(request)}>
                             <QrCode className="h-4 w-4 mr-2" />
@@ -383,6 +399,14 @@ export function PresentationRequestList({
           </>
         )}
       </CardContent>
+
+      {/* Detail Modal */}
+      <PresentationRequestDetailModal
+        request={selectedRequest}
+        isOpen={showDetailModal}
+        onClose={handleCloseDetailModal}
+        onEdit={handleEditFromModal}
+      />
     </Card>
   );
 }

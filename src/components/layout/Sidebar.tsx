@@ -393,18 +393,18 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 	})()
 
 	// Tailwind classes for the sidebar container
-	const sidebarClasses = cn('h-full min-h-screen flex flex-col bg-gray-800 text-white p-4 space-y-2 relative', isCollapsed ? 'items-center' : '', isResizing ? '' : `transition-all duration-${resizeTransitionDuration}`)
+	const sidebarClasses = cn('h-full min-h-screen flex flex-col bg-card border-r border-border text-foreground p-4 space-y-2 relative', isCollapsed ? 'items-center' : '', isResizing ? '' : `transition-all duration-${resizeTransitionDuration}`)
 
 	return (
 		<aside ref={sidebarRef} className={sidebarClasses} style={{width: `${sidebarWidth}px`}}>
 			{/* Resize handle - improved for better UX */}
 			<div className='absolute top-0 right-0 w-4 h-full cursor-ew-resize z-20 group' onMouseDown={startResize}>
-				<div className='absolute top-0 right-0 w-1 h-full bg-gray-700 group-hover:bg-blue-500 group-hover:w-2 transition-all duration-200' />
+				<div className='absolute top-0 right-0 w-1 h-full bg-border group-hover:bg-primary group-hover:w-2 transition-all duration-200' />
 			</div>
 
 			{/* Collapse/Expand button */}
 			<div className='absolute top-4 right-2 z-10'>
-				<button onClick={toggleCollapse} className='p-1 rounded-full bg-gray-700 hover:bg-gray-600 text-white transition-colors duration-200' title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+				<button onClick={toggleCollapse} className='p-1 rounded-full bg-muted hover:bg-accent text-foreground transition-colors duration-200' title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
 					{isCollapsed ? <ChevronsRight size={16} /> : <ChevronsLeft size={16} />}
 				</button>
 			</div>
@@ -424,9 +424,9 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 							<ul>
 								{link.isCollapsible ? (
 									<li>
-										<button onClick={() => toggleMenu(linkKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasLinkAccess ? 'hover:bg-gray-700 text-white' : 'text-gray-500 cursor-not-allowed', (isLinkActive(link.href) || hasActiveChild(link)) && hasLinkAccess ? 'bg-gray-700 font-medium' : '')} disabled={!hasLinkAccess}>
+										<button onClick={() => toggleMenu(linkKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasLinkAccess ? 'hover:bg-accent text-foreground' : 'text-muted-foreground cursor-not-allowed', (isLinkActive(link.href) || hasActiveChild(link)) && hasLinkAccess ? 'bg-accent font-medium' : '')} disabled={!hasLinkAccess}>
 											<div className='flex items-center space-x-3'>
-												{hasLinkAccess ? <IconComponent className={cn('h-5 w-5', isLinkActive(link.href) || hasActiveChild(link) ? 'text-blue-400' : '')} /> : <Lock className='h-5 w-5' />}
+												{hasLinkAccess ? <IconComponent className={cn('h-5 w-5', isLinkActive(link.href) || hasActiveChild(link) ? 'text-primary' : '')} /> : <Lock className='h-5 w-5' />}
 												{!isCollapsed && <span>{link.label}</span>}
 											</div>
 											{hasLinkAccess && !isCollapsed && (openMenus[linkKey] ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
@@ -447,9 +447,9 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 														<li>
 															{childLink.isCollapsible && childLink.children ? (
 																<div>
-																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasChildAccess ? 'hover:bg-gray-600 text-white' : 'text-gray-500 cursor-not-allowed', (isChildActive || hasChildActiveChild) && hasChildAccess ? 'bg-gray-600 font-medium' : '')} disabled={!hasChildAccess}>
+																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasChildAccess ? 'hover:bg-muted text-foreground' : 'text-muted-foreground cursor-not-allowed', (isChildActive || hasChildActiveChild) && hasChildAccess ? 'bg-muted font-medium' : '')} disabled={!hasChildAccess}>
 																		<div className='flex items-center space-x-3'>
-																			{hasChildAccess ? <ChildIconComponent className={cn('h-5 w-5', isChildActive || hasChildActiveChild ? 'text-blue-400' : '')} /> : <Lock className='h-5 w-5' />}
+																			{hasChildAccess ? <ChildIconComponent className={cn('h-5 w-5', isChildActive || hasChildActiveChild ? 'text-primary' : '')} /> : <Lock className='h-5 w-5' />}
 																			<span>{childLink.label}</span>
 																		</div>
 																		{hasChildAccess && (isSubmenuOpen ? <ChevronDown className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />)}
@@ -466,12 +466,12 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 																				const grandchildContent = (
 																					<li>
 																						{hasGrandchildAccess ? (
-																							<Link href={grandchildLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-gray-600 rounded text-white text-sm transition-colors duration-200', isGrandchildActive ? 'bg-gray-600 font-medium' : '')}>
-																								<GrandchildIconComponent className={cn('h-4 w-4', isGrandchildActive ? 'text-blue-400' : '')} />
+																							<Link href={grandchildLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground text-sm transition-colors duration-200', isGrandchildActive ? 'bg-accent font-medium' : '')}>
+																								<GrandchildIconComponent className={cn('h-4 w-4', isGrandchildActive ? 'text-primary' : '')} />
 																								<span>{grandchildLink.label}</span>
 																							</Link>
 																						) : (
-																							<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed text-sm'>
+																							<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed text-sm'>
 																								<Lock className='h-4 w-4' />
 																								<span>{grandchildLink.label}</span>
 																							</div>
@@ -494,12 +494,12 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 																	)}
 																</div>
 															) : hasChildAccess ? (
-																<Link href={childLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200', isChildActive ? 'bg-gray-700 font-medium' : '')}>
-																	<ChildIconComponent className={cn('h-5 w-5', isChildActive ? 'text-blue-400' : '')} />
+																<Link href={childLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground transition-colors duration-200', isChildActive ? 'bg-accent font-medium' : '')}>
+																	<ChildIconComponent className={cn('h-5 w-5', isChildActive ? 'text-primary' : '')} />
 																	<span>{childLink.label}</span>
 																</Link>
 															) : (
-																<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed'>
+																<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed'>
 																	<Lock className='h-5 w-5' />
 																	<span>{childLink.label}</span>
 																</div>
@@ -524,12 +524,12 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 								) : (
 									<li>
 										{hasLinkAccess ? (
-											<Link href={link.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-gray-700 rounded text-white transition-colors duration-200', isLinkActive(link.href) ? 'bg-gray-700 font-medium' : '')}>
-												<IconComponent className={cn('h-5 w-5', isLinkActive(link.href) ? 'text-blue-400' : '')} />
+											<Link href={link.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground transition-colors duration-200', isLinkActive(link.href) ? 'bg-accent font-medium' : '')}>
+												<IconComponent className={cn('h-5 w-5', isLinkActive(link.href) ? 'text-primary' : '')} />
 												{!isCollapsed && <span>{link.label}</span>}
 											</Link>
 										) : (
-											<div className='flex items-center space-x-3 py-2 px-3 text-gray-500 cursor-not-allowed'>
+											<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed'>
 												<Lock className='h-5 w-5' />
 												{!isCollapsed && <span>{link.label}</span>}
 											</div>

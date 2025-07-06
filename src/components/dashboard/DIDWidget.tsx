@@ -203,7 +203,7 @@ export function DIDWidget({className}: DIDWidgetProps) {
 								<div key={did.id} className='flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded'>
 									<div className='flex items-center gap-2'>
 										{getMethodIcon(did.method)}
-										<span className='text-sm font-mono truncate max-w-[120px]'>{did.did.did}</span>
+										<span className='text-sm font-mono truncate max-w-[120px]'>{did.did}</span>
 									</div>
 									<Badge variant={did.status === DIDStatus.ACTIVE ? 'default' : 'secondary'} className='text-xs'>
 										{did.status}

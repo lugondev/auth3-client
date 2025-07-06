@@ -108,7 +108,7 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 	 * Filter DIDs based on search term and filters
 	 */
 	const filteredDIDs = dids.filter((did) => {
-		const matchesSearch = !searchTerm || did.did.did.toLowerCase().includes(searchTerm.toLowerCase()) || did.method.toLowerCase().includes(searchTerm.toLowerCase())
+		const matchesSearch = !searchTerm || did.did.toLowerCase().includes(searchTerm.toLowerCase()) || did.method.toLowerCase().includes(searchTerm.toLowerCase())
 
 		const matchesMethod = !filters.method || did.method === filters.method
 		const matchesStatus = !filters.status || did.status === filters.status
@@ -311,7 +311,7 @@ export function DIDList({onCreateNew, onViewDetails, onDeactivate, onDelete, cla
 						</CardContent>
 					</Card>
 				) : (
-					filteredDIDs.map((did) => <DIDCard key={did.did.id} did={did.did} onView={onViewDetails} onDeactivate={onDeactivate} onDelete={onDelete} />)
+					filteredDIDs.map((did) => <DIDCard key={did.id} did={did} onView={onViewDetails} onDeactivate={onDeactivate} onDelete={onDelete} />)
 				)}
 			</div>
 

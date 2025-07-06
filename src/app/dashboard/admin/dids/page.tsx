@@ -103,7 +103,7 @@ export default function DIDAdminDashboard() {
 
 						return {
 					id: did.id,
-					did: did.did.did,
+					did: did.did,
 					method: did.method,
 					status: did.status,
 					owner: {

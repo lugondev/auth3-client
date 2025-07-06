@@ -480,9 +480,9 @@ export function DataEntryStep({template, credentialData, recipientInfo, issuance
 														// But let's handle multiple possible structures from API
 														let didValue: string
 
-														if (did.did && typeof did.did === 'object' && did.did.did) {
+														if (did.did && typeof did.did === 'object' && did.did) {
 															// Expected structure: DIDResponse.did.DIDData.did
-															didValue = did.did.did
+															didValue = did.did
 														} else if (did.did && typeof did.did === 'string') {
 															// Alternative: DIDResponse.did is directly the DID string
 															didValue = did.did

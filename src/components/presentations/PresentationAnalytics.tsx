@@ -38,163 +38,30 @@ import {
   Calendar
 } from 'lucide-react'
 import { toast } from 'sonner'
-import apiClient from '@/lib/apiClient'
-
-interface PresentationAnalytics {
-  overview: AnalyticsOverview
-  trends: AnalyticsTrend[]
-  verificationStats: VerificationStats
-  sharingStats: SharingStats
-  credentialTypes: CredentialTypeStats[]
-  userActivity: UserActivityStats[]
-  issuerStats: IssuerStats[]
-  geographicStats: GeographicStats[]
-}
-
-interface AnalyticsOverview {
-  totalPresentations: number
-  totalVerifications: number
-  successRate: number
-  averageVerificationTime: number
-  uniqueUsers: number
-  activePresentations: number
-  trendingCredentialTypes: string[]
-  lastUpdated: string
-}
-
-interface AnalyticsTrend {
-  date: string
-  presentations: number
-  verifications: number
-  successRate: number
-  uniqueUsers: number
-}
-
-interface VerificationStats {
-  total: number
-  successful: number
-  failed: number
-  warnings: number
-  averageTime: number
-  byCredentialType: Record<string, number>
-  byIssuer: Record<string, number>
-  errorReasons: Record<string, number>
-}
-
-interface SharingStats {
-  totalShares: number
-  qrCodeShares: number
-  linkShares: number
-  emailShares: number
-  averageViews: number
-  topSharedTypes: string[]
-  sharesByTime: Record<string, number>
-}
-
-interface CredentialTypeStats {
-  type: string
-  count: number
-  verificationRate: number
-  shareRate: number
-  averageTrustScore: number
-  trend: 'up' | 'down' | 'stable'
-}
-
-interface UserActivityStats {
-  date: string
-  activeUsers: number
-  newUsers: number
-  presentationsCreated: number
-  verificationsPerformed: number
-}
-
-interface IssuerStats {
-  issuer: string
-  credentialsIssued: number
-  verificationRate: number
-  trustScore: number
-  popularTypes: string[]
-}
-
-interface GeographicStats {
-  country: string
-  region: string
-  users: number
-  presentations: number
-  verifications: number
-}
-
-interface PresentationStats {
-  totalPresentations: number
-  validPresentations: number
-  invalidPresentations: number
-  pendingPresentations: number
-  createdToday: number
-  createdThisWeek: number
-  createdThisMonth: number
-  generatedAt: string
-}
+import presentationAnalyticsService from '@/services/presentationAnalyticsService'
+import type { 
+  PresentationAnalytics,
+  AnalyticsOverview,
+  AnalyticsTrend,
+  VerificationStats,
+  SharingStats,
+  CredentialTypeStats,
+  UserActivityStats,
+  IssuerStats,
+  GeographicStats,
+  PresentationStats
+} from '@/services/presentationAnalyticsService'
 
 interface PresentationAnalyticsProps {
   timeRange?: '7d' | '30d' | '90d' | '1y'
   className?: string
 }
 
-// Helper functions for generating mock data
-const generateMockTrends = (timeRange: string): AnalyticsTrend[] => {
-  const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365
-  const trends: AnalyticsTrend[] = []
-  
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    
-    trends.push({
-      date: date.toISOString().split('T')[0],
-      presentations: Math.floor(Math.random() * 50) + 10,
-      verifications: Math.floor(Math.random() * 80) + 20,
-      successRate: 85 + Math.random() * 15,
-      uniqueUsers: Math.floor(Math.random() * 30) + 5
-    })
-  }
-  
-  return trends
-}
-
-const generateMockSharesByTime = (): Record<string, number> => {
-  const shares: Record<string, number> = {}
-  for (let i = 23; i >= 0; i--) {
-    const hour = i.toString().padStart(2, '0')
-    shares[`${hour}:00`] = Math.floor(Math.random() * 20) + 1
-  }
-  return shares
-}
-
-const generateMockUserActivity = (timeRange: string): UserActivityStats[] => {
-  const days = timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : timeRange === '90d' ? 90 : 365
-  const activity: UserActivityStats[] = []
-  
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date()
-    date.setDate(date.getDate() - i)
-    
-    activity.push({
-      date: date.toISOString().split('T')[0],
-      activeUsers: Math.floor(Math.random() * 100) + 20,
-      newUsers: Math.floor(Math.random() * 20) + 1,
-      presentationsCreated: Math.floor(Math.random() * 30) + 5,
-      verificationsPerformed: Math.floor(Math.random() * 50) + 10
-    })
-  }
-  
-  return activity
-}
-
 /**
  * PresentationAnalytics Component - Analytics dashboard for presentations
  * 
  * Features:
- * - Usage statistics and trends
+ * - Usage statistics and trends via real API endpoints
  * - Verification success metrics
  * - Sharing and engagement analytics
  * - Credential type performance
@@ -218,124 +85,19 @@ export function PresentationAnalytics({
   }, [selectedTimeRange, filterType])
 
   /**
-   * Load analytics data from API
+   * Load analytics data from API endpoints
    */
   const loadAnalytics = async () => {
     try {
       setLoading(true)
       
-      // Use existing statistics endpoint and create mock data for now
-      const statsResponse = await apiClient.get<PresentationStats>('/api/v1/presentations/statistics')
-      const stats = statsResponse.data
+      // Use the analytics service to get comprehensive data
+      const analyticsData = await presentationAnalyticsService.getAnalytics(
+        selectedTimeRange, 
+        filterType !== 'all' ? filterType : undefined
+      )
       
-      // Create mock analytics data based on real statistics
-      const mockAnalytics: PresentationAnalytics = {
-        overview: {
-          totalPresentations: stats.totalPresentations || 0,
-          totalVerifications: (stats.validPresentations || 0) + (stats.invalidPresentations || 0),
-          successRate: stats.validPresentations && stats.totalPresentations 
-            ? ((stats.validPresentations || 0) / (stats.totalPresentations || 1)) * 100 
-            : 0,
-          averageVerificationTime: 1200, // Mock data
-          uniqueUsers: Math.floor((stats.totalPresentations || 0) * 0.7), // Mock estimate
-          activePresentations: (stats.totalPresentations || 0) - (stats.invalidPresentations || 0),
-          trendingCredentialTypes: ['VerifiableCredential', 'EducationCredential', 'EmploymentCredential'],
-          lastUpdated: new Date().toISOString()
-        },
-        trends: generateMockTrends(selectedTimeRange),
-        verificationStats: {
-          total: (stats.validPresentations || 0) + (stats.invalidPresentations || 0),
-          successful: stats.validPresentations || 0,
-          failed: stats.invalidPresentations || 0,
-          warnings: Math.floor((stats.invalidPresentations || 0) * 0.3),
-          averageTime: 1200,
-          byCredentialType: {
-            'VerifiableCredential': stats.validPresentations || 0,
-            'EducationCredential': Math.floor((stats.validPresentations || 0) * 0.4),
-            'EmploymentCredential': Math.floor((stats.validPresentations || 0) * 0.3)
-          },
-          byIssuer: {
-            'did:example:issuer1': Math.floor((stats.validPresentations || 0) * 0.5),
-            'did:example:issuer2': Math.floor((stats.validPresentations || 0) * 0.3)
-          },
-          errorReasons: {
-            'Invalid signature': Math.floor((stats.invalidPresentations || 0) * 0.4),
-            'Expired credential': Math.floor((stats.invalidPresentations || 0) * 0.3),
-            'Revoked credential': Math.floor((stats.invalidPresentations || 0) * 0.2),
-            'Schema validation failed': Math.floor((stats.invalidPresentations || 0) * 0.1)
-          }
-        },
-        sharingStats: {
-          totalShares: Math.floor((stats.totalPresentations || 0) * 1.5),
-          qrCodeShares: Math.floor((stats.totalPresentations || 0) * 0.8),
-          linkShares: Math.floor((stats.totalPresentations || 0) * 0.5),
-          emailShares: Math.floor((stats.totalPresentations || 0) * 0.2),
-          averageViews: 2.3,
-          topSharedTypes: ['VerifiableCredential', 'EducationCredential', 'EmploymentCredential'],
-          sharesByTime: generateMockSharesByTime()
-        },
-        credentialTypes: [
-          {
-            type: 'VerifiableCredential',
-            count: Math.floor((stats.totalPresentations || 0) * 0.6),
-            verificationRate: 95.2,
-            shareRate: 78.5,
-            averageTrustScore: 0.92,
-            trend: 'up'
-          },
-          {
-            type: 'EducationCredential', 
-            count: Math.floor((stats.totalPresentations || 0) * 0.25),
-            verificationRate: 98.1,
-            shareRate: 85.3,
-            averageTrustScore: 0.96,
-            trend: 'up'
-          },
-          {
-            type: 'EmploymentCredential',
-            count: Math.floor((stats.totalPresentations || 0) * 0.15),
-            verificationRate: 93.7,
-            shareRate: 72.1,
-            averageTrustScore: 0.89,
-            trend: 'stable'
-          }
-        ],
-        userActivity: generateMockUserActivity(selectedTimeRange),
-        issuerStats: [
-          {
-            issuer: 'did:example:issuer1',
-            credentialsIssued: Math.floor((stats.totalPresentations || 0) * 0.5),
-            verificationRate: 96.5,
-            trustScore: 0.95,
-            popularTypes: ['VerifiableCredential', 'EducationCredential']
-          },
-          {
-            issuer: 'did:example:issuer2',
-            credentialsIssued: Math.floor((stats.totalPresentations || 0) * 0.3),
-            verificationRate: 94.2,
-            trustScore: 0.91,
-            popularTypes: ['EmploymentCredential', 'VerifiableCredential']
-          }
-        ],
-        geographicStats: [
-          {
-            country: 'United States',
-            region: 'North America',
-            users: Math.floor((stats.totalPresentations || 0) * 0.4),
-            presentations: Math.floor((stats.totalPresentations || 0) * 0.45),
-            verifications: Math.floor((stats.validPresentations || 0) * 0.45)
-          },
-          {
-            country: 'Germany',
-            region: 'Europe', 
-            users: Math.floor((stats.totalPresentations || 0) * 0.25),
-            presentations: Math.floor((stats.totalPresentations || 0) * 0.25),
-            verifications: Math.floor((stats.validPresentations || 0) * 0.25)
-          }
-        ]
-      }
-      
-      setAnalytics(mockAnalytics)
+      setAnalytics(analyticsData)
     } catch (error) {
       console.error('Error loading analytics:', error)
       toast.error('Failed to load analytics data')
@@ -357,28 +119,49 @@ export function PresentationAnalytics({
   /**
    * Export analytics data
    */
-  const exportAnalytics = () => {
+  const exportAnalytics = async () => {
     if (!analytics) return
 
-    const exportData = {
-      ...analytics,
-      exportedAt: new Date().toISOString(),
-      timeRange: selectedTimeRange,
-      filter: filterType
-    }
+    try {
+      // Try to use the service's export functionality first
+      const blob = await presentationAnalyticsService.exportAnalytics(selectedTimeRange, 'json')
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `presentation-analytics-${selectedTimeRange}-${Date.now()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      toast.success('Analytics data exported successfully')
+    } catch (error) {
+      console.warn('Service export failed, falling back to client-side export')
+      
+      // Fallback to client-side export
+      const exportData = {
+        ...analytics,
+        exportedAt: new Date().toISOString(),
+        timeRange: selectedTimeRange,
+        filter: filterType
+      }
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: 'application/json'
-    })
-    
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `presentation-analytics-${selectedTimeRange}-${Date.now()}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      })
+      
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `presentation-analytics-${selectedTimeRange}-${Date.now()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      toast.success('Analytics data exported successfully')
+    }
   }
 
   // Calculate derived metrics

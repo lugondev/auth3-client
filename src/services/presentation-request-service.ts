@@ -7,6 +7,31 @@ import type {
   PresentationResponseListResponse
 } from '../types/presentation-request';
 
+// History types
+export interface PresentationRequestHistoryItem extends PresentationRequest {
+  latest_response?: {
+    id: string;
+    holder_did: string;
+    status: string;
+    submitted_at: string;
+    verified_at?: string;
+  };
+}
+
+export interface PresentationRequestHistoryResponse {
+  requests: PresentationRequestHistoryItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+  filters: {
+    status?: string;
+    verifier_did?: string;
+  };
+}
+
 export const presentationRequestService = {
   // Presentation Requests
   async createRequest(data: CreatePresentationRequestDTO): Promise<PresentationRequest> {
@@ -33,6 +58,18 @@ export const presentationRequestService = {
 
   async getRequestByRequestId(requestId: string): Promise<PresentationRequest> {
     const response = await apiClient.get<PresentationRequest>(`/api/v1/presentation-requests/by-request-id/${requestId}`);
+    return response.data;
+  },
+
+  async getHistory(params?: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    verifier_did?: string;
+  }): Promise<PresentationRequestHistoryResponse> {
+    const response = await apiClient.get<PresentationRequestHistoryResponse>('/api/v1/presentation-requests/history', {
+      params
+    });
     return response.data;
   },
 
@@ -74,8 +111,8 @@ export const presentationRequestService = {
   },
 
   async submitResponse(requestId: string, data: {
-    holderDid: string;
-    presentationId: string;
+    holder_did: string;
+    presentation_id: string;
   }): Promise<PresentationResponse> {
     const response = await apiClient.post<PresentationResponse>(`/api/v1/presentation-requests/${requestId}/responses`, data);
     return response.data;

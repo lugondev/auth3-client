@@ -47,25 +47,25 @@ export default function DIDDetailsPage() {
 				console.log('DID Response:', didResponse)
 				console.log('Resolution Response:', resolutionResponse)
 
-				setDidData(didResponse.did)
+				setDidData(didResponse)
 				setResolutionResult(resolutionResponse)
 
 				// Convert DID data to history format for display
 				const historyData: DIDActivity[] = [
 					{
-						did: didResponse.did.did,
+						did: didResponse.did,
 						action: 'created',
-						timestamp: didResponse.did.created_at,
-						user_id: didResponse.did.user_id,
+						timestamp: didResponse.created_at,
+						user_id: didResponse.user_id,
 					},
 				]
 
-				if (didResponse.did.updated_at !== didResponse.did.created_at) {
+				if (didResponse.updated_at !== didResponse.created_at) {
 					historyData.push({
-						did: didResponse.did.did,
+						did: didResponse.did,
 						action: 'updated',
-						timestamp: didResponse.did.updated_at,
-						user_id: didResponse.did.user_id,
+						timestamp: didResponse.updated_at,
+						user_id: didResponse.user_id,
 					})
 				}
 				console.log('History Data:', historyData)
@@ -157,7 +157,7 @@ export default function DIDDetailsPage() {
 			// Refresh the data
 			const [updatedDidResponse, updatedResolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
 
-			setDidData(updatedDidResponse.did)
+			setDidData(updatedDidResponse)
 			setResolutionResult(updatedResolutionResponse)
 		} catch (err) {
 			console.error('Error deactivating DID:', err)
@@ -184,7 +184,7 @@ export default function DIDDetailsPage() {
 			// Refresh the data
 			const [updatedDidResponse, updatedResolutionResponse] = await Promise.all([getDID(didId), resolveDID(didId)])
 
-			setDidData(updatedDidResponse.did)
+			setDidData(updatedDidResponse)
 			setResolutionResult(updatedResolutionResponse)
 		} catch (err) {
 			console.error('Error revoking DID:', err)

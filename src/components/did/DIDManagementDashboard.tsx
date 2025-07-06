@@ -112,13 +112,13 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 
 			// Apply search filter on frontend (since API might not support search)
 			if (filters.search) {
-				fetchedDIDs = fetchedDIDs.filter((did) => did.did.did.toLowerCase().includes(filters.search.toLowerCase()) || (did.metadata && JSON.stringify(did.metadata).toLowerCase().includes(filters.search.toLowerCase())))
+				fetchedDIDs = fetchedDIDs.filter((did) => did.did.toLowerCase().includes(filters.search.toLowerCase()) || (did.metadata && JSON.stringify(did.metadata).toLowerCase().includes(filters.search.toLowerCase())))
 			}
 
 			// Convert API response to local DID format
 			const convertedDIDs: DID[] = fetchedDIDs.map((apiDID) => ({
 				id: apiDID.id,
-				did: apiDID.did.did,
+				did: apiDID.did,
 				method: apiDID.method as DIDMethod,
 				status: apiDID.status as DIDStatus,
 				created_at: apiDID.created_at,

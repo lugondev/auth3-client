@@ -72,7 +72,7 @@ export function DIDDetails({didId, onEdit, onDeactivate, onDelete, className}: D
 			const response = await didService.getDID(didId)
 			// Transform DIDResponse to DIDInfo format
 			const didInfo: DIDInfo = {
-				id: response.did.did,
+				id: response.did,
 				document: response.document,
 				status: response.status as DIDStatus,
 				method: response.method,

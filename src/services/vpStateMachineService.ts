@@ -4,6 +4,7 @@
 
 import { useState, useEffect } from 'react'
 import apiClient from '@/lib/apiClient'
+import { triggerPresentationRefresh } from '@/hooks/usePresentationRefresh'
 import type {
   VPStateTransitionRecord,
   VPTransitionStatistics,
@@ -23,7 +24,15 @@ export async function triggerVPStateTransition(
 ): Promise<VPStateTransitionResponse> {
   try {
     const response = await apiClient.post(`${API_BASE_URL}/transition`, request)
-    return response.data as VPStateTransitionResponse
+    const result = response.data as VPStateTransitionResponse
+    
+    // If state transition successful, trigger presentation refresh
+    if (result.success) {
+      console.log('🔄 VP state transition successful, triggering presentation refresh');
+      await triggerPresentationRefresh();
+    }
+    
+    return result
   } catch (error) {
     console.error('Error triggering VP state transition:', error)
     throw error

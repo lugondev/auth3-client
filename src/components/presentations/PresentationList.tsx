@@ -21,6 +21,7 @@ import {triggerVPStateTransition, useVPStateMachine} from '@/services/vpStateMac
 import {listDIDs} from '@/services/didService'
 import {useAuth} from '@/contexts/AuthContext'
 import type {DIDResponse} from '@/types'
+import { usePresentationRefreshListener } from '@/hooks/usePresentationRefresh'
 
 interface PresentationListProps {
 	className?: string
@@ -122,10 +123,55 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 		}
 	}, [filters, user?.id, selectedDID])
 
+	// Setup presentation refresh listener
+	const setupRefreshListener = usePresentationRefreshListener(loadPresentations);
+
 	// Load presentations on mount and filter changes
 	useEffect(() => {
 		loadPresentations()
 	}, [loadPresentations])
+
+	// Subscribe to refresh events
+	useEffect(() => {
+		const unsubscribe = setupRefreshListener();
+		return unsubscribe;
+	}, [setupRefreshListener])
+
+	// Auto-refresh when window gains focus (user comes back to tab)
+	useEffect(() => {
+		const handleFocus = () => {
+			console.log('🔄 Window focused, refreshing presentations...');
+			loadPresentations();
+		};
+
+		const handleVisibilityChange = () => {
+			if (!document.hidden) {
+				console.log('🔄 Tab visible, refreshing presentations...');
+				loadPresentations();
+			}
+		};
+
+		window.addEventListener('focus', handleFocus);
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+
+		return () => {
+			window.removeEventListener('focus', handleFocus);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	}, [loadPresentations])
+
+	// Auto-refresh every 30 seconds if user is actively using the page
+	useEffect(() => {
+		const interval = setInterval(() => {
+			// Only refresh if document is visible and user is active
+			if (!document.hidden && user?.id) {
+				console.log('🕒 Auto-refreshing presentations (30s interval)...');
+				loadPresentations();
+			}
+		}, 30000); // 30 seconds
+
+		return () => clearInterval(interval);
+	}, [loadPresentations, user?.id])
 
 	// Load DIDs when user changes
 	useEffect(() => {
@@ -382,7 +428,7 @@ export function PresentationList({className = '', onShare, onVerify}: Presentati
 									if (typeof didResponse.did === 'string') {
 										didString = didResponse.did
 									} else if (didResponse.did && typeof didResponse.did === 'object' && 'did' in didResponse.did) {
-										didString = didResponse.did.did as string
+										didString = didResponse.did as string
 									} else if (didResponse.identifier) {
 										didString = didResponse.identifier
 									}

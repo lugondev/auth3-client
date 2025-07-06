@@ -143,8 +143,8 @@ export interface DIDData {
   updated_at: string;
   metadata?: Record<string, unknown>;
 }
-export interface DIDResponse {
-  did: DIDData;
+export interface DIDResponse extends DIDData {
+  // did: DIDData;
   id: string;
   user_id: string;
   method: string;
