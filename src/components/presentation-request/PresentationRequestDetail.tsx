@@ -81,7 +81,7 @@ export function PresentationRequestDetail({ requestId, onBack }: PresentationReq
     try {
       setResponsesLoading(true);
       const data = await presentationRequestService.getResponses(requestId);
-      setResponses(data.data);
+      setResponses(data.responses || []);
     } catch (error: any) {
       console.error('Failed to load responses:', error);
       toast.error('Failed to load responses');

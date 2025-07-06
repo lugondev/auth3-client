@@ -17,7 +17,6 @@ import {VerificationResultModal} from './VerificationResultModal'
 
 import {VerifiablePresentation, PresentationStatus, PresentationFilterOptions, VerifyPresentationResponse, EnhancedVerificationResponse} from '@/types/presentations'
 import {getMyPresentations, deletePresentation, verifyPresentationEnhanced} from '@/services/presentationService'
-import {triggerVPStateTransition, useVPStateMachine} from '@/services/vpStateMachineService'
 import {listDIDs} from '@/services/didService'
 import {useAuth} from '@/contexts/AuthContext'
 import type {DIDResponse} from '@/types'

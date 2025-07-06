@@ -106,8 +106,8 @@ export function SubmitPresentation({ requestId: propRequestId }: SubmitPresentat
       setSubmitting(true);
       
       await presentationRequestService.submitResponse(request.id, {
-        holderDid,
-        presentationId: selectedPresentationId,
+        holder_did: holderDid,
+        presentation_id: selectedPresentationId,
       });
 
       setSubmitted(true);

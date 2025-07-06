@@ -283,7 +283,6 @@ export function useVPStateMachine(presentationId?: string) {
   return {
     eventListener,
     isConnected,
-    triggerTransition: triggerVPStateTransition,
     getHistory: getVPStateTransitionHistory,
     getStatistics: getVPStateTransitionStatistics,
     getCurrentState: getCurrentVPState,

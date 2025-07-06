@@ -66,8 +66,8 @@ export default function PresentationRequestResponsesPage() {
       ]);
       
       setRequestInfo(requestResponse);
-      setResponses(responsesResponse.data || []);
-      setTotalItems(responsesResponse.total || 0);
+      setResponses(responsesResponse.responses || []);
+      setTotalItems(responsesResponse.pagination.total || 0);
       
     } catch (err) {
       console.error('Failed to load responses:', err);

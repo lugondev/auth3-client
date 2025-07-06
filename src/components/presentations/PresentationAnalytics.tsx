@@ -7,23 +7,23 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  BarChart, 
-  Bar, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
   Cell,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
 } from 'recharts'
-import { 
-  TrendingUp, 
+import {
+  TrendingUp,
   TrendingDown,
   Users,
   FileCheck,
@@ -39,7 +39,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import presentationAnalyticsService from '@/services/presentationAnalyticsService'
-import type { 
+import type {
   PresentationAnalytics,
   AnalyticsOverview,
   AnalyticsTrend,
@@ -68,9 +68,9 @@ interface PresentationAnalyticsProps {
  * - Geographic distribution
  * - Export capabilities
  */
-export function PresentationAnalytics({ 
+export function PresentationAnalytics({
   timeRange = '30d',
-  className = '' 
+  className = ''
 }: PresentationAnalyticsProps) {
   const [analytics, setAnalytics] = useState<PresentationAnalytics | null>(null)
   const [loading, setLoading] = useState(true)
@@ -90,13 +90,13 @@ export function PresentationAnalytics({
   const loadAnalytics = async () => {
     try {
       setLoading(true)
-      
+
       // Use the analytics service to get comprehensive data
       const analyticsData = await presentationAnalyticsService.getAnalytics(
-        selectedTimeRange, 
+        selectedTimeRange,
         filterType !== 'all' ? filterType : undefined
       )
-      
+
       setAnalytics(analyticsData)
     } catch (error) {
       console.error('Error loading analytics:', error)
@@ -125,7 +125,7 @@ export function PresentationAnalytics({
     try {
       // Try to use the service's export functionality first
       const blob = await presentationAnalyticsService.exportAnalytics(selectedTimeRange, 'json')
-      
+
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -134,11 +134,11 @@ export function PresentationAnalytics({
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      
+
       toast.success('Analytics data exported successfully')
     } catch (error) {
       console.warn('Service export failed, falling back to client-side export')
-      
+
       // Fallback to client-side export
       const exportData = {
         ...analytics,
@@ -150,7 +150,7 @@ export function PresentationAnalytics({
       const blob = new Blob([JSON.stringify(exportData, null, 2)], {
         type: 'application/json'
       })
-      
+
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -159,7 +159,7 @@ export function PresentationAnalytics({
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      
+
       toast.success('Analytics data exported successfully')
     }
   }
@@ -169,9 +169,9 @@ export function PresentationAnalytics({
     if (!analytics) return null
 
     const { overview, trends } = analytics
-    
+
     // Calculate growth rates
-    const presentationGrowth = trends.length >= 2 
+    const presentationGrowth = trends.length >= 2
       ? ((trends[trends.length - 1].presentations - trends[trends.length - 2].presentations) / trends[trends.length - 2].presentations) * 100
       : 0
 
@@ -288,55 +288,6 @@ export function PresentationAnalytics({
             </CardContent>
           </Card>
         </div>
-
-        {/* Trends Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Presentation Trends</CardTitle>
-            <CardDescription>Presentations and verifications over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={analytics.trends}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line 
-                  type="monotone" 
-                  dataKey="presentations" 
-                  stroke={chartColors.primary} 
-                  strokeWidth={2}
-                  name="Presentations"
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="verifications" 
-                  stroke={chartColors.secondary} 
-                  strokeWidth={2}
-                  name="Verifications"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Trending Credential Types */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Trending Credential Types</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {overview.trendingCredentialTypes.map((type) => (
-                <Badge key={type} variant="secondary" className="text-sm">
-                  {type}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
     )
   }
@@ -459,7 +410,7 @@ export function PresentationAnalytics({
           <CardContent>
             <div className="space-y-2">
               {Object.entries(verificationStats.errorReasons)
-                .sort(([,a], [,b]) => b - a)
+                .sort(([, a], [, b]) => b - a)
                 .slice(0, 5)
                 .map(([reason, count]) => (
                   <div key={reason} className="flex justify-between items-center p-2 bg-muted rounded">
@@ -607,7 +558,7 @@ export function PresentationAnalytics({
         <div>
           <h2 className="text-2xl font-bold">Presentation Analytics</h2>
           <p className="text-muted-foreground">
-            Last updated: {new Date(analytics.overview.lastUpdated).toLocaleString()}
+            Last updated: N/A
           </p>
         </div>
 

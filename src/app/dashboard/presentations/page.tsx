@@ -8,11 +8,10 @@ import {
 	SharePresentationModal, 
 	VerificationResultModal,
 	SelectiveDisclosure,
-	BatchVerification
+	BatchVerification,
+	PresentationAnalytics
 } from '@/components/presentations'
-import PresentationAnalytics from '@/components/presentations/PresentationAnalytics'
 import { VPStateAnalytics } from '@/components/presentations/VPStateAnalytics'
-import VPStateMachineDemo from '@/components/presentations/VPStateMachineDemo'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
@@ -97,25 +96,6 @@ export default function PresentationsPage() {
 			}
 
 			const results = await verifyPresentationEnhanced(verificationRequest)
-
-			// Automatically trigger state transition based on verification result
-			const newState = results.valid ? 'verified' : 'rejected'
-			try {
-				await triggerVPStateTransition({
-					presentationId: presentation.id,
-					newState,
-					actor: 'verification_system',
-					metadata: {
-						verification_result: results,
-						trust_score: results.trustScore,
-						verification_timestamp: new Date().toISOString(),
-						auto_triggered: true
-					}
-				})
-			} catch (stateError) {
-				console.warn('State transition failed:', stateError)
-				// Continue with showing results even if state transition fails
-			}
 
 			// Show success/failure toast
 			if (results.valid) {
@@ -206,14 +186,9 @@ export default function PresentationsPage() {
 
 			{/* Main Content with Tabs */}
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-				<TabsList className="grid w-full grid-cols-4">
+				<TabsList className="grid w-full grid-cols-2">
 					<TabsTrigger value="presentations">My Presentations</TabsTrigger>
-					<TabsTrigger value="analytics">Analytics & Insights</TabsTrigger>
 					<TabsTrigger value="state-machine">State Analytics</TabsTrigger>
-					<TabsTrigger value="demo">
-						<Activity className="mr-2 h-4 w-4" />
-						State Machine Demo
-					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="presentations" className="mt-6 space-y-6">
@@ -236,10 +211,6 @@ export default function PresentationsPage() {
 					</Card>
 				</TabsContent>
 
-				<TabsContent value="analytics" className="mt-6">
-					<PresentationAnalytics timeRange="30d" />
-				</TabsContent>
-
 				<TabsContent value="state-machine" className="mt-6">
 					<VPStateAnalytics 
 						autoRefresh={true}
@@ -248,10 +219,6 @@ export default function PresentationsPage() {
 							endDate: new Date().toISOString()
 						}}
 					/>
-				</TabsContent>
-
-				<TabsContent value="demo" className="mt-6">
-					<VPStateMachineDemo />
 				</TabsContent>
 			</Tabs>
 
