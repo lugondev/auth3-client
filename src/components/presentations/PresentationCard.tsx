@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 
 import { VerifiablePresentation, PresentationStatus } from '@/types/presentations'
 import { getCurrentVPState, revokePresentation, rejectPresentation } from '@/services/vpStateMachineService'
+import { formatDate } from '@/lib/utils'
 
 interface PresentationCardProps {
 	presentation: VerifiablePresentation
@@ -464,7 +465,7 @@ export function PresentationCard({
 						{presentation.createdAt && (
 							<div className='flex items-center gap-2'>
 								<Calendar className='h-4 w-4' />
-								<span>Created: {new Date(presentation.createdAt).toLocaleDateString()}</span>
+								<span>Created: {formatDate(presentation.createdAt)}</span>
 							</div>
 						)}
 					</div>

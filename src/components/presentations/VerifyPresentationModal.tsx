@@ -220,34 +220,6 @@ export function VerifyPresentationModal({isOpen, onClose, initialPresentation = 
 				{showResults ? (
 					/* Results View */
 					<div className='space-y-6'>
-						{/* Status Summary */}
-						{(verificationResult || enhancedResult) && (
-							<Card className={verificationResult?.valid || enhancedResult?.valid ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-								<CardHeader className='pb-3'>
-									<div className='flex items-center justify-between'>
-										<div className='flex items-center gap-3'>
-											{verificationResult?.valid || enhancedResult?.valid ? <CheckCircle className='h-8 w-8 text-green-600' /> : <XCircle className='h-8 w-8 text-red-600' />}
-											<div>
-												<CardTitle className={verificationResult?.valid || enhancedResult?.valid ? 'text-green-800' : 'text-red-800'}>Presentation {verificationResult?.valid || enhancedResult?.valid ? 'Valid' : 'Invalid'}</CardTitle>
-												<CardDescription className={verificationResult?.valid || enhancedResult?.valid ? 'text-green-700' : 'text-red-700'}>{verificationResult?.valid || enhancedResult?.valid ? 'All verification checks passed successfully' : 'One or more verification checks failed'}</CardDescription>
-											</div>
-										</div>
-
-										{/* Trust Score for Enhanced */}
-										{enhancedResult && (
-											<div className='text-center'>
-												<div className={`text-2xl font-bold ${enhancedResult.trustScore >= 90 ? 'text-green-600' : enhancedResult.trustScore >= 70 ? 'text-blue-600' : enhancedResult.trustScore >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>{enhancedResult.trustScore.toFixed(1)}%</div>
-												<div className='text-sm text-muted-foreground'>Trust Score</div>
-											</div>
-										)}
-									</div>
-								</CardHeader>
-							</Card>
-						)}
-
-						{/* Detailed Results */}
-						{verificationResult && <PresentationVerificationResults results={verificationResult} className='border-0 shadow-none bg-transparent' />}
-
 						{enhancedResult && (
 							<div className='space-y-4'>
 								<PresentationVerificationResults results={enhancedResult} className='border-0 shadow-none bg-transparent' />

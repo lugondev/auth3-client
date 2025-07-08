@@ -103,16 +103,28 @@ export function TemplateSelector({
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [searchTerm, setSearchTerm] = useState('')
+	const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 	const [sortBy, setSortBy] = useState<'name' | 'usage' | 'recent' | 'rating'>('name')
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>(initialViewMode)
+	const [loadingStats, setLoadingStats] = useState(false)
+	const [statsCache, setStatsCache] = useState<Record<string, TemplateStats>>({})
 	const [filters] = useState<TemplateFilters>({
 		page: 1,
 		limit: 100, // Load all for better UX
 		active: true,
 	})
 
-	// Load templates with enhanced data
+	// Debounce search term to avoid excessive API calls
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedSearchTerm(searchTerm)
+		}, 300) // Wait 300ms after user stops typing
+
+		return () => clearTimeout(timer)
+	}, [searchTerm])
+
+	// Load templates without stats first for faster initial render
 	useEffect(() => {
 		const loadTemplates = async () => {
 			try {
@@ -121,44 +133,19 @@ export function TemplateSelector({
 
 				const response = await templateService.listTemplates({
 					...filters,
-					search: searchTerm || undefined,
+					search: debouncedSearchTerm || undefined,
 				})
 
-				// Enhance templates with analytics data if enabled
-				const enhancedTemplates: EnhancedTemplate[] = await Promise.all(
-					response.templates.map(async (template) => {
-						let stats: TemplateStats | undefined
+				// Create basic enhanced templates without stats first
+				const basicEnhancedTemplates: EnhancedTemplate[] = response.templates.map((template) => ({
+					...template,
+					category: (template.metadata?.category as string) || 'Other',
+					isRecent: template.updatedAt ? 
+						new Date(template.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : 
+						false,
+				}))
 
-						if (showAnalytics) {
-							try {
-								const usageStats = await templateService.getTemplateUsageStats(template.id)
-								stats = {
-									usageCount: usageStats.totalCredentials || 0,
-									recentUsage: usageStats.usageThisWeek || 0,
-									lastUsed: usageStats.lastUsed,
-								}
-							} catch {
-								// Fallback to basic stats
-								stats = {
-									usageCount: 0,
-									recentUsage: 0,
-								}
-							}
-						}
-
-						return {
-							...template,
-							stats,
-							category: (template.metadata?.category as string) || 'Other',
-							isPopular: stats ? stats.usageCount > 10 : false,
-							isRecent: template.updatedAt ? 
-								new Date(template.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : 
-								false,
-						}
-					})
-				)
-
-				setTemplates(enhancedTemplates)
+				setTemplates(basicEnhancedTemplates)
 			} catch (err) {
 				console.error('Error loading templates:', err)
 				setError('Failed to load templates')
@@ -169,7 +156,90 @@ export function TemplateSelector({
 		}
 
 		loadTemplates()
-	}, [filters, searchTerm, showAnalytics])
+	}, [filters, debouncedSearchTerm])
+
+	// Load analytics data separately if enabled to avoid blocking initial render
+	useEffect(() => {
+		if (!showAnalytics || templates.length === 0) return
+
+		const loadAnalyticsData = async () => {
+			try {
+				setLoadingStats(true)
+
+				// Load stats for templates that aren't already cached
+				const templatesToLoadStats = templates.filter(template => !statsCache[template.id])
+				
+				if (templatesToLoadStats.length === 0) {
+					// All stats already cached, just update templates
+					const updatedTemplates = templates.map(template => ({
+						...template,
+						stats: statsCache[template.id],
+						isPopular: statsCache[template.id] ? statsCache[template.id].usageCount > 10 : false,
+					}))
+					setTemplates(updatedTemplates)
+					return
+				}
+
+				// Batch load stats with delay to avoid overwhelming the server
+				const newStatsCache = { ...statsCache }
+				const batchSize = 5 // Process 5 templates at a time
+				
+				for (let i = 0; i < templatesToLoadStats.length; i += batchSize) {
+					const batch = templatesToLoadStats.slice(i, i + batchSize)
+					
+					const batchPromises = batch.map(async (template) => {
+						try {
+							const usageStats = await templateService.getTemplateUsageStats(template.id)
+							const stats: TemplateStats = {
+								usageCount: usageStats.totalCredentials || 0,
+								recentUsage: usageStats.usageThisWeek || 0,
+								lastUsed: usageStats.lastUsed,
+							}
+							newStatsCache[template.id] = stats
+							return { templateId: template.id, stats }
+						} catch (error) {
+							console.warn(`Failed to load stats for template ${template.id}:`, error)
+							// Fallback to basic stats
+							const fallbackStats: TemplateStats = {
+								usageCount: 0,
+								recentUsage: 0,
+							}
+							newStatsCache[template.id] = fallbackStats
+							return { templateId: template.id, stats: fallbackStats }
+						}
+					})
+
+					await Promise.all(batchPromises)
+					
+					// Add delay between batches to avoid overwhelming the server
+					if (i + batchSize < templatesToLoadStats.length) {
+						await new Promise(resolve => setTimeout(resolve, 200))
+					}
+				}
+
+				// Update cache
+				setStatsCache(newStatsCache)
+
+				// Update templates with stats
+				const enhancedTemplates = templates.map(template => ({
+					...template,
+					stats: newStatsCache[template.id],
+					isPopular: newStatsCache[template.id] ? newStatsCache[template.id].usageCount > 10 : false,
+				}))
+
+				setTemplates(enhancedTemplates)
+			} catch (error) {
+				console.error('Error loading analytics data:', error)
+				// Don't show error toast for analytics failures
+			} finally {
+				setLoadingStats(false)
+			}
+		}
+
+		// Add small delay to allow initial render to complete
+		const timeoutId = setTimeout(loadAnalyticsData, 100)
+		return () => clearTimeout(timeoutId)
+	}, [templates.length, showAnalytics, statsCache])
 
 	// Get template icon based on type/category
 	const getTemplateIcon = (template: EnhancedTemplate) => {
@@ -194,9 +264,10 @@ export function TemplateSelector({
 		return <FileText className="h-5 w-5" />
 	}
 
-	// Filter and sort templates
+	// Filter and sort templates with client-side search for better UX
 	const getFilteredAndSortedTemplates = () => {
 		const filtered = templates.filter((template) => {
+			// Use immediate searchTerm for client-side filtering (responsive UI)
 			const matchesSearch = !searchTerm || 
 				template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 				template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -492,6 +563,13 @@ export function TemplateSelector({
 							</Badge>
 						)}
 						
+						{/* Analytics Loading Indicator */}
+						{showAnalytics && loadingStats && (
+							<Badge variant="outline" className="bg-blue-50 text-blue-700">
+								Loading stats...
+							</Badge>
+						)}
+						
 						{/* View Mode Toggle */}
 						<div className="flex items-center border rounded-md">
 							<Button
@@ -523,6 +601,17 @@ export function TemplateSelector({
 								<DropdownMenuItem onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>
 									Switch to {viewMode === 'grid' ? 'List' : 'Grid'} View
 								</DropdownMenuItem>
+								{showAnalytics && (
+									<>
+										<DropdownMenuSeparator />
+										<DropdownMenuItem onClick={() => {
+											setStatsCache({})
+											toast.success('Analytics cache cleared')
+										}}>
+											Refresh Analytics
+										</DropdownMenuItem>
+									</>
+								)}
 								<DropdownMenuSeparator />
 								{onCreateCustom && (
 									<DropdownMenuItem onClick={onCreateCustom}>
@@ -555,6 +644,12 @@ export function TemplateSelector({
 							onChange={(e) => setSearchTerm(e.target.value)}
 							className="pl-10"
 						/>
+						{/* Show loading indicator when server search is pending */}
+						{searchTerm !== debouncedSearchTerm && searchTerm.length > 0 && (
+							<div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+								<div className="animate-spin h-4 w-4 border-2 border-muted-foreground border-t-transparent rounded-full"></div>
+							</div>
+						)}
 					</div>
 
 					{/* Filters Row */}

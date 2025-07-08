@@ -33,6 +33,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { PresentationRequest, CredentialRequirement } from '@/types/presentation-request';
 import type { VerifiableCredential } from '@/services/credentialService';
 import type { DIDData } from '@/types/did';
+import { formatDate } from '@/lib/utils';
 
 interface CredentialMatch {
   credential: VerifiableCredential;
@@ -541,10 +542,6 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
         setSubmitting(false);
       }
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
   };
 
   if (!isAuthenticated) {
