@@ -97,12 +97,6 @@ class TemplateService {
 		return response.data;
 	}
 
-	// Template usage statistics
-	async getUsageStats(id: string): Promise<{ data: TemplateUsageStats }> {
-		const response = await apiClient.get<TemplateUsageStats>(`${API_BASE_URL}/${id}/usage-stats`);
-		return { data: response.data };
-	}
-
 	// Utility methods
 	async downloadTemplateExport(id: string, format: string = 'json'): Promise<void> {
 		const exportData = await this.exportTemplate(id, format);

@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
@@ -109,6 +109,7 @@ export function TemplateSelector({
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>(initialViewMode)
 	const [loadingStats, setLoadingStats] = useState(false)
 	const [statsCache, setStatsCache] = useState<Record<string, TemplateStats>>({})
+	const loadingStatsRef = useRef(false) // Prevent concurrent requests
 	const [filters] = useState<TemplateFilters>({
 		page: 1,
 		limit: 100, // Load all for better UX
@@ -162,15 +163,19 @@ export function TemplateSelector({
 	useEffect(() => {
 		if (!showAnalytics || templates.length === 0) return
 
+		// Check if we're already loading stats to prevent concurrent requests
+		if (loadingStatsRef.current) return
+
 		const loadAnalyticsData = async () => {
 			try {
+				loadingStatsRef.current = true
 				setLoadingStats(true)
 
 				// Load stats for templates that aren't already cached
 				const templatesToLoadStats = templates.filter(template => !statsCache[template.id])
 				
 				if (templatesToLoadStats.length === 0) {
-					// All stats already cached, just update templates
+					// All stats already cached, just update templates with existing cache
 					const updatedTemplates = templates.map(template => ({
 						...template,
 						stats: statsCache[template.id],
@@ -180,66 +185,71 @@ export function TemplateSelector({
 					return
 				}
 
-				// Batch load stats with delay to avoid overwhelming the server
+				// Reduce batch size and add more aggressive rate limiting
 				const newStatsCache = { ...statsCache }
-				const batchSize = 5 // Process 5 templates at a time
+				const batchSize = 3 // Reduce to 3 templates at a time
 				
 				for (let i = 0; i < templatesToLoadStats.length; i += batchSize) {
 					const batch = templatesToLoadStats.slice(i, i + batchSize)
 					
-					const batchPromises = batch.map(async (template) => {
-						try {
-							const usageStats = await templateService.getTemplateUsageStats(template.id)
-							const stats: TemplateStats = {
-								usageCount: usageStats.totalCredentials || 0,
-								recentUsage: usageStats.usageThisWeek || 0,
-								lastUsed: usageStats.lastUsed,
+					// Process batch with proper error handling
+					await Promise.allSettled(
+						batch.map(async (template) => {
+							try {
+								const usageStats = await templateService.getTemplateUsageStats(template.id)
+								const stats: TemplateStats = {
+									usageCount: usageStats.totalCredentials || 0,
+									recentUsage: usageStats.usageThisWeek || 0,
+									lastUsed: usageStats.lastUsed,
+								}
+								newStatsCache[template.id] = stats
+								return { templateId: template.id, stats, success: true }
+							} catch (error) {
+								console.warn(`Failed to load stats for template ${template.id}:`, error)
+								// Fallback to basic stats
+								const fallbackStats: TemplateStats = {
+									usageCount: 0,
+									recentUsage: 0,
+								}
+								newStatsCache[template.id] = fallbackStats
+								return { templateId: template.id, stats: fallbackStats, success: false }
 							}
-							newStatsCache[template.id] = stats
-							return { templateId: template.id, stats }
-						} catch (error) {
-							console.warn(`Failed to load stats for template ${template.id}:`, error)
-							// Fallback to basic stats
-							const fallbackStats: TemplateStats = {
-								usageCount: 0,
-								recentUsage: 0,
-							}
-							newStatsCache[template.id] = fallbackStats
-							return { templateId: template.id, stats: fallbackStats }
-						}
-					})
+						})
+					)
 
-					await Promise.all(batchPromises)
+					// Update templates incrementally for better UX
+					const enhancedTemplates = templates.map(template => ({
+						...template,
+						stats: newStatsCache[template.id],
+						isPopular: newStatsCache[template.id] ? newStatsCache[template.id].usageCount > 10 : false,
+					}))
+					setTemplates(enhancedTemplates)
 					
-					// Add delay between batches to avoid overwhelming the server
+					// Longer delay between batches to reduce server load
 					if (i + batchSize < templatesToLoadStats.length) {
-						await new Promise(resolve => setTimeout(resolve, 200))
+						await new Promise(resolve => setTimeout(resolve, 500)) // Increased delay
 					}
 				}
 
-				// Update cache
+				// Final update of cache
 				setStatsCache(newStatsCache)
 
-				// Update templates with stats
-				const enhancedTemplates = templates.map(template => ({
-					...template,
-					stats: newStatsCache[template.id],
-					isPopular: newStatsCache[template.id] ? newStatsCache[template.id].usageCount > 10 : false,
-				}))
-
-				setTemplates(enhancedTemplates)
 			} catch (error) {
 				console.error('Error loading analytics data:', error)
 				// Don't show error toast for analytics failures
 			} finally {
+				loadingStatsRef.current = false
 				setLoadingStats(false)
 			}
 		}
 
-		// Add small delay to allow initial render to complete
-		const timeoutId = setTimeout(loadAnalyticsData, 100)
-		return () => clearTimeout(timeoutId)
-	}, [templates.length, showAnalytics, statsCache])
+		// Use a longer delay and create a debounced effect
+		const timeoutId = setTimeout(loadAnalyticsData, 500) // Increased delay
+		return () => {
+			clearTimeout(timeoutId)
+			loadingStatsRef.current = false
+		}
+	}, [showAnalytics, templates.length]) // Remove statsCache from dependencies to prevent loops
 
 	// Get template icon based on type/category
 	const getTemplateIcon = (template: EnhancedTemplate) => {
@@ -605,7 +615,10 @@ export function TemplateSelector({
 									<>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem onClick={() => {
+											// Clear cache and reset loading state
 											setStatsCache({})
+											loadingStatsRef.current = false
+											setLoadingStats(false)
 											toast.success('Analytics cache cleared')
 										}}>
 											Refresh Analytics

@@ -32,8 +32,8 @@ export function TemplateUsageStats({templateId, templateName, onClose}: Template
 		try {
 			setLoading(true)
 			setError(null)
-			const response = await templateService.getUsageStats(templateId)
-			setStats(response.data)
+			const response = await templateService.getTemplateUsageStats(templateId)
+			setStats(response)
 		} catch (err) {
 			setError('Failed to load usage statistics')
 			console.error('Error fetching usage stats:', err)

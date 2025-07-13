@@ -172,16 +172,113 @@ export async function getPresentationsByHolder(
  * Verify a presentation
  */
 export async function verifyPresentation(request: VerifyPresentationRequest): Promise<VerifyPresentationResponse> {
-	const response = await apiClient.post(`${API_BASE_URL}/verify`, request);
-	return response.data as VerifyPresentationResponse;
+	try {
+		// Validate presentation structure before sending
+		if (!request.presentation) {
+			throw new Error('Presentation is required');
+		}
+		
+		// Check holder consistency before verification
+		if (request.presentation.holder && request.presentation.verifiableCredential) {
+			for (const credential of request.presentation.verifiableCredential) {
+				if (credential?.credentialSubject?.id && credential.credentialSubject.id !== request.presentation.holder) {
+					console.warn('Holder mismatch detected:', {
+						presentationHolder: request.presentation.holder,
+						credentialSubjectId: credential.credentialSubject.id,
+						credentialId: credential.id
+					});
+				}
+			}
+		}
+		
+		const response = await apiClient.post(`${API_BASE_URL}/verify`, request);
+		return response.data as VerifyPresentationResponse;
+	} catch (error) {
+		console.error('Presentation verification failed:', error);
+		if (error && typeof error === 'object' && 'response' in error) {
+			const axiosError = error as {
+				response?: {
+					data?: {
+						message?: string;
+						errors?: string[];
+						details?: Record<string, unknown>;
+					};
+					status?: number;
+				}
+			};
+
+			// Enhanced error handling for specific verification failures
+			if (axiosError.response?.data?.errors) {
+				const errors = axiosError.response.data.errors;
+				if (errors.some(err => err.includes('holder mismatch'))) {
+					const enhancedError = new Error('Presentation holder does not match credential subjects. Ensure all credentials belong to the presentation holder.');
+					enhancedError.name = 'HolderMismatchError';
+					throw enhancedError;
+				}
+				if (errors.some(err => err.includes('proof verification failed'))) {
+					const enhancedError = new Error('Presentation proof verification failed. Check if the presentation was signed correctly.');
+					enhancedError.name = 'ProofVerificationError';
+					throw enhancedError;
+				}
+				if (errors.some(err => err.includes('verification method'))) {
+					const enhancedError = new Error('Failed to resolve verification method. Check if the DID and key references are valid.');
+					enhancedError.name = 'VerificationMethodError';
+					throw enhancedError;
+				}
+			}
+		}
+		throw error;
+	}
 }
 
 /**
  * Enhanced verify a presentation with trust scoring
  */
 export async function verifyPresentationEnhanced(request: EnhancedVerificationRequest): Promise<EnhancedVerificationResponse> {
-	const response = await apiClient.post(`${API_BASE_URL}/verify/enhanced`, request);
-	return response.data as EnhancedVerificationResponse;
+	try {
+		// Validate presentation structure before sending
+		if (!request.presentation) {
+			throw new Error('Presentation is required for enhanced verification');
+		}
+		
+		// Check holder consistency before verification
+		if (request.presentation.holder && request.presentation.verifiableCredential) {
+			for (const credential of request.presentation.verifiableCredential) {
+				if (credential?.credentialSubject?.id && credential.credentialSubject.id !== request.presentation.holder) {
+					console.warn('Enhanced verification - Holder mismatch detected:', {
+						presentationHolder: request.presentation.holder,
+						credentialSubjectId: credential.credentialSubject.id,
+						credentialId: credential.id
+					});
+				}
+			}
+		}
+		
+		const response = await apiClient.post(`${API_BASE_URL}/verify/enhanced`, request);
+		return response.data as EnhancedVerificationResponse;
+	} catch (error) {
+		console.error('Enhanced presentation verification failed:', error);
+		
+		// Fallback to basic verification if enhanced fails
+		if (error && typeof error === 'object' && 'response' in error) {
+			const axiosError = error as { response?: { status?: number } };
+			if (axiosError.response?.status === 404) {
+				console.warn('Enhanced verification endpoint not available, falling back to basic verification');
+				return await verifyPresentation({
+					presentation: request.presentation,
+					verifySignature: request.verificationOptions?.verifySignature ?? true,
+					verifyExpiration: request.verificationOptions?.verifyExpiration ?? true,
+					verifyRevocation: request.verificationOptions?.verifyRevocation ?? false,
+					verifyIssuerTrust: request.verificationOptions?.verifyIssuerTrust ?? false,
+					verifySchema: request.verificationOptions?.verifySchema ?? true,
+					challenge: request.verificationOptions?.verifyChallenge ? request.metadata?.challenge : undefined,
+					domain: request.verificationOptions?.verifyDomain ? request.metadata?.domain : undefined
+				}) as unknown as EnhancedVerificationResponse;
+			}
+		}
+		
+		throw error;
+	}
 }
 
 /**

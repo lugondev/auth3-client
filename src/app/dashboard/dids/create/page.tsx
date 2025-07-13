@@ -166,17 +166,17 @@ export default function CreateDIDPage() {
 			id: didId,
 			verificationMethod: [
 				{
-					id: `${didId}#keys-1`,
+					id: `${didId}#[generated-key-fragment]`,
 					type: verificationMethodType,
 					controller: didId,
 					publicKeyMultibase: '[generated-public-key-will-be-here]',
 				},
 			],
-			authentication: [`${didId}#keys-1`],
-			assertionMethod: [`${didId}#keys-1`],
-			keyAgreement: [`${didId}#keys-1`],
-			capabilityInvocation: [`${didId}#keys-1`],
-			capabilityDelegation: [`${didId}#keys-1`],
+			authentication: [`${didId}#[generated-key-fragment]`],
+			assertionMethod: [`${didId}#[generated-key-fragment]`],
+			keyAgreement: [`${didId}#[generated-key-fragment]`],
+			capabilityInvocation: [`${didId}#[generated-key-fragment]`],
+			capabilityDelegation: [`${didId}#[generated-key-fragment]`],
 			service:
 				form.serviceEndpoints?.map((endpoint) => ({
 					id: `${didId}#${endpoint.id}`,

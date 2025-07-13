@@ -85,7 +85,7 @@ export function PresentationCard({
 			}
 		}
 
-		loadCurrentStatus()
+		// loadCurrentStatus()
 	}, [presentation.id])
 
 	// Get presentation types (excluding VerifiablePresentation)
