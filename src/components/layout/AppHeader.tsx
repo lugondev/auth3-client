@@ -28,10 +28,21 @@ import {
 	Users,
 	FileText,
 	Database,
+	Key,
+	CheckCircle,
+	Share2,
 } from 'lucide-react'
 import {cn} from '@/lib/utils'
 import {TenantSelector} from '@/components/tenants/TenantSelector'
 import {ContextSwitcher} from '@/components/context/ContextSwitcher'
+
+interface NavigationItem {
+	label: string
+	href: string
+	icon: React.ComponentType<{ className?: string }>
+	roles: string[]
+	description?: string
+}
 
 export interface AppHeaderProps {
 	showNavigation?: boolean
@@ -40,36 +51,62 @@ export interface AppHeaderProps {
 	className?: string
 }
 
-const navigationItems = [
+const navigationItems: NavigationItem[] = [
 	{
 		label: 'Dashboard',
 		href: '/dashboard',
 		icon: Home,
 		roles: ['user', 'admin', 'system_admin'],
+		description: 'Main overview and analytics',
+	},
+	{
+		label: 'DIDs',
+		href: '/dashboard/dids',
+		icon: Key,
+		roles: ['user', 'admin', 'system_admin'],
+		description: 'Manage Decentralized Identifiers',
+	},
+	{
+		label: 'Credentials',
+		href: '/dashboard/credentials',
+		icon: CheckCircle,
+		roles: ['user', 'admin', 'system_admin'],
+		description: 'Verifiable Credentials',
+	},
+	{
+		label: 'Presentations',
+		href: '/dashboard/presentations',
+		icon: Share2,
+		roles: ['user', 'admin', 'system_admin'],
+		description: 'Verifiable Presentations',
+	},
+	{
+		label: 'DID Management',
+		href: '/dashboard/did-management',
+		icon: Settings,
+		roles: ['user', 'admin', 'system_admin'],
+		description: 'Advanced DID Operations',
 	},
 	{
 		label: 'My Tenants',
 		href: '/dashboard/tenants',
 		icon: Building2,
 		roles: ['user', 'admin', 'system_admin'],
-	},
-	{
-		label: 'Administration',
-		href: '/dashboard/admin',
-		icon: Shield,
-		roles: ['admin', 'system_admin'],
+		description: 'Multi-tenant management',
 	},
 	{
 		label: 'Templates',
 		href: '/dashboard/templates',
 		icon: FileText,
 		roles: ['user', 'admin', 'system_admin'],
+		description: 'Credential templates',
 	},
 	{
-		label: 'Credentials',
-		href: '/dashboard/credentials',
-		icon: Database,
-		roles: ['user', 'admin', 'system_admin'],
+		label: 'Administration',
+		href: '/dashboard/admin',
+		icon: Shield,
+		roles: ['admin', 'system_admin'],
+		description: 'System administration',
 	},
 ]
 
@@ -331,27 +368,33 @@ export function AppHeader({
 									</DropdownMenuTrigger>
 									<DropdownMenuContent align="end" className="w-56">
 										<DropdownMenuLabel>Navigation</DropdownMenuLabel>
-										<DropdownMenuSeparator />
-										{navigationItems
-											.filter((item) => hasRole(item.roles))
-											.map((item) => {
-												const Icon = item.icon
-												const isActive = pathname.startsWith(item.href)
+										<DropdownMenuSeparator />								{navigationItems
+									.filter((item) => hasRole(item.roles))
+									.map((item) => {
+										const Icon = item.icon
+										const isActive = pathname.startsWith(item.href)
 
-												return (
-													<DropdownMenuItem key={item.href} asChild>
-														<Link href={item.href} className="cursor-pointer">
-															<Icon className="mr-2 h-4 w-4" />
-															<span>{item.label}</span>
-															{isActive && (
-																<Badge variant="secondary" className="ml-auto text-xs">
-																	Active
-																</Badge>
-															)}
-														</Link>
-													</DropdownMenuItem>
-												)
-											})}
+										return (
+											<DropdownMenuItem key={item.href} asChild>
+												<Link href={item.href} className="cursor-pointer flex flex-col items-start py-3">
+													<div className="flex items-center w-full">
+														<Icon className="mr-2 h-4 w-4" />
+														<span>{item.label}</span>
+														{isActive && (
+															<Badge variant="secondary" className="ml-auto text-xs">
+																Active
+															</Badge>
+														)}
+													</div>
+													{item.description && (
+														<span className="text-xs text-muted-foreground ml-6">
+															{item.description}
+														</span>
+													)}
+												</Link>
+											</DropdownMenuItem>
+										)
+									})}
 									</DropdownMenuContent>
 								</DropdownMenu>
 							</div>

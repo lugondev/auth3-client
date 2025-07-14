@@ -13,6 +13,22 @@ import {
 	Lock, // For disabled items
 	ChevronsLeft, // For sidebar collapse
 	ChevronsRight, // For sidebar expand
+	Key, // For DIDs
+	FileText, // For Credentials
+	Share2, // For Presentations
+	Settings, // For DID Management
+	Search, // For Verification
+	Activity, // For Analytics
+	FileCheck, // For Templates
+	Shield, // For OAuth2
+	Plus, // For Create actions
+	Eye, // For View/Verify actions
+	Send, // For Sharing
+	CheckCircle, // For Verification success
+	FileUp, // For Issue/Upload
+	Workflow, // For Templates Enhanced
+	Mail, // For Messages
+	Globe, // For Advanced OAuth2
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -41,6 +57,69 @@ interface SidebarProps {
 
 const userLinks: NavLink[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{
+		href: '/dashboard/dids',
+		label: 'DIDs',
+		icon: Key,
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/dids', label: 'My DIDs', icon: Key},
+			{href: '/dashboard/dids/create', label: 'Create DID', icon: Plus},
+			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings},
+		],
+	},
+	{
+		href: '/dashboard/credentials',
+		label: 'Credentials',
+		icon: FileText,
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/credentials', label: 'Overview', icon: Eye},
+			{href: '/dashboard/credentials/issue', label: 'Issue', icon: FileUp},
+			{href: '/dashboard/credentials/verify', label: 'Verify', icon: CheckCircle},
+			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileCheck},
+			{href: '/dashboard/credentials/templates-enhanced', label: 'Enhanced Templates', icon: Workflow},
+		],
+	},
+	{
+		href: '/dashboard/presentations',
+		label: 'Presentations',
+		icon: Share2,
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/presentations', label: 'Overview', icon: Eye},
+			{href: '/dashboard/presentations/create', label: 'Create', icon: Plus},
+			{href: '/dashboard/presentations/verify', label: 'Verify', icon: CheckCircle},
+			{href: '/dashboard/presentations/sharing', label: 'Sharing', icon: Send},
+			{href: '/dashboard/presentations/templates', label: 'Templates', icon: FileCheck},
+		],
+	},
+	{
+		href: '/dashboard/verification',
+		label: 'Verification',
+		icon: Search,
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/test-verification', label: 'Test Verification', icon: Search},
+			{href: '/dashboard/demo', label: 'Demo', icon: Activity},
+		],
+	},
+	{
+		href: '/dashboard/messages',
+		label: 'Messages',
+		icon: Mail,
+	},
+	{
+		href: '/dashboard/oauth2',
+		label: 'OAuth2',
+		icon: Shield,
+		isCollapsible: true,
+		children: [
+			{href: '/dashboard/oauth2', label: 'My Apps', icon: Eye},
+			{href: '/dashboard/oauth2/create', label: 'Create App', icon: Plus},
+			{href: '/dashboard/oauth2/advanced', label: 'Advanced', icon: Globe},
+		],
+	},
 	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle},
 	{
 		href: '/dashboard/tenant-management',
@@ -52,7 +131,6 @@ const userLinks: NavLink[] = [
 		href: '/dashboard/admin',
 		label: 'Admin Panel',
 		icon: ShieldCheck,
-		isCollapsible: false,
 		permission: 'admin:access', // Require admin permission
 	},
 ]
