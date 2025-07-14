@@ -437,6 +437,8 @@ export const loginTenantContext = async (
 		const currentMode = contextManager.getCurrentMode()
 		const currentTenantState = contextManager.getContextState('tenant')
 		
+		console.log(`🔄 Login tenant context - Current mode: ${currentMode}, Target tenant: ${tenantId}`)
+		
 		if (currentMode === 'tenant' && currentTenantState?.tenantId === tenantId) {
 			console.log(`✅ Already in tenant ${tenantId} context, skipping login-tenant API call`)
 			return {
@@ -460,6 +462,8 @@ export const loginTenantContext = async (
 			tenant_id: tenantId
 		};
 
+		console.log(`📡 Calling login-tenant API for tenant: ${tenantId}`)
+
 		// Call backend login-tenant API
 		const response = await apiClient.post<{ 
 			access_token: string, 
@@ -471,11 +475,27 @@ export const loginTenantContext = async (
 
 		// Store tenant tokens
 		if (response.data && response.data.access_token) {
+			console.log(`💾 Storing tenant tokens for tenant: ${tenantId}`)
+			
 			// Store new tenant tokens using both managers for compatibility
 			tokenManager.setTokens('tenant', response.data.access_token, response.data.refresh_token || null);
 			multiTenantTokenManager.setTenantTokens(tenantId, response.data.access_token, response.data.refresh_token || null);
 
-			console.log(`Tenant context switched successfully to tenant ${tenantId}.`);
+			// Update context state with tenant ID to ensure X-Tenant-ID header is added
+			contextManager.setContextState('tenant', {
+				user: null, // Will be updated by AuthContext after decoding token
+				isAuthenticated: true,
+				tenantId: tenantId,
+				permissions: [],
+				roles: [],
+				tokens: {
+					accessToken: response.data.access_token,
+					refreshToken: response.data.refresh_token || null,
+					timestamp: Date.now()
+				}
+			});
+
+			console.log(`✅ Tenant context switched successfully to tenant ${tenantId}.`);
 			return {
 				success: true,
 				previousMode: 'global' as ContextMode,

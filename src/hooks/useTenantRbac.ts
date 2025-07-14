@@ -31,7 +31,10 @@ const groupPermissionsByObject = (permissions: string[][] | undefined): Record<s
 
 const initialStateFactory = (tenantId: string | null): TenantRbacState => ({
 	tenantId: tenantId,
-	roles: [],
+	roles: {
+		custom: [],
+		default: [],
+	},
 	rolePermissionsMap: {},
 	loading: {
 		initialRoles: true,
@@ -69,7 +72,7 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 	// --- Data Fetching ---
 	const fetchTenantRolesInternal = useCallback(async (tenantId: string) => {
 		if (!tenantId) {
-			setState(prev => ({ ...prev, roles: [], loading: { ...prev.loading, initialRoles: false } }));
+			setState(prev => ({ ...prev, roles: { custom: [], default: [] }, loading: { ...prev.loading, initialRoles: false } }));
 			return;
 		}
 		setLoading({ initialRoles: true })
@@ -78,7 +81,10 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 			const rolesRes = await getTenantRoles(tenantId)
 			setState((prev) => ({
 				...prev,
-				roles: [...rolesRes.custom_roles, ...rolesRes.default_roles],
+				roles: {
+					custom: rolesRes?.custom_roles || [],
+					default: rolesRes?.default_roles || [],
+				},
 				rolePermissionsMap: {}, // Reset permissions when roles are refetched for a new tenant
 			}))
 		} catch (err) {
@@ -87,7 +93,11 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 			if (err instanceof Error) errorMessage = err.message
 			else if (typeof err === 'string') errorMessage = err
 			setError(`Failed to load tenant roles: ${errorMessage}`)
-			setState(prev => ({ ...prev, roles: [] }));
+			setState(prev => ({
+				...prev,
+				roles: { custom: [], default: [] },
+				rolePermissionsMap: {},
+			})); // Reset roles and permissions on error
 		} finally {
 			setLoading({ initialRoles: false })
 		}
@@ -97,7 +107,7 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 		if (state.tenantId) {
 			fetchTenantRolesInternal(state.tenantId);
 		} else {
-			setState(prev => ({ ...prev, roles: [], loading: { ...prev.loading, initialRoles: false } }));
+			setState(prev => ({ ...prev, roles: { custom: [], default: [] }, loading: { ...prev.loading, initialRoles: false } }));
 		}
 	}, [state.tenantId, fetchTenantRolesInternal]); // fetchTenantRolesInternal is stable due to its own useCallback([])
 
@@ -247,7 +257,10 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 
 			setState((prev) => ({
 				...prev,
-				roles: [...prev.roles, roleName].sort().filter((v, i, a) => a.indexOf(v) === i),
+				roles: {
+					...prev.roles,
+					custom: [...prev.roles.custom, roleName], // Add to custom roles
+				},
 				rolePermissionsMap: {
 					...prev.rolePermissionsMap,
 					[roleName]: [[firstPermissionObject, firstPermissionAction]],
@@ -272,12 +285,15 @@ export function useTenantRbac(initialTenantId: string | null): UseTenantRbacRetu
 		try {
 			await deleteTenantRole(state.tenantId, roleName);
 			setState((prev) => {
-				const newRoles = prev.roles.filter((r) => r !== roleName);
+				const newRoles = prev.roles.custom.filter((r) => r !== roleName);
 				const newRolePermissionsMap = { ...prev.rolePermissionsMap };
 				delete newRolePermissionsMap[roleName];
 				return {
 					...prev,
-					roles: newRoles,
+					roles: {
+						...prev.roles,
+						custom: newRoles,
+					},
 					rolePermissionsMap: newRolePermissionsMap,
 					selectedRole: prev.selectedRole === roleName ? null : prev.selectedRole,
 				};

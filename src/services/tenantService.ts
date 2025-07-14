@@ -3,6 +3,7 @@ import { withErrorHandling } from './errorHandlingService';
 import { AddUserToTenantRequest, PaginatedTenantsResponse, PaginatedTenantUsersResponse, TenantResponse, TenantUserResponse, UpdateTenantRequest, UpdateTenantUserRequest, CreateTenantRequest } from '@/types/tenant';
 import { OwnedTenantsResponse, JoinedTenantsResponse } from '@/types/tenantManagement';
 import { TenantPermission } from '@/types/tenantRbac';
+import { TenantRoleListOutput } from '@/types';
 
 // Tenant CRUD Operations
 export const createTenant = withErrorHandling(async (data: CreateTenantRequest): Promise<TenantResponse> => {
@@ -108,6 +109,43 @@ export const checkEmailExists = withErrorHandling(async (email: string): Promise
 		params: { email },
 	});
 	return response.data;
+});
+
+// Role Management
+export const getTenantRoles = withErrorHandling(async (tenantId: string): Promise<TenantRoleListOutput> => {
+	const response = await apiClient.get<TenantRoleListOutput>(`/api/v1/tenants/${tenantId}/rbac/roles`);
+	return response.data;
+});
+
+export const createTenantRole = withErrorHandling(async (tenantId: string, roleName: string): Promise<void> => {
+	await apiClient.post(`/api/v1/tenants/${tenantId}/rbac/roles/${roleName}`);
+});
+
+export const deleteTenantRole = withErrorHandling(async (tenantId: string, roleName: string): Promise<void> => {
+	await apiClient.delete(`/api/v1/tenants/${tenantId}/rbac/roles/${roleName}`);
+});
+
+export const getTenantRolePermissions = withErrorHandling(async (tenantId: string, roleName: string): Promise<string[]> => {
+	const response = await apiClient.get<string[]>(`/api/v1/tenants/${tenantId}/rbac/roles/${roleName}/permissions`);
+	return response.data;
+});
+
+export const addTenantRolePermission = withErrorHandling(async (
+	tenantId: string, 
+	roleName: string, 
+	object: string, 
+	action: string
+): Promise<void> => {
+	await apiClient.post(`/api/v1/tenants/${tenantId}/rbac/roles/${roleName}/permissions/${object}/${action}`);
+});
+
+export const removeTenantRolePermission = withErrorHandling(async (
+	tenantId: string, 
+	roleName: string, 
+	object: string, 
+	action: string
+): Promise<void> => {
+	await apiClient.delete(`/api/v1/tenants/${tenantId}/rbac/roles/${roleName}/permissions/${object}/${action}`);
 });
 
 // Transfer tenant ownership

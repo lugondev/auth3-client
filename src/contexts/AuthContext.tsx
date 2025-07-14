@@ -334,6 +334,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						const tenantUser = decodeToken(tenantTokens.accessToken)
 						if (tenantUser) {
 							setCurrentMode('tenant')
+							contextManager.setCurrentMode('tenant') // Update context manager
 							setUser(tenantUser)
 							setIsAuthenticated(true)
 							setCurrentTenantId(tenantId)
@@ -399,6 +400,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				
 				// Update context
 				setCurrentMode('tenant')
+				contextManager.setCurrentMode('tenant') // Update context manager
 				setCurrentTenantId(tenantId)
 				
 				// Update user from token
@@ -424,6 +426,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				// The tokens are already stored by loginTenantContext
 				// Just update the state
 				setCurrentMode('tenant')
+				contextManager.setCurrentMode('tenant') // Update context manager
 				setCurrentTenantId(tenantId)
 				
 				// Get and set user from new token
@@ -467,6 +470,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					const globalUser = decodeToken(globalTokens.accessToken)
 					if (globalUser) {
 						setCurrentMode('global')
+						contextManager.setCurrentMode('global') // Update context manager
 						setUser(globalUser)
 						setIsAuthenticated(true)
 						setCurrentTenantId(null) // Global context has no tenant

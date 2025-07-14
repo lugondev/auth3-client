@@ -25,14 +25,29 @@ export const TenantSpaceHeader: React.FC<TenantSpaceHeaderProps> = ({
 
   const handleExitTenantSpace = async () => {
     try {
-      // Switch back to global context
-      await switchToGlobal()
+      // Switch back to global context with error handling
+      const result = await switchToGlobal({ preserveGlobalContext: false })
       
-      toast.success('Exited tenant space successfully')
-      router.push('/dashboard/tenant-management')
+      if (result.success) {
+        toast.success('Exited tenant space successfully')
+        router.push('/dashboard/tenant-management')
+      } else {
+        // Even if context switch fails, still navigate away from tenant space
+        console.warn('Context switch failed but continuing with navigation:', result.error)
+        toast.warning('Exited tenant space (some features may require re-authentication)')
+        router.push('/dashboard/tenant-management')
+      }
     } catch (error) {
       console.error('Failed to exit tenant space:', error)
-      toast.error('Failed to exit tenant space')
+      
+      // Check if it's a validation error and handle gracefully
+      if (error instanceof Error && error.message.includes('No state found')) {
+        console.warn('Context validation failed, proceeding with navigation anyway')
+        toast.warning('Exited tenant space (some features may require re-authentication)')
+        router.push('/dashboard/tenant-management')
+      } else {
+        toast.error('Failed to exit tenant space')
+      }
     }
   }
 

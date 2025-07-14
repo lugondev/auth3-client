@@ -13,8 +13,9 @@ import {getTenantById, updateTenant as updateTenantService, deleteTenant as dele
 import {TenantResponse, UpdateTenantRequest} from '@/types/tenant'
 import {DeleteTenantConfirmationModal} from '@/components/modals/DeleteTenantConfirmationModal'
 
+import {useAuth} from '@/contexts/AuthContext'
 import {useTenantRbac} from '@/hooks/useTenantRbac'
-import {TenantRolesSection} from '@/components/tenants/rbac/TenantRolesSection'
+import {TenantRolesTable} from '@/components/tenants/rbac/TenantRolesTable'
 import {TenantRolePermissionsModal} from '@/components/tenants/rbac/TenantRolePermissionsModal'
 import {TenantCreateRoleModal} from '@/components/tenants/rbac/TenantCreateRoleModal'
 
@@ -58,18 +59,24 @@ interface TenantManagementLayoutProps {
 	showTransferOwnership?: boolean
 	/** Whether to show delete section */
 	showDeleteSection?: boolean
+	/** Whether to show role management section */
+	showRoleManagement?: boolean
 	/** Additional content to render after role management */
 	additionalContent?: React.ReactNode
 	/** Conditional render function for ownership/delete sections */
 	renderOwnershipSections?: (tenant: TenantResponse) => React.ReactNode
 }
 
-export function TenantManagementLayout({titlePrefix, informationDescription, loadingMessage, backButton, errorBackButton, notFoundBackButton, deleteRedirectPath, additionalUpdateQueryKeys = [], additionalDeleteQueryKeys = [], showTransferOwnership = true, showDeleteSection = true, additionalContent, renderOwnershipSections}: TenantManagementLayoutProps) {
+export function TenantManagementLayout({titlePrefix, informationDescription, loadingMessage, backButton, errorBackButton, notFoundBackButton, deleteRedirectPath, additionalUpdateQueryKeys = [], additionalDeleteQueryKeys = [], showTransferOwnership = true, showDeleteSection = true, showRoleManagement = true, additionalContent, renderOwnershipSections}: TenantManagementLayoutProps) {
 	const router = useRouter()
 	const params = useParams()
 	const tenantId = params.tenantId as string
 	const queryClient = useQueryClient()
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+	const {user} = useAuth()
+
+	// Check if user has permission to manage roles
+	const canManageRoles = Boolean(user?.roles?.includes('TenantOwner') || user?.roles?.includes('TenantAdmin'))
 
 	// Tenant data query
 	const {
@@ -117,14 +124,14 @@ export function TenantManagementLayout({titlePrefix, informationDescription, loa
 		},
 	})
 
-	// Tenant RBAC hook
-	const tenantRbac = useTenantRbac(tenantId)
+	// Tenant RBAC hook - only initialize if role management is shown
+	const tenantRbac = useTenantRbac(showRoleManagement ? tenantId : null)
 
 	useEffect(() => {
-		if (tenantId) {
+		if (tenantId && showRoleManagement) {
 			tenantRbac.actions.setTenantId(tenantId)
 		}
-	}, [tenantId])
+	}, [tenantId, showRoleManagement])
 
 	// Event handlers
 	const handleUpdateTenantSubmit: SubmitHandler<EditTenantFormData> = (data) => {
@@ -136,7 +143,7 @@ export function TenantManagementLayout({titlePrefix, informationDescription, loa
 	}
 
 	// Loading state
-	if (isLoadingTenant || tenantRbac.loading.initialRoles) {
+	if (isLoadingTenant || (showRoleManagement && tenantRbac.loading.initialRoles)) {
 		return (
 			<div className='flex justify-center items-center min-h-screen'>
 				<Loader2 className='h-8 w-8 animate-spin text-primary' />
@@ -184,21 +191,54 @@ export function TenantManagementLayout({titlePrefix, informationDescription, loa
 
 			<Separator />
 
-			{/* Tenant Role Management Card */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Tenant Role Management</CardTitle>
-					<CardDescription>Define roles and their permissions within this tenant.</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<TenantRolesSection roles={tenantRbac.roles} loading={tenantRbac.loading} error={tenantRbac.error} selectedRole={tenantRbac.selectedRole} onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal} onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal} onDeleteRole={tenantRbac.actions.handleDeleteTenantRole} />
-				</CardContent>
-			</Card>
+			{/* Tenant Role Management Card - Conditionally rendered */}
+			{showRoleManagement && (
+				<>
+					<Card>
+						<CardHeader>
+							<CardTitle>Tenant Role Management</CardTitle>
+							<CardDescription>Define roles and their permissions within this tenant.</CardDescription>
+						</CardHeader>
+						<CardContent>
+							<TenantRolesTable 
+								roles={tenantRbac.roles}
+								rolePermissionsMap={tenantRbac.rolePermissionsMap}
+								loading={tenantRbac.loading}
+								error={tenantRbac.error}
+								selectedRole={tenantRbac.selectedRole}
+								canManageRoles={canManageRoles}
+								onOpenCreateRoleModal={tenantRbac.actions.openCreateRoleModal}
+								onOpenRolePermsModal={tenantRbac.actions.openRolePermsModal}
+								onDeleteRole={tenantRbac.actions.handleDeleteTenantRole}
+							/>
+						</CardContent>
+					</Card>
 
-			{/* Tenant RBAC Modals */}
-			<TenantRolePermissionsModal isOpen={tenantRbac.isRolePermsModalOpen} onClose={tenantRbac.actions.closeRolePermsModal} role={tenantRbac.selectedRole} groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)} loading={tenantRbac.loading} error={tenantRbac.error} newPermObject={tenantRbac.newPermObject} newPermAction={tenantRbac.newPermAction} onNewPermObjectChange={tenantRbac.actions.setNewPermObject} onNewPermActionChange={tenantRbac.actions.setNewPermAction} onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole} onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole} />
+					{/* Tenant RBAC Modals */}
+					<TenantRolePermissionsModal 
+						isOpen={tenantRbac.isRolePermsModalOpen} 
+						onClose={tenantRbac.actions.closeRolePermsModal} 
+						role={tenantRbac.selectedRole} 
+						groupedPermissions={tenantRbac.groupedPermissions(tenantRbac.selectedRole)} 
+						loading={tenantRbac.loading} 
+						error={tenantRbac.error} 
+						newPermObject={tenantRbac.newPermObject} 
+						newPermAction={tenantRbac.newPermAction} 
+						onNewPermObjectChange={tenantRbac.actions.setNewPermObject} 
+						onNewPermActionChange={tenantRbac.actions.setNewPermAction} 
+						onAddPermission={tenantRbac.actions.handleAddPermissionToTenantRole} 
+						onRemovePermission={tenantRbac.actions.handleRemovePermissionFromTenantRole} 
+					/>
 
-			<TenantCreateRoleModal isOpen={tenantRbac.isCreateRoleModalOpen} onClose={tenantRbac.actions.closeCreateRoleModal} loading={tenantRbac.loading} error={tenantRbac.createRoleError} onCreateRole={tenantRbac.actions.handleCreateTenantRole} />
+					<TenantCreateRoleModal 
+						isOpen={tenantRbac.isCreateRoleModalOpen} 
+						onClose={tenantRbac.actions.closeCreateRoleModal} 
+						loading={tenantRbac.loading} 
+						error={tenantRbac.createRoleError} 
+						onCreateRole={tenantRbac.actions.handleCreateTenantRole} 
+					/>
+				</>
+			)}
 
 			{/* Delete Tenant Confirmation Modal */}
 			{tenant && <DeleteTenantConfirmationModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleDeleteConfirm} tenantName={tenant.name} isLoading={deleteTenantMutation.isPending} />}

@@ -1,148 +1,55 @@
 'use client'
 
-import React, {useCallback} from 'react'
+import React from 'react'
 import {useParams} from 'next/navigation'
-import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
-
+import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card'
 import {Separator} from '@/components/ui/separator'
-import {Loader2} from 'lucide-react'
+import {Shield, Users} from 'lucide-react'
+import Link from 'next/link'
 
-import {listUsersInTenant, updateUserInTenant, removeUserFromTenant} from '@/services/tenantService'
-import {TenantUsersTable} from '@/components/tenants/TenantUsersTable'
 import {TenantManagementLayout} from '@/components/tenants/management/TenantManagementLayout'
 import {useAuth} from '@/contexts/AuthContext'
 import {TransferTenantOwnershipSection} from '@/components/tenants/management/TransferTenantOwnershipSection'
 import {TenantResponse} from '@/types/tenant'
-
-interface TenantUsersQueryProps {
-	tenantId: string
-	roles: string[]
-}
-
-// TenantUsersQuery component for managing tenant users
-function TenantUsersQuery({tenantId, roles}: TenantUsersQueryProps) {
-	const queryClient = useQueryClient()
-	const page = 1
-	const limit = 10
-
-	const {
-		data: usersData,
-		isLoading,
-		error,
-	} = useQuery({
-		queryKey: ['tenantUsers:', tenantId, page],
-		queryFn: () => listUsersInTenant(tenantId, limit, (page - 1) * limit),
-	})
-
-	const updateUserMutation = useMutation({
-		mutationFn: ({userId, status}: {userId: string; status: string}) =>
-			updateUserInTenant(tenantId, userId, {
-				status_in_tenant: status,
-			}),
-		onMutate: async ({userId, status}) => {
-			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
-			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
-			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
-				if (!old?.users) return old
-				return {
-					...old,
-					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, status_in_tenant: status} : u)),
-				}
-			})
-			return {previousData}
-		},
-		onError: (_err, _vars, context) => {
-			if (context?.previousData) {
-				queryClient.setQueryData(['tenantUsers:', tenantId, 1], context.previousData)
-			}
-		},
-		onSettled: () => {
-			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
-		},
-	})
-
-	const updateUserRoleMutation = useMutation({
-		mutationFn: ({userId, role}: {userId: string; role: string}) => import('@/services/tenantService').then((m) => m.updateUserRoleInTenant(tenantId, userId, role)),
-		onMutate: async ({userId, role}) => {
-			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
-			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
-			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
-				if (!old?.users) return old
-				return {
-					...old,
-					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, roles: [role]} : u)),
-				}
-			})
-			return {previousData}
-		},
-		onError: (_err, _vars, context) => {
-			if (context?.previousData) {
-				queryClient.setQueryData(['tenantUsers:', tenantId, 1], context.previousData)
-			}
-		},
-		onSettled: () => {
-			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
-		},
-	})
-
-	const removeUserMutation = useMutation({
-		mutationFn: (userId: string) => removeUserFromTenant(tenantId, userId),
-		onSuccess: () => {
-			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
-		},
-	})
-
-	const handleRemoveUser = useCallback(
-		(userId: string) => {
-			removeUserMutation.mutate(userId)
-		},
-		[removeUserMutation],
-	)
-
-	if (isLoading) {
-		return (
-			<div className='flex justify-center p-4'>
-				<Loader2 className='h-6 w-6 animate-spin' />
-			</div>
-		)
-	}
-
-	if (error) {
-		return <div className='text-destructive'>Error loading users: {error.message}</div>
-	}
-
-	return (
-		<TenantUsersTable
-			users={usersData?.users || []}
-			roles={roles}
-			onChangeUserRole={(userId, role) => {
-				updateUserRoleMutation.mutate({userId, role})
-			}}
-			onChangeUserStatus={(userId, status) => {
-				updateUserMutation.mutate({userId, status})
-			}}
-			onRemoveUser={handleRemoveUser}
-		/>
-	)
-}
 
 export default function TenantSettingsPage() {
 	const params = useParams()
 	const tenantId = params.tenantId as string
 	const {user} = useAuth()
 
-	// Tenant Users Management Card as additional content
-	const tenantUsersContent = (
+	// Quick Actions content as additional content
+	const quickActionsContent = (
 		<Card>
 			<CardHeader>
-				<CardTitle>Tenant Users</CardTitle>
-				<CardDescription>Manage users in this tenant.</CardDescription>
+				<CardTitle>Quick Actions</CardTitle>
+				<CardDescription>Manage your tenant settings and permissions.</CardDescription>
 			</CardHeader>
 			<CardContent>
-				<div className='space-y-4'>
-					{/* We'll need to pass roles from the layout component */}
-					<TenantUsersQuery tenantId={tenantId} roles={[]} />
+				<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+					<Link href={`/dashboard/tenant/${tenantId}/roles`}>
+						<Button variant='outline' className='w-full h-auto p-4 flex flex-col items-start space-y-2'>
+							<div className='flex items-center space-x-2'>
+								<Shield className='h-5 w-5 text-blue-600' />
+								<span className='font-semibold'>Role Management</span>
+							</div>
+							<span className='text-sm text-muted-foreground text-left'>
+								Create and manage roles and permissions for your organization
+							</span>
+						</Button>
+					</Link>
+
+					<Link href={`/dashboard/tenant/${tenantId}/users`}>
+						<Button variant='outline' className='w-full h-auto p-4 flex flex-col items-start space-y-2'>
+							<div className='flex items-center space-x-2'>
+								<Users className='h-5 w-5 text-green-600' />
+								<span className='font-semibold'>User Management</span>
+							</div>
+							<span className='text-sm text-muted-foreground text-left'>
+								Invite users and assign roles to team members
+							</span>
+						</Button>
+					</Link>
 				</div>
 			</CardContent>
 		</Card>
@@ -182,8 +89,10 @@ export default function TenantSettingsPage() {
 				href: `/dashboard/tenant/${tenantId}`,
 			}}
 			deleteRedirectPath={`/dashboard/tenant/${tenantId}`}
-			additionalContent={tenantUsersContent}
+			additionalContent={quickActionsContent}
 			renderOwnershipSections={renderOwnershipSections}
+			// Hide the role management section since it's now on dedicated roles page
+			showRoleManagement={false}
 		/>
 	)
 }

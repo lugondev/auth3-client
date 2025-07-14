@@ -16,6 +16,8 @@ import {loginTenantContext} from '@/services/authService'
 import {useRouter} from 'next/navigation'
 import {ChevronDown, ChevronUp, Loader2} from 'lucide-react'
 import {toast} from 'sonner'
+import {tokenManager} from '@/lib/token-storage'
+import {decodeJwt} from '@/lib/jwt'
 
 export default function TenantManagementPage() {
 	const {user, loading, isAuthenticated} = useAuth()
@@ -62,15 +64,54 @@ export default function TenantManagementPage() {
 	const handleJoinedTenantManagement = async (tenantId: string) => {
 		setIsSwitchingTenant(true)
 		try {
-			const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
-			if (contextResult.success) {
-				router.push(`/dashboard/tenant/${tenantId}`)
+			// Check if current access token has tenant information for this specific tenant
+			const tenantTokens = tokenManager.getTokens('tenant')
+			
+			let needsLoginTenant = false
+			
+			// If we have tenant tokens, check if they're for the correct tenant
+			if (tenantTokens.accessToken) {
+				try {
+					const decoded = decodeJwt<{ tenant_id?: string; exp?: number }>(tenantTokens.accessToken)
+					if (!decoded?.tenant_id || 
+						decoded.tenant_id !== tenantId || 
+						(decoded.exp && decoded.exp * 1000 < Date.now())) {
+						needsLoginTenant = true
+					}
+				} catch (error) {
+					console.log('Invalid tenant token, need to login')
+					needsLoginTenant = true
+				}
 			} else {
-				throw new Error(contextResult.error || 'Context switch failed')
+				// No tenant tokens, need to login
+				needsLoginTenant = true
 			}
+			
+			// If access token doesn't have tenant info, perform login-tenant
+			if (needsLoginTenant) {
+				console.log(`🔄 Getting tenant access token for tenant ${tenantId}`)
+				const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
+				if (!contextResult.success) {
+					throw new Error(contextResult.error || 'Context switch failed')
+				}
+			}
+			
+			router.push(`/dashboard/tenant/${tenantId}`)
 		} catch (error) {
 			console.error('Failed to login tenant context:', error)
-			toast.error('Unable to switch tenant context. Please try again.')
+			
+			// More specific error handling
+			if (error instanceof Error) {
+				if (error.message.includes('403') || error.message.includes('Forbidden')) {
+					toast.error('You do not have permission to access this tenant.')
+				} else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+					toast.error('Authentication failed. Please log in again.')
+				} else {
+					toast.error(`Unable to switch tenant context: ${error.message}`)
+				}
+			} else {
+				toast.error('Unable to switch tenant context. Please try again.')
+			}
 		} finally {
 			setIsSwitchingTenant(false)
 		}

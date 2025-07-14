@@ -15,6 +15,8 @@ import {PermissionButton} from '@/components/guards'
 import {PermissionTooltip} from '@/components/permissions'
 import {useAuth} from '@/contexts/AuthContext'
 import {usePermissions} from '@/contexts/PermissionContext'
+import {tokenManager} from '@/lib/token-storage'
+import {decodeJwt} from '@/lib/jwt'
 
 interface TenantTableProps {
 	tenants: Tenant[]
@@ -34,14 +36,55 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	const handleTenantManagement = async (tenantId: string) => {
 		setLoading(true)
 		try {
-			// Use the improved switchToTenantById method
+			// Check if current access token has tenant information for this specific tenant
+			const tenantTokens = tokenManager.getTokens('tenant')
+			
+			let needsLoginTenant = false
+			
+			// If we have tenant tokens, check if they're for the correct tenant
+			if (tenantTokens.accessToken) {
+				try {
+					const decoded = decodeJwt<{ tenant_id?: string; exp?: number }>(tenantTokens.accessToken)
+					if (!decoded?.tenant_id || 
+						decoded.tenant_id !== tenantId || 
+						(decoded.exp && decoded.exp * 1000 < Date.now())) {
+						needsLoginTenant = true
+					}
+				} catch (error) {
+					console.log('Invalid tenant token, need to login')
+					needsLoginTenant = true
+				}
+			} else {
+				// No tenant tokens, need to login
+				needsLoginTenant = true
+			}
+			
+			// If access token doesn't have tenant info, perform login-tenant
+			if (needsLoginTenant) {
+				console.log(`🔄 Getting tenant access token for tenant ${tenantId}`)
+				await loginTenantContext(tenantId, true, false)
+			}
+			
+			// Use the AuthContext switchToTenantById method which handles validation
 			await switchToTenantById(tenantId)
 			
 			// Navigate to tenant dashboard
 			router.push(`/dashboard/tenant/${tenantId}`)
 		} catch (error) {
 			console.error('Failed to switch tenant context:', error)
-			toast.error('Unable to switch tenant context. Please try again.')
+			
+			// More specific error handling
+			if (error instanceof Error) {
+				if (error.message.includes('403') || error.message.includes('Forbidden')) {
+					toast.error('You do not have permission to access this tenant.')
+				} else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+					toast.error('Authentication failed. Please log in again.')
+				} else {
+					toast.error(`Unable to switch tenant context: ${error.message}`)
+				}
+			} else {
+				toast.error('Unable to switch tenant context. Please try again.')
+			}
 		} finally {
 			setLoading(false)
 		}

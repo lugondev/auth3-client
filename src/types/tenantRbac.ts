@@ -10,7 +10,10 @@ export interface TenantRbacLoadingState {
 
 export interface TenantRbacState {
 	tenantId: string | null;
-	roles: string[]; // List of role names for the tenant
+	roles: {
+		custom: string[]; // List of custom role names for the tenant
+		default: string[]; // List of default role names for the tenant
+	}; // List of role names for the tenant
 	rolePermissionsMap: Record<string, string[][]>; // Maps roleName to its [object, action][]
 	loading: TenantRbacLoadingState;
 	error: string | null; // General error for fetching or non-specific actions

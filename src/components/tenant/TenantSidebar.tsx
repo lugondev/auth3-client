@@ -5,13 +5,13 @@ import { useParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
 import { 
   Building,
   Home,
   Users,
   Settings,
   BarChart3,
-  Database,
   FileText,
   Activity,
   Shield,
@@ -39,16 +39,16 @@ export const TenantSidebar: React.FC<TenantSidebarProps> = ({ tenantId }) => {
       description: 'Manage tenant users'
     },
     {
+      icon: Shield,
+      label: 'Roles',
+      href: `/dashboard/tenant/${tenantId}/roles`,
+      description: 'Manage roles & permissions'
+    },
+    {
       icon: BarChart3,
       label: 'Analytics',
       href: `/dashboard/tenant/${tenantId}/analytics`,
       description: 'View analytics'
-    },
-    {
-      icon: Database,
-      label: 'Data',
-      href: `/dashboard/tenant/${tenantId}/data`,
-      description: 'Manage data'
     },
     {
       icon: FileText,
@@ -63,7 +63,7 @@ export const TenantSidebar: React.FC<TenantSidebarProps> = ({ tenantId }) => {
       description: 'Activity logs'
     },
     {
-      icon: Shield,
+      icon: Key,
       label: 'Security',
       href: `/dashboard/tenant/${tenantId}/security`,
       description: 'Security settings'

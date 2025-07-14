@@ -66,9 +66,33 @@ class ApiClient {
 					const tokens = tokenManager.getTokens(currentMode)
 					const token = tokens.accessToken
 
+					// Debug logging (can be removed in production)
+					if (process.env.NODE_ENV === 'development') {
+						console.log(`🔍 API Request - Mode: ${currentMode}, URL: ${config.url}, Token: ${token ? 'Present' : 'Missing'}`)
+					}
+
 					if (token && !config.headers?.['__skipAuthRefresh']) {
 						config.headers = config.headers || {}
 						config.headers.Authorization = `Bearer ${token}`
+					}
+
+					// Add tenant context headers if in tenant mode
+					if (currentMode === 'tenant') {
+						const contextState = contextManager.getContextState('tenant')
+						if (contextState?.tenantId) {
+							config.headers = config.headers || {}
+							config.headers['X-Tenant-ID'] = contextState.tenantId
+							config.headers['X-Context-Mode'] = 'tenant'
+							if (process.env.NODE_ENV === 'development') {
+								console.log(`🏢 Tenant headers added - Tenant ID: ${contextState.tenantId}`)
+							}
+						}
+					} else if (currentMode === 'global') {
+						config.headers = config.headers || {}
+						config.headers['X-Context-Mode'] = 'global'
+						if (process.env.NODE_ENV === 'development') {
+							console.log(`🌐 Global headers added`)
+						}
 					}
 
 					// Add CSRF protection for permission APIs
@@ -205,15 +229,36 @@ class ApiClient {
 			throw new Error('No refresh token available')
 		}
 
+		console.log(`🔄 Refreshing token for context: ${currentMode}`)
+
+		// Prepare refresh request data with context information
+		const requestData = {
+			refresh_token: refreshToken,
+			context_mode: currentMode
+		}
+
+		// Add headers for context
+		const headers: any = { '__skipAuthRefresh': 'true' }
+		if (currentMode === 'tenant') {
+			const contextState = contextManager.getContextState('tenant')
+			if (contextState?.tenantId) {
+				headers['X-Tenant-ID'] = contextState.tenantId
+				headers['X-Context-Mode'] = 'tenant'
+			}
+		} else {
+			headers['X-Context-Mode'] = 'global'
+		}
+
 		const response = await this.instance.post('/api/v1/auth/refresh',
-			{ refresh_token: refreshToken },
-			{ headers: { '__skipAuthRefresh': 'true' } }
+			requestData,
+			{ headers }
 		)
 
 		const { access_token } = response.data
 		// Update tokens in tokenManager instead of localStorage
 		tokenManager.setTokens(currentMode, access_token, refreshToken)
 
+		console.log(`✅ Token refreshed successfully for context: ${currentMode}`)
 		return access_token
 	}
 

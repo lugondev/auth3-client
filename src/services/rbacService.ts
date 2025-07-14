@@ -19,7 +19,7 @@ import {
 import { TenantUserResponse } from "@/types/tenant";
 
 const RBAC_API_PREFIX = "/api/v1/admin/rbac";
-const TENANT_API_PREFIX = "/api/v1/tenant";
+const TENANT_API_PREFIX = "/api/v1/tenants";
 
 // --- General RBAC Info ---
 

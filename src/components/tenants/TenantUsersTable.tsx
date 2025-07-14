@@ -3,6 +3,8 @@
 import React, {useState} from 'react'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Button} from '@/components/ui/button'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {Badge} from '@/components/ui/badge'
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle} from '@/components/ui/alert-dialog'
 import {Loader2, Trash2} from 'lucide-react'
 import {TenantUserResponse} from '@/types/tenant'
@@ -28,6 +30,21 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles,
 		setLocalUsers(users)
 	}, [users])
 
+	// Helper function to get status badge variant
+	const getStatusBadgeVariant = (status: string) => {
+		switch (status) {
+			case 'active':
+				return 'default'
+			case 'pending':
+			case 'invited':
+				return 'secondary'
+			case 'suspended':
+				return 'destructive'
+			default:
+				return 'outline'
+		}
+	}
+
 	const handleRemoveClick = (user: TenantUserResponse) => {
 		setSelectedUser(user)
 		setConfirmOpen(true)
@@ -45,49 +62,85 @@ export const TenantUsersTable: React.FC<TenantUsersTableProps> = ({users, roles,
 	}
 
 	if (!localUsers || localUsers.length === 0) {
-		return <p className='text-muted-foreground'>No users in this tenant.</p>
+		return (
+			<div className='flex flex-col items-center justify-center py-8 text-center'>
+				<p className='text-muted-foreground text-lg'>No users in this tenant.</p>
+				<p className='text-muted-foreground text-sm mt-1'>Users will appear here once they are added to the tenant.</p>
+			</div>
+		)
 	}
 
 	return (
-		<div>
+		<div className='w-full'>
 			<Table>
 				<TableHeader>
 					<TableRow>
-						<TableHead>Name</TableHead>
-						<TableHead>Email</TableHead>
-						<TableHead>Role</TableHead>
-						<TableHead>Status</TableHead>
-						<TableHead className='text-right'>Actions</TableHead>
+						<TableHead className='font-semibold'>Name</TableHead>
+						<TableHead className='font-semibold'>Email</TableHead>
+						<TableHead className='font-semibold'>Role</TableHead>
+						<TableHead className='font-semibold'>Status</TableHead>
+						<TableHead className='text-right font-semibold'>Actions</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{localUsers.map((user) => (
-						<TableRow key={user.user_id}>
+						<TableRow key={user.user_id} className='hover:bg-muted/50 transition-colors'>
 							<TableCell className='font-medium'>{`${user.first_name} ${user.last_name}`}</TableCell>
-							<TableCell>{user.email}</TableCell>
+							<TableCell className='text-muted-foreground'>{user.email}</TableCell>
 							<TableCell>
-								<select className='border rounded px-2 py-1' value={user.roles[0] || ''} onChange={(e) => onChangeUserRole && onChangeUserRole(user.user_id, e.target.value)} disabled={!onChangeUserRole}>
-									<option value='' disabled>
-										Select role
-									</option>
-									{roles.map((role) => (
-										<option key={role} value={role}>
-											{role}
-										</option>
-									))}
-								</select>
+								<div className='flex items-center gap-2'>
+									<Badge variant='outline' className='text-xs'>
+										{user.roles[0] || 'No Role'}
+									</Badge>
+									<Select 
+										value={user.roles[0] || ''} 
+										onValueChange={(value) => onChangeUserRole && onChangeUserRole(user.user_id, value)}
+										disabled={!onChangeUserRole}
+									>
+										<SelectTrigger className='w-[140px] h-8'>
+											<SelectValue placeholder='Change role' />
+										</SelectTrigger>
+										<SelectContent>
+											{roles.map((role) => (
+												<SelectItem key={role} value={role}>
+													{role}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
 							</TableCell>
 							<TableCell>
-								<select className='border rounded px-2 py-1' value={user.status_in_tenant} onChange={(e) => onChangeUserStatus && onChangeUserStatus(user.user_id, e.target.value as TenantUserStatus)} disabled={!onChangeUserStatus}>
-									<option value='active'>active</option>
-									<option value='pending'>pending</option>
-									<option value='invited'>invited</option>
-									<option value='suspended'>suspended</option>
-								</select>
+								<div className='flex items-center gap-2'>
+									<Badge variant={getStatusBadgeVariant(user.status_in_tenant)} className='text-xs capitalize'>
+										{user.status_in_tenant}
+									</Badge>
+									<Select 
+										value={user.status_in_tenant} 
+										onValueChange={(value) => onChangeUserStatus && onChangeUserStatus(user.user_id, value as TenantUserStatus)}
+										disabled={!onChangeUserStatus}
+									>
+										<SelectTrigger className='w-[110px] h-8'>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value='active'>Active</SelectItem>
+											<SelectItem value='pending'>Pending</SelectItem>
+											<SelectItem value='invited'>Invited</SelectItem>
+											<SelectItem value='suspended'>Suspended</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
 							</TableCell>
-							<TableCell className='text-right space-x-2'>
+							<TableCell className='text-right'>
 								{onRemoveUser && (
-									<Button variant='destructive' size='sm' onClick={() => handleRemoveClick(user)}>
+									<Button 
+										variant='destructive' 
+										size='sm' 
+										onClick={() => handleRemoveClick(user)}
+										className='h-8'
+									>
+										<Trash2 className='h-3 w-3 mr-1' />
 										Remove
 									</Button>
 								)}
