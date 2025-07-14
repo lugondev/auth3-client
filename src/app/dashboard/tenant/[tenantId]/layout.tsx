@@ -3,6 +3,10 @@
 import React, {useEffect} from 'react'
 import {useParams, useRouter} from 'next/navigation'
 import {useAuth} from '@/contexts/AuthContext'
+import {useTenantInfo} from '@/hooks/useTenantInfo'
+import {TenantSpaceHeader} from '@/components/tenant/TenantSpaceHeader'
+import {TenantGuard} from '@/components/guards/TenantGuard'
+import {TenantSidebar} from '@/components/tenant/TenantSidebar'
 
 interface TenantLayoutProps {
 	children: React.ReactNode
@@ -10,26 +14,29 @@ interface TenantLayoutProps {
 
 export default function TenantLayout({children}: TenantLayoutProps) {
 	const params = useParams()
-	const router = useRouter()
-	const {user, loading} = useAuth()
 	const tenantId = params.tenantId as string
+	const { tenantInfo, tenantName } = useTenantInfo(tenantId)
 
-	useEffect(() => {
-		if (loading) return
-		// If no user or tenant_id mismatch, redirect
-		if (!user || !user.tenant_id || user.tenant_id !== tenantId) {
-			router.replace('/dashboard')
-		}
-	}, [user, tenantId, loading, router])
-
-	// Optionally, show nothing or a loader while checking
-	if (loading) {
-		return null
-	}
-	if (!user || !user.tenant_id || user.tenant_id !== tenantId) {
-		// Prevent flicker before redirect
-		return null
-	}
-
-	return children
+	return (
+		<TenantGuard tenantId={tenantId}>
+			{/* Full screen tenant space - no main sidebar */}
+			<div className="flex min-h-screen bg-background">
+				{/* Tenant Sidebar - replaces main sidebar completely */}
+				<div className="w-64 border-r bg-muted/10">
+					<TenantSidebar tenantId={tenantId} />
+				</div>
+				
+				{/* Main Content Area */}
+				<div className="flex-1 flex flex-col">
+					{/* Tenant Header */}
+					<TenantSpaceHeader tenantId={tenantId} tenantName={tenantName} />
+					
+					{/* Page Content */}
+					<div className="flex-1 container mx-auto px-4 py-6">
+						{children}
+					</div>
+				</div>
+			</div>
+		</TenantGuard>
+	)
 }

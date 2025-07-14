@@ -77,7 +77,7 @@ export default function CreateTenantPage() {
 			const tenantData: CreateTenantRequest = {
 				name: data.name,
 				slug: data.slug,
-				owner_email: data.owner_email,
+				// owner_email: data.owner_email,
 			}
 			return await createTenant(tenantData)
 		},

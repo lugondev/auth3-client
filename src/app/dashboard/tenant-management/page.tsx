@@ -153,16 +153,16 @@ export default function TenantManagementPage() {
 														Joined: {new Date(membership.joined_at).toLocaleDateString()} | Active: {membership.tenant_is_active ? 'Yes' : 'No'}
 													</span>
 													<br />
-													{!!joinedTenantPermissions[membership.tenant_id]?.permissions?.length && (
-														<div className='mt-2 flex items-center space-x-2'>
-															<Button variant='outline' size='sm' onClick={() => handleJoinedTenantManagement(membership.tenant_id)}>
-																Management
-															</Button>
+													<div className='mt-2 flex items-center space-x-2'>
+														<Button variant='outline' size='sm' onClick={() => handleJoinedTenantManagement(membership.tenant_id)}>
+															Management
+														</Button>
+														{!!joinedTenantPermissions[membership.tenant_id]?.permissions?.length && (
 															<Button variant='ghost' size='sm' onClick={() => setOpenPermissionsTenantId(openPermissionsTenantId === membership.tenant_id ? null : membership.tenant_id)}>
 																{openPermissionsTenantId === membership.tenant_id ? <ChevronUp className='h-4 w-4' /> : <ChevronDown className='h-4 w-4' />}
 															</Button>
-														</div>
-													)}
+														)}
+													</div>
 													{openPermissionsTenantId === membership.tenant_id && !!joinedTenantPermissions[membership.tenant_id]?.permissions?.length && (
 														<div className='mt-2 p-2 border rounded-md dark:border-gray-600 bg-gray-50 dark:bg-gray-800'>
 															<h4 className='text-sm font-semibold mb-1 text-gray-700 dark:text-gray-200'>Permissions:</h4>
@@ -186,7 +186,7 @@ export default function TenantManagementPage() {
 								<h2 className='text-xl font-semibold mb-2 text-gray-700 dark:text-gray-200'>Organizations I&#39;ve Created</h2>
 								{isLoadingOwned && <p className='text-gray-500 dark:text-gray-400'>Loading created organizations...</p>}
 								{errorOwned && <p className='text-red-500'>Error loading created organizations: {errorOwned.message}</p>}
-								{ownedTenantsData && ownedTenantsData.tenants && <TenantTable tenants={ownedTenantsData.tenants} />}
+								{ownedTenantsData && ownedTenantsData.tenants && <TenantTable tenants={ownedTenantsData.tenants}/>}
 								{ownedTenantsData && ownedTenantsData.tenants?.length === 0 && <p className='text-gray-500 dark:text-gray-400'>You have not created any organizations yet.</p>}
 							</div>
 						</TabsContent>

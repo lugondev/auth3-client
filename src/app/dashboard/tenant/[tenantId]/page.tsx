@@ -1,189 +1,233 @@
 'use client'
 
-import React, {useCallback} from 'react'
-import {useParams} from 'next/navigation'
-import {useQuery, useMutation, useQueryClient} from '@tanstack/react-query'
+import React from 'react'
+import { useParams } from 'next/navigation'
+import { useAuth } from '@/contexts/AuthContext'
+import { useTenantInfo } from '@/hooks/useTenantInfo'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
+import { 
+  Users, 
+  Settings, 
+  BarChart3, 
+  FileText, 
+  Calendar,
+  Database,
+  Activity,
+  TrendingUp
+} from 'lucide-react'
 
-import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card'
-import {Separator} from '@/components/ui/separator'
-import {Loader2} from 'lucide-react'
+export default function TenantDashboardPage() {
+  const params = useParams()
+  const tenantId = params.tenantId as string
+  const { user } = useAuth()
+  const { tenantInfo, tenantName, loading: tenantLoading } = useTenantInfo(tenantId)
 
-import {listUsersInTenant, updateUserInTenant, removeUserFromTenant} from '@/services/tenantService'
-import {TenantUsersTable} from '@/components/tenants/TenantUsersTable'
-import {TenantManagementLayout} from '@/components/tenants/management/TenantManagementLayout'
-import {useAuth} from '@/contexts/AuthContext'
-import {TransferTenantOwnershipSection} from '@/components/tenants/management/TransferTenantOwnershipSection'
-import {TenantResponse} from '@/types/tenant'
+  const statsCards = [
+    {
+      title: 'Total Users',
+      value: '24',
+      change: '+12%',
+      icon: Users,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-100',
+    },
+    {
+      title: 'Active Sessions',
+      value: '18',
+      change: '+5%',
+      icon: Activity,
+      color: 'text-green-600',
+      bgColor: 'bg-green-100',
+    },
+    {
+      title: 'Documents',
+      value: '156',
+      change: '+23%',
+      icon: FileText,
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-100',
+    },
+    {
+      title: 'Performance',
+      value: '98.5%',
+      change: '+2.1%',
+      icon: TrendingUp,
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-100',
+    },
+  ]
 
-interface TenantUsersQueryProps {
-	tenantId: string
-	roles: string[]
-}
+  const quickActions = [
+    {
+      title: 'User Management',
+      description: 'Manage tenant users and permissions',
+      href: `/dashboard/tenant/${tenantId}/users`,
+      icon: Users,
+      color: 'border-blue-200 hover:border-blue-300',
+    },
+    {
+      title: 'Settings',
+      description: 'Configure tenant settings',
+      href: `/dashboard/tenant/${tenantId}/settings`,
+      icon: Settings,
+      color: 'border-gray-200 hover:border-gray-300',
+    },
+    {
+      title: 'Analytics',
+      description: 'View tenant analytics and reports',
+      href: `/dashboard/tenant/${tenantId}/analytics`,
+      icon: BarChart3,
+      color: 'border-green-200 hover:border-green-300',
+    },
+    {
+      title: 'Data Management',
+      description: 'Manage tenant data and storage',
+      href: `/dashboard/tenant/${tenantId}/data`,
+      icon: Database,
+      color: 'border-purple-200 hover:border-purple-300',
+    },
+  ]
 
-// TenantUsersQuery component for managing tenant users
-function TenantUsersQuery({tenantId, roles}: TenantUsersQueryProps) {
-	const queryClient = useQueryClient()
-	const page = 1
-	const limit = 10
+  return (
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div className="space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {tenantLoading ? (
+            <Skeleton className="h-9 w-64" />
+          ) : (
+            `${tenantName || 'Tenant'} Dashboard`
+          )}
+        </h1>
+        <p className="text-muted-foreground">
+          Welcome to your tenant workspace. Manage your organization data and settings.
+        </p>
+      </div>
 
-	const {
-		data: usersData,
-		isLoading,
-		error,
-	} = useQuery({
-		queryKey: ['tenantUsers:', tenantId, page],
-		queryFn: () => listUsersInTenant(tenantId, limit, (page - 1) * limit),
-	})
+      {/* User Info */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center space-x-4">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+              <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Logged in as</p>
+              <p className="font-semibold">{user?.email}</p>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary">
+                  {user?.roles?.join(', ') || 'User'}
+                </Badge>
+                <Badge variant="outline">
+                  {tenantLoading ? (
+                    <Skeleton className="h-4 w-20" />
+                  ) : (
+                    `Tenant: ${tenantName || tenantId}`
+                  )}
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-	const updateUserMutation = useMutation({
-		mutationFn: ({userId, status}: {userId: string; status: string}) =>
-			updateUserInTenant(tenantId, userId, {
-				status_in_tenant: status,
-			}),
-		onMutate: async ({userId, status}) => {
-			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
-			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
-			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
-				if (!old?.users) return old
-				return {
-					...old,
-					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, status_in_tenant: status} : u)),
-				}
-			})
-			return {previousData}
-		},
-		onError: (_err, _vars, context) => {
-			if (context?.previousData) {
-				queryClient.setQueryData(['tenantUsers:', tenantId, 1], context.previousData)
-			}
-		},
-		onSettled: () => {
-			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
-		},
-	})
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {statsCards.map((stat) => (
+          <Card key={stat.title}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {stat.title}
+                  </p>
+                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className={`text-xs ${stat.color}`}>{stat.change} from last month</p>
+                </div>
+                <div className={`p-3 ${stat.bgColor} rounded-full`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-	const updateUserRoleMutation = useMutation({
-		mutationFn: ({userId, role}: {userId: string; role: string}) => import('@/services/tenantService').then((m) => m.updateUserRoleInTenant(tenantId, userId, role)),
-		onMutate: async ({userId, role}) => {
-			await queryClient.cancelQueries({queryKey: ['tenantUsers:', tenantId, 1]})
-			const previousData = queryClient.getQueryData(['tenantUsers:', tenantId, 1])
-			queryClient.setQueryData(['tenantUsers:', tenantId, 1], (old: import('@/types/tenant').PaginatedTenantUsersResponse | undefined) => {
-				if (!old?.users) return old
-				return {
-					...old,
-					users: old.users.map((u: import('@/types/tenant').TenantUserResponse) => (u.user_id === userId ? {...u, roles: [role]} : u)),
-				}
-			})
-			return {previousData}
-		},
-		onError: (_err, _vars, context) => {
-			if (context?.previousData) {
-				queryClient.setQueryData(['tenantUsers:', tenantId, 1], context.previousData)
-			}
-		},
-		onSettled: () => {
-			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
-		},
-	})
+      {/* Quick Actions */}
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold">Quick Actions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {quickActions.map((action) => (
+            <Card key={action.title} className={`cursor-pointer transition-colors ${action.color}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center space-x-3">
+                  <action.icon className="h-5 w-5" />
+                  <CardTitle className="text-lg">{action.title}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {action.description}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
 
-	const removeUserMutation = useMutation({
-		mutationFn: (userId: string) => removeUserFromTenant(tenantId, userId),
-		onSuccess: () => {
-			queryClient.invalidateQueries({queryKey: ['tenantUsers', tenantId]})
-		},
-	})
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Calendar className="h-5 w-5" />
+            <span>Recent Activity</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-full">
+                <Users className="h-4 w-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div>
+                <p className="font-medium">New user joined</p>
+                <p className="text-sm text-muted-foreground">John Doe joined the tenant</p>
+              </div>
+              <div className="ml-auto text-sm text-muted-foreground">
+                2 hours ago
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <Settings className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div>
+                <p className="font-medium">Settings updated</p>
+                <p className="text-sm text-muted-foreground">Tenant configuration changed</p>
+              </div>
+              <div className="ml-auto text-sm text-muted-foreground">
+                5 hours ago
+              </div>
+            </div>
 
-	const handleRemoveUser = useCallback(
-		(userId: string) => {
-			removeUserMutation.mutate(userId)
-		},
-		[removeUserMutation],
-	)
-
-	if (isLoading) {
-		return (
-			<div className='flex justify-center p-4'>
-				<Loader2 className='h-6 w-6 animate-spin' />
-			</div>
-		)
-	}
-
-	if (error) {
-		return <div className='text-destructive'>Error loading users: {error.message}</div>
-	}
-
-	return (
-		<TenantUsersTable
-			users={usersData?.users || []}
-			roles={roles}
-			onChangeUserRole={(userId, role) => {
-				updateUserRoleMutation.mutate({userId, role})
-			}}
-			onChangeUserStatus={(userId, status) => {
-				updateUserMutation.mutate({userId, status})
-			}}
-			onRemoveUser={handleRemoveUser}
-		/>
-	)
-}
-
-export default function TenantSettingsPage() {
-	const params = useParams()
-	const tenantId = params.tenantId as string
-	const {user} = useAuth()
-
-	// Tenant Users Management Card as additional content
-	const tenantUsersContent = (
-		<Card>
-			<CardHeader>
-				<CardTitle>Tenant Users</CardTitle>
-				<CardDescription>Manage users in this tenant.</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<div className='space-y-4'>
-					{/* We'll need to pass roles from the layout component */}
-					<TenantUsersQuery tenantId={tenantId} roles={[]} />
-				</div>
-			</CardContent>
-		</Card>
-	)
-
-	// Custom render function for ownership sections with role-based access
-	const renderOwnershipSections = (tenant: TenantResponse) => {
-		if (!user?.roles?.includes('TenantOwner')) {
-			return null
-		}
-
-		return (
-			<div>
-				<Separator />
-				{/* We'll need to import these components */}
-				<TransferTenantOwnershipSection tenantId={tenantId} currentTenantName={tenant.name} />
-				<Separator />
-			</div>
-		)
-	}
-
-	return (
-		<TenantManagementLayout
-			titlePrefix='Tenant Settings'
-			informationDescription='View and update your tenant details.'
-			loadingMessage='Loading Tenant Settings...'
-			backButton={{
-				text: 'Back to Dashboard',
-				href: '/dashboard',
-			}}
-			errorBackButton={{
-				text: 'Go Back',
-				onClick: () => window.history.back(),
-			}}
-			notFoundBackButton={{
-				text: 'Back to Dashboard',
-				href: '/dashboard',
-			}}
-			deleteRedirectPath='/dashboard'
-			additionalContent={tenantUsersContent}
-			renderOwnershipSections={renderOwnershipSections}
-		/>
-	)
+            <div className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900 rounded-full">
+                <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+              </div>
+              <div>
+                <p className="font-medium">Document uploaded</p>
+                <p className="text-sm text-muted-foreground">New document added to storage</p>
+              </div>
+              <div className="ml-auto text-sm text-muted-foreground">
+                1 day ago
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

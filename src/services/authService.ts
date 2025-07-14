@@ -24,6 +24,7 @@ import {
 } from '@/types/user';
 import { ContextMode, ContextSwitchResult } from '@/types/dual-context';
 import { tokenManager } from '@/lib/token-storage';
+import { multiTenantTokenManager } from '@/lib/multi-tenant-token-manager';
 import { contextManager } from '@/lib/context-manager';
 import { auth } from '@/lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -432,7 +433,21 @@ export const loginTenantContext = async (
 	validateContext: boolean = true
 ): Promise<ContextSwitchResult> => {
 	try {
-		// Validate context switch if requested
+		// Skip validation if already in tenant context with the same tenant ID
+		const currentMode = contextManager.getCurrentMode()
+		const currentTenantState = contextManager.getContextState('tenant')
+		
+		if (currentMode === 'tenant' && currentTenantState?.tenantId === tenantId) {
+			console.log(`✅ Already in tenant ${tenantId} context, skipping login-tenant API call`)
+			return {
+				success: true,
+				previousMode: 'global' as ContextMode,
+				newMode: 'tenant' as ContextMode,
+				rollbackAvailable: preserveGlobalContext
+			}
+		}
+
+		// Validate context switch if requested and not already in target context
 		if (validateContext) {
 			const validation = contextManager.validateContext('tenant');
 			if (!validation.isValid) {
@@ -440,19 +455,27 @@ export const loginTenantContext = async (
 			}
 		}
 
-		// Prepare request data with context information
+		// Prepare request data - backend only needs tenant_id
 		const requestData = {
-			tenant_id: tenantId,
-			preserve_global_context: preserveGlobalContext,
-			context_mode: 'tenant' as ContextMode
+			tenant_id: tenantId
 		};
 
-		// Backend returns AuthResult, not ContextSwitchResult
-		const response = await apiClient.post<{ access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string }>('/api/v1/auth/login-tenant', requestData);
+		// Call backend login-tenant API
+		const response = await apiClient.post<{ 
+			access_token: string, 
+			refresh_token: string, 
+			expires_at: string, 
+			expires_in: number, 
+			token_type: string 
+		}>('/api/v1/auth/login-tenant', requestData);
 
-		// Convert AuthResult to ContextSwitchResult format
+		// Store tenant tokens
 		if (response.data && response.data.access_token) {
-			console.log('Tenant context switched successfully.');
+			// Store new tenant tokens using both managers for compatibility
+			tokenManager.setTokens('tenant', response.data.access_token, response.data.refresh_token || null);
+			multiTenantTokenManager.setTenantTokens(tenantId, response.data.access_token, response.data.refresh_token || null);
+
+			console.log(`Tenant context switched successfully to tenant ${tenantId}.`);
 			return {
 				success: true,
 				previousMode: 'global' as ContextMode,

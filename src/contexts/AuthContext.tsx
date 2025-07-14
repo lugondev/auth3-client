@@ -4,15 +4,17 @@ import {createContext, useContext, useEffect, useState, useCallback, useRef} fro
 import {useRouter} from 'next/navigation'
 import {GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup} from 'firebase/auth'
 import {auth} from '@/lib/firebase'
-import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin} from '@/services/authService'
+import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin, loginTenantContext} from '@/services/authService'
 import apiClient from '@/lib/apiClient'
 import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, Verify2FARequest} from '@/types/user'
 import {toast} from 'sonner'
 import {AuthContextType} from '@/types/auth'
 import {AppUser, ContextMode, ContextSwitchOptions, ContextSwitchResult} from '@/types/dual-context'
 import {tokenManager} from '@/lib/token-storage'
+import {multiTenantTokenManager} from '@/lib/multi-tenant-token-manager'
 import {contextManager} from '@/lib/context-manager'
 import {decodeJwt} from '@/lib/jwt'
+import {clearPermissionsCache} from '@/services/permissionService'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -96,14 +98,35 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			const targetContext = context || currentMode
 
-			// Clear tokens for specific context
-			tokenManager.clearTokens(targetContext)
-
-			// Clear context state
-			contextManager.clearContextState(targetContext)
+			// If context is 'auto', clear all contexts
+			if (context === 'auto') {
+				// Clear all tokens and contexts
+				tokenManager.clearTokens('global')
+				tokenManager.clearTokens('tenant')
+				contextManager.clearContextState('global')
+				contextManager.clearContextState('tenant')
+				
+				// Clear multi-tenant tokens too
+				multiTenantTokenManager.clearAllTenantTokens()
+				
+				// Clear all permissions cache
+				clearPermissionsCache()
+			} else {
+				// Clear tokens for specific context
+				tokenManager.clearTokens(targetContext)
+				// Clear context state
+				contextManager.clearContextState(targetContext)
+				
+				// Clear permissions cache for specific context
+				if (targetContext === 'tenant' && currentTenantId) {
+					clearPermissionsCache(currentTenantId)
+				} else if (targetContext === 'global') {
+					clearPermissionsCache() // Clear global permissions
+				}
+			}
 
 			// Update UI state based on context
-			if (targetContext === 'global' || targetContext === currentMode) {
+			if (context === 'auto' || targetContext === 'global' || targetContext === currentMode) {
 				setUser(null)
 				setIsAuthenticated(false)
 				setIsSystemAdmin(null)
@@ -118,8 +141,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				delete apiClient.defaults.headers.Authorization
 			}
 
-			// Update context states
-			if (targetContext === 'global') {
+			// Update context states - when 'auto', clear both
+			if (context === 'auto') {
+				setGlobalContext({user: null, isAuthenticated: false, tenantId: null})
+				setTenantContext({user: null, isAuthenticated: false, tenantId: null})
+			} else if (targetContext === 'global') {
 				setGlobalContext({user: null, isAuthenticated: false, tenantId: null})
 			} else if (targetContext === 'tenant') {
 				setTenantContext({user: null, isAuthenticated: false, tenantId: null})
@@ -290,29 +316,66 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		async (tenantId: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
 			setIsTransitioning(true)
 			try {
-				const result = await contextManager.switchContext('tenant', tenantId, options)
+				// Import loginTenantContext service
+				const {loginTenantContext} = await import('@/services/authService')
+				
+				// Call login-tenant API to get tenant access token
+				const result = await loginTenantContext(
+					tenantId,
+					options.preserveGlobalContext,
+					true // validateContext
+				)
+				
 				if (result.success) {
-					setCurrentMode('tenant')
-
-					// Load tenant context state
-					const tenantState = contextManager.getContextState('tenant')
-					if (tenantState) {
-						setUser(tenantState.user)
-						setIsAuthenticated(tenantState.isAuthenticated)
-						setCurrentTenantId(tenantState.tenantId)
-
-						// Update API client with tenant tokens
-						const tenantTokens = tokenManager.getTokens('tenant')
-						if (tenantTokens.accessToken) {
+					// Get tenant tokens after login-tenant
+					const tenantTokens = tokenManager.getTokens('tenant')
+					if (tenantTokens.accessToken) {
+						// Decode new tenant token to get user with tenant_id
+						const tenantUser = decodeToken(tenantTokens.accessToken)
+						if (tenantUser) {
+							setCurrentMode('tenant')
+							setUser(tenantUser)
+							setIsAuthenticated(true)
+							setCurrentTenantId(tenantId)
+							
+							// Update API client with tenant token
 							apiClient.defaults.headers.Authorization = `Bearer ${tenantTokens.accessToken}`
+							
+							// Update context state
+							contextManager.setContextState('tenant', {
+								user: tenantUser,
+								isAuthenticated: true,
+								tenantId: tenantId,
+								permissions: (tenantUser.roles || []).map(role => ({
+									object: 'tenant',
+									action: role
+								})),
+								roles: tenantUser.roles || [],
+								tokens: tenantTokens
+							})
+							
+							toast.success(`Switched to tenant: ${tenantId}`)
+						} else {
+							throw new Error('Failed to decode tenant token')
 						}
+					} else {
+						throw new Error('No tenant access token received')
 					}
-
-					toast.success(`Switched to tenant context: ${tenantId}`)
 				} else {
 					toast.error(result.error || 'Failed to switch to tenant context')
 				}
 				return result
+			} catch (error) {
+				console.error('Error switching to tenant:', error)
+				const errorMessage = error instanceof Error ? error.message : 'Failed to switch to tenant'
+				toast.error(errorMessage)
+				return {
+					success: false,
+					previousMode: currentMode,
+					newMode: currentMode,
+					error: errorMessage,
+					rollbackAvailable: false
+				}
 			} finally {
 				setIsTransitioning(false)
 			}
@@ -320,36 +383,136 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		[currentMode],
 	)
 
+	const switchToTenantById = useCallback(async (tenantId: string): Promise<void> => {
+		try {
+			setLoading(true)
+			
+			// Check if we already have valid tokens for this tenant
+			const validation = multiTenantTokenManager.validateTenantTokens(tenantId)
+			
+			if (validation.isValid) {
+				console.log(`✅ Using cached tokens for tenant ${tenantId}`)
+				
+				// Switch context using existing tokens
+				const tokens = multiTenantTokenManager.getTenantTokens(tenantId)
+				tokenManager.setTokens('tenant', tokens.accessToken, tokens.refreshToken)
+				
+				// Update context
+				setCurrentMode('tenant')
+				setCurrentTenantId(tenantId)
+				
+				// Update user from token
+				if (tokens.accessToken) {
+					const decoded = decodeToken(tokens.accessToken)
+					if (decoded) {
+						setUser(decoded)
+						setIsAuthenticated(true)
+					}
+				}
+				
+				return
+			}
+			
+			console.log(`🔄 Need to authenticate for tenant ${tenantId}`)
+			
+			// Call login-tenant to get new tokens
+			const result = await loginTenantContext(tenantId, true, false)
+			
+			if (result.success) {
+				console.log(`✅ Successfully switched to tenant ${tenantId}`)
+				
+				// The tokens are already stored by loginTenantContext
+				// Just update the state
+				setCurrentMode('tenant')
+				setCurrentTenantId(tenantId)
+				
+				// Get and set user from new token
+				const tenantTokens = tokenManager.getTokens('tenant')
+				if (tenantTokens.accessToken) {
+					const decoded = decodeToken(tenantTokens.accessToken)
+					if (decoded) {
+						setUser(decoded)
+						setIsAuthenticated(true)
+					}
+				}
+			} else {
+				throw new Error(result.error || 'Failed to switch tenant context')
+			}
+		} catch (error) {
+			console.error('Error switching to tenant:', error)
+			toast.error('Failed to switch to tenant context')
+			throw error
+		} finally {
+			setLoading(false)
+		}
+	}, [])
+
 	const switchToGlobal = useCallback(async (options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
 		setIsTransitioning(true)
 		try {
-			const result = await contextManager.switchContext('global', undefined, options)
+			// Import loginGlobalContext service
+			const {loginGlobalContext} = await import('@/services/authService')
+			
+			// Call login-global API to get global access token
+			const result = await loginGlobalContext(
+				options.preserveGlobalContext,
+				true // validateContext
+			)
+			
 			if (result.success) {
-				setCurrentMode('global')
-
-				// Load global context state
-				const globalState = contextManager.getContextState('global')
-				if (globalState) {
-					setUser(globalState.user)
-					setIsAuthenticated(globalState.isAuthenticated)
-					setCurrentTenantId(globalState.tenantId)
-
-					// Update API client with global tokens
-					const globalTokens = tokenManager.getTokens('global')
-					if (globalTokens.accessToken) {
+				// Get global tokens after login-global
+				const globalTokens = tokenManager.getTokens('global')
+				if (globalTokens.accessToken) {
+					// Decode new global token to get user without tenant_id
+					const globalUser = decodeToken(globalTokens.accessToken)
+					if (globalUser) {
+						setCurrentMode('global')
+						setUser(globalUser)
+						setIsAuthenticated(true)
+						setCurrentTenantId(null) // Global context has no tenant
+						
+						// Update API client with global token
 						apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
+						
+						// Update context state
+						contextManager.setContextState('global', {
+							user: globalUser,
+							isAuthenticated: true,
+							tenantId: null,
+							permissions: (globalUser.roles || []).map(role => ({
+								object: 'global',
+								action: role
+							})),
+							roles: globalUser.roles || [],
+							tokens: globalTokens
+						})
+						
+						toast.success('Switched to global context')
+					} else {
+						throw new Error('Failed to decode global token')
 					}
+				} else {
+					throw new Error('No global access token received')
 				}
-
-				toast.success('Switched to global context')
 			} else {
 				toast.error(result.error || 'Failed to switch to global context')
 			}
 			return result
+		} catch (error) {
+			console.error('Error switching to global:', error)
+			const errorMessage = error instanceof Error ? error.message : 'Failed to switch to global'
+			toast.error(errorMessage)
+			return {
+				success: false,
+				previousMode: currentMode,
+				newMode: currentMode,
+				error: errorMessage,
+				rollbackAvailable: false
+			}
 		} finally {
 			setIsTransitioning(false)
 		}
-	}, [])
+	}, [currentMode])
 
 	const switchContext = useCallback(
 		async (mode: ContextMode, tenantId?: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
@@ -682,7 +845,21 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	const logout = useCallback(async () => {
 		setLoading(true)
-		await clearAuthData()
+		
+		// Check if currently in tenant space and redirect to avoid issues after login
+		if (typeof window !== 'undefined') {
+			const currentPath = window.location.pathname
+			if (currentPath.includes('/dashboard/tenant/') && !currentPath.includes('/tenant-management')) {
+				console.log('🔄 Logout from tenant space, will redirect to main dashboard')
+				// Clear all auth data and contexts - use 'auto' to clear everything
+				await clearAuthData(true, true, 'auto') // firebase signout, redirect, clear all contexts
+				setLoading(false)
+				return
+			}
+		}
+		
+		// Normal logout - clear all contexts
+		await clearAuthData(true, true, 'auto')
 		setLoading(false)
 		toast.success('Successfully signed out.')
 	}, [clearAuthData])
@@ -788,6 +965,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 		// Context switching
 		switchToTenant,
+		switchToTenantById,
 		switchToGlobal,
 		switchContext,
 

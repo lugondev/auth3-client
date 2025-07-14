@@ -52,7 +52,7 @@ const ROUTE_PERMISSIONS: RoutePermission[] = [
 	},
 	// Tenant-specific routes
 	{
-		path: '/dashboard/tenant',
+		path: '/dashboard/tenant/',
 		permissions: ['tenant:dashboard:read'],
 		tenantRequired: true,
 	},
@@ -282,6 +282,7 @@ export async function middleware(request: NextRequest) {
 		pathname.startsWith('/dashboard/unauthorized') ||
 		pathname.startsWith('/dashboard/loading-permissions') ||
 		pathname.startsWith('/dashboard/tenant-management') ||
+		pathname.match(/^\/dashboard\/tenant\/[^\/]+/) || // Skip tenant ID routes - let TenantGuard handle them
 		pathname.startsWith('/api') ||
 		pathname.startsWith('/_next') ||
 		pathname === '/favicon.ico' ||

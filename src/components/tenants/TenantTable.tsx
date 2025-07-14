@@ -6,12 +6,15 @@ import {useRouter} from 'next/navigation'
 import {Tenant} from '@/types/tenantManagement'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Badge} from '@/components/ui/badge'
+import {Button} from '@/components/ui/button'
 import {Edit, Users} from 'lucide-react'
 import {loginTenantContext} from '@/services/authService'
 import {Loader2} from 'lucide-react'
 import {toast} from 'sonner'
 import {PermissionButton} from '@/components/guards'
 import {PermissionTooltip} from '@/components/permissions'
+import {useAuth} from '@/contexts/AuthContext'
+import {usePermissions} from '@/contexts/PermissionContext'
 
 interface TenantTableProps {
 	tenants: Tenant[]
@@ -21,6 +24,8 @@ interface TenantTableProps {
 export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	const router = useRouter()
 	const [loading, setLoading] = React.useState(false)
+	const {user, switchToTenantById} = useAuth()
+	const {hasPermission} = usePermissions()
 
 	if (!tenants || tenants.length === 0) {
 		return <p>No tenants to display.</p>
@@ -29,18 +34,30 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 	const handleTenantManagement = async (tenantId: string) => {
 		setLoading(true)
 		try {
-			const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
-			if (contextResult.success) {
-				router.push(`/dashboard/tenant/${tenantId}`)
-			} else {
-				throw new Error(contextResult.error || 'Context switch failed')
-			}
+			// Use the improved switchToTenantById method
+			await switchToTenantById(tenantId)
+			
+			// Navigate to tenant dashboard
+			router.push(`/dashboard/tenant/${tenantId}`)
 		} catch (error) {
-			console.error('Failed to login tenant context:', error)
+			console.error('Failed to switch tenant context:', error)
 			toast.error('Unable to switch tenant context. Please try again.')
 		} finally {
 			setLoading(false)
 		}
+	}
+
+	// Check if user can manage this tenant (either has permission or is the owner)
+	const canManageTenant = (tenant: Tenant): boolean => {
+		if (!user) return false
+		
+		// Check if user has tenant:manage permission
+		if (hasPermission('tenant:manage')) return true
+		
+		// Check if user is the owner of this tenant
+		if (tenant.owner_user_id && user.id === tenant.owner_user_id) return true
+		
+		return false
 	}
 
 	return (
@@ -93,10 +110,28 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 								</TableCell>
 							) : (
 								<TableCell className='text-right space-x-2'>
-									<PermissionButton variant='outline' size='sm' permission='tenant:manage' onClick={() => handleTenantManagement(tenant.id)}>
-										<Edit className='h-4 w-4 mr-2' />
-										Management
-									</PermissionButton>
+									{canManageTenant(tenant) ? (
+										<Button 
+											variant='outline' 
+											size='sm' 
+											onClick={() => handleTenantManagement(tenant.id)}
+										>
+											<Edit className='h-4 w-4 mr-2' />
+											Management
+										</Button>
+									) : (
+										<PermissionTooltip permission='tenant:manage'>
+											<PermissionButton 
+												variant='outline' 
+												size='sm' 
+												permission='tenant:manage' 
+												onClick={() => handleTenantManagement(tenant.id)}
+											>
+												<Edit className='h-4 w-4 mr-2' />
+												Management
+											</PermissionButton>
+										</PermissionTooltip>
+									)}
 								</TableCell>
 							)}
 						</TableRow>

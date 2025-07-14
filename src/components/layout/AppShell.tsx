@@ -7,7 +7,7 @@ import {useAuth} from '@/contexts/AuthContext' // Import useAuth
 
 interface AppShellProps {
 	children: React.ReactNode
-	sidebarType?: 'system' | 'user' // Added 'user'
+	sidebarType?: 'system' | 'user' | 'tenant' // Added 'tenant'
 	tenantId?: string
 	tenantName?: string
 }
@@ -15,7 +15,7 @@ interface AppShellProps {
 const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarType, tenantId, tenantName}) => {
 	const [isSidebarOpen, setIsSidebarOpen] = React.useState(true)
 	const [sidebarWidth, setSidebarWidth] = React.useState(256) // Default sidebar width (w-64 = 256px)
-	const {isAuthenticated, isSystemAdmin, loading: authLoading} = useAuth()
+	const {isAuthenticated, isSystemAdmin, currentMode, currentTenantId, loading: authLoading} = useAuth()
 
 	const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
 
@@ -25,12 +25,16 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 	}
 
 	// Determine the actual sidebar type
-	let actualSidebarType: 'system' | 'user' | undefined = propSidebarType
+	let actualSidebarType: 'system' | 'user' | 'tenant' | undefined = propSidebarType
 
 	if (!propSidebarType && isAuthenticated) {
 		if (isSystemAdmin === true) {
 			actualSidebarType = 'system'
-		} else if (isSystemAdmin === false) {
+		} else if (currentMode === 'tenant' && currentTenantId) {
+			// Show tenant-specific menu when in tenant context
+			actualSidebarType = 'tenant'
+		} else {
+			// Default user menu for global context
 			actualSidebarType = 'user'
 		}
 	}

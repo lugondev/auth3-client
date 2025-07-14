@@ -40,6 +40,7 @@ export interface AuthContextType {
   
   // Context switching methods
   switchToTenant: (tenantId: string, options?: ContextSwitchOptions) => Promise<ContextSwitchResult>
+  switchToTenantById: (tenantId: string) => Promise<void>
   switchToGlobal: (options?: ContextSwitchOptions) => Promise<ContextSwitchResult>
   switchContext: (mode: ContextMode, tenantId?: string, options?: ContextSwitchOptions) => Promise<ContextSwitchResult>
   

@@ -6,30 +6,18 @@ import Link from 'next/link'
 import {
 	LayoutDashboard,
 	Building,
-	Users,
 	ShieldCheck,
-	FileText,
-	Settings,
-	UserCircle, // Added for Profile
+	UserCircle,
 	ChevronDown, // For collapsible icon
 	ChevronRight, // For collapsible icon
-	KeyRound, // OAuth2 icon
-	ListChecks, // OAuth2 list icon
 	Lock, // For disabled items
-	TestTube, // For permissions demo
-	CreditCard, // For credentials
-	MessageSquare, // For messages
-	Plus, // For create actions
-	Eye, // For view actions
 	ChevronsLeft, // For sidebar collapse
 	ChevronsRight, // For sidebar expand
-	Presentation, // For presentations
-	Share2, // For sharing
-	BarChart3, // For management dashboard
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
 import {usePermissions} from '@/contexts/PermissionContext'
+import {useAuth} from '@/contexts/AuthContext'
 import {usePathname} from 'next/navigation'
 
 interface NavLink {
@@ -43,9 +31,7 @@ interface NavLink {
 }
 
 interface SidebarProps {
-	type?: 'system' | 'user' // Added 'user' type
-	tenantId?: string // Only for tenant type
-	tenantName?: string // Only for tenant type
+	type?: 'system' | 'user' | 'tenant' // Legacy types - system/tenant now have separate spaces
 	initialWidth?: number // Initial width of sidebar
 	minWidth?: number // Minimum width when collapsed
 	maxWidth?: number // Maximum width when expanded
@@ -53,157 +39,21 @@ interface SidebarProps {
 	onWidthChange?: (width: number) => void // Callback when sidebar width changes
 }
 
-const systemAdminLinks: NavLink[] = [
-	{href: '/dashboard/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'admin:dashboard:read'},
-	{href: '/dashboard/admin/tenants', label: 'Tenant Management', icon: Building, permission: 'admin:tenants:read'},
-	{href: '/dashboard/admin/users', label: 'User Management', icon: Users, permission: 'admin:users:read'},
-	{href: '/dashboard/admin/roles', label: 'Global Roles & Permissions', icon: ShieldCheck, permission: 'admin:roles:read'},
-	{
-		href: '/dashboard/admin/dids',
-		label: 'DID Administration',
-		icon: KeyRound,
-		permission: 'admin:dids:read',
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/admin/dids', label: 'DID Dashboard', icon: LayoutDashboard, permission: 'admin:dids:read'},
-			{href: '/dashboard/admin/dids/config', label: 'Method Configuration', icon: Settings, permission: 'admin:dids:config'},
-		],
-	},
-	{
-		href: '/dashboard/admin/credentials',
-		label: 'VC Administration',
-		icon: CreditCard,
-		permission: 'admin:credentials:read',
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/admin/credentials', label: 'VC Dashboard', icon: LayoutDashboard, permission: 'admin:credentials:read'},
-			{href: '/dashboard/admin/credentials/templates', label: 'Templates Management', icon: FileText, permission: 'admin:credentials:templates'},
-			{href: '/dashboard/credentials/templates-enhanced', label: 'Templates Enhanced', icon: Settings, permission: 'admin:credentials:templates'},
-			{href: '/dashboard/admin/credentials/revocation', label: 'Revocation Management', icon: ShieldCheck, permission: 'admin:credentials:revoke'},
-		],
-	},
-	{
-		href: '/dashboard/admin/presentations',
-		label: 'VP Administration',
-		icon: Presentation,
-		permission: 'admin:presentations:read',
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/admin/presentations', label: 'VP Dashboard', icon: LayoutDashboard, permission: 'admin:presentations:read'},
-			{href: '/dashboard/admin/presentations/verification', label: 'Verification Management', icon: Eye, permission: 'admin:presentations:verify'},
-			{href: '/dashboard/admin/presentations/analytics', label: 'Analytics', icon: ListChecks, permission: 'admin:presentations:analytics'},
-		],
-	},
-	{
-		href: '/dashboard/permissions-demo',
-		label: 'Permissions Demo',
-		icon: TestTube,
-		isCollapsible: true,
-		permission: 'admin:permissions:demo',
-		children: [
-			{href: '/dashboard/permissions-demo', label: 'Basic Demo', icon: TestTube, permission: 'admin:permissions:demo'},
-			{href: '/dashboard/permissions-demo/enhanced', label: 'Enhanced Demo', icon: TestTube, permission: 'admin:permissions:demo'},
-			{href: '/dashboard/permissions-demo/dual-context', label: 'Dual Context Demo', icon: TestTube, permission: 'admin:permissions:demo'},
-		],
-	},
-	{
-		href: '/dashboard/oauth2',
-		label: 'OAuth2 Management',
-		icon: KeyRound,
-		isCollapsible: true,
-		permission: 'admin:oauth2:read',
-		children: [
-			{href: '/dashboard/oauth2/', label: 'Client List', icon: ListChecks, permission: 'admin:oauth2:read'},
-			{href: '/dashboard/oauth2/create', label: 'Create Client', icon: KeyRound, permission: 'admin:oauth2:create'},
-			{
-				href: '/dashboard/oauth2/advanced',
-				label: 'Advanced Settings',
-				icon: Settings,
-				isCollapsible: true,
-				permission: 'admin:oauth2:advanced',
-				children: [
-					{href: '/dashboard/oauth2/scopes', label: 'Manage Scopes', icon: ShieldCheck, permission: 'admin:oauth2:scopes'},
-					{href: '/dashboard/oauth2/tokens', label: 'Token Management', icon: KeyRound, permission: 'admin:oauth2:tokens'},
-					{href: '/dashboard/oauth2/audit', label: 'Audit Logs', icon: FileText, permission: 'admin:oauth2:audit'},
-				],
-			},
-		],
-	},
-	{href: '/dashboard/admin/logs', label: 'System Logs', icon: FileText, permission: 'admin:logs:read'},
-]
-
-const adminParentLink: NavLink = {
-	href: '#', // Parent link doesn't navigate directly
-	label: 'Admin',
-	icon: Settings, // Or a more generic admin icon
-	isCollapsible: true,
-	children: systemAdminLinks,
-}
-
 const userLinks: NavLink[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
 	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle},
 	{
-		href: '/dashboard/dids',
-		label: 'DID Management',
-		icon: KeyRound,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/dids', label: 'Overview', icon: KeyRound},
-			{href: '/dashboard/did-management', label: 'Management Dashboard', icon: BarChart3},
-			{href: '/dashboard/dids/create', label: 'Create DID', icon: Plus},
-			{href: '/dashboard/dids/settings', label: 'Settings', icon: Settings},
-		],
-	},
-	{
-		href: '/dashboard/credentials',
-		label: 'Credentials',
-		icon: CreditCard,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/credentials', label: 'Overview', icon: CreditCard},
-			{href: '/dashboard/credentials/issue', label: 'Issue Credential', icon: Plus},
-			{href: '/dashboard/credentials/verify', label: 'Verify Credential', icon: Eye},
-			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileText},
-			{href: '/dashboard/credentials/templates-enhanced', label: 'Templates Enhanced', icon: Settings},
-		],
-	},
-	{
-		href: '/dashboard/presentations',
-		label: 'Presentations',
-		icon: Presentation,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/presentations', label: 'Overview', icon: Presentation},
-			{href: '/dashboard/presentations/create', label: 'Create Presentation', icon: Plus},
-			{href: '/dashboard/presentations/verify', label: 'Verify Presentation', icon: Eye},
-			{href: '/dashboard/presentations/templates', label: 'Templates', icon: FileText},
-			{href: '/dashboard/presentations/analytics', label: 'Analytics', icon: LayoutDashboard},
-			{href: '/dashboard/presentations/sharing', label: 'Sharing', icon: Share2},
-		],
-	},
-	{
-		href: '/dashboard/messages',
-		label: 'Messages',
-		icon: MessageSquare,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/messages', label: 'Inbox', icon: MessageSquare},
-			{href: '/dashboard/messages/sent', label: 'Sent', icon: MessageSquare},
-			{href: '/dashboard/messages/connections', label: 'Connections', icon: Users},
-		],
-	},
-	{
 		href: '/dashboard/tenant-management',
-		label: 'Organizations',
+		label: 'My Organizations',
 		icon: Building,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/tenant-management', label: 'Overview', icon: Building},
-			{href: '/dashboard/tenant-management/#settings', label: 'Settings', icon: Settings},
-			{href: '/dashboard/tenant-management/#members', label: 'Members', icon: Users},
-			{href: '/dashboard/tenant-management/#roles', label: 'Roles', icon: ShieldCheck},
-		],
+		isCollapsible: false,
+	},
+	{
+		href: '/dashboard/admin',
+		label: 'Admin Panel',
+		icon: ShieldCheck,
+		isCollapsible: false,
+		permission: 'admin:access', // Require admin permission
 	},
 ]
 
@@ -214,6 +64,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 	const [isCollapsed, setIsCollapsed] = React.useState(false)
 	const [isResizing, setIsResizing] = React.useState(false)
 	const {hasPermission, hasRole} = usePermissions()
+	const {isSystemAdmin} = useAuth()
 	const pathname = usePathname()
 
 	// Reference for tracking resize
@@ -349,6 +200,11 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 			return true
 		}
 
+		// Check for admin panel access using isSystemAdmin flag
+		if (link.href === '/dashboard/admin') {
+			return isSystemAdmin === true
+		}
+
 		if (link.permission && !hasPermission(link.permission)) {
 			return false
 		}
@@ -360,6 +216,11 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 
 	// Get tooltip message for disabled links
 	const getTooltipMessage = (link: NavLink): string => {
+		// Special message for admin panel
+		if (link.href === '/dashboard/admin' && isSystemAdmin !== true) {
+			return 'Requires system administrator privileges'
+		}
+		
 		if (link.permission && !hasPermission(link.permission)) {
 			return `Requires permission: ${link.permission}`
 		}
@@ -371,25 +232,28 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 
 	const links = (() => {
 		if (type === 'system') {
-			// Place userLinks first, then the adminParentLink
-			return [...userLinks, adminParentLink]
+			// Legacy system type - deprecated, admin now has separate space
+			return userLinks
 		}
-		// Fallback for undefined type, or could be more explicit
-		// For now, if not system/tenant, and type is 'user', show userLinks.
-		// If type is undefined, it will currently return [].
-		// Let's make it default to userLinks if not system or tenant.
-		return userLinks // Default to user links if not system or tenant admin
+		if (type === 'tenant') {
+			// Legacy tenant type - deprecated, tenant now has separate space  
+			return userLinks
+		}
+		// Default to user links for 'user' type or undefined
+		return userLinks
 	})()
 
 	const title = (() => {
 		if (type === 'system') {
-			return 'System Admin'
+			return 'Dashboard' // Legacy system type, now just shows dashboard
 		}
-
+		if (type === 'tenant') {
+			return 'Organization'
+		}
 		if (type === 'user') {
-			return 'My Account' // Or some other appropriate title
+			return 'My Account'
 		}
-		return 'Menu' // Default title
+		return 'Dashboard' // Default title
 	})()
 
 	// Tailwind classes for the sidebar container
@@ -414,7 +278,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 				{' '}
 				{/* Added flex-grow and overflow for long lists */}
 				<ul>
-					{links.map((link, linkIndex) => {
+					{links.filter(link => hasAccess(link)).map((link, linkIndex) => {
 						const IconComponent = link.icon
 						const hasLinkAccess = hasAccess(link)
 						const tooltipMessage = getTooltipMessage(link)
