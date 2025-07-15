@@ -136,6 +136,32 @@ export interface BulkUserRolesResponse {
 	roles: string[]
 }
 
+// --- Global Template Role Types ---
+
+export interface CreateGlobalTemplateRolesRequest {
+	template_roles: string[]
+}
+
+export interface CreateGlobalTemplateRolesResponse {
+	success: boolean
+	message: string
+	created_roles: string[]
+}
+
+export interface GlobalTemplateRoleListResponse {
+	roles: string[]
+}
+
+export interface UpdateGlobalTemplateRoleRequest {
+	role_name: string
+	permissions?: [string, string][] // [object, action][]
+}
+
+export interface UpdateGlobalTemplateRoleResponse {
+	success: boolean
+	message: string
+}
+
 
 export interface RbacActions {
 	fetchUsersRoles: (userIds: string[]) => Promise<void>

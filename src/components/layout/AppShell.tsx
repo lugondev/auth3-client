@@ -58,11 +58,10 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 			{/* Flex container to ensure sidebar and content are adjacent */}
 			<div className='flex w-full h-full overflow-hidden'>
 				{showSidebar && (
-					<div>
-						{/* Sidebar: Hidden on mobile by default, visible on md and larger */}
-						<div className={`fixed inset-y-0 left-0 z-30 transform bg-gray-800 text-white transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{width: `${sidebarWidth}px`, flexShrink: 0, maxWidth: '100vw'}}>
-							<Sidebar type={actualSidebarType} tenantId={tenantId} tenantName={tenantName} initialWidth={256} minWidth={80} maxWidth={320} onWidthChange={handleSidebarWidthChange} />
-						</div>
+					<div>					{/* Sidebar: Hidden on mobile by default, visible on md and larger */}
+					<div className={`fixed inset-y-0 left-0 z-30 transform bg-gray-800 text-white transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{width: `${sidebarWidth}px`, flexShrink: 0, maxWidth: '100vw'}}>
+						<Sidebar type={actualSidebarType} initialWidth={256} minWidth={80} maxWidth={320} onWidthChange={handleSidebarWidthChange} />
+					</div>
 
 						{/* Overlay for mobile when sidebar is open */}
 						{isSidebarOpen && <div className='fixed inset-0 z-20 bg-black opacity-50 md:hidden' onClick={toggleSidebar}></div>}

@@ -4,6 +4,7 @@ import React, {useState, useEffect, useCallback} from 'react'
 import {Loader2} from 'lucide-react'
 import {useRbac} from '@/hooks/useRbac' // Keep for roles, permissions, modals
 import {RolesSection} from '@/components/rbac/RolesSection'
+import {GlobalTemplateRolesSection} from '@/components/rbac/GlobalTemplateRolesSection'
 import {UserRolesModal} from '@/components/rbac/modals/UserRolesModal'
 import {RolePermissionsModal} from '@/components/rbac/modals/RolePermissionsModal'
 import {CreateRoleModal} from '@/components/rbac/modals/CreateRoleModal'
@@ -226,6 +227,18 @@ export default function RBACManagement() {
 					</button>
 				</div>
 			</div>
+
+			{/* Global Template Roles Section */}
+			{selectedDomain === 'global' && (
+				<GlobalTemplateRolesSection
+					selectedRole={selectedRole?.name || null}
+					onOpenRolePermsModal={(roleName) => {
+						// Create a role object for the modal
+						const role = { name: roleName, domain: '__tenant__' }
+						actions.openRolePermsModal(role)
+					}}
+				/>
+			)}
 
 			{/* Roles Section (from useRbac) */}
 			<RolesSection
