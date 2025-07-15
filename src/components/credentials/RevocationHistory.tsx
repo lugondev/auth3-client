@@ -9,10 +9,9 @@ import {Badge} from '@/components/ui/badge'
 import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ScrollArea} from '@/components/ui/scroll-area'
-import {Separator} from '@/components/ui/separator'
 
 import {getCredentialStatus} from '@/services/vcService'
-import type {CredentialStatus} from '@/types/credentials'
+import {CredentialStatus} from '@/types/credentials'
 
 interface RevocationHistoryProps {
 	credentialId: string
@@ -30,12 +29,12 @@ interface RevocationEvent {
 }
 
 // Mock revocation history data (replace with actual API call)
-const mockRevocationHistory = (credentialId: string): RevocationEvent[] => [
+const mockRevocationHistory = (): RevocationEvent[] => [
 	{
 		id: '1',
 		timestamp: new Date().toISOString(),
 		action: 'issued',
-		status: 'active' as CredentialStatus,
+		status: CredentialStatus.ACTIVE,
 		actor: 'System',
 		notes: 'Credential initially issued'
 	},
@@ -71,7 +70,7 @@ export function RevocationHistory({credentialId, className = ''}: RevocationHist
 		const fetchRevocationHistory = async () => {
 			try {
 				// Replace this with actual API call
-				const history = mockRevocationHistory(credentialId)
+				const history = mockRevocationHistory()
 				setRevocationEvents(history)
 			} catch (error) {
 				console.error('Error fetching revocation history:', error)
@@ -258,14 +257,22 @@ export function RevocationHistory({credentialId, className = ''}: RevocationHist
 							<span className="text-sm font-medium">Current Status:</span>
 							<Badge 
 								variant={
-									currentStatus === 'revoked' ? 'destructive' :
-									currentStatus === 'suspended' ? 'outline' : 
-									'default'
+									currentStatus.revoked ? 'destructive' : 'default'
 								}
 							>
-								{currentStatus}
+								{currentStatus.revoked ? 'Revoked' : 'Active'}
 							</Badge>
 						</div>
+						{currentStatus.revoked && currentStatus.revokedAt && (
+							<div className="mt-2 text-xs text-muted-foreground">
+								Revoked on: {new Date(currentStatus.revokedAt).toLocaleDateString()}
+							</div>
+						)}
+						{currentStatus.reason && (
+							<div className="mt-1 text-xs text-muted-foreground">
+								Reason: {currentStatus.reason}
+							</div>
+						)}
 					</div>
 				)}
 			</CardContent>

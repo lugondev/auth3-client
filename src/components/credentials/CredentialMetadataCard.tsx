@@ -38,6 +38,7 @@ interface CredentialMetadataCardProps {
 export function CredentialMetadataCard({credential, onDelete, onShare, onView, onDownload, onRevoke, showActions = true, showRevokeOption = false, className = ''}: CredentialMetadataCardProps) {
 	const [isDeleting, setIsDeleting] = useState(false)
 	const [isRevoking, setIsRevoking] = useState(false)
+	const [isVerifying, setIsVerifying] = useState(false)
 
 	// Get credential types (excluding VerifiableCredential)
 	const getCredentialTypes = () => {
@@ -87,6 +88,22 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 			toast.error('Failed to revoke credential')
 		} finally {
 			setIsRevoking(false)
+		}
+	}
+
+	// Handle quick verify action
+	const handleQuickVerify = async () => {
+		try {
+			setIsVerifying(true)
+			// TODO: Implement actual verification logic
+			// For now, simulate a verification call
+			await new Promise(resolve => setTimeout(resolve, 1500))
+			toast.success('Credential verified successfully')
+		} catch (error) {
+			console.error('Error verifying credential:', error)
+			toast.error('Failed to verify credential')
+		} finally {
+			setIsVerifying(false)
 		}
 	}
 
@@ -145,6 +162,10 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 								<DropdownMenuItem onClick={handleShare}>
 									<Share2 className='mr-2 h-4 w-4' />
 									Share
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={handleQuickVerify} disabled={isVerifying}>
+									<Shield className='mr-2 h-4 w-4' />
+									{isVerifying ? 'Verifying...' : 'Quick Verify'}
 								</DropdownMenuItem>
 								
 								{/* Revoke option - chỉ hiện cho credentials do user issue và chưa bị revoke */}

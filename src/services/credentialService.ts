@@ -97,6 +97,29 @@ export interface VerifiableCredential {
 	metadata?: Record<string, JSONValue>;
 }
 
+// Verification Types
+export interface VerifyCredentialRequest {
+	credential: VerifiableCredential;
+}
+
+export interface VerificationResults {
+	signatureValid: boolean;
+	notExpired: boolean;
+	notRevoked: boolean;
+	issuerTrusted: boolean;
+	schemaValid: boolean;
+	proofValid: boolean;
+	message?: string;
+}
+
+export interface VerifyCredentialResponse {
+	valid: boolean;
+	verificationResults: VerificationResults;
+	errors?: string[];
+	warnings?: string[];
+	verifiedAt: string;
+}
+
 export interface ValidationResult {
 	valid: boolean;
 	errors?: string[];
@@ -218,6 +241,12 @@ class CredentialService {
 		};
 
 		const response = await apiClient.post<VerifiableCredential>(`${API_BASE_URL}/preview`, convertedRequest);
+		return response.data;
+	}
+
+	// Verify a credential
+	async verifyCredential(request: VerifyCredentialRequest): Promise<VerifyCredentialResponse> {
+		const response = await apiClient.post<VerifyCredentialResponse>(`${API_BASE_URL}/verify`, request);
 		return response.data;
 	}
 }

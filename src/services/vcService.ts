@@ -9,7 +9,7 @@ import {
   CreatePresentationOutput,
   VerifyPresentationInput,
   VerifyPresentationOutput,
-  CredentialStatus,
+  RevocationStatusResponse,
   ValidateSchemaInput,
   ValidateSchemaOutput,
   CreateTemplateInput,
@@ -104,8 +104,8 @@ export const getCredential = withErrorHandling(
  * @returns Promise resolving to credential status
  */
 export const getCredentialStatus = withErrorHandling(
-  async (credentialId: string): Promise<CredentialStatus> => {
-    const response = await apiClient.get<CredentialStatus>(`/api/v1/credentials/${credentialId}/status`);
+  async (credentialId: string): Promise<RevocationStatusResponse> => {
+    const response = await apiClient.get<RevocationStatusResponse>(`/api/v1/credentials/${credentialId}/status`);
     return response.data;
   }
 );
@@ -339,13 +339,14 @@ export const getUserCredentialAnalytics = withErrorHandling(
     try {
       const response = await apiClient.get<UserCredentialAnalyticsResponse>(url);
       return response.data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle specific analytics errors
-      if (error.response?.status === 401) {
+      const axiosError = error as { response?: { status: number; data?: unknown } };
+      if (axiosError.response?.status === 401) {
         throw new AnalyticsServiceError('Authentication required for analytics', 'AUTH_REQUIRED');
       }
-      if (error.response?.status === 400) {
-        throw new AnalyticsServiceError('Invalid analytics query parameters', 'INVALID_PARAMS', error.response?.data);
+      if (axiosError.response?.status === 400) {
+        throw new AnalyticsServiceError('Invalid analytics query parameters', 'INVALID_PARAMS', axiosError.response?.data as Record<string, unknown>);
       }
       throw new AnalyticsServiceError('Failed to fetch analytics data', 'FETCH_ERROR', { originalError: error });
     }

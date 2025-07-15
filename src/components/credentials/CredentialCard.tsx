@@ -1,7 +1,7 @@
 'use client'
 
 import {useState} from 'react'
-import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, CheckCircle, Clock, XCircle} from 'lucide-react'
+import {MoreHorizontal, Eye, Download, Share2, Trash2, Shield, Calendar, User, AlertTriangle, CheckCircle, Clock} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
@@ -12,9 +12,12 @@ import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Dia
 import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger} from '@/components/ui/alert-dialog'
 
 import type {VerifiableCredential} from '@/types/credentials'
+import type {VerifiableCredential as ServiceVerifiableCredential} from '@/services/credentialService'
 import {CredentialStatus} from '@/types/credentials'
 import {CredentialViewer} from './CredentialViewer'
 import {RevokeCredentialModal} from './RevokeCredentialModal'
+import {QuickVerifyButton} from './QuickVerifyButton'
+import {RevocationButton} from './RevocationButton'
 
 interface CredentialCardProps {
 	credential: VerifiableCredential
@@ -246,15 +249,21 @@ export function CredentialCard({credential, status = CredentialStatus.ACTIVE, on
 									Share
 								</DropdownMenuItem>
 
+								<DropdownMenuSeparator />
+
+								{/* Quick Verify Button */}
+								<QuickVerifyButton 
+									credential={credential as ServiceVerifiableCredential} 
+									variant="dropdown" 
+								/>
+
 								{/* Revoke option - only show for active credentials */}
 								{onRevoke && status === 'active' && (
-									<DropdownMenuItem 
-										onClick={() => setShowRevokeModal(true)}
-										className='text-red-600 focus:text-red-600'
-									>
-										<XCircle className='h-4 w-4 mr-2' />
-										Revoke
-									</DropdownMenuItem>
+									<RevocationButton
+										credential={credential as ServiceVerifiableCredential}
+										variant="dropdown"
+										onRevoked={onRevoke}
+									/>
 								)}
 
 								{onDelete && (

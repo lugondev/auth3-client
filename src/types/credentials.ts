@@ -32,6 +32,7 @@ export interface VerifiableCredential {
   credentialSubject: CredentialSubject;
   credentialStatus?: CredentialStatus;
   credentialSchema?: CredentialSchema;
+  subjectDID: string;
   refreshService?: RefreshService;
   termsOfUse?: TermsOfUse[];
   evidence?: Evidence[];
@@ -168,7 +169,16 @@ export interface VerificationCheck {
 
 export interface RevokeCredentialInput {
   credentialId: string;
+  issuerDID: string;
   reason?: string;
+}
+
+export interface RevocationStatusResponse {
+  credentialId: string;
+  revoked: boolean;
+  revokedAt?: string;
+  reason?: string;
+  checkedAt: string;
 }
 
 export interface RevokeCredentialOutput {
@@ -189,7 +199,7 @@ export interface GetCredentialOutput extends VerifiableCredential {
 export interface CredentialMetadata {
   id: string;
   issuer: string | Issuer;
-  issuerDID: string ;
+  issuerDID: string;
   subjectDID: string;
   type: string[];
   issuanceDate: string;
@@ -332,10 +342,4 @@ export interface ValidateSchemaOutput {
     name: string;
     version: string;
   };
-}
-
-export interface RevokeCredentialInput {
-  credentialId: string;
-  issuerDID: string;
-  reason?: string;
 }

@@ -12,9 +12,10 @@ import {ArrowLeft, Download, Share2, Shield, Clock, User, Building, FileText, Hi
 import {toast} from 'sonner'
 import {VerifiableCredential, CredentialStatus, VerifyCredentialOutput, VerificationResults as VerificationResultsType} from '@/types/credentials'
 import {getVerificationHistory} from '@/services/verificationReportService'
-import {CredentialViewer, VerificationResults, CredentialVerificationResultModal} from '@/components/credentials'
+import {CredentialViewer, CredentialVerificationResultModal} from '@/components/credentials'
 import {RevocationHistory} from '@/components/credentials/RevocationHistory'
 import {AdvancedVerificationFlow} from '@/components/credentials/AdvancedVerificationFlow'
+import {RevocationButton} from '@/components/credentials/RevocationButton'
 import * as vcService from '@/services/vcService'
 
 /**
@@ -35,6 +36,7 @@ export default function CredentialDetailsPage() {
 	const [activeTab, setActiveTab] = useState('overview')
 	const [showResultModal, setShowResultModal] = useState(false)
 	const [currentVerificationResult, setCurrentVerificationResult] = useState<VerifyCredentialOutput | null>(null)
+	const [credentialStatus, setCredentialStatus] = useState<CredentialStatus>(CredentialStatus.ACTIVE)
 
 	/**
 	 * Load credential details and verification history
@@ -153,6 +155,20 @@ export default function CredentialDetailsPage() {
 	}
 
 	/**
+	 * Handle credential revocation
+	 */
+	const handleRevoke = async (revokedCredentialId: string) => {
+		if (revokedCredentialId === credentialId) {
+			setCredentialStatus(CredentialStatus.REVOKED)
+			toast.success('Credential revoked successfully')
+			// Optionally reload the credential data
+			setTimeout(() => {
+				window.location.reload()
+			}, 1500)
+		}
+	}
+
+	/**
 	 * Copy credential ID to clipboard
 	 */
 	const copyCredentialId = async (e?: React.MouseEvent) => {
@@ -232,7 +248,8 @@ export default function CredentialDetailsPage() {
 	return (
 		<div className='container mx-auto p-6 space-y-6'>
 			{/* Header */}
-			<div className='flex items-center justify-between'>
+			<div className='space-y-4'>
+				{/* Title Row */}
 				<div className='flex items-center space-x-4'>
 					<Button
 						onClick={(e) => {
@@ -255,6 +272,7 @@ export default function CredentialDetailsPage() {
 					</div>
 				</div>
 
+				{/* Action Buttons Row */}
 				<div className='flex items-center space-x-2'>
 					<Button onClick={handleVerifyCredential} disabled={verifying} variant='outline'>
 						<Shield className='h-4 w-4 mr-2' />
@@ -268,6 +286,13 @@ export default function CredentialDetailsPage() {
 						<Share2 className='h-4 w-4 mr-2' />
 						Share
 					</Button>
+					{credential && credentialStatus === CredentialStatus.ACTIVE && (
+						<RevocationButton
+							credential={credential as import('@/services/credentialService').VerifiableCredential}
+							variant="button"
+							onRevoked={handleRevoke}
+						/>
+					)}
 				</div>
 			</div>
 
@@ -369,7 +394,7 @@ export default function CredentialDetailsPage() {
 							<CardContent className='space-y-3'>
 								<div>
 									<p className='text-sm font-medium'>Subject ID</p>
-									<p className='text-sm text-gray-600 break-all'>{credential.credentialSubject?.id || 'Not specified'}</p>
+									<p className='text-sm text-gray-600 break-all'>{credential.credentialSubject?.id || credential.subjectDID || 'Not specified'}</p>
 								</div>
 								{Object.entries(credential.credentialSubject || {}).map(([key, value]) => {
 									if (key === 'id') return null
@@ -413,10 +438,10 @@ export default function CredentialDetailsPage() {
 
 				{/* Advanced Verification Tab */}
 				<TabsContent value='advanced'>
-					<AdvancedVerificationFlow 
+					<AdvancedVerificationFlow
 						credential={credential}
 						onVerificationComplete={(result) => {
-							setVerificationHistory(prev => [result, ...prev])
+							setVerificationHistory((prev) => [result, ...prev])
 						}}
 					/>
 				</TabsContent>
