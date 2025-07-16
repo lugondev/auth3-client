@@ -13,6 +13,7 @@ import type {CredentialMetadata} from '@/types/credentials'
 import {CredentialStatus} from '@/types/credentials'
 import {CredentialStatusBadge} from './CredentialStatusBadge'
 import {formatDate} from '@/lib/utils'
+import {credentialService} from '@/services/credentialService'
 
 interface CredentialMetadataCardProps {
 	credential: CredentialMetadata
@@ -95,13 +96,29 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 	const handleQuickVerify = async () => {
 		try {
 			setIsVerifying(true)
-			// TODO: Implement actual verification logic
-			// For now, simulate a verification call
-			await new Promise(resolve => setTimeout(resolve, 1500))
-			toast.success('Credential verified successfully')
+
+			// First, fetch the full credential using the credential ID
+			const fullCredential = await credentialService.getCredential(credential.id)
+
+			// Then verify the credential using the service
+			const result = await credentialService.verifyCredential({
+				credential: fullCredential,
+			})
+
+			if (result.valid) {
+				toast.success('Credential verification passed', {
+					description: 'All verification checks completed successfully',
+				})
+			} else {
+				toast.warning('Credential verification failed', {
+					description: result.errors?.join(', ') || 'Some verification checks failed',
+				})
+			}
 		} catch (error) {
 			console.error('Error verifying credential:', error)
-			toast.error('Failed to verify credential')
+			toast.error('Verification failed', {
+				description: 'Unable to verify credential at this time',
+			})
 		} finally {
 			setIsVerifying(false)
 		}
@@ -167,7 +184,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 									<Shield className='mr-2 h-4 w-4' />
 									{isVerifying ? 'Verifying...' : 'Quick Verify'}
 								</DropdownMenuItem>
-								
+
 								{/* Revoke option - chỉ hiện cho credentials do user issue và chưa bị revoke */}
 								{showRevokeOption && onRevoke && credential.status === CredentialStatus.ACTIVE && (
 									<>
@@ -184,7 +201,8 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 													<AlertDialogTitle>Revoke Credential</AlertDialogTitle>
 													<AlertDialogDescription>
 														Are you sure you want to revoke this credential? This action will permanently invalidate the credential and cannot be undone.
-														<br /><br />
+														<br />
+														<br />
 														<strong>Credential:</strong> {credentialTypes.length > 0 ? credentialTypes.join(', ') : 'Verifiable Credential'}
 														<br />
 														<strong>ID:</strong> {credential.id}
@@ -192,11 +210,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 												</AlertDialogHeader>
 												<AlertDialogFooter>
 													<AlertDialogCancel>Cancel</AlertDialogCancel>
-													<AlertDialogAction 
-														onClick={handleRevoke} 
-														disabled={isRevoking}
-														className='bg-red-600 hover:bg-red-700'
-													>
+													<AlertDialogAction onClick={handleRevoke} disabled={isRevoking} className='bg-red-600 hover:bg-red-700'>
 														{isRevoking ? 'Revoking...' : 'Revoke Credential'}
 													</AlertDialogAction>
 												</AlertDialogFooter>
@@ -204,7 +218,7 @@ export function CredentialMetadataCard({credential, onDelete, onShare, onView, o
 										</AlertDialog>
 									</>
 								)}
-								
+
 								{onDelete && (
 									<>
 										<DropdownMenuSeparator />
