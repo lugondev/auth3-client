@@ -274,7 +274,7 @@ export function ReviewStep({template, credentialData, recipientInfo, issuanceOpt
 						</CardHeader>
 						<CardContent>
 							{showJsonPreview ? (
-								<pre className='text-xs bg-gray-100 p-3 rounded overflow-auto max-h-96'>{JSON.stringify(credentialPreview, null, 2)}</pre>
+								<pre className='pre-code-json'>{JSON.stringify(credentialPreview, null, 2)}</pre>
 							) : (
 								<div className='space-y-3'>
 									<div className='flex items-center gap-2'>

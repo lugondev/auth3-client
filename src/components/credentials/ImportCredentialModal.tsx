@@ -1,7 +1,7 @@
 'use client'
 
 import {useState} from 'react'
-import {Upload, FileJson, Link2, AlertCircle, CheckCircle} from 'lucide-react'
+import {Link2, AlertCircle, CheckCircle} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '@/components/ui/dialog'
@@ -12,10 +12,29 @@ import {Textarea} from '@/components/ui/textarea'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 
+// Interface for raw credential data during import
+interface RawCredentialData {
+	'@context'?: string[] | Record<string, unknown>
+	id?: string
+	type?: string[]
+	issuer?: string | {id: string; name?: string}
+	issuanceDate?: string
+	expirationDate?: string
+	credentialSubject?: Record<string, unknown>
+	proof?: Record<string, unknown>
+	[key: string]: unknown // Allow additional fields during import
+}
+
+interface ValidationResult {
+	isValid: boolean
+	errors: string[]
+	warnings: string[]
+}
+
 interface ImportCredentialModalProps {
 	isOpen: boolean
 	onClose: () => void
-	onImport: (credentialData: any, source?: string) => Promise<void>
+	onImport: (credentialData: RawCredentialData, source?: string) => Promise<void>
 }
 
 /**
@@ -31,11 +50,7 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 	const [loading, setLoading] = useState(false)
 	const [jsonText, setJsonText] = useState('')
 	const [url, setUrl] = useState('')
-	const [validationResult, setValidationResult] = useState<{
-		isValid: boolean
-		errors: string[]
-		warnings: string[]
-	} | null>(null)
+	const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
 
 	// Reset state when modal closes
 	const handleClose = () => {
@@ -46,7 +61,7 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 	}
 
 	// Validate credential JSON structure
-	const validateCredential = (credentialData: any): {isValid: boolean; errors: string[]; warnings: string[]} => {
+	const validateCredential = (credentialData: RawCredentialData): ValidationResult => {
 		const errors: string[] = []
 		const warnings: string[] = []
 
@@ -81,7 +96,7 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 		return {
 			isValid: errors.length === 0,
 			errors,
-			warnings
+			warnings,
 		}
 	}
 
@@ -96,12 +111,12 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 			const validation = validateCredential(credentialData)
 			setValidationResult(validation)
 			setJsonText(JSON.stringify(credentialData, null, 2))
-		} catch (error) {
+		} catch {
 			toast.error('Invalid JSON file')
 			setValidationResult({
 				isValid: false,
 				errors: ['Invalid JSON format'],
-				warnings: []
+				warnings: [],
 			})
 		}
 	}
@@ -117,11 +132,11 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 			const credentialData = JSON.parse(jsonText)
 			const validation = validateCredential(credentialData)
 			setValidationResult(validation)
-		} catch (error) {
+		} catch {
 			setValidationResult({
 				isValid: false,
 				errors: ['Invalid JSON format'],
-				warnings: []
+				warnings: [],
 			})
 		}
 	}
@@ -139,7 +154,7 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`)
 			}
-			
+
 			const credentialData = await response.json()
 			const validation = validateCredential(credentialData)
 			setValidationResult(validation)
@@ -151,7 +166,7 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 			setValidationResult({
 				isValid: false,
 				errors: ['Failed to fetch or parse credential from URL'],
-				warnings: []
+				warnings: [],
 			})
 		} finally {
 			setLoading(false)
@@ -186,95 +201,70 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleClose}>
-			<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+			<DialogContent className='max-w-2xl max-h-[90vh] overflow-y-auto'>
 				<DialogHeader>
 					<DialogTitle>Import Credential</DialogTitle>
-					<DialogDescription>
-						Import a verifiable credential from various sources. The credential will be validated before being added to your wallet.
-					</DialogDescription>
+					<DialogDescription>Import a verifiable credential from various sources. The credential will be validated before being added to your wallet.</DialogDescription>
 				</DialogHeader>
 
-				<Tabs defaultValue="file" className="w-full">
-					<TabsList className="grid w-full grid-cols-3">
-						<TabsTrigger value="file">File Upload</TabsTrigger>
-						<TabsTrigger value="text">JSON Text</TabsTrigger>
-						<TabsTrigger value="url">From URL</TabsTrigger>
+				<Tabs defaultValue='file' className='w-full'>
+					<TabsList className='grid w-full grid-cols-3'>
+						<TabsTrigger value='file'>File Upload</TabsTrigger>
+						<TabsTrigger value='text'>JSON Text</TabsTrigger>
+						<TabsTrigger value='url'>From URL</TabsTrigger>
 					</TabsList>
 
-					<TabsContent value="file" className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="credential-file">Select Credential File</Label>
-							<Input
-								id="credential-file"
-								type="file"
-								accept=".json,application/json"
-								onChange={handleFileUpload}
-								className="cursor-pointer"
-							/>
-							<p className="text-sm text-muted-foreground">
-								Upload a JSON file containing the verifiable credential
-							</p>
+					<TabsContent value='file' className='space-y-4'>
+						<div className='space-y-2'>
+							<Label htmlFor='credential-file'>Select Credential File</Label>
+							<Input id='credential-file' type='file' accept='.json,application/json' onChange={handleFileUpload} className='cursor-pointer' />
+							<p className='text-sm text-muted-foreground'>Upload a JSON file containing the verifiable credential</p>
 						</div>
 					</TabsContent>
 
-					<TabsContent value="text" className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="credential-json">Credential JSON</Label>
-							<Textarea
-								id="credential-json"
-								placeholder="Paste the credential JSON here..."
-								value={jsonText}
-								onChange={(e) => setJsonText(e.target.value)}
-								onBlur={handleJsonValidation}
-								className="min-h-[200px] font-mono text-sm"
-							/>
-							<Button onClick={handleJsonValidation} variant="outline" size="sm">
+					<TabsContent value='text' className='space-y-4'>
+						<div className='space-y-2'>
+							<Label htmlFor='credential-json'>Credential JSON</Label>
+							<Textarea id='credential-json' placeholder='Paste the credential JSON here...' value={jsonText} onChange={(e) => setJsonText(e.target.value)} onBlur={handleJsonValidation} className='min-h-[200px] font-mono text-sm' />
+							<Button onClick={handleJsonValidation} variant='outline' size='sm'>
 								Validate JSON
 							</Button>
 						</div>
 					</TabsContent>
 
-					<TabsContent value="url" className="space-y-4">
-						<div className="space-y-2">
-							<Label htmlFor="credential-url">Credential URL</Label>
-							<div className="flex gap-2">
-								<Input
-									id="credential-url"
-									type="url"
-									placeholder="https://example.com/credential.json"
-									value={url}
-									onChange={(e) => setUrl(e.target.value)}
-								/>
-								<Button onClick={handleUrlImport} disabled={loading} variant="outline">
-									<Link2 className="h-4 w-4 mr-2" />
+					<TabsContent value='url' className='space-y-4'>
+						<div className='space-y-2'>
+							<Label htmlFor='credential-url'>Credential URL</Label>
+							<div className='flex gap-2'>
+								<Input id='credential-url' type='url' placeholder='https://example.com/credential.json' value={url} onChange={(e) => setUrl(e.target.value)} />
+								<Button onClick={handleUrlImport} disabled={loading} variant='outline'>
+									<Link2 className='h-4 w-4 mr-2' />
 									Fetch
 								</Button>
 							</div>
-							<p className="text-sm text-muted-foreground">
-								Enter a URL that serves a verifiable credential in JSON format
-							</p>
+							<p className='text-sm text-muted-foreground'>Enter a URL that serves a verifiable credential in JSON format</p>
 						</div>
 					</TabsContent>
 				</Tabs>
 
 				{/* Validation Results */}
 				{validationResult && (
-					<div className="space-y-2">
+					<div className='space-y-2'>
 						{validationResult.isValid ? (
-							<Alert className="border-green-200 bg-green-50">
-								<CheckCircle className="h-4 w-4 text-green-600" />
-								<AlertDescription className="text-green-800">
-									Credential structure is valid and ready to import
-								</AlertDescription>
+							<Alert className='border-green-200 bg-green-50'>
+								<CheckCircle className='h-4 w-4 text-green-600' />
+								<AlertDescription className='text-green-800'>Credential structure is valid and ready to import</AlertDescription>
 							</Alert>
 						) : (
-							<Alert variant="destructive">
-								<AlertCircle className="h-4 w-4" />
+							<Alert variant='destructive'>
+								<AlertCircle className='h-4 w-4' />
 								<AlertDescription>
-									<div className="space-y-1">
-										<div className="font-medium">Validation Errors:</div>
+									<div className='space-y-1'>
+										<div className='font-medium'>Validation Errors:</div>
 										{validationResult.errors.map((error, index) => (
-											<div key={index} className="text-sm">• {error}</div>
+											<div key={index} className='text-sm'>
+												• {error}
+											</div>
 										))}
 									</div>
 								</AlertDescription>
@@ -282,13 +272,15 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 						)}
 
 						{validationResult.warnings.length > 0 && (
-							<Alert className="border-yellow-200 bg-yellow-50">
-								<AlertCircle className="h-4 w-4 text-yellow-600" />
-								<AlertDescription className="text-yellow-800">
-									<div className="space-y-1">
-										<div className="font-medium">Warnings:</div>
+							<Alert className='border-yellow-200 bg-yellow-50'>
+								<AlertCircle className='h-4 w-4 text-yellow-600' />
+								<AlertDescription className='text-yellow-800'>
+									<div className='space-y-1'>
+										<div className='font-medium'>Warnings:</div>
 										{validationResult.warnings.map((warning, index) => (
-											<div key={index} className="text-sm">• {warning}</div>
+											<div key={index} className='text-sm'>
+												• {warning}
+											</div>
 										))}
 									</div>
 								</AlertDescription>
@@ -299,25 +291,18 @@ export function ImportCredentialModal({isOpen, onClose, onImport}: ImportCredent
 
 				{/* Preview */}
 				{jsonText && validationResult?.isValid && (
-					<div className="space-y-2">
+					<div className='space-y-2'>
 						<Label>Credential Preview</Label>
-						<div className="bg-muted p-3 rounded-md">
-							<pre className="text-sm overflow-x-auto whitespace-pre-wrap">
-								{JSON.stringify(JSON.parse(jsonText), null, 2)}
-							</pre>
-						</div>
+						<pre className='pre-code-json'>{JSON.stringify(JSON.parse(jsonText), null, 2)}</pre>
 					</div>
 				)}
 
 				{/* Actions */}
-				<div className="flex justify-end gap-2">
-					<Button variant="outline" onClick={handleClose} disabled={loading}>
+				<div className='flex justify-end gap-2'>
+					<Button variant='outline' onClick={handleClose} disabled={loading}>
 						Cancel
 					</Button>
-					<Button 
-						onClick={handleImport} 
-						disabled={!validationResult?.isValid || loading}
-					>
+					<Button onClick={handleImport} disabled={!validationResult?.isValid || loading}>
 						{loading ? 'Importing...' : 'Import Credential'}
 					</Button>
 				</div>

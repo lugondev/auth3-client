@@ -10,7 +10,6 @@ import {Card, CardHeader, CardTitle, CardDescription, CardContent} from '@/compo
 import {Separator} from '@/components/ui/separator'
 import {Skeleton} from '@/components/ui/skeleton'
 import Link from 'next/link'
-import {handleOAuth2Authorization} from '@/services/oauth2Service'
 
 export function LoginContent() {
 	const {isAuthenticated, loading} = useAuth()
@@ -18,7 +17,6 @@ export function LoginContent() {
 	const searchParams = useSearchParams()
 	const [showPasswordlessForm, setShowPasswordlessForm] = useState(false)
 	const [isRedirecting, setIsRedirecting] = useState(false)
-	const [redirectError, setRedirectError] = useState<string | null>(null)
 
 	// Extract OAuth2 parameters from URL
 	const oauth2Params = useMemo(() => {
@@ -35,100 +33,46 @@ export function LoginContent() {
 		return Object.keys(params).length > 0 ? params : null
 	}, [searchParams])
 
-	// Handle post-login redirect only
+	// Handle post-login redirect
 	useEffect(() => {
 		if (loading) {
 			console.log('LoginContent: Still loading, skipping redirect logic')
 			return
 		}
 
-		// Only redirect if user just became authenticated (not on initial load)
-		// This prevents immediate redirect when user visits login page with query params
-		if (isAuthenticated) {
-			// Reset redirect error when starting new redirect attempt
-			setRedirectError(null)
+		// Check if this is an OAuth2 authorization request
+		if (oauth2Params && oauth2Params.client_id) {
+			console.log('LoginContent: OAuth2 params detected, redirecting to authorization page')
 
-			console.log('LoginContent useEffect:', {
-				isAuthenticated,
-				loading,
-				oauth2Params: !!oauth2Params,
-				oauth2ParamsDetails: oauth2Params,
-				hasRedirectParam: !!searchParams.get('redirect'),
-				currentUrl: window.location.href,
-				appUrl: process.env.NEXT_PUBLIC_APP_URL,
-				origin: window.location.origin,
+			// Redirect to OAuth2 authorization page with all parameters preserved
+			const authUrl = new URL('/oauth2/authorize', window.location.origin)
+			Object.entries(oauth2Params).forEach(([key, value]) => {
+				authUrl.searchParams.set(key, value)
 			})
 
-			if (oauth2Params && oauth2Params.client_id && oauth2Params.redirect_uri) {
-				// Handle OAuth2 authorization flow after successful login
-				console.log('LoginContent: Authenticated user with OAuth2 params, redirecting to authorization')
-
-				// Check if redirect_uri points back to login page to prevent loop
-				const currentOrigin = window.location.origin
-				const currentPath = window.location.pathname
-				const redirectUri = oauth2Params.redirect_uri
-
-				// If redirect_uri points to current login page, it would create a loop
-				if (redirectUri.includes('/login') || redirectUri === `${currentOrigin}${currentPath}`) {
-					console.warn('LoginContent: redirect_uri points to login page, potential loop detected')
-					setRedirectError('Invalid redirect URI: cannot redirect back to login page')
-					return
-				}
-
-				setIsRedirecting(true)
-
-				// Use the original redirect_uri from OAuth2 params
-				const originalRedirectUri = oauth2Params.redirect_uri
-
-				// Handle OAuth2 authorization using service function
-				handleOAuth2Authorization(oauth2Params, originalRedirectUri)
-					.then((redirectUrl) => {
-						window.location.href = redirectUrl
-					})
-					.catch((error) => {
-						console.error('Error in OAuth2 authorization:', error)
-						setIsRedirecting(false)
-						setRedirectError('Failed to authorize. Please try again.')
-					})
-				return
-			}
-
-			// Regular authentication flow - redirect to dashboard or specified redirect path
-			console.log('LoginContent: Authenticated user, redirecting to dashboard or redirect path')
-			
-			// Only set redirecting state if not already redirecting to prevent loops
-			if (!isRedirecting) {
-				setIsRedirecting(true)
-				const redirectPath = searchParams.get('redirect')
-				
-				// Add timeout to reset redirecting state if redirect fails
-				setTimeout(() => {
-					setIsRedirecting(false)
-					setRedirectError('Redirect timeout. Please try again.')
-				}, 5000)
-				
-				if (redirectPath) {
-					router.replace(redirectPath)
-				} else {
-					router.replace('/dashboard/profile')
-				}
-			}
+			router.replace(authUrl.toString())
 			return
 		}
-	}, [isAuthenticated, loading, router, oauth2Params, searchParams, isRedirecting])
 
-	// Add timeout for OAuth2 redirect to prevent infinite loading
-	useEffect(() => {
-		if (isRedirecting && oauth2Params) {
-			const timeout = setTimeout(() => {
-				console.error('OAuth2 redirect timeout')
+		// Only redirect if user just became authenticated (not on initial load)
+		if (isAuthenticated && !isRedirecting) {
+			console.log('LoginContent: Authenticated user, redirecting to dashboard or redirect path')
+
+			setIsRedirecting(true)
+			const redirectPath = searchParams.get('redirect')
+
+			// Add timeout to reset redirecting state if redirect fails
+			setTimeout(() => {
 				setIsRedirecting(false)
-				setRedirectError('Redirect timeout. Please try logging in again.')
-			}, 10000) // 10 seconds timeout
+			}, 5000)
 
-			return () => clearTimeout(timeout)
+			if (redirectPath) {
+				router.replace(redirectPath)
+			} else {
+				router.replace('/dashboard/profile')
+			}
 		}
-	}, [isRedirecting, oauth2Params])
+	}, [isAuthenticated, loading, router, oauth2Params, searchParams, isRedirecting])
 
 	// Show loading skeleton while checking auth status
 	if (loading) {
@@ -152,37 +96,11 @@ export function LoginContent() {
 			<div className='flex min-h-screen items-center justify-center'>
 				<div className='text-center'>
 					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4'></div>
-					<p className='text-muted-foreground'>{oauth2Params ? 'Redirecting to authorization...' : 'Redirecting...'}</p>
+					<p className='text-muted-foreground'>Redirecting...</p>
 				</div>
 			</div>
 		)
 	}
-
-	// Show error if redirect failed
-	if (redirectError) {
-		return (
-			<div className='flex min-h-screen items-center justify-center'>
-				<Card className='w-full max-w-md'>
-					<CardHeader className='text-center'>
-						<CardTitle className='text-red-600'>Redirect Failed</CardTitle>
-						<CardDescription>{redirectError}</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<button
-							onClick={() => {
-								setRedirectError(null)
-								setIsRedirecting(false)
-							}}
-							className='w-full bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 rounded-md'>
-							Try Again
-						</button>
-					</CardContent>
-				</Card>
-			</div>
-		)
-	}
-
-
 
 	return (
 		<div className='flex min-h-screen items-center justify-center'>
@@ -192,12 +110,12 @@ export function LoginContent() {
 					<CardDescription>Choose a provider to sign in</CardDescription>
 				</CardHeader>
 				<CardContent className='space-y-4'>
-					<LoginButtons oauth2Params={oauth2Params} />
+					<LoginButtons />
 					<div className='relative my-4'>
 						<Separator />
 						<span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform bg-card px-2 text-xs text-muted-foreground'>OR CONTINUE WITH</span>
 					</div>
-					{showPasswordlessForm ? <PasswordlessLoginForm onLinkSent={() => setShowPasswordlessForm(false)} oauth2Params={oauth2Params} /> : <LoginForm oauth2Params={oauth2Params} />}
+					{showPasswordlessForm ? <PasswordlessLoginForm onLinkSent={() => setShowPasswordlessForm(false)} /> : <LoginForm />}
 					<div className='mt-4 text-center text-sm space-y-1'>
 						<button onClick={() => setShowPasswordlessForm(!showPasswordlessForm)} className='text-sm underline hover:text-primary'>
 							{showPasswordlessForm ? 'Login with Password' : 'Login with Email Link (Passwordless)'}

@@ -375,7 +375,7 @@ export function TemplateSchemaBuilder({schema, onChange}: TemplateSchemaBuilderP
 					<CardTitle className='text-lg'>Schema Preview</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<pre className='bg-muted p-4 rounded-lg text-sm overflow-x-auto'>{JSON.stringify(schema, null, 2)}</pre>
+					<pre className='pre-code-json'>{JSON.stringify(schema, null, 2)}</pre>
 				</CardContent>
 			</Card>
 		</div>

@@ -8,7 +8,7 @@ import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
-import {Edit, Trash2, Key, Globe, Lock, Unlock, Calendar, Plus} from 'lucide-react'
+import {Edit, Trash2, Key, Globe, Lock, Unlock, Calendar, Plus, Eye} from 'lucide-react'
 import {PermissionButton} from '@/components/guards'
 import {PermissionTooltip} from '@/components/permissions'
 
@@ -88,10 +88,6 @@ const OAuth2ClientListComponent: React.FC = () => {
 	return (
 		<div className='space-y-6'>
 			<div className='flex items-center justify-between'>
-				<div>
-					<h2 className='text-2xl font-bold tracking-tight'>OAuth2 Clients</h2>
-					<p className='text-muted-foreground'>Manage your OAuth2 applications and their configurations</p>
-				</div>
 				<Button asChild>
 					<Link href='/dashboard/oauth2/create'>
 						<Plus className='mr-2 h-4 w-4' />
@@ -148,9 +144,17 @@ const OAuth2ClientListComponent: React.FC = () => {
 								</div>
 							</CardHeader>
 							<CardContent className='pt-0'>
-								<div className='flex gap-2'>
+								<div className='grid grid-cols-3 gap-2'>
+									<PermissionTooltip permission='admin:oauth2:read'>
+										<PermissionButton asChild size='sm' variant='outline' permission='admin:oauth2:read'>
+											<Link href={`/dashboard/oauth2/${client.client_id}`}>
+												<Eye className='mr-1.5 h-3 w-3' />
+												View
+											</Link>
+										</PermissionButton>
+									</PermissionTooltip>
 									<PermissionTooltip permission='admin:oauth2:update'>
-										<PermissionButton asChild size='sm' variant='outline' className='flex-1' permission='admin:oauth2:update'>
+										<PermissionButton asChild size='sm' variant='outline' permission='admin:oauth2:update'>
 											<Link href={`/dashboard/oauth2/${client.client_id}/edit`}>
 												<Edit className='mr-1.5 h-3 w-3' />
 												Edit
@@ -158,7 +162,7 @@ const OAuth2ClientListComponent: React.FC = () => {
 										</PermissionButton>
 									</PermissionTooltip>
 									<PermissionTooltip permission='admin:oauth2:delete'>
-										<PermissionButton asChild size='sm' variant='outline' className='flex-1' permission='admin:oauth2:delete'>
+										<PermissionButton asChild size='sm' variant='outline' permission='admin:oauth2:delete'>
 											<Link href={`/dashboard/oauth2/${client.client_id}/delete`}>
 												<Trash2 className='mr-1.5 h-3 w-3' />
 												Delete

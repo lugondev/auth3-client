@@ -15,6 +15,7 @@ import {multiTenantTokenManager} from '@/lib/multi-tenant-token-manager'
 import {contextManager} from '@/lib/context-manager'
 import {decodeJwt} from '@/lib/jwt'
 import {clearPermissionsCache} from '@/services/permissionService'
+import {logTokenDebugInfo} from '@/lib/token-debug'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -31,10 +32,16 @@ const decodeToken = (token: string): AppUser | null => {
 			exp: number
 		}>(token)
 
-		if (decoded.exp * 1000 < Date.now()) {
-			console.log('Token expired')
+		const expiresAt = new Date(decoded.exp * 1000)
+		const timeUntilExpiry = decoded.exp * 1000 - Date.now()
+
+		if (timeUntilExpiry <= 0) {
+			console.log(`🕰️ Token expired at ${expiresAt.toISOString()}`)
 			return null
 		}
+
+		console.log(`✅ Token valid until ${expiresAt.toISOString()} (${Math.round(timeUntilExpiry / 1000 / 60)} minutes remaining)`)
+
 		return {
 			id: decoded.sub,
 			email: decoded.email,
@@ -45,7 +52,7 @@ const decodeToken = (token: string): AppUser | null => {
 			tenant_id: decoded.tenant_id,
 		}
 	} catch (error) {
-		console.error('Failed to decode token:', error)
+		console.error('❌ Failed to decode token:', error)
 		return null
 	}
 }
@@ -63,6 +70,17 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false)
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
 	const [isInitialLoad, setIsInitialLoad] = useState(true)
+
+	// Cache for system admin status to prevent spam
+	const [adminStatusCache, setAdminStatusCache] = useState<{
+		value: boolean | null
+		timestamp: number
+		contextMode: ContextMode
+	}>({value: null, timestamp: 0, contextMode: 'global'})
+
+	// Debounce refs to prevent multiple simultaneous calls
+	const adminCheckInProgress = useRef(false)
+	const authCheckInProgress = useRef(false)
 
 	// Dual context state
 	const [currentMode, setCurrentMode] = useState<ContextMode>('global')
@@ -83,9 +101,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	const router = useRouter()
 
-	// Initialize context mode from storage
+	// Initialize context mode from storage - MUST happen before auth check
 	useEffect(() => {
 		const storedMode = contextManager.getCurrentMode()
+		console.log('🔧 Initializing context mode from storage:', storedMode)
 		setCurrentMode(storedMode)
 	}, [])
 
@@ -105,10 +124,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				tokenManager.clearTokens('tenant')
 				contextManager.clearContextState('global')
 				contextManager.clearContextState('tenant')
-				
+
 				// Clear multi-tenant tokens too
 				multiTenantTokenManager.clearAllTenantTokens()
-				
+
 				// Clear all permissions cache
 				clearPermissionsCache()
 			} else {
@@ -116,7 +135,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				tokenManager.clearTokens(targetContext)
 				// Clear context state
 				contextManager.clearContextState(targetContext)
-				
+
 				// Clear permissions cache for specific context
 				if (targetContext === 'tenant' && currentTenantId) {
 					clearPermissionsCache(currentTenantId)
@@ -168,18 +187,37 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				router.push('/login')
 			}
 		},
-		[currentMode, router, isInitialLoad],
+		[currentMode, router, isInitialLoad, currentTenantId],
 	)
 
 	const checkSystemAdminStatus = useCallback(
 		async (context?: ContextMode) => {
 			const activeContext = context || currentMode
+
+			// Prevent multiple simultaneous calls
+			if (adminCheckInProgress.current) {
+				console.log('🔄 Admin check already in progress, skipping')
+				return
+			}
+
+			// Check cache first (valid for 5 minutes)
+			const now = Date.now()
+			const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+			if (adminStatusCache.value !== null && adminStatusCache.contextMode === activeContext && now - adminStatusCache.timestamp < CACHE_DURATION) {
+				console.log('📦 Using cached admin status:', adminStatusCache.value)
+				setIsSystemAdmin(adminStatusCache.value)
+				return
+			}
+
 			const tokens = tokenManager.getTokens(activeContext)
 
 			if (!tokens.accessToken) {
 				setIsSystemAdmin(false)
+				setAdminStatusCache({value: false, timestamp: now, contextMode: activeContext})
 				return
 			}
+
+			adminCheckInProgress.current = true
 
 			try {
 				// Temporarily set auth header for this request
@@ -187,7 +225,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
 
 				const response = await apiClient.get<{is_system_admin: boolean}>('/api/v1/auth/me/is-system-admin')
-				setIsSystemAdmin(response.data.is_system_admin)
+				const isAdmin = response.data.is_system_admin
+
+				setIsSystemAdmin(isAdmin)
+				setAdminStatusCache({value: isAdmin, timestamp: now, contextMode: activeContext})
 
 				// Restore original auth header
 				if (originalAuth) {
@@ -196,13 +237,16 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					delete apiClient.defaults.headers.Authorization
 				}
 
-				console.log('System admin status fetched:', response.data.is_system_admin)
+				console.log('✅ System admin status fetched:', isAdmin)
 			} catch (error) {
 				console.error('Failed to fetch system admin status:', error)
 				setIsSystemAdmin(false)
+				setAdminStatusCache({value: false, timestamp: now, contextMode: activeContext})
+			} finally {
+				adminCheckInProgress.current = false
 			}
 		},
-		[currentMode],
+		[currentMode, adminStatusCache],
 	)
 
 	const updateContextState = useCallback((context: ContextMode, user: AppUser | null, isAuth: boolean, tenantId?: string | null) => {
@@ -228,7 +272,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	const handleAuthSuccessInternal = useCallback(
 		async (authResult: AuthResult, preserveContext = false) => {
-			const targetContext = preserveContext ? currentMode : authResult.access_token && decodeToken(authResult.access_token)?.tenant_id ? 'tenant' : 'global'
+			// Determine target context based on preserve flag and token content
+			let targetContext: ContextMode
+			if (preserveContext) {
+				// When preserving context, keep current mode
+				targetContext = currentMode
+				console.log(`🔧 Preserving current context: ${targetContext}`)
+			} else {
+				// Auto-detect context from token
+				const decodedForContext = decodeToken(authResult.access_token)
+				targetContext = decodedForContext?.tenant_id ? 'tenant' : 'global'
+				console.log(`🎯 Auto-detected context from token: ${targetContext}`)
+			}
 
 			// Store tokens in appropriate context
 			tokenManager.setTokens(targetContext, authResult.access_token, authResult.refresh_token || null)
@@ -263,7 +318,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				await checkSystemAdminStatus(targetContext)
 			}
 
-			console.log('Authentication successful, state updated (including admin and tenant status).')
+			console.log(`✅ Authentication successful, context: ${targetContext}, state updated (including admin and tenant status).`)
 
 			// Handle OAuth2 redirect logic
 			const storedOAuth2Params = sessionStorage.getItem('oauth2_params')
@@ -318,14 +373,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			try {
 				// Import loginTenantContext service
 				const {loginTenantContext} = await import('@/services/authService')
-				
+
 				// Call login-tenant API to get tenant access token
 				const result = await loginTenantContext(
 					tenantId,
 					options.preserveGlobalContext,
-					true // validateContext
+					true, // validateContext
 				)
-				
+
 				if (result.success) {
 					// Get tenant tokens after login-tenant
 					const tenantTokens = tokenManager.getTokens('tenant')
@@ -338,23 +393,23 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 							setUser(tenantUser)
 							setIsAuthenticated(true)
 							setCurrentTenantId(tenantId)
-							
+
 							// Update API client with tenant token
 							apiClient.defaults.headers.Authorization = `Bearer ${tenantTokens.accessToken}`
-							
+
 							// Update context state
 							contextManager.setContextState('tenant', {
 								user: tenantUser,
 								isAuthenticated: true,
 								tenantId: tenantId,
-								permissions: (tenantUser.roles || []).map(role => ({
+								permissions: (tenantUser.roles || []).map((role) => ({
 									object: 'tenant',
-									action: role
+									action: role,
 								})),
 								roles: tenantUser.roles || [],
-								tokens: tenantTokens
+								tokens: tenantTokens,
 							})
-							
+
 							toast.success(`Switched to tenant: ${tenantId}`)
 						} else {
 							throw new Error('Failed to decode tenant token')
@@ -375,7 +430,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					previousMode: currentMode,
 					newMode: currentMode,
 					error: errorMessage,
-					rollbackAvailable: false
+					rollbackAvailable: false,
 				}
 			} finally {
 				setIsTransitioning(false)
@@ -387,22 +442,22 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const switchToTenantById = useCallback(async (tenantId: string): Promise<void> => {
 		try {
 			setLoading(true)
-			
+
 			// Check if we already have valid tokens for this tenant
 			const validation = multiTenantTokenManager.validateTenantTokens(tenantId)
-			
+
 			if (validation.isValid) {
 				console.log(`✅ Using cached tokens for tenant ${tenantId}`)
-				
+
 				// Switch context using existing tokens
 				const tokens = multiTenantTokenManager.getTenantTokens(tenantId)
 				tokenManager.setTokens('tenant', tokens.accessToken, tokens.refreshToken)
-				
+
 				// Update context
 				setCurrentMode('tenant')
 				contextManager.setCurrentMode('tenant') // Update context manager
 				setCurrentTenantId(tenantId)
-				
+
 				// Update user from token
 				if (tokens.accessToken) {
 					const decoded = decodeToken(tokens.accessToken)
@@ -411,24 +466,24 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						setIsAuthenticated(true)
 					}
 				}
-				
+
 				return
 			}
-			
+
 			console.log(`🔄 Need to authenticate for tenant ${tenantId}`)
-			
+
 			// Call login-tenant to get new tokens
 			const result = await loginTenantContext(tenantId, true, false)
-			
+
 			if (result.success) {
 				console.log(`✅ Successfully switched to tenant ${tenantId}`)
-				
+
 				// The tokens are already stored by loginTenantContext
 				// Just update the state
 				setCurrentMode('tenant')
 				contextManager.setCurrentMode('tenant') // Update context manager
 				setCurrentTenantId(tenantId)
-				
+
 				// Get and set user from new token
 				const tenantTokens = tokenManager.getTokens('tenant')
 				if (tenantTokens.accessToken) {
@@ -450,73 +505,76 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}, [])
 
-	const switchToGlobal = useCallback(async (options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
-		setIsTransitioning(true)
-		try {
-			// Import loginGlobalContext service
-			const {loginGlobalContext} = await import('@/services/authService')
-			
-			// Call login-global API to get global access token
-			const result = await loginGlobalContext(
-				options.preserveGlobalContext,
-				true // validateContext
-			)
-			
-			if (result.success) {
-				// Get global tokens after login-global
-				const globalTokens = tokenManager.getTokens('global')
-				if (globalTokens.accessToken) {
-					// Decode new global token to get user without tenant_id
-					const globalUser = decodeToken(globalTokens.accessToken)
-					if (globalUser) {
-						setCurrentMode('global')
-						contextManager.setCurrentMode('global') // Update context manager
-						setUser(globalUser)
-						setIsAuthenticated(true)
-						setCurrentTenantId(null) // Global context has no tenant
-						
-						// Update API client with global token
-						apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
-						
-						// Update context state
-						contextManager.setContextState('global', {
-							user: globalUser,
-							isAuthenticated: true,
-							tenantId: null,
-							permissions: (globalUser.roles || []).map(role => ({
-								object: 'global',
-								action: role
-							})),
-							roles: globalUser.roles || [],
-							tokens: globalTokens
-						})
-						
-						toast.success('Switched to global context')
+	const switchToGlobal = useCallback(
+		async (options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
+			setIsTransitioning(true)
+			try {
+				// Import loginGlobalContext service
+				const {loginGlobalContext} = await import('@/services/authService')
+
+				// Call login-global API to get global access token
+				const result = await loginGlobalContext(
+					options.preserveGlobalContext,
+					true, // validateContext
+				)
+
+				if (result.success) {
+					// Get global tokens after login-global
+					const globalTokens = tokenManager.getTokens('global')
+					if (globalTokens.accessToken) {
+						// Decode new global token to get user without tenant_id
+						const globalUser = decodeToken(globalTokens.accessToken)
+						if (globalUser) {
+							setCurrentMode('global')
+							contextManager.setCurrentMode('global') // Update context manager
+							setUser(globalUser)
+							setIsAuthenticated(true)
+							setCurrentTenantId(null) // Global context has no tenant
+
+							// Update API client with global token
+							apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
+
+							// Update context state
+							contextManager.setContextState('global', {
+								user: globalUser,
+								isAuthenticated: true,
+								tenantId: null,
+								permissions: (globalUser.roles || []).map((role) => ({
+									object: 'global',
+									action: role,
+								})),
+								roles: globalUser.roles || [],
+								tokens: globalTokens,
+							})
+
+							toast.success('Switched to global context')
+						} else {
+							throw new Error('Failed to decode global token')
+						}
 					} else {
-						throw new Error('Failed to decode global token')
+						throw new Error('No global access token received')
 					}
 				} else {
-					throw new Error('No global access token received')
+					toast.error(result.error || 'Failed to switch to global context')
 				}
-			} else {
-				toast.error(result.error || 'Failed to switch to global context')
+				return result
+			} catch (error) {
+				console.error('Error switching to global:', error)
+				const errorMessage = error instanceof Error ? error.message : 'Failed to switch to global'
+				toast.error(errorMessage)
+				return {
+					success: false,
+					previousMode: currentMode,
+					newMode: currentMode,
+					error: errorMessage,
+					rollbackAvailable: false,
+				}
+			} finally {
+				setIsTransitioning(false)
 			}
-			return result
-		} catch (error) {
-			console.error('Error switching to global:', error)
-			const errorMessage = error instanceof Error ? error.message : 'Failed to switch to global'
-			toast.error(errorMessage)
-			return {
-				success: false,
-				previousMode: currentMode,
-				newMode: currentMode,
-				error: errorMessage,
-				rollbackAvailable: false
-			}
-		} finally {
-			setIsTransitioning(false)
-		}
-	}, [currentMode])
+		},
+		[currentMode],
+	)
 
 	const switchContext = useCallback(
 		async (mode: ContextMode, tenantId?: string, options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
@@ -603,57 +661,97 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	scheduleTokenRefreshRef.current = scheduleTokenRefreshInternal
 
 	const checkAuthStatus = useCallback(async () => {
+		// Prevent multiple simultaneous auth checks
+		if (authCheckInProgress.current) {
+			console.log('🔄 Auth check already in progress, skipping')
+			return
+		}
+
+		authCheckInProgress.current = true
 		setLoading(true)
+
 		try {
-			const currentTokens = tokenManager.getTokens(currentMode)
+			// Ensure we have the correct context mode before checking tokens
+			const actualMode = contextManager.getCurrentMode()
+			if (actualMode !== currentMode) {
+				console.log(`🔧 Context mode mismatch detected. Stored: ${actualMode}, Current: ${currentMode}. Updating...`)
+				setCurrentMode(actualMode)
+			}
+
+			const currentTokens = tokenManager.getTokens(actualMode)
+			// console.log(`🔍 Checking auth status for context: ${actualMode}`, {
+			// 	hasAccessToken: !!currentTokens.accessToken,
+			// 	hasRefreshToken: !!currentTokens.refreshToken,
+			// })
+
+			// Debug token information
+			if (process.env.NODE_ENV === 'development') {
+				// logTokenDebugInfo()
+			}
 
 			if (currentTokens.accessToken) {
-				apiClient.defaults.headers.Authorization = `Bearer ${currentTokens.accessToken}`
-				document.cookie = `accessToken=${currentTokens.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
-				if (currentTokens.refreshToken) {
-					document.cookie = `refreshToken=${currentTokens.refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
+				// First, check if token is structurally valid (can be decoded)
+				let decodedUser: AppUser | null = null
+				let isTokenExpired = false
+
+				try {
+					decodedUser = decodeToken(currentTokens.accessToken)
+					isTokenExpired = !decodedUser // decodeToken returns null if expired
+				} catch (error) {
+					console.log('❌ Token decode failed:', error)
+					isTokenExpired = true
 				}
 
-				const decodedUser = decodeToken(currentTokens.accessToken)
+				// If token is expired but we have refresh token, try to refresh first
+				if (isTokenExpired && currentTokens.refreshToken) {
+					console.log('🔄 Access token expired, attempting refresh...')
+					try {
+						const refreshResponse = await serviceRefreshToken(currentTokens.refreshToken)
+						await handleAuthSuccessInternal(refreshResponse.auth, true)
+						console.log('✅ User authenticated after token refresh.')
+						return // Exit early, handleAuthSuccessInternal will update all state
+					} catch (refreshError) {
+						console.error('❌ Token refresh failed:', refreshError)
+						await clearAuthData(true, false)
+						return
+					}
+				}
+
+				// If we have a valid decoded user, proceed with authentication
 				if (decodedUser) {
+					apiClient.defaults.headers.Authorization = `Bearer ${currentTokens.accessToken}`
+					document.cookie = `accessToken=${currentTokens.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
+					if (currentTokens.refreshToken) {
+						document.cookie = `refreshToken=${currentTokens.refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
+					}
+
 					setUser(decodedUser)
 					setIsAuthenticated(true)
 					setCurrentTenantId(decodedUser.tenant_id || null)
 
 					// Update context state
-					updateContextState(currentMode, decodedUser, true)
+					updateContextState(actualMode, decodedUser, true)
 
-					await checkSystemAdminStatus()
-					console.log('User authenticated from stored access token.')
+					await checkSystemAdminStatus(actualMode)
+					console.log('✅ User authenticated from stored access token.')
 
 					if (scheduleTokenRefreshRef.current) {
 						scheduleTokenRefreshRef.current(currentTokens.accessToken)
 					}
 				} else {
-					console.log('Access token invalid/expired, attempting refresh...')
-					if (currentTokens.refreshToken) {
-						try {
-							const refreshResponse = await serviceRefreshToken(currentTokens.refreshToken)
-							await handleAuthSuccessInternal(refreshResponse.auth, true)
-							console.log('User authenticated after initial token refresh.')
-						} catch (refreshError) {
-							console.error('Error during initial token refresh:', refreshError)
-							await clearAuthData(true, false)
-						}
-					} else {
-						console.log('No refresh token available.')
-						await clearAuthData(true, false)
-					}
+					// Token is invalid and no refresh token available
+					console.log('❌ Access token invalid and no refresh token available.')
+					await clearAuthData(true, false)
 				}
 			} else {
-				console.log('No stored access token.')
+				console.log('ℹ️ No stored access token.')
 				setIsAuthenticated(false)
 				setUser(null)
 				setIsSystemAdmin(null)
 				setCurrentTenantId(null)
 			}
 		} catch (error) {
-			console.error('Error checking auth status:', error)
+			console.error('❌ Error checking auth status:', error)
 			setIsAuthenticated(false)
 			setUser(null)
 			setIsSystemAdmin(null)
@@ -661,21 +759,37 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 			setIsInitialLoad(false)
+			authCheckInProgress.current = false
 		}
 	}, [currentMode, handleAuthSuccessInternal, clearAuthData, checkSystemAdminStatus, updateContextState])
 
+	// Check auth status only after context mode is initialized
 	useEffect(() => {
-		checkAuthStatus()
-	}, [checkAuthStatus])
+		// Only check auth status after initial context mode is set
+		if (currentMode) {
+			checkAuthStatus()
+		}
+	}, [checkAuthStatus, currentMode])
 
 	// Listen for storage changes to detect token updates from other tabs or after login
 	useEffect(() => {
+		let storageChangeTimeout: NodeJS.Timeout | null = null
+
 		const handleStorageChange = (e: StorageEvent) => {
-			// Check if the changed key is related to tokens
-			if (e.key && (e.key.includes('accessToken') || e.key.includes('refreshToken') || e.key.includes('auth3_'))) {
-				console.log('Token storage changed, re-checking auth status')
-				// Re-check auth status when tokens change
-				checkAuthStatus()
+			// Check if the changed key is related to tokens or context
+			if (e.key && (e.key.includes('accessToken') || e.key.includes('refreshToken') || e.key.includes('auth3_') || e.key.includes('dual_context_'))) {
+				console.log('🔄 Token/context storage changed, re-checking auth status:', e.key)
+
+				// Clear existing timeout to debounce multiple rapid storage changes
+				if (storageChangeTimeout) {
+					clearTimeout(storageChangeTimeout)
+				}
+
+				// Debounce storage changes with 300ms delay
+				storageChangeTimeout = setTimeout(() => {
+					checkAuthStatus()
+					storageChangeTimeout = null
+				}, 300)
 			}
 		}
 
@@ -683,14 +797,29 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		window.addEventListener('storage', handleStorageChange)
 
 		// Also listen for custom events for same-tab token updates
-		const handleTokenUpdate = () => {
-			console.log('Token updated in same tab, re-checking auth status')
-			checkAuthStatus()
+		const handleTokenUpdate = (event: Event) => {
+			const customEvent = event as CustomEvent
+			console.log('🔄 Token updated in same tab, re-checking auth status:', customEvent.detail)
+
+			// Clear existing timeout to debounce multiple rapid custom events
+			if (storageChangeTimeout) {
+				clearTimeout(storageChangeTimeout)
+			}
+
+			// Use same debounce mechanism for consistency
+			storageChangeTimeout = setTimeout(() => {
+				checkAuthStatus()
+				storageChangeTimeout = null
+			}, 300)
 		}
 
 		window.addEventListener('tokenUpdated', handleTokenUpdate)
 
 		return () => {
+			// Clean up timeout if component unmounts
+			if (storageChangeTimeout) {
+				clearTimeout(storageChangeTimeout)
+			}
 			window.removeEventListener('storage', handleStorageChange)
 			window.removeEventListener('tokenUpdated', handleTokenUpdate)
 		}
@@ -849,7 +978,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	const logout = useCallback(async () => {
 		setLoading(true)
-		
+
 		// Check if currently in tenant space and redirect to avoid issues after login
 		if (typeof window !== 'undefined') {
 			const currentPath = window.location.pathname
@@ -861,7 +990,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				return
 			}
 		}
-		
+
 		// Normal logout - clear all contexts
 		await clearAuthData(true, true, 'auto')
 		setLoading(false)

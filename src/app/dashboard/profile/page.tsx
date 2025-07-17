@@ -569,14 +569,25 @@ export default function ProfilePage() {
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
 
-	// Fetch data on mount
+	// Fetch data on mount - Use cached data from AuthContext when possible
 	useEffect(() => {
 		const fetchData = async () => {
 			if (!authLoading && authUser) {
 				try {
 					setLoading(true)
 					setError(null)
-					// Fetch only the current user, profile is included
+
+					// Check if we already have user data from AuthContext that includes profile
+					if (authUser && typeof authUser === 'object' && 'profile' in authUser) {
+						console.log('📋 Using cached user data from AuthContext')
+						setUserData(authUser as UserOutput)
+						setProfileData((authUser as UserOutput).profile || null)
+						setLoading(false)
+						return
+					}
+
+					// Only fetch from API if we don't have cached profile data
+					console.log('🔄 Fetching fresh user data from API')
 					const fetchedUser = await getCurrentUser()
 					setUserData(fetchedUser)
 					// Extract profile from user data, handle potential null profile

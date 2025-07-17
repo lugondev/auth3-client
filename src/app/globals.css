@@ -119,3 +119,29 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Pre element styles for consistent code display */
+  .pre-code {
+    @apply bg-muted border p-3 rounded-md font-mono text-xs overflow-x-auto whitespace-pre-wrap;
+  }
+  
+  .pre-code-sm {
+    @apply bg-muted border p-2 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap;
+  }
+  
+  .pre-code-danger {
+    @apply bg-red-50 p-3 rounded-md border border-red-200 font-mono text-xs text-red-700 overflow-x-auto whitespace-pre-wrap;
+  }
+  
+  .pre-code-json {
+    @apply bg-slate-50 border p-4 rounded-lg font-mono text-sm overflow-x-auto whitespace-pre;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  /* Dark mode support */
+  .dark .pre-code-json {
+    @apply bg-slate-900 text-slate-100;
+  }
+}

@@ -3,6 +3,7 @@ import { withErrorHandling } from './errorHandlingService';
 import {
   ClientRegistrationRequest,
   ClientRegistrationResponse,
+  ClientInfo,
   ClientListResponse,
   TokenResponse,
   UserInfoResponse,
@@ -71,8 +72,69 @@ export const authorize = withErrorHandling(
 export const authorizeAuthenticated = async (
   oauth2Params: Record<string, string>
 ): Promise<{ code: string; state?: string }> => {
-  const response = await apiClient.post<{ code: string; state?: string }>(`${baseURL}/authorize`, oauth2Params);
-  return response.data;
+  console.log('🔍 authorizeAuthenticated called with params:', oauth2Params);
+
+  try {
+    const response = await apiClient.post<{ code: string; state?: string }>(`${baseURL}/authorize`, oauth2Params);
+
+    console.log('✅ Authorization successful:', response.data);
+    return response.data;
+  } catch (error: unknown) {
+    console.error('❌ Authorization failed:', error);
+
+    // Check if this is an OAuth2 redirect error
+    if (error && typeof error === 'object') {
+      // Check for login redirect (user not authenticated)
+      if ('isOAuth2LoginRedirect' in error && error.isOAuth2LoginRedirect) {
+        const axiosError = error as { response?: { headers?: { location?: string } } };
+        const location = axiosError.response?.headers?.location;
+        console.log('🔐 User not authenticated, redirect to login:', location);
+
+        // Redirect user to login page with OAuth2 parameters
+        if (location && typeof window !== 'undefined') {
+          window.location.href = location;
+          return Promise.reject(new Error('Redirecting to login page'));
+        }
+      }
+
+      // Check for consent redirect (user authenticated, needs consent)
+      if ('isOAuth2ConsentRedirect' in error && error.isOAuth2ConsentRedirect) {
+        const axiosError = error as { response?: { headers?: { location?: string } } };
+        const location = axiosError.response?.headers?.location;
+        console.log('✋ User authenticated but needs to give consent:', location);
+
+        // Redirect user to consent page
+        if (location && typeof window !== 'undefined') {
+          window.location.href = location;
+          return Promise.reject(new Error('Redirecting to consent page'));
+        }
+      }
+
+      // Check for other OAuth2 redirects
+      if ('isOAuth2Redirect' in error && error.isOAuth2Redirect) {
+        const axiosError = error as { response?: { headers?: { location?: string } } };
+        const location = axiosError.response?.headers?.location;
+        console.log('🔄 OAuth2 flow redirect:', location);
+
+        if (location && typeof window !== 'undefined') {
+          window.location.href = location;
+          return Promise.reject(new Error('Following OAuth2 flow redirect'));
+        }
+      }
+
+      // Check for general redirect
+      if ('response' in error) {
+        const axiosError = error as { response?: { status?: number; headers?: { location?: string } } };
+        if (axiosError.response?.status === 302) {
+          const location = axiosError.response.headers?.location;
+          console.log('🔄 General OAuth2 redirect detected:', location);
+          throw new Error(`OAuth2 authorization requires user interaction - redirect to: ${location}`);
+        }
+      }
+    }
+
+    throw error;
+  }
 };
 
 // Helper function to generate PKCE parameters
@@ -94,39 +156,60 @@ export const generatePKCE = async (): Promise<{ codeVerifier: string; codeChalle
 
 // Complete OAuth2 authorization flow for authenticated users
 export const handleOAuth2Authorization = async (
-  oauth2Params: Record<string, string>,
-  originalRedirectUri: string
-): Promise<string> => {
-  let updatedParams: Record<string, string> = { ...oauth2Params, redirect_uri: originalRedirectUri };
+  clientId: string,
+  redirectUri: string,
+  scope: string = 'openid profile email',
+  state?: string
+): Promise<void> => {
+  console.log('� Starting OAuth2 authorization flow');
 
-  // Generate PKCE parameters if not provided
-  if (!oauth2Params.code_challenge && oauth2Params.response_type === 'code') {
+  try {
+    // Generate PKCE parameters for security
     const { codeVerifier, codeChallenge } = await generatePKCE();
 
-    // Store code verifier for later use
+    // Store PKCE verifier in session storage for later use
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('oauth2_code_verifier', codeVerifier);
-      sessionStorage.setItem('oauth2_code_challenge', codeChallenge);
+      sessionStorage.setItem('oauth2_state', state || '');
     }
 
-    updatedParams = {
-      ...updatedParams,
+    // Prepare authorization parameters
+    const authParams = {
+      response_type: 'code',
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope,
+      state: state || '',
       code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
+      code_challenge_method: 'S256'
     };
+
+    console.log('📋 Authorization parameters:', authParams);
+
+    // Try to authorize with the backend
+    // Backend will redirect based on user authentication status:
+    // - If not authenticated: redirect to /login?client_id=...
+    // - If authenticated: redirect to /auth/oauth2/authorize?client_id=... (consent page)
+    await authorizeAuthenticated(authParams);
+
+  } catch (error: unknown) {
+    console.log('🔄 OAuth2 flow requires user interaction:', error);
+
+    // The error is expected - it means user needs to complete the flow
+    // The actual redirect happens in the authorizeAuthenticated function
+    if (error instanceof Error) {
+      if (error.message.includes('Redirecting to login page')) {
+        console.log('✅ User redirected to login page');
+      } else if (error.message.includes('Redirecting to consent page')) {
+        console.log('✅ User redirected to consent page');
+      } else if (error.message.includes('Following OAuth2 flow redirect')) {
+        console.log('✅ Following OAuth2 redirect');
+      } else {
+        console.error('❌ Unexpected OAuth2 error:', error);
+        throw error;
+      }
+    }
   }
-
-  // Call API POST to authorize endpoint
-  const { code, state } = await authorizeAuthenticated(updatedParams);
-
-  // Build redirect URL with code and state
-  const redirectUrl = new URL(originalRedirectUri);
-  redirectUrl.searchParams.set('code', code);
-  if (state) {
-    redirectUrl.searchParams.set('state', state);
-  }
-
-  return redirectUrl.toString();
 };
 
 export const token = withErrorHandling(
@@ -213,13 +296,114 @@ export const getJWKS = withErrorHandling(
   }
 );
 
+// Helper function to handle OAuth2 callback (after user returns from authorization)
+/**
+ * Refresh OAuth2 access token using refresh token
+ * @param refreshToken - The refresh token
+ * @param clientId - The OAuth2 client ID
+ * @param clientSecret - The OAuth2 client secret (optional for public clients)
+ * @returns Promise<TokenResponse>
+ */
+export const refreshAccessToken = async (
+  refreshToken: string,
+  clientId: string,
+  clientSecret?: string
+): Promise<TokenResponse> => {
+  const formData = new URLSearchParams();
+  formData.append('grant_type', 'refresh_token');
+  formData.append('refresh_token', refreshToken);
+  formData.append('client_id', clientId);
+  
+  if (clientSecret) {
+    formData.append('client_secret', clientSecret);
+  }
+
+  const response = await apiClient.post<TokenResponse>(`${baseURL}/token`, formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  });
+
+  return response.data;
+};
+
+export const handleOAuth2Callback = async (
+  code: string,
+  state: string,
+  clientId: string,
+  redirectUri: string,
+  clientSecret?: string
+): Promise<TokenResponse> => {
+  console.log('🔙 Handling OAuth2 callback');
+
+  // Retrieve PKCE verifier from session storage
+  const codeVerifier = typeof window !== 'undefined'
+    ? sessionStorage.getItem('oauth2_code_verifier')
+    : null;
+
+  const storedState = typeof window !== 'undefined'
+    ? sessionStorage.getItem('oauth2_state')
+    : null;
+
+  // Validate state parameter for security
+  if (storedState !== state) {
+    throw new Error('OAuth2 state mismatch - possible CSRF attack');
+  }
+
+  if (!codeVerifier) {
+    throw new Error('OAuth2 code verifier not found - PKCE validation failed');
+  }
+
+  try {
+    // Exchange authorization code for tokens
+    const tokenResponse = await token(
+      'authorization_code',
+      code,
+      redirectUri,
+      clientId,
+      clientSecret,
+      codeVerifier
+    );
+
+    // Clean up session storage
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('oauth2_code_verifier');
+      sessionStorage.removeItem('oauth2_state');
+    }
+
+    console.log('✅ OAuth2 tokens obtained successfully');
+    return tokenResponse;
+
+  } catch (error) {
+    console.error('❌ OAuth2 token exchange failed:', error);
+
+    // Clean up session storage on error
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('oauth2_code_verifier');
+      sessionStorage.removeItem('oauth2_state');
+    }
+
+    throw error;
+  }
+};
+
 /**
  * Get OAuth2 client details by client ID
  * @param clientId - The OAuth2 client ID
  * @returns Promise<ClientRegistrationResponse>
  */
-export const getClient = async (clientId: string): Promise<ClientRegistrationResponse> => {
-  const response = await apiClient.get<ClientRegistrationResponse>(`${baseURL}/clients/${clientId}`);
+export const getClient = async (clientId: string): Promise<ClientInfo> => {
+  const response = await apiClient.get<ClientInfo>(`${baseURL}/clients/${clientId}`);
+  return response.data;
+};
+
+/**
+ * Get OAuth2 client secret (admin only)
+ * @param clientId - The OAuth2 client ID
+ * @returns Promise<{client_id: string, client_secret: string}>
+ */
+export const getClientSecret = async (clientId: string): Promise<{ client_id: string, client_secret: string }> => {
+  const response = await apiClient.get<{ client_id: string, client_secret: string }>(`${baseURL}/clients/${clientId}/secret`);
   return response.data;
 };
 

@@ -139,7 +139,7 @@ export function CredentialViewer({credential, className = '', showActions = true
 					<div className='space-y-4'>
 						<Label className='text-sm font-medium'>Raw JSON</Label>
 						<ScrollArea className='h-96 w-full rounded-md border'>
-							<pre className='p-4 text-sm font-mono'>{JSON.stringify(credential, null, 2)}</pre>
+							<pre className='pre-code-json'>{JSON.stringify(credential, null, 2)}</pre>
 						</ScrollArea>
 					</div>
 				) : (

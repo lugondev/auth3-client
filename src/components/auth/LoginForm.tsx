@@ -32,11 +32,7 @@ const didAuthSchema = z.object({
 	signature: z.string().optional(),
 })
 
-interface LoginFormProps {
-	oauth2Params?: Record<string, string> | null
-}
-
-export function LoginForm({oauth2Params}: LoginFormProps) {
+export function LoginForm() {
 	// Get necessary functions and state from AuthContext
 	// Added twoFactorSessionToken from context
 	const {signInWithEmail, verifyTwoFactorCode, isTwoFactorPending, twoFactorSessionToken} = useAuth()
@@ -59,11 +55,6 @@ export function LoginForm({oauth2Params}: LoginFormProps) {
 		setLoading(true)
 		setError(null)
 		console.log('Attempting email/password sign in with:', values)
-
-		// Store OAuth2 parameters if present
-		if (oauth2Params) {
-			sessionStorage.setItem('oauth2_params', JSON.stringify(oauth2Params))
-		}
 
 		const payload: {email: string; password: string} = {
 			email: values.email,

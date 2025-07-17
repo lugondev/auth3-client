@@ -45,6 +45,8 @@ class ApiClient {
 		this.instance = axios.create({
 			baseURL: API_BASE_URL,
 			timeout: 30000,
+			maxRedirects: 0, // Don't follow redirects for API calls
+			validateStatus: (status) => status < 400, // Accept 2xx and 3xx as success
 			headers: {
 				'Content-Type': 'application/json',
 				'X-Request-ID': generateUUID(),
@@ -140,7 +142,64 @@ class ApiClient {
 
 		// Response interceptor
 		this.instance.interceptors.response.use(
-			(response) => response,
+			(response) => {
+				// Handle redirect responses (302) for OAuth2 endpoints
+				if (response.status === 302) {
+					const location = response.headers['location']
+					console.warn('🚨 API returned redirect:', location)
+
+					// For OAuth2 endpoints, redirects are part of the authorization flow
+					if (response.config.url?.includes('/oauth2/')) {
+						// Check if redirect is to login page (user not authenticated)
+						if (location?.includes('/login')) {
+							const error = new Error(`OAuth2 authorization requires login - redirect to: ${location}`) as Error & {
+								response?: AxiosResponse;
+								isOAuth2LoginRedirect?: boolean
+							}
+							error.response = response
+							error.isOAuth2LoginRedirect = true
+							throw error
+						}
+
+						// Check if redirect is to authorize page (user authenticated, needs consent)
+						if (location?.includes('/auth/oauth2/authorize')) {
+							const error = new Error(`OAuth2 authorization requires user consent - redirect to: ${location}`) as Error & {
+								response?: AxiosResponse;
+								isOAuth2ConsentRedirect?: boolean
+							}
+							error.response = response
+							error.isOAuth2ConsentRedirect = true
+							throw error
+						}
+
+						// Other OAuth2 redirects
+						const error = new Error(`OAuth2 flow redirect: ${location}`) as Error & {
+							response?: AxiosResponse;
+							isOAuth2Redirect?: boolean
+						}
+						error.response = response
+						error.isOAuth2Redirect = true
+						throw error
+					}
+
+					// Convert other redirects to an error to prevent browser from following it
+					const error = new Error(`API returned redirect to: ${location}`) as Error & {
+						response?: AxiosResponse;
+						isRedirect?: boolean
+					}
+					error.response = response
+					error.isRedirect = true
+					throw error
+				}
+
+				// Check if we got HTML when expecting JSON (happens during redirects)
+				const contentType = response.headers['content-type']
+				if (contentType && contentType.includes('text/html') && response.config.url?.includes('/api/')) {
+					console.warn('🚨 Received HTML response for API endpoint, likely due to authentication redirect')
+					throw new Error('Authentication required - received redirect instead of API response')
+				}
+				return response
+			},
 			async (error: AxiosError) => {
 				const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 				const statusCode = error.response?.status
@@ -238,7 +297,7 @@ class ApiClient {
 		}
 
 		// Add headers for context
-		const headers: any = { '__skipAuthRefresh': 'true' }
+		const headers: Record<string, string> = { '__skipAuthRefresh': 'true' }
 		if (currentMode === 'tenant') {
 			const contextState = contextManager.getContextState('tenant')
 			if (contextState?.tenantId) {

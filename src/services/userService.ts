@@ -1,5 +1,7 @@
 import apiClient from '@/lib/apiClient';
 import { withErrorHandling } from './errorHandlingService';
+import { userProfileCache } from '@/lib/user-profile-cache';
+import { contextManager } from '@/lib/context-manager';
 import {
 	UserOutput,
 	UserProfile,
@@ -14,10 +16,30 @@ import {
 
 /**
  * Fetches the currently authenticated user's basic information.
+ * Uses cache to prevent API spam.
  */
 export const getCurrentUser = withErrorHandling(
 	async (): Promise<UserOutput> => {
+		// Get current context for cache key
+		const currentMode = contextManager.getCurrentMode();
+
+		// Try to get user ID from some source (you might need to adjust this)
+		// For now, we'll use a simple cache key based on context mode
+		const cacheKey = 'current-user';
+
+		// Check cache first
+		const cachedUser = userProfileCache.get(cacheKey, currentMode);
+		if (cachedUser) {
+			console.log('📋 Using cached user profile data');
+			return cachedUser;
+		}
+
+		console.log('🔄 Fetching fresh user profile from API');
 		const response = await apiClient.get<UserOutput>('/api/v1/users/me');
+
+		// Cache the result
+		userProfileCache.set(cacheKey, currentMode, response.data);
+
 		return response.data;
 	}
 );
@@ -48,6 +70,11 @@ export const updateUser = withErrorHandling(
 export const updateCurrentUser = withErrorHandling(
 	async (data: UpdateUserInput): Promise<UserOutput> => {
 		const response = await apiClient.patch<UserOutput>('/api/v1/users/me', data);
+
+		// Invalidate cache after update
+		const currentMode = contextManager.getCurrentMode();
+		userProfileCache.clear('current-user', currentMode);
+
 		return response.data;
 	}
 );
@@ -69,6 +96,11 @@ export const getUserProfile = withErrorHandling(
 export const updateCurrentUserProfile = withErrorHandling(
 	async (data: UpdateProfileInput): Promise<UserProfile> => {
 		const response = await apiClient.patch<UserProfile>('/api/v1/users/profile', data);
+
+		// Invalidate cache after update
+		const currentMode = contextManager.getCurrentMode();
+		userProfileCache.clear('current-user', currentMode);
+
 		return response.data;
 	}
 );
@@ -79,6 +111,8 @@ export const updateCurrentUserProfile = withErrorHandling(
 export const updateCurrentUserPassword = withErrorHandling(
 	async (data: UpdatePasswordInput): Promise<UpdatePasswordResponse> => {
 		const response = await apiClient.patch<UpdatePasswordResponse>('/api/v1/users/password', data);
+
+		// Note: Password update doesn't change profile data, so no cache invalidation needed
 		return response.data;
 	}
 );
@@ -96,6 +130,11 @@ export const updateUserAvatar = withErrorHandling(
 				'Content-Type': 'multipart/form-data',
 			},
 		});
+
+		// Invalidate cache after avatar update
+		const currentMode = contextManager.getCurrentMode();
+		userProfileCache.clear('current-user', currentMode);
+
 		return response.data;
 	}
 );

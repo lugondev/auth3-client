@@ -2,13 +2,12 @@
 
 import {useState, useEffect} from 'react'
 import {useQuery} from '@tanstack/react-query'
-import {Shield, Plus, FileDown, CheckCircle, XCircle, AlertTriangle, Clock, Import} from 'lucide-react'
+import {Shield, Plus, CheckCircle, AlertTriangle, Clock, Import} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
 import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Badge} from '@/components/ui/badge'
 
 import {getCredentialsBySubject} from '@/services/vcService'
@@ -16,9 +15,42 @@ import {listDIDs} from '@/services/didService'
 import {useAuth} from '@/contexts/AuthContext'
 import {CredentialStatus, CredentialMetadata} from '@/types/credentials'
 import {CredentialsBySubjectResponse} from '@/types/vc'
+import {DIDResponse} from '@/types/did'
 import {CredentialMetadataCard} from './CredentialMetadataCard'
 import {ImportCredentialModal} from './ImportCredentialModal'
 import {CredentialAcceptanceModal} from './CredentialAcceptanceModal'
+
+// Interface for raw credential data during import
+interface RawCredentialData {
+	'@context'?: string[] | Record<string, unknown>
+	id?: string
+	type?: string[]
+	issuer?: string | {id: string; name?: string}
+	issuanceDate?: string
+	expirationDate?: string
+	credentialSubject?: Record<string, unknown>
+	proof?: Record<string, unknown>
+	[key: string]: unknown // Allow additional fields during import
+}
+
+// Trust levels for received credentials (must match CredentialAcceptanceModal)
+type TrustLevel = 'verified' | 'trusted' | 'unverified' | 'unknown'
+
+// Type for modal credential (matches CredentialAcceptanceModal expected interface)
+interface ModalCredential {
+	'@context'?: string[] | Record<string, unknown>
+	id?: string
+	type: string[]
+	issuer: string | {id: string; name?: string}
+	issuanceDate: string
+	expirationDate?: string
+	credentialSubject?: Record<string, unknown>
+	proof?: Record<string, unknown>
+	issuerTrustLevel: TrustLevel
+	origin: string
+	source?: string
+	[key: string]: unknown
+}
 
 interface ReceivedCredentialsTabProps {
 	searchTerm: string
@@ -29,7 +61,7 @@ interface ReceivedCredentialsTabProps {
 
 interface ReceivedCredential extends CredentialMetadata {
 	origin: 'external' | 'imported' | 'shared'
-	issuerTrustLevel?: 'verified' | 'unverified' | 'trusted'
+	issuerTrustLevel: TrustLevel
 	isAccepted?: boolean
 	receivedAt?: string
 	source?: string
@@ -64,7 +96,7 @@ export function ReceivedCredentialsTab({
 			try {
 				const didsResponse = await listDIDs({limit: 100})
 				if (didsResponse.dids && didsResponse.dids.length > 0) {
-					const didStrings = didsResponse.dids.map((did: any) => did.did)
+					const didStrings = didsResponse.dids.map((did: DIDResponse) => did.did)
 					setUserDIDs(didStrings)
 				}
 			} catch (error) {
@@ -84,8 +116,7 @@ export function ReceivedCredentialsTab({
 	const {
 		data: receivedCredentialsData,
 		isLoading,
-		error,
-		refetch
+		error
 	} = useQuery<CredentialsBySubjectResponse>({
 		queryKey: ['received-credentials', userDID],
 		queryFn: () => userDID ? getCredentialsBySubject(userDID) : Promise.resolve({credentials: [], total: 0}),
@@ -167,14 +198,28 @@ export function ReceivedCredentialsTab({
 	}
 
 	// Handle credential import
-	const handleImportCredential = async (credentialData: any, source?: string) => {
+	const handleImportCredential = async (credentialData: RawCredentialData, source?: string) => {
 		try {
+			// Type-safe extraction of issuer information
+			const getIssuerString = (issuer: string | {id: string; name?: string} | undefined): string => {
+				if (!issuer) return ''
+				if (typeof issuer === 'string') return issuer
+				return issuer.id
+			}
+
+			// Type-safe extraction of subject ID
+			const getSubjectId = (credentialSubject: Record<string, unknown> | undefined): string => {
+				if (!credentialSubject) return userDID || ''
+				const id = credentialSubject.id
+				return typeof id === 'string' ? id : userDID || ''
+			}
+
 			// Create a new received credential entry
 			const importedCredential: ReceivedCredential = {
 				id: credentialData.id || `imported-${Date.now()}`,
-				issuer: credentialData.issuer,
-				issuerDID: credentialData.issuer || '',
-				subjectDID: credentialData.credentialSubject?.id || userDID || '',
+				issuer: credentialData.issuer || '',
+				issuerDID: getIssuerString(credentialData.issuer),
+				subjectDID: getSubjectId(credentialData.credentialSubject),
 				type: credentialData.type || ['VerifiableCredential'],
 				issuanceDate: credentialData.issuanceDate || new Date().toISOString(),
 				expirationDate: credentialData.expirationDate,
@@ -183,10 +228,10 @@ export function ReceivedCredentialsTab({
 				updatedAt: new Date().toISOString(),
 				origin: 'imported',
 				issuerTrustLevel: determineTrustLevel({
-					id: credentialData.id,
-					issuer: credentialData.issuer,
-					issuerDID: credentialData.issuer || '',
-					subjectDID: credentialData.credentialSubject?.id || '',
+					id: credentialData.id || `imported-${Date.now()}`,
+					issuer: credentialData.issuer || '',
+					issuerDID: getIssuerString(credentialData.issuer),
+					subjectDID: getSubjectId(credentialData.credentialSubject),
 					type: credentialData.type || [],
 					issuanceDate: credentialData.issuanceDate || '',
 					status: 'active' as CredentialStatus,
@@ -214,7 +259,7 @@ export function ReceivedCredentialsTab({
 	}
 
 	// Get trust level badge
-	const getTrustBadge = (trustLevel?: 'verified' | 'unverified' | 'trusted') => {
+	const getTrustBadge = (trustLevel: TrustLevel) => {
 		switch (trustLevel) {
 			case 'verified':
 				return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle className="h-3 w-3 mr-1" />Verified</Badge>
@@ -222,6 +267,8 @@ export function ReceivedCredentialsTab({
 				return <Badge variant="outline" className="border-blue-200 text-blue-800"><Shield className="h-3 w-3 mr-1" />Trusted</Badge>
 			case 'unverified':
 				return <Badge variant="outline" className="border-orange-200 text-orange-800"><AlertTriangle className="h-3 w-3 mr-1" />Unverified</Badge>
+			case 'unknown':
+				return <Badge variant="outline" className="border-gray-200 text-gray-800"><AlertTriangle className="h-3 w-3 mr-1" />Unknown</Badge>
 			default:
 				return null
 		}
@@ -238,6 +285,22 @@ export function ReceivedCredentialsTab({
 				return <Badge variant="outline" className="border-blue-200 text-blue-800">Shared</Badge>
 			default:
 				return null
+		}
+	}
+
+	// Convert ReceivedCredential to format expected by CredentialAcceptanceModal
+	const convertToModalCredential = (credential: ReceivedCredential): ModalCredential => {
+		return {
+			'@context': ['https://www.w3.org/2018/credentials/v1'],
+			id: credential.id,
+			type: credential.type,
+			issuer: credential.issuer,
+			issuanceDate: credential.issuanceDate,
+			expirationDate: credential.expirationDate,
+			credentialSubject: {},
+			issuerTrustLevel: credential.issuerTrustLevel,
+			origin: credential.origin,
+			source: credential.source
 		}
 	}
 
@@ -346,8 +409,15 @@ export function ReceivedCredentialsTab({
 
 			{/* Credential Acceptance Modal */}
 			<CredentialAcceptanceModal
-				isOpen={showAcceptanceModal}
-				credential={selectedCredential}
+				isOpen={showAcceptanceModal && selectedCredential !== null}
+				credential={selectedCredential ? convertToModalCredential(selectedCredential) : {
+					id: '',
+					type: [],
+					issuer: '',
+					issuanceDate: '',
+					issuerTrustLevel: 'unknown' as TrustLevel,
+					origin: ''
+				}}
 				onClose={() => {
 					setShowAcceptanceModal(false)
 					setSelectedCredential(null)

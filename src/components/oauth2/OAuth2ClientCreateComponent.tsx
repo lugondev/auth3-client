@@ -58,7 +58,7 @@ const OAuth2ClientCreateComponent: React.FC = () => {
 		try {
 			await registerClient(clientData)
 			// Redirect to the OAuth2 clients list page with success message
-			router.push('/dashboard/oauth2?success=Client created successfully')
+			router.push('/dashboard/oauth2')
 		} catch (err: unknown) {
 			setCreateError((err as Error).message || 'Failed to create OAuth2 client')
 			setIsLoading(false)
@@ -87,17 +87,7 @@ const OAuth2ClientCreateComponent: React.FC = () => {
 				</CardHeader>
 				<CardContent>
 					<Form {...form}>
-						<OAuth2ClientForm
-							clientData={clientData}
-							onSubmit={handleSubmit}
-							onChange={handleChange}
-							onDataChange={handleDataChange}
-							submitLabel='Create Client'
-							errorMessage={createError}
-							showCancel={true}
-							onCancel={() => router.push('/dashboard/oauth2')}
-							isLoading={isLoading}
-						/>
+						<OAuth2ClientForm clientData={clientData} onSubmit={handleSubmit} onChange={handleChange} onDataChange={handleDataChange} submitLabel='Create Client' errorMessage={createError} showCancel={true} onCancel={() => router.push('/dashboard/oauth2')} isLoading={isLoading} />
 					</Form>
 				</CardContent>
 			</Card>
