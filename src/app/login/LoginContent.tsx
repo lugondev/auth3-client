@@ -30,7 +30,15 @@ export function LoginContent() {
 			}
 		})
 
+		console.log('LoginContent: Extracted OAuth2 params:', params)
+		console.log('LoginContent: All searchParams:', Object.fromEntries(searchParams.entries()))
+
 		return Object.keys(params).length > 0 ? params : null
+	}, [searchParams])
+
+	// Get all search parameters for preservation
+	const allSearchParams = useMemo(() => {
+		return Object.fromEntries(searchParams.entries())
 	}, [searchParams])
 
 	// Handle post-login redirect
@@ -40,23 +48,9 @@ export function LoginContent() {
 			return
 		}
 
-		// Check if this is an OAuth2 authorization request
-		if (oauth2Params && oauth2Params.client_id) {
-			console.log('LoginContent: OAuth2 params detected, redirecting to authorization page')
-
-			// Redirect to OAuth2 authorization page with all parameters preserved
-			const authUrl = new URL('/oauth2/authorize', window.location.origin)
-			Object.entries(oauth2Params).forEach(([key, value]) => {
-				authUrl.searchParams.set(key, value)
-			})
-
-			router.replace(authUrl.toString())
-			return
-		}
-
 		// Only redirect if user just became authenticated (not on initial load)
 		if (isAuthenticated && !isRedirecting) {
-			console.log('LoginContent: Authenticated user, redirecting to dashboard or redirect path')
+			console.log('LoginContent: Authenticated user, checking redirect options')
 
 			setIsRedirecting(true)
 			const redirectPath = searchParams.get('redirect')
@@ -67,12 +61,43 @@ export function LoginContent() {
 			}, 5000)
 
 			if (redirectPath) {
-				router.replace(redirectPath)
+				console.log('LoginContent: Found redirect path:', redirectPath)
+				console.log('LoginContent: Redirecting to:', redirectPath)
+
+				// Handle redirect path - should be a relative path with query parameters
+				try {
+					// If it's a relative path starting with /, construct full URL
+					if (redirectPath.startsWith('/')) {
+						const fullRedirectUrl = window.location.origin + redirectPath
+						console.log('LoginContent: Constructed redirect URL:', fullRedirectUrl)
+						window.location.href = fullRedirectUrl
+					} else {
+						// If it's already a full URL, use it directly
+						console.log('LoginContent: Using redirect path as is:', redirectPath)
+						window.location.href = redirectPath
+					}
+				} catch (error) {
+					console.error('LoginContent: Error constructing redirect URL:', error)
+					// Fallback to relative path
+					window.location.href = redirectPath
+				}
+			} else if (oauth2Params && oauth2Params.client_id) {
+				console.log('LoginContent: OAuth2 params detected, redirecting to authorization page')
+
+				// Redirect to OAuth2 authorization page with ALL parameters preserved
+				const authUrl = new URL('/oauth2/authorize', window.location.origin)
+				Object.entries(allSearchParams).forEach(([key, value]) => {
+					authUrl.searchParams.set(key, value)
+				})
+
+				console.log('LoginContent: Redirecting to authorize with URL:', authUrl.toString())
+				window.location.href = authUrl.toString()
 			} else {
+				console.log('LoginContent: No redirect path, going to dashboard')
 				router.replace('/dashboard/profile')
 			}
 		}
-	}, [isAuthenticated, loading, router, oauth2Params, searchParams, isRedirecting])
+	}, [isAuthenticated, loading, router, oauth2Params, allSearchParams, searchParams, isRedirecting])
 
 	// Show loading skeleton while checking auth status
 	if (loading) {

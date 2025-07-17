@@ -481,7 +481,8 @@ export const config = {
 		 * - _next/image (image optimization files)
 		 * - favicon.ico (favicon file)
 		 * - login, register, forgot-password, etc. (public auth pages)
+		 * - oauth2 (OAuth2 authorization flow)
 		 */
-		'/((?!api|_next/static|_next/image|favicon.ico|login|register|forgot-password|reset-password|verify-email).*)',
+		'/((?!api|_next/static|_next/image|favicon.ico|login|register|forgot-password|reset-password|verify-email|oauth2).*)',
 	],
 };

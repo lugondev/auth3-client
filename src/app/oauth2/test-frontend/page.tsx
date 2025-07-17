@@ -163,22 +163,22 @@ const OAuth2TestSuite: React.FC = () => {
 	const getStatusIcon = (status: TestResult['status']) => {
 		switch (status) {
 			case 'success':
-				return <CheckCircle className='h-5 w-5 text-green-500' />
+				return <CheckCircle className='h-5 w-5 text-green-600 dark:text-green-400' />
 			case 'error':
-				return <XCircle className='h-5 w-5 text-red-500' />
+				return <XCircle className='h-5 w-5 text-red-600 dark:text-red-400' />
 			case 'pending':
-				return <Clock className='h-5 w-5 text-gray-400' />
+				return <Clock className='h-5 w-5 text-muted-foreground' />
 		}
 	}
 
 	const getStatusColor = (status: TestResult['status']) => {
 		switch (status) {
 			case 'success':
-				return 'bg-green-50 border-green-200'
+				return 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
 			case 'error':
-				return 'bg-red-50 border-red-200'
+				return 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800'
 			case 'pending':
-				return 'bg-gray-50 border-gray-200'
+				return 'bg-muted border'
 		}
 	}
 
@@ -201,7 +201,7 @@ const OAuth2TestSuite: React.FC = () => {
 								<div className='flex items-center justify-between'>
 									<div className='flex items-center space-x-3'>
 										{getStatusIcon(test.status)}
-										<span className='font-medium'>{test.name}</span>
+										<span className='font-medium text-foreground'>{test.name}</span>
 										<Badge variant={test.status === 'success' ? 'default' : test.status === 'error' ? 'destructive' : 'secondary'}>{test.status}</Badge>
 									</div>
 								</div>
@@ -210,8 +210,8 @@ const OAuth2TestSuite: React.FC = () => {
 
 								{!!test.details && typeof test.details === 'object' && (
 									<div className='mt-2'>
-										<div className='cursor-pointer text-sm text-blue-600'>View Details</div>
-										<pre className='mt-2 p-2 bg-white rounded border text-xs overflow-auto'>{JSON.stringify(test.details, null, 2)}</pre>
+										<div className='cursor-pointer text-sm text-primary hover:text-primary/80'>View Details</div>
+										<pre className='mt-2 p-2 bg-card border rounded text-xs overflow-auto'>{JSON.stringify(test.details, null, 2)}</pre>
 									</div>
 								)}
 							</div>
@@ -291,9 +291,9 @@ const OAuth2TestSuite: React.FC = () => {
 const OAuth2TestPage: React.FC = () => {
 	return (
 		<OAuth2ErrorBoundary>
-			<div className='container mx-auto py-8'>
+			<div className='container mx-auto py-8 bg-background min-h-screen'>
 				<div className='mb-8'>
-					<h1 className='text-3xl font-bold'>OAuth2 Frontend Testing</h1>
+					<h1 className='text-3xl font-bold text-foreground'>OAuth2 Frontend Testing</h1>
 					<p className='text-muted-foreground'>Comprehensive test suite for OAuth2 frontend implementation</p>
 				</div>
 				<OAuth2TestSuite />

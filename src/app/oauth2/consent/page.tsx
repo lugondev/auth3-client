@@ -24,12 +24,12 @@ function ConsentPageContent() {
 		if (loading) return
 
 		if (!isAuthenticated) {
-			// Redirect to login with current params preserved
+			// Redirect to login with standard redirect parameter
 			const loginUrl = new URL('/login', window.location.origin)
-			searchParams.forEach((value, key) => {
-				loginUrl.searchParams.set(key, value)
-			})
-			router.replace(loginUrl.toString())
+			loginUrl.searchParams.set('redirect', '/oauth2/consent')
+
+			console.log('ConsentPage: Redirecting to login with URL:', loginUrl.toString())
+			window.location.href = loginUrl.toString()
 			return
 		}
 
@@ -121,13 +121,13 @@ function ConsentPageContent() {
 				// For successful responses, get JSON response
 				try {
 					const result = await response.json()
-					
+
 					// Check if server provided redirect_url (our new approach)
 					if (result.redirect_url) {
 						window.location.href = result.redirect_url
 						return
 					}
-					
+
 					// Fallback: build redirect URL manually (legacy)
 					if (result.code) {
 						// Authorization successful, redirect with code
@@ -167,13 +167,13 @@ function ConsentPageContent() {
 
 	if (loading) {
 		return (
-			<div className='flex min-h-screen items-center justify-center'>
+			<div className='flex min-h-screen items-center justify-center bg-background'>
 				<Card className='w-full max-w-md'>
 					<CardContent className='p-6'>
 						<div className='animate-pulse space-y-4'>
-							<div className='h-4 bg-gray-200 rounded w-3/4'></div>
-							<div className='h-4 bg-gray-200 rounded w-full'></div>
-							<div className='h-4 bg-gray-200 rounded w-1/2'></div>
+							<div className='h-4 bg-muted rounded w-3/4'></div>
+							<div className='h-4 bg-muted rounded w-full'></div>
+							<div className='h-4 bg-muted rounded w-1/2'></div>
 						</div>
 					</CardContent>
 				</Card>
@@ -183,21 +183,23 @@ function ConsentPageContent() {
 
 	if (error) {
 		return (
-			<div className='flex min-h-screen items-center justify-center'>
-				<Card className='w-full max-w-md'>
+			<div className='flex min-h-screen items-center justify-center bg-background'>
+				<Card className='w-full max-w-md border-destructive/20'>
 					<CardHeader>
-						<CardTitle className='flex items-center gap-2 text-red-600'>
-							<AlertTriangle className='h-5 w-5' />
+						<CardTitle className='flex items-center gap-2 text-destructive'>
+							<div className='p-2 rounded-full bg-destructive/10 border border-destructive/20'>
+								<AlertTriangle className='h-5 w-5 text-destructive' />
+							</div>
 							Consent Error
 						</CardTitle>
-						<CardDescription>There was a problem processing your consent</CardDescription>
+						<CardDescription className='text-muted-foreground'>There was a problem processing your consent</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Alert className='border-red-200 bg-red-50'>
+						<Alert className='border-destructive/20 bg-destructive/5'>
 							<AlertTriangle className='h-4 w-4' />
-							<AlertDescription className='text-red-800'>{error}</AlertDescription>
+							<AlertDescription className='text-destructive font-medium'>{error}</AlertDescription>
 						</Alert>
-						<div className='mt-4 flex gap-2'>
+						<div className='mt-6 flex gap-3'>
 							<Button variant='outline' onClick={() => window.history.back()} className='flex-1'>
 								Go Back
 							</Button>
@@ -213,16 +215,16 @@ function ConsentPageContent() {
 
 	if (!consentDetails) {
 		return (
-			<div className='flex min-h-screen items-center justify-center'>
+			<div className='flex min-h-screen items-center justify-center bg-background'>
 				<div className='text-center'>
-					<p>Loading consent details...</p>
+					<p className='text-muted-foreground'>Loading consent details...</p>
 				</div>
 			</div>
 		)
 	}
 
 	return (
-		<div className='flex min-h-screen items-center justify-center bg-gray-50'>
+		<div className='flex min-h-screen items-center justify-center bg-background'>
 			<ConsentForm consentDetails={consentDetails} onConsent={handleConsent} loading={consenting} />
 		</div>
 	)

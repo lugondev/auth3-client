@@ -13,11 +13,12 @@ import {
   JWKS,
 } from "../types/oauth2";
 
-const baseURL = "/api/v1/oauth2";
+const baseOauth2URL = "/api/v1/oauth2";
+const baseURL = "/oauth2";
 
 export const registerClient = withErrorHandling(
   async (data: ClientRegistrationRequest): Promise<ClientRegistrationResponse> => {
-    const response = await apiClient.post<ClientRegistrationResponse>(`${baseURL}/clients`, data);
+    const response = await apiClient.post<ClientRegistrationResponse>(`${baseOauth2URL}/clients`, data);
     return response.data;
   }
 );
@@ -34,7 +35,7 @@ export const listClients = withErrorHandling(
     if (tenant_id) params.append("tenant_id", tenant_id);
 
     const query = params.toString();
-    const url = query ? `${baseURL}/clients?${query}` : `${baseURL}/clients`;
+    const url = query ? `${baseOauth2URL}/clients?${query}` : `${baseOauth2URL}/clients`;
 
     const response = await apiClient.get<ClientListResponse>(url);
     return response.data;
@@ -63,7 +64,7 @@ export const authorize = withErrorHandling(
       ...(nonce ? { nonce } : {}),
     });
 
-    const response = await apiClient.get<AuthorizeResponse>(`${baseURL}/authorize?${params.toString()}`);
+    const response = await apiClient.get<AuthorizeResponse>(`${baseOauth2URL}/authorize?${params.toString()}`);
     return response.data;
   }
 );
@@ -75,7 +76,7 @@ export const authorizeAuthenticated = async (
   console.log('🔍 authorizeAuthenticated called with params:', oauth2Params);
 
   try {
-    const response = await apiClient.post<{ code: string; state?: string }>(`${baseURL}/authorize`, oauth2Params);
+    const response = await apiClient.post<{ code: string; state?: string }>(`${baseOauth2URL}/authorize`, oauth2Params);
 
     console.log('✅ Authorization successful:', response.data);
     return response.data;
@@ -233,7 +234,7 @@ export const token = withErrorHandling(
     if (refresh_token) formData.append("refresh_token", refresh_token);
     if (scope) formData.append("scope", scope);
 
-    const response = await apiClient.post<TokenResponse>(`${baseURL}/token`, formData, {
+    const response = await apiClient.post<TokenResponse>(`${baseOauth2URL}/token`, formData, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -244,14 +245,14 @@ export const token = withErrorHandling(
 
 export const userInfo = withErrorHandling(
   async (): Promise<UserInfoResponse> => {
-    const response = await apiClient.get<UserInfoResponse>(`${baseURL}/userinfo`);
+    const response = await apiClient.get<UserInfoResponse>(`${baseOauth2URL}/userinfo`);
     return response.data;
   }
 );
 
 export const tokenInfo = withErrorHandling(
   async (accessToken: string): Promise<TokenInfo> => {
-    const response = await apiClient.get<TokenInfo>(`${baseURL}/tokeninfo`, {
+    const response = await apiClient.get<TokenInfo>(`${baseOauth2URL}/tokeninfo`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -273,7 +274,7 @@ export const revokeToken = withErrorHandling(
     if (client_id) formData.append("client_id", client_id);
     if (client_secret) formData.append("client_secret", client_secret);
 
-    const response = await apiClient.post<void>(`${baseURL}/revoke`, formData, {
+    const response = await apiClient.post<void>(`${baseOauth2URL}/revoke`, formData, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -313,12 +314,11 @@ export const refreshAccessToken = async (
   formData.append('grant_type', 'refresh_token');
   formData.append('refresh_token', refreshToken);
   formData.append('client_id', clientId);
-  
   if (clientSecret) {
     formData.append('client_secret', clientSecret);
   }
 
-  const response = await apiClient.post<TokenResponse>(`${baseURL}/token`, formData, {
+  const response = await apiClient.post<TokenResponse>(`${baseOauth2URL}/token`, formData, {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
@@ -393,7 +393,7 @@ export const handleOAuth2Callback = async (
  * @returns Promise<ClientRegistrationResponse>
  */
 export const getClient = async (clientId: string): Promise<ClientInfo> => {
-  const response = await apiClient.get<ClientInfo>(`${baseURL}/clients/${clientId}`);
+  const response = await apiClient.get<ClientInfo>(`${baseOauth2URL}/clients/${clientId}`);
   return response.data;
 };
 
@@ -403,7 +403,7 @@ export const getClient = async (clientId: string): Promise<ClientInfo> => {
  * @returns Promise<{client_id: string, client_secret: string}>
  */
 export const getClientSecret = async (clientId: string): Promise<{ client_id: string, client_secret: string }> => {
-  const response = await apiClient.get<{ client_id: string, client_secret: string }>(`${baseURL}/clients/${clientId}/secret`);
+  const response = await apiClient.get<{ client_id: string, client_secret: string }>(`${baseOauth2URL}/clients/${clientId}/secret`);
   return response.data;
 };
 
@@ -417,6 +417,6 @@ export const updateClient = async (
   clientId: string,
   data: ClientRegistrationRequest
 ): Promise<ClientRegistrationResponse> => {
-  const response = await apiClient.put<ClientRegistrationResponse>(`${baseURL}/clients/${clientId}`, data);
+  const response = await apiClient.put<ClientRegistrationResponse>(`${baseOauth2URL}/clients/${clientId}`, data);
   return response.data;
 };

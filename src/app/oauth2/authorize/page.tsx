@@ -36,6 +36,9 @@ export default function OAuth2AuthorizePage() {
 			}
 		})
 
+		console.log('OAuth2Authorize: Extracted params:', params)
+		console.log('OAuth2Authorize: All searchParams:', Object.fromEntries(searchParams.entries()))
+
 		return Object.keys(params).length > 0 ? params : null
 	}, [searchParams])
 
@@ -158,6 +161,8 @@ export default function OAuth2AuthorizePage() {
 
 	// Check authentication and redirect logic
 	useEffect(() => {
+		console.log('OAuth2Authorize: Checking authentication status and redirect logic')
+
 		if (loading || !oauth2Params) {
 			return
 		}
@@ -165,21 +170,37 @@ export default function OAuth2AuthorizePage() {
 		// If user is not authenticated, redirect to login with current params
 		if (!isAuthenticated) {
 			console.log('OAuth2Authorize: User not authenticated, redirecting to login')
+
+			// Get all current parameters to preserve them
+			const allParams = Object.fromEntries(searchParams.entries())
+			console.log('OAuth2Authorize: Current params to preserve:', allParams)
+
 			const loginUrl = new URL('/login', window.location.origin)
 
-			// Preserve all OAuth2 parameters in the login redirect
-			Object.entries(oauth2Params).forEach(([key, value]) => {
-				loginUrl.searchParams.set(key, value)
-			})
+			// Build redirect URL with all current parameters
+			const fullCurrentUrl = window.location.href
+			const currentUrl = new URL(fullCurrentUrl)
+			const redirectPath = currentUrl.pathname + currentUrl.search
 
-			router.replace(loginUrl.toString())
+			console.log('OAuth2Authorize: Full current URL:', fullCurrentUrl)
+			console.log('OAuth2Authorize: Current pathname:', currentUrl.pathname)
+			console.log('OAuth2Authorize: Current search:', currentUrl.search)
+			console.log('OAuth2Authorize: Redirect path to preserve:', redirectPath)
+
+			// Set the redirect parameter - do not double encode as the login page will handle it
+			loginUrl.searchParams.set('redirect', redirectPath)
+
+			console.log('OAuth2Authorize: Final login URL:', loginUrl.toString())
+
+			// Use window.location.href for navigation to preserve all parameters
+			window.location.href = loginUrl.toString()
 			return
 		}
 
 		// Validate redirect_uri to prevent loops
 		const redirectUri = oauth2Params.redirect_uri
 
-		if (redirectUri.includes('/login') || redirectUri.includes('/oauth2/authorize')) {
+		if (redirectUri && (redirectUri.includes('/login') || redirectUri.includes('/oauth2/authorize'))) {
 			console.warn('OAuth2Authorize: redirect_uri points to auth pages, potential loop detected')
 			setRedirectError('Invalid redirect URI: cannot redirect back to authentication pages')
 			return
@@ -187,7 +208,7 @@ export default function OAuth2AuthorizePage() {
 
 		// Don't auto-authorize anymore - show authorization details first
 		// This allows users to see what they're authorizing
-	}, [isAuthenticated, loading, oauth2Params, router])
+	}, [isAuthenticated, loading, oauth2Params, searchParams])
 
 	const handleDenyAuthorization = () => {
 		if (!oauth2Params?.redirect_uri) {
@@ -223,17 +244,27 @@ export default function OAuth2AuthorizePage() {
 	// Show loading skeleton while checking auth status
 	if (loading) {
 		return (
-			<div className='flex min-h-screen items-center justify-center'>
-				<Card className='w-full max-w-md'>
+			<div className='flex min-h-screen items-center justify-center bg-background'>
+				<Card className='w-full max-w-md shadow-lg'>
 					<CardHeader>
-						<Skeleton className='h-6 w-3/4' />
-						<Skeleton className='h-4 w-full' />
+						<div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted border'>
+							<Skeleton className='h-6 w-6 rounded' />
+						</div>
+						<Skeleton className='h-6 w-3/4 mx-auto rounded-lg' />
+						<Skeleton className='h-4 w-full mx-auto mt-2 rounded-lg' />
 					</CardHeader>
 					<CardContent>
 						<div className='space-y-4'>
-							<Skeleton className='h-4 w-full' />
-							<Skeleton className='h-4 w-2/3' />
-							<Skeleton className='h-10 w-full' />
+							<div className='bg-muted rounded-lg p-4'>
+								<Skeleton className='h-4 w-20 mb-2 rounded' />
+								<Skeleton className='h-5 w-48 rounded' />
+							</div>
+							<Skeleton className='h-4 w-full rounded' />
+							<Skeleton className='h-4 w-2/3 rounded' />
+							<div className='flex gap-3'>
+								<Skeleton className='h-10 flex-1 rounded-lg' />
+								<Skeleton className='h-10 flex-1 rounded-lg' />
+							</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -244,21 +275,23 @@ export default function OAuth2AuthorizePage() {
 	// Show error state
 	if (redirectError) {
 		return (
-			<div className='flex min-h-screen items-center justify-center'>
-				<Card className='w-full max-w-md'>
+			<div className='flex min-h-screen items-center justify-center bg-background'>
+				<Card className='w-full max-w-md shadow-lg border-destructive/20'>
 					<CardHeader>
-						<CardTitle className='flex items-center gap-2 text-red-600'>
-							<AlertTriangle className='h-5 w-5' />
+						<CardTitle className='flex items-center gap-2 text-destructive'>
+							<div className='p-2 rounded-full bg-destructive/10 border border-destructive/20'>
+								<AlertTriangle className='h-5 w-5 text-destructive' />
+							</div>
 							Authorization Error
 						</CardTitle>
-						<CardDescription>There was a problem with your authorization request</CardDescription>
+						<CardDescription className='text-muted-foreground'>There was a problem with your authorization request</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<Alert className='border-red-200 bg-red-50'>
+						<Alert className='border-destructive/20 bg-destructive/5'>
 							<AlertTriangle className='h-4 w-4' />
-							<AlertDescription className='text-red-800'>{redirectError}</AlertDescription>
+							<AlertDescription className='text-destructive font-medium'>{redirectError}</AlertDescription>
 						</Alert>
-						<div className='mt-4 flex gap-2'>
+						<div className='mt-6 flex gap-3'>
 							<Button variant='outline' onClick={() => window.history.back()} className='flex-1'>
 								Go Back
 							</Button>
@@ -274,11 +307,11 @@ export default function OAuth2AuthorizePage() {
 
 	// Show authorization prompt
 	return (
-		<div className='flex min-h-screen items-center justify-center bg-gray-50'>
+		<div className='flex min-h-screen items-center justify-center bg-background'>
 			<Card className='w-full max-w-md shadow-lg'>
 				<CardHeader className='text-center'>
-					<div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100'>
-						<Shield className='h-6 w-6 text-blue-600' />
+					<div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 border border-primary/20'>
+						<Shield className='h-6 w-6 text-primary' />
 					</div>
 					<CardTitle className='text-xl'>Authorization Request</CardTitle>
 					<CardDescription>{authorizationDetails?.clientName || 'An application'} wants to access your account</CardDescription>
@@ -286,39 +319,39 @@ export default function OAuth2AuthorizePage() {
 
 				<CardContent className='space-y-6'>
 					{/* User Info */}
-					<div className='rounded-lg bg-gray-50 p-4'>
-						<p className='text-sm text-gray-600'>Signed in as</p>
-						<p className='font-medium'>{user?.email}</p>
+					<div className='rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4'>
+						<p className='text-sm text-emerald-700 dark:text-emerald-300 font-medium'>Signed in as</p>
+						<p className='font-semibold text-emerald-900 dark:text-emerald-100'>{user?.email}</p>
 					</div>
 
 					{/* Client Info */}
 					{authorizationDetails && (
 						<div className='space-y-4'>
 							<div>
-								<h3 className='font-medium mb-2'>Application Details</h3>
-								<div className='flex items-center gap-3 p-3 rounded-lg border'>
+								<h3 className='font-semibold mb-3 text-foreground'>Application Details</h3>
+								<div className='flex items-center gap-3 p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors'>
 									{authorizationDetails.clientLogo ? (
 										<Image src={authorizationDetails.clientLogo} alt={authorizationDetails.clientName || 'Client logo'} width={32} height={32} className='h-8 w-8 rounded' />
 									) : (
-										<div className='h-8 w-8 rounded bg-gray-200 flex items-center justify-center'>
-											<ExternalLink className='h-4 w-4 text-gray-500' />
+										<div className='h-8 w-8 rounded bg-muted flex items-center justify-center'>
+											<ExternalLink className='h-4 w-4 text-muted-foreground' />
 										</div>
 									)}
 									<div>
-										<p className='font-medium'>{authorizationDetails.clientName}</p>
-										<p className='text-sm text-gray-500'>OAuth2 Application</p>
+										<p className='font-semibold text-foreground'>{authorizationDetails.clientName}</p>
+										<p className='text-sm text-muted-foreground'>OAuth2 Application</p>
 									</div>
 								</div>
 							</div>
 
 							{/* Requested Permissions */}
 							<div>
-								<h3 className='font-medium mb-2'>Requested Permissions</h3>
+								<h3 className='font-semibold mb-3 text-foreground'>Requested Permissions</h3>
 								<div className='space-y-2'>
 									{authorizationDetails.requestedScopes.map((scope) => (
-										<div key={scope} className='flex items-center gap-2 text-sm'>
-											<CheckCircle className='h-4 w-4 text-green-500' />
-											<span>{scope}</span>
+										<div key={scope} className='flex items-center gap-3 text-sm bg-primary/5 border border-primary/20 rounded-lg p-3'>
+											<CheckCircle className='h-4 w-4 text-primary' />
+											<span className='text-foreground font-medium'>{scope}</span>
 										</div>
 									))}
 								</div>
@@ -328,8 +361,9 @@ export default function OAuth2AuthorizePage() {
 
 					{/* Redirect URI Info */}
 					{oauth2Params?.redirect_uri && (
-						<div className='text-xs text-gray-500 bg-gray-50 p-2 rounded'>
-							<p>Will redirect to: {oauth2Params.redirect_uri}</p>
+						<div className='text-xs text-muted-foreground bg-muted p-3 rounded-lg'>
+							<p className='font-medium text-foreground mb-1'>Will redirect to:</p>
+							<p className='text-muted-foreground break-all'>{oauth2Params.redirect_uri}</p>
 						</div>
 					)}
 
@@ -344,7 +378,13 @@ export default function OAuth2AuthorizePage() {
 					</div>
 
 					{/* Security Notice */}
-					<div className='text-xs text-gray-500 text-center'>By clicking Allow, you authorize this application to access your account information as specified above.</div>
+					<div className='text-xs text-muted-foreground text-center bg-muted rounded-lg p-3'>
+						<div className='flex items-center justify-center gap-2 mb-1'>
+							<Shield className='h-3 w-3 text-muted-foreground' />
+							<span className='font-medium text-foreground'>Security Notice</span>
+						</div>
+						By clicking Allow, you authorize this application to access your account information as specified above.
+					</div>
 				</CardContent>
 			</Card>
 		</div>
