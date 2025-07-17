@@ -420,3 +420,12 @@ export const updateClient = async (
   const response = await apiClient.put<ClientRegistrationResponse>(`${baseOauth2URL}/clients/${clientId}`, data);
   return response.data;
 };
+
+/**
+ * Delete an OAuth2 client
+ */
+export const deleteClient = withErrorHandling(
+  async (clientId: string): Promise<void> => {
+    await apiClient.delete(`${baseOauth2URL}/clients/${clientId}`);
+  }
+);

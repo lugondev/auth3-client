@@ -136,7 +136,7 @@ const OAuth2ClientDetailComponent: React.FC<OAuth2ClientDetailProps> = ({clientI
 				</div>
 				<div className='flex items-center space-x-2'>
 					<PermissionButton asChild variant='outline' permission='admin:oauth2:update'>
-						<Link href={`/dashboard/oauth2/${clientId}/edit`}>
+						<Link href={`/dashboard/admin/oauth2/${clientId}/edit`}>
 							<Settings className='mr-2 h-4 w-4' />
 							Edit Client
 						</Link>

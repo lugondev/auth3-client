@@ -57,6 +57,7 @@ interface SidebarProps {
 
 const userLinks: NavLink[] = [
 	{href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard},
+	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle},
 	{
 		href: '/dashboard/dids',
 		label: 'DIDs',
@@ -109,18 +110,7 @@ const userLinks: NavLink[] = [
 		label: 'Messages',
 		icon: Mail,
 	},
-	{
-		href: '/dashboard/oauth2',
-		label: 'OAuth2',
-		icon: Shield,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/oauth2', label: 'My Apps', icon: Eye},
-			{href: '/dashboard/oauth2/create', label: 'Create App', icon: Plus},
-			{href: '/dashboard/oauth2/advanced', label: 'Advanced', icon: Globe},
-		],
-	},
-	{href: '/dashboard/profile', label: 'Profile', icon: UserCircle},
+
 	{
 		href: '/dashboard/tenant-management',
 		label: 'My Organizations',
@@ -298,7 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 		if (link.href === '/dashboard/admin' && isSystemAdmin !== true) {
 			return 'Requires system administrator privileges'
 		}
-		
+
 		if (link.permission && !hasPermission(link.permission)) {
 			return `Requires permission: ${link.permission}`
 		}
@@ -314,7 +304,7 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 			return userLinks
 		}
 		if (type === 'tenant') {
-			// Legacy tenant type - deprecated, tenant now has separate space  
+			// Legacy tenant type - deprecated, tenant now has separate space
 			return userLinks
 		}
 		// Default to user links for 'user' type or undefined
@@ -356,146 +346,148 @@ const Sidebar: React.FC<SidebarProps> = ({type, initialWidth = 256, minWidth = 8
 				{' '}
 				{/* Added flex-grow and overflow for long lists */}
 				<ul>
-					{links.filter(link => hasAccess(link)).map((link, linkIndex) => {
-						const IconComponent = link.icon
-						const hasLinkAccess = hasAccess(link)
-						const tooltipMessage = getTooltipMessage(link)
-						const linkKey = link.href !== '#' ? link.href : `${link.label}-${linkIndex}`
+					{links
+						.filter((link) => hasAccess(link))
+						.map((link, linkIndex) => {
+							const IconComponent = link.icon
+							const hasLinkAccess = hasAccess(link)
+							const tooltipMessage = getTooltipMessage(link)
+							const linkKey = link.href !== '#' ? link.href : `${link.label}-${linkIndex}`
 
-						const linkContent = (
-							<ul>
-								{link.isCollapsible ? (
-									<li>
-										<button onClick={() => toggleMenu(linkKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasLinkAccess ? 'hover:bg-accent text-foreground' : 'text-muted-foreground cursor-not-allowed', (isLinkActive(link.href) || hasActiveChild(link)) && hasLinkAccess ? 'bg-accent font-medium' : '')} disabled={!hasLinkAccess}>
-											<div className='flex items-center space-x-3'>
-												{hasLinkAccess ? <IconComponent className={cn('h-5 w-5', isLinkActive(link.href) || hasActiveChild(link) ? 'text-primary' : '')} /> : <Lock className='h-5 w-5' />}
-												{!isCollapsed && <span>{link.label}</span>}
-											</div>
-											{hasLinkAccess && !isCollapsed && (openMenus[linkKey] ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
-										</button>
-										{openMenus[linkKey] && link.children && hasLinkAccess && !isCollapsed && (
-											<ul className='pl-4 mt-1'>
-												{link.children.map((childLink, childIndex) => {
-													const ChildIconComponent = childLink.icon
-													const hasChildAccess = hasAccess(childLink)
-													const childTooltipMessage = getTooltipMessage(childLink)
-													const childKey = childLink.href !== '#' ? childLink.href : `${childLink.label}-${childIndex}`
-													const submenuKey = `${linkKey}-${childKey}`
-													const isSubmenuOpen = openSubmenus[submenuKey]
-													const isChildActive = isLinkActive(childLink.href)
-													const hasChildActiveChild = childLink.children ? hasActiveChild(childLink) : false
+							const linkContent = (
+								<ul>
+									{link.isCollapsible ? (
+										<li>
+											<button onClick={() => toggleMenu(linkKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasLinkAccess ? 'hover:bg-accent text-foreground' : 'text-muted-foreground cursor-not-allowed', (isLinkActive(link.href) || hasActiveChild(link)) && hasLinkAccess ? 'bg-accent font-medium' : '')} disabled={!hasLinkAccess}>
+												<div className='flex items-center space-x-3'>
+													{hasLinkAccess ? <IconComponent className={cn('h-5 w-5', isLinkActive(link.href) || hasActiveChild(link) ? 'text-primary' : '')} /> : <Lock className='h-5 w-5' />}
+													{!isCollapsed && <span>{link.label}</span>}
+												</div>
+												{hasLinkAccess && !isCollapsed && (openMenus[linkKey] ? <ChevronDown className='h-5 w-5' /> : <ChevronRight className='h-5 w-5' />)}
+											</button>
+											{openMenus[linkKey] && link.children && hasLinkAccess && !isCollapsed && (
+												<ul className='pl-4 mt-1'>
+													{link.children.map((childLink, childIndex) => {
+														const ChildIconComponent = childLink.icon
+														const hasChildAccess = hasAccess(childLink)
+														const childTooltipMessage = getTooltipMessage(childLink)
+														const childKey = childLink.href !== '#' ? childLink.href : `${childLink.label}-${childIndex}`
+														const submenuKey = `${linkKey}-${childKey}`
+														const isSubmenuOpen = openSubmenus[submenuKey]
+														const isChildActive = isLinkActive(childLink.href)
+														const hasChildActiveChild = childLink.children ? hasActiveChild(childLink) : false
 
-													const childContent = (
-														<li>
-															{childLink.isCollapsible && childLink.children ? (
-																<div>
-																	<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasChildAccess ? 'hover:bg-muted text-foreground' : 'text-muted-foreground cursor-not-allowed', (isChildActive || hasChildActiveChild) && hasChildAccess ? 'bg-muted font-medium' : '')} disabled={!hasChildAccess}>
-																		<div className='flex items-center space-x-3'>
-																			{hasChildAccess ? <ChildIconComponent className={cn('h-5 w-5', isChildActive || hasChildActiveChild ? 'text-primary' : '')} /> : <Lock className='h-5 w-5' />}
-																			<span>{childLink.label}</span>
-																		</div>
-																		{hasChildAccess && (isSubmenuOpen ? <ChevronDown className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />)}
-																	</button>
-																	{isSubmenuOpen && childLink.children && hasChildAccess && (
-																		<ul className='pl-4 mt-1'>
-																			{childLink.children.map((grandchildLink, grandchildIndex) => {
-																				const GrandchildIconComponent = grandchildLink.icon
-																				const hasGrandchildAccess = hasAccess(grandchildLink)
-																				const grandchildTooltipMessage = getTooltipMessage(grandchildLink)
-																				const grandchildKey = grandchildLink.href !== '#' ? grandchildLink.href : `${grandchildLink.label}-${grandchildIndex}`
-																				const isGrandchildActive = isLinkActive(grandchildLink.href)
+														const childContent = (
+															<li>
+																{childLink.isCollapsible && childLink.children ? (
+																	<div>
+																		<button onClick={() => toggleSubmenu(submenuKey)} className={cn('flex items-center justify-between w-full space-x-3 py-2 px-3 rounded focus:outline-none transition-colors duration-200', hasChildAccess ? 'hover:bg-muted text-foreground' : 'text-muted-foreground cursor-not-allowed', (isChildActive || hasChildActiveChild) && hasChildAccess ? 'bg-muted font-medium' : '')} disabled={!hasChildAccess}>
+																			<div className='flex items-center space-x-3'>
+																				{hasChildAccess ? <ChildIconComponent className={cn('h-5 w-5', isChildActive || hasChildActiveChild ? 'text-primary' : '')} /> : <Lock className='h-5 w-5' />}
+																				<span>{childLink.label}</span>
+																			</div>
+																			{hasChildAccess && (isSubmenuOpen ? <ChevronDown className='h-4 w-4' /> : <ChevronRight className='h-4 w-4' />)}
+																		</button>
+																		{isSubmenuOpen && childLink.children && hasChildAccess && (
+																			<ul className='pl-4 mt-1'>
+																				{childLink.children.map((grandchildLink, grandchildIndex) => {
+																					const GrandchildIconComponent = grandchildLink.icon
+																					const hasGrandchildAccess = hasAccess(grandchildLink)
+																					const grandchildTooltipMessage = getTooltipMessage(grandchildLink)
+																					const grandchildKey = grandchildLink.href !== '#' ? grandchildLink.href : `${grandchildLink.label}-${grandchildIndex}`
+																					const isGrandchildActive = isLinkActive(grandchildLink.href)
 
-																				const grandchildContent = (
-																					<li>
-																						{hasGrandchildAccess ? (
-																							<Link href={grandchildLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground text-sm transition-colors duration-200', isGrandchildActive ? 'bg-accent font-medium' : '')}>
-																								<GrandchildIconComponent className={cn('h-4 w-4', isGrandchildActive ? 'text-primary' : '')} />
-																								<span>{grandchildLink.label}</span>
-																							</Link>
-																						) : (
-																							<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed text-sm'>
-																								<Lock className='h-4 w-4' />
-																								<span>{grandchildLink.label}</span>
-																							</div>
-																						)}
-																					</li>
-																				)
+																					const grandchildContent = (
+																						<li>
+																							{hasGrandchildAccess ? (
+																								<Link href={grandchildLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground text-sm transition-colors duration-200', isGrandchildActive ? 'bg-accent font-medium' : '')}>
+																									<GrandchildIconComponent className={cn('h-4 w-4', isGrandchildActive ? 'text-primary' : '')} />
+																									<span>{grandchildLink.label}</span>
+																								</Link>
+																							) : (
+																								<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed text-sm'>
+																									<Lock className='h-4 w-4' />
+																									<span>{grandchildLink.label}</span>
+																								</div>
+																							)}
+																						</li>
+																					)
 
-																				return grandchildTooltipMessage ? (
-																					<Tooltip key={grandchildKey}>
-																						<TooltipTrigger asChild>{grandchildContent}</TooltipTrigger>
-																						<TooltipContent>
-																							<p>{grandchildTooltipMessage}</p>
-																						</TooltipContent>
-																					</Tooltip>
-																				) : (
-																					<React.Fragment key={grandchildKey}>{grandchildContent}</React.Fragment>
-																				)
-																			})}
-																		</ul>
-																	)}
-																</div>
-															) : hasChildAccess ? (
-																<Link href={childLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground transition-colors duration-200', isChildActive ? 'bg-accent font-medium' : '')}>
-																	<ChildIconComponent className={cn('h-5 w-5', isChildActive ? 'text-primary' : '')} />
-																	<span>{childLink.label}</span>
-																</Link>
-															) : (
-																<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed'>
-																	<Lock className='h-5 w-5' />
-																	<span>{childLink.label}</span>
-																</div>
-															)}
-														</li>
-													)
+																					return grandchildTooltipMessage ? (
+																						<Tooltip key={grandchildKey}>
+																							<TooltipTrigger asChild>{grandchildContent}</TooltipTrigger>
+																							<TooltipContent>
+																								<p>{grandchildTooltipMessage}</p>
+																							</TooltipContent>
+																						</Tooltip>
+																					) : (
+																						<React.Fragment key={grandchildKey}>{grandchildContent}</React.Fragment>
+																					)
+																				})}
+																			</ul>
+																		)}
+																	</div>
+																) : hasChildAccess ? (
+																	<Link href={childLink.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground transition-colors duration-200', isChildActive ? 'bg-accent font-medium' : '')}>
+																		<ChildIconComponent className={cn('h-5 w-5', isChildActive ? 'text-primary' : '')} />
+																		<span>{childLink.label}</span>
+																	</Link>
+																) : (
+																	<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed'>
+																		<Lock className='h-5 w-5' />
+																		<span>{childLink.label}</span>
+																	</div>
+																)}
+															</li>
+														)
 
-													return childTooltipMessage ? (
-														<Tooltip key={childKey}>
-															<TooltipTrigger asChild>{childContent}</TooltipTrigger>
-															<TooltipContent>
-																<p>{childTooltipMessage}</p>
-															</TooltipContent>
-														</Tooltip>
-													) : (
-														<React.Fragment key={childKey}>{childContent}</React.Fragment>
-													)
-												})}
-											</ul>
-										)}
-									</li>
-								) : (
-									<li>
-										{hasLinkAccess ? (
-											<Link href={link.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground transition-colors duration-200', isLinkActive(link.href) ? 'bg-accent font-medium' : '')}>
-												<IconComponent className={cn('h-5 w-5', isLinkActive(link.href) ? 'text-primary' : '')} />
-												{!isCollapsed && <span>{link.label}</span>}
-											</Link>
-										) : (
-											<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed'>
-												<Lock className='h-5 w-5' />
-												{!isCollapsed && <span>{link.label}</span>}
-											</div>
-										)}
-									</li>
-								)}
-							</ul>
-						)
+														return childTooltipMessage ? (
+															<Tooltip key={childKey}>
+																<TooltipTrigger asChild>{childContent}</TooltipTrigger>
+																<TooltipContent>
+																	<p>{childTooltipMessage}</p>
+																</TooltipContent>
+															</Tooltip>
+														) : (
+															<React.Fragment key={childKey}>{childContent}</React.Fragment>
+														)
+													})}
+												</ul>
+											)}
+										</li>
+									) : (
+										<li>
+											{hasLinkAccess ? (
+												<Link href={link.href} className={cn('flex items-center space-x-3 py-2 px-3 hover:bg-accent rounded text-foreground transition-colors duration-200', isLinkActive(link.href) ? 'bg-accent font-medium' : '')}>
+													<IconComponent className={cn('h-5 w-5', isLinkActive(link.href) ? 'text-primary' : '')} />
+													{!isCollapsed && <span>{link.label}</span>}
+												</Link>
+											) : (
+												<div className='flex items-center space-x-3 py-2 px-3 text-muted-foreground cursor-not-allowed'>
+													<Lock className='h-5 w-5' />
+													{!isCollapsed && <span>{link.label}</span>}
+												</div>
+											)}
+										</li>
+									)}
+								</ul>
+							)
 
-						// Wrap with tooltip if access is denied or if collapsed
-						const shouldShowTooltip = tooltipMessage || isCollapsed
-						const tooltipText = tooltipMessage || (isCollapsed ? link.label : '')
+							// Wrap with tooltip if access is denied or if collapsed
+							const shouldShowTooltip = tooltipMessage || isCollapsed
+							const tooltipText = tooltipMessage || (isCollapsed ? link.label : '')
 
-						return shouldShowTooltip ? (
-							<Tooltip key={linkKey}>
-								<TooltipTrigger asChild>{linkContent}</TooltipTrigger>
-								<TooltipContent>
-									<p>{tooltipText}</p>
-								</TooltipContent>
-							</Tooltip>
-						) : (
-							<React.Fragment key={linkKey}>{linkContent}</React.Fragment>
-						)
-					})}
+							return shouldShowTooltip ? (
+								<Tooltip key={linkKey}>
+									<TooltipTrigger asChild>{linkContent}</TooltipTrigger>
+									<TooltipContent>
+										<p>{tooltipText}</p>
+									</TooltipContent>
+								</Tooltip>
+							) : (
+								<React.Fragment key={linkKey}>{linkContent}</React.Fragment>
+							)
+						})}
 				</ul>
 			</nav>
 		</aside>
