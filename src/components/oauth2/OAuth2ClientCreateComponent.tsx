@@ -31,6 +31,7 @@ const OAuth2ClientCreateComponent: React.FC = () => {
 		policy_uri: '',
 		token_endpoint_auth_method: '',
 		contacts: [],
+		is_qr_code_enabled: true,
 	})
 	const [createError, setCreateError] = useState<string | null>(null)
 	const [isLoading, setIsLoading] = useState(false)

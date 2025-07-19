@@ -1,7 +1,7 @@
 'use client'
 
 import React, {useState, useEffect} from 'react'
-import {ClientRegistrationResponse, ClientRegistrationRequest} from '@/types/oauth2'
+import {ClientInfo, ClientRegistrationRequest} from '@/types/oauth2'
 import {Form} from '@/components/ui/form'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Alert, AlertDescription} from '@/components/ui/alert'
@@ -11,7 +11,7 @@ import OAuth2ClientForm from '@/components/oauth2/OAuth2ClientForm'
 import {getClient, updateClient} from '@/services/oauth2Service'
 
 const OAuth2ClientEditPage: React.FC = () => {
-	const [client, setClient] = useState<ClientRegistrationResponse | null>(null)
+	const [client, setClient] = useState<ClientInfo | null>(null)
 	const [clientData, setClientData] = useState<ClientRegistrationRequest>({
 		name: '',
 		description: '',
@@ -25,6 +25,7 @@ const OAuth2ClientEditPage: React.FC = () => {
 		policy_uri: '',
 		token_endpoint_auth_method: '',
 		contacts: [],
+		is_qr_code_enabled: true,
 	})
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -51,7 +52,7 @@ const OAuth2ClientEditPage: React.FC = () => {
 					description: clientResponse.description || '',
 					redirect_uris: clientResponse.redirect_uris,
 					grant_types: clientResponse.grant_types,
-					response_types: clientResponse.response_types,
+					response_types: clientResponse.response_types || [],
 					scopes: clientResponse.scopes,
 					client_uri: clientResponse.client_uri || '',
 					logo_uri: clientResponse.logo_uri || '',
@@ -59,6 +60,7 @@ const OAuth2ClientEditPage: React.FC = () => {
 					policy_uri: clientResponse.policy_uri || '',
 					token_endpoint_auth_method: clientResponse.token_endpoint_auth_method || '',
 					contacts: clientResponse.contacts || [],
+					is_qr_code_enabled: clientResponse.is_qr_code_enabled ?? true,
 				})
 				setLoading(false)
 			} catch (err: unknown) {

@@ -568,14 +568,16 @@ export default function ProfilePage() {
 	const [isAvatarHovered, setIsAvatarHovered] = useState(false)
 	const fileInputRef = useRef<HTMLInputElement>(null)
 	const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
+	const hasFetchedRef = useRef(false) // Track if we've already fetched data
 
 	// Fetch data on mount - Use cached data from AuthContext when possible
 	useEffect(() => {
 		const fetchData = async () => {
-			if (!authLoading && authUser) {
+			if (!authLoading && authUser && !hasFetchedRef.current) {
 				try {
 					setLoading(true)
 					setError(null)
+					hasFetchedRef.current = true // Mark as fetched
 
 					// Check if we already have user data from AuthContext that includes profile
 					if (authUser && typeof authUser === 'object' && 'profile' in authUser) {
@@ -600,6 +602,7 @@ export default function ProfilePage() {
 					}
 					setError(message)
 					toast.error(message) // Show toast on fetch error
+					hasFetchedRef.current = false // Reset on error to allow retry
 				} finally {
 					setLoading(false)
 				}
@@ -608,8 +611,9 @@ export default function ProfilePage() {
 				setLoading(false)
 			}
 		}
+
 		fetchData()
-	}, [authUser, authLoading])
+	}, [authUser, authLoading]) // Keep original dependencies but use ref to prevent re-fetch
 
 	const isLoading = loading || authLoading
 

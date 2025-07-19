@@ -9,7 +9,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog'
-import {Edit, Trash2, Key, Globe, Lock, Unlock, Calendar, Plus, Eye} from 'lucide-react'
+import {Edit, Trash2, Key, Globe, Lock, Unlock, Calendar, Plus, Eye, QrCode} from 'lucide-react'
 import {PermissionButton} from '@/components/guards'
 import {PermissionTooltip} from '@/components/permissions'
 
@@ -162,6 +162,10 @@ const OAuth2ClientListComponent: React.FC = () => {
 									<div className='flex flex-col gap-1'>
 										<Badge variant={client.is_public ? 'secondary' : 'outline'} className='text-xs'>
 											{client.is_public ? [<Unlock key='icon' className='mr-1 h-3 w-3' />, 'Public'] : [<Lock key='icon' className='mr-1 h-3 w-3' />, 'Private']}
+										</Badge>
+										<Badge variant={client.is_qr_code_enabled ? 'default' : 'secondary'} className='text-xs'>
+											<QrCode className='mr-1 h-3 w-3' />
+											{client.is_qr_code_enabled ? 'QR' : 'No QR'}
 										</Badge>
 									</div>
 								</div>

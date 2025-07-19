@@ -36,6 +36,14 @@ import {
 
 const quickActions = [
 	{
+		title: 'QR Code Scanner',
+		description: 'Scan QR codes to approve login requests',
+		href: '/qr-scanner',
+		icon: Smartphone,
+		color: 'text-blue-600',
+		roles: ['user', 'admin', 'system_admin'],
+	},
+	{
 		title: 'Tenant Management',
 		description: 'Create and manage your organizations',
 		href: '/dashboard/admin/tenants',

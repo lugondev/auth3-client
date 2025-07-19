@@ -9,8 +9,7 @@ import {Card, CardHeader, CardTitle, CardDescription, CardContent} from '@/compo
 import {Button} from '@/components/ui/button'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {AlertTriangle} from 'lucide-react'
-import {getClient} from '@/services/oauth2Service'
-import {ConsentDetails, ConsentRequest} from '@/types/oauth2-consent'
+import {getClient, processConsent, type ConsentRequest, type ConsentDetails} from '@/services/oauth2Service'
 
 function ConsentPageContent() {
 	const {isAuthenticated, loading} = useAuth()
@@ -40,6 +39,8 @@ function ConsentPageContent() {
 				const redirectUri = searchParams.get('redirect_uri')
 				const state = searchParams.get('state')
 				const responseType = searchParams.get('response_type')
+				const codeChallenge = searchParams.get('code_challenge')
+				const codeChallengeMethod = searchParams.get('code_challenge_method')
 
 				if (!clientId || !scope || !redirectUri) {
 					setError('Missing required OAuth2 parameters')
@@ -49,7 +50,7 @@ function ConsentPageContent() {
 				// Get client details
 				const client = await getClient(clientId)
 
-				setConsentDetails({
+				const details: ConsentDetails = {
 					clientId,
 					clientName: client.name || clientId,
 					clientLogoUri: client.logo_uri,
@@ -57,9 +58,11 @@ function ConsentPageContent() {
 					redirectUri,
 					state: state || '',
 					responseType: responseType || 'code',
-					codeChallenge: searchParams.get('code_challenge') || undefined,
-					codeChallengeMethod: searchParams.get('code_challenge_method') || undefined,
-				})
+					codeChallenge: codeChallenge || undefined,
+					codeChallengeMethod: codeChallengeMethod || undefined,
+				}
+
+				setConsentDetails(details)
 			} catch (error) {
 				console.error('Failed to load consent details:', error)
 				setError('Failed to load application details')
@@ -87,75 +90,43 @@ function ConsentPageContent() {
 				code_challenge_method: consentDetails.codeChallengeMethod,
 			}
 
-			const response = await fetch('http://localhost:8080/api/v1/oauth2/consent', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${localStorage.getItem('global_accessToken')}`,
-				},
-				body: JSON.stringify(consentRequest),
-			})
+			const result = await processConsent(consentRequest)
 
-			// Handle both redirect and JSON responses
-			if (response.status === 302) {
-				// Server returned redirect, follow it
-				const location = response.headers.get('location')
-				if (location) {
-					window.location.href = location
-				} else {
-					// Fallback: redirect manually based on action
-					const redirectUrl = new URL(consentDetails.redirectUri)
-					if (action === 'deny') {
-						redirectUrl.searchParams.set('error', 'access_denied')
-						redirectUrl.searchParams.set('error_description', 'User denied authorization')
-					}
-					if (consentDetails.state) {
-						redirectUrl.searchParams.set('state', consentDetails.state)
-					}
-					window.location.href = redirectUrl.toString()
-				}
+			// Check if server provided redirect_url (our new approach)
+			if (result.redirect_url) {
+				window.location.href = result.redirect_url
 				return
 			}
 
-			if (response.ok) {
-				// For successful responses, get JSON response
-				try {
-					const result = await response.json()
-
-					// Check if server provided redirect_url (our new approach)
-					if (result.redirect_url) {
-						window.location.href = result.redirect_url
-						return
-					}
-
-					// Fallback: build redirect URL manually (legacy)
-					if (result.code) {
-						// Authorization successful, redirect with code
-						const redirectUrl = new URL(consentDetails.redirectUri)
-						redirectUrl.searchParams.set('code', result.code)
-						if (result.state || consentDetails.state) {
-							redirectUrl.searchParams.set('state', result.state || consentDetails.state)
-						}
-						window.location.href = redirectUrl.toString()
-					} else if (result.error) {
-						// Error in response
-						const redirectUrl = new URL(consentDetails.redirectUri)
-						redirectUrl.searchParams.set('error', result.error)
-						if (result.error_description) {
-							redirectUrl.searchParams.set('error_description', result.error_description)
-						}
-						if (consentDetails.state) {
-							redirectUrl.searchParams.set('state', consentDetails.state)
-						}
-						window.location.href = redirectUrl.toString()
-					}
-				} catch (parseError) {
-					console.error('Failed to parse response:', parseError)
-					setError('Failed to process consent response')
+			// Fallback: build redirect URL manually (legacy)
+			if (result.code) {
+				// Authorization successful, redirect with code
+				const redirectUrl = new URL(consentDetails.redirectUri)
+				redirectUrl.searchParams.set('code', result.code)
+				if (result.state || consentDetails.state) {
+					redirectUrl.searchParams.set('state', result.state || consentDetails.state)
 				}
-			} else {
-				const errorData = await response.text()
-				throw new Error(errorData || 'Consent processing failed')
+				window.location.href = redirectUrl.toString()
+			} else if (result.error) {
+				// Error in response
+				const redirectUrl = new URL(consentDetails.redirectUri)
+				redirectUrl.searchParams.set('error', result.error)
+				if (result.error_description) {
+					redirectUrl.searchParams.set('error_description', result.error_description)
+				}
+				if (consentDetails.state) {
+					redirectUrl.searchParams.set('state', consentDetails.state)
+				}
+				window.location.href = redirectUrl.toString()
+			} else if (action === 'deny') {
+				// Manual fallback for deny action
+				const redirectUrl = new URL(consentDetails.redirectUri)
+				redirectUrl.searchParams.set('error', 'access_denied')
+				redirectUrl.searchParams.set('error_description', 'User denied authorization')
+				if (consentDetails.state) {
+					redirectUrl.searchParams.set('state', consentDetails.state)
+				}
+				window.location.href = redirectUrl.toString()
 			}
 		} catch (error) {
 			console.error('Consent error:', error)

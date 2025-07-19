@@ -29,6 +29,7 @@ export interface ClientRegistrationRequest {
 	default_acr_values?: string[];
 	initiate_login_uri?: string;
 	request_uris?: string[];
+	is_qr_code_enabled?: boolean;
 }
 
 export interface ClientRegistrationResponse {
@@ -69,6 +70,7 @@ export interface ClientRegistrationResponse {
 	default_acr_values?: string[];
 	initiate_login_uri?: string;
 	request_uris?: string[];
+	is_qr_code_enabled?: boolean;
 }
 
 export interface ClientInfo {
@@ -91,6 +93,7 @@ export interface ClientInfo {
 	subject_type?: string;
 	additional_parameters: Record<string, unknown> | null;
 	is_public: boolean;
+	is_qr_code_enabled?: boolean;
 	created_at: string;
 }
 

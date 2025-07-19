@@ -6,7 +6,8 @@ import {Label} from '@/components/ui/label'
 import {Button} from '@/components/ui/button'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
-import {X, Upload, Image} from 'lucide-react'
+import {Switch} from '@/components/ui/switch'
+import {X, Upload, Image, QrCode} from 'lucide-react'
 import {ClientRegistrationRequest} from '@/types/oauth2'
 import {uploadOAuth2Logo} from '@/services/uploadService'
 
@@ -266,6 +267,25 @@ const OAuth2ClientForm: React.FC<OAuth2ClientFormProps> = ({clientData, onSubmit
 				<div className='space-y-2'>
 					<Label htmlFor='token_endpoint_auth_method'>Token Endpoint Auth Method:</Label>
 					<Input type='text' id='token_endpoint_auth_method' name='token_endpoint_auth_method' value={clientData.token_endpoint_auth_method} onChange={onChange} placeholder='client_secret_basic, client_secret_post, none' />
+				</div>
+
+				<div className='flex items-center justify-between p-4 border border-input rounded-md bg-muted/50'>
+					<div className='flex items-center space-x-3'>
+						<QrCode className='h-5 w-5 text-muted-foreground' />
+						<div>
+							<Label htmlFor='is_qr_code_enabled' className='text-sm font-medium'>
+								Enable QR Code Authentication
+							</Label>
+							<p className='text-xs text-muted-foreground'>
+								Allow users to authenticate using QR codes for this OAuth2 client
+							</p>
+						</div>
+					</div>
+					<Switch
+						id='is_qr_code_enabled'
+						checked={clientData.is_qr_code_enabled ?? true}
+						onCheckedChange={(checked) => onDataChange({is_qr_code_enabled: checked})}
+					/>
 				</div>
 
 				<LineTagInput label='Contacts' tags={clientData.contacts || []} onTagsChange={(contacts) => onDataChange({contacts})} placeholder='admin@example.com' />

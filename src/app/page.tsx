@@ -139,6 +139,30 @@ export default function Home() {
 							</Button>
 						</CardContent>
 					</Card>
+
+					<Card className='group border-2 border-blue-200 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:shadow-lg hover:shadow-blue-100 dark:hover:shadow-blue-900/20 bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 dark:from-blue-950/50 dark:via-indigo-950/50 dark:to-cyan-950/50 backdrop-blur-sm'>
+						<CardHeader className='text-center pb-4'>
+							<div className='h-12 w-12 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300'>
+								<div className='text-2xl'>📱</div>
+							</div>
+							<CardTitle className='text-blue-800 dark:text-blue-200'>QR Login Demo</CardTitle>
+							<CardDescription className='text-blue-700 dark:text-blue-300'>
+								Experience QR code authentication flow
+							</CardDescription>
+						</CardHeader>
+						<CardContent className='space-y-2'>
+							<Button asChild className='w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg'>
+								<Link href='/demo/qr-login'>
+									Web QR Demo
+								</Link>
+							</Button>
+							<Button asChild variant='outline' size='sm' className='w-full border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30'>
+								<Link href='/qr-scan' target='_blank'>
+									📱 Mobile Scanner
+								</Link>
+							</Button>
+						</CardContent>
+					</Card>
 				</div>
 
 				{/* Login Section */}

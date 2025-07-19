@@ -9,7 +9,7 @@ import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Badge} from '@/components/ui/badge'
 import {Separator} from '@/components/ui/separator'
-import {ArrowLeft, Key, Globe, Lock, Unlock, Calendar, Copy, CheckCircle, Eye, ExternalLink, Shield, Users, Settings} from 'lucide-react'
+import {ArrowLeft, Key, Globe, Lock, Unlock, Calendar, Copy, CheckCircle, Eye, ExternalLink, Shield, Users, Settings, QrCode} from 'lucide-react'
 import {PermissionButton} from '@/components/guards'
 import Link from 'next/link'
 
@@ -207,7 +207,7 @@ const OAuth2ClientDetailComponent: React.FC<OAuth2ClientDetailProps> = ({clientI
 						</div>
 					</div>
 
-					<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+					<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
 						<div>
 							<label className='text-sm font-medium text-muted-foreground'>Client Type</label>
 							<div className='mt-1'>
@@ -223,6 +223,15 @@ const OAuth2ClientDetailComponent: React.FC<OAuth2ClientDetailProps> = ({clientI
 											Confidential Client
 										</>
 									)}
+								</Badge>
+							</div>
+						</div>
+						<div>
+							<label className='text-sm font-medium text-muted-foreground'>QR Code Authentication</label>
+							<div className='mt-1'>
+								<Badge variant={client.is_qr_code_enabled ? 'default' : 'secondary'}>
+									<QrCode className='mr-1 h-3 w-3' />
+									{client.is_qr_code_enabled ? 'Enabled' : 'Disabled'}
 								</Badge>
 							</div>
 						</div>

@@ -9,6 +9,7 @@ import {Button} from '@/components/ui/button'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Shield, AlertTriangle, ExternalLink, CheckCircle} from 'lucide-react'
 import Image from 'next/image'
+import {getClient, authorizeOAuth2, type AuthorizeRequest} from '@/services/oauth2Service'
 
 interface AuthorizationDetails {
 	clientName?: string
@@ -55,25 +56,12 @@ export default function OAuth2AuthorizePage() {
 		// Load client details
 		const loadClientDetails = async () => {
 			try {
-				const response = await fetch(`http://localhost:8080/api/v1/oauth2/clients/${oauth2Params.client_id}`, {
-					headers: {
-						'Authorization': `Bearer ${localStorage.getItem('global_accessToken') || localStorage.getItem('tenant_accessToken')}`,
-						'Content-Type': 'application/json',
-					},
+				const client = await getClient(oauth2Params.client_id)
+				setAuthorizationDetails({
+					clientName: client.name || oauth2Params.client_id,
+					requestedScopes: scopes,
+					clientLogo: client.logo_uri,
 				})
-				if (response.ok) {
-					const client = await response.json()
-					setAuthorizationDetails({
-						clientName: client.name || oauth2Params.client_id,
-						requestedScopes: scopes,
-						clientLogo: client.logo_uri,
-					})
-				} else {
-					setAuthorizationDetails({
-						clientName: oauth2Params.client_id,
-						requestedScopes: scopes,
-					})
-				}
 			} catch (error) {
 				console.error('Failed to load client details:', error)
 				setAuthorizationDetails({
@@ -97,31 +85,19 @@ export default function OAuth2AuthorizePage() {
 		setRedirectError(null)
 
 		try {
-			// Call backend authorization endpoint directly
-			const response = await fetch('http://localhost:8080/api/v1/oauth2/authorize', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${localStorage.getItem('global_accessToken')}`,
-					'Accept': 'application/json',
-				},
-				body: JSON.stringify({
-					response_type: oauth2Params.response_type || 'code',
-					client_id: oauth2Params.client_id,
-					redirect_uri: oauth2Params.redirect_uri,
-					scope: oauth2Params.scope || 'openid profile email',
-					state: oauth2Params.state,
-					code_challenge: oauth2Params.code_challenge,
-					code_challenge_method: oauth2Params.code_challenge_method,
-					nonce: oauth2Params.nonce,
-				}),
-			})
-
-			const result = await response.json()
-
-			if (!response.ok) {
-				throw new Error(result.message || 'Authorization failed')
+			// Call backend authorization endpoint using service
+			const authRequest: AuthorizeRequest = {
+				response_type: oauth2Params.response_type || 'code',
+				client_id: oauth2Params.client_id,
+				redirect_uri: oauth2Params.redirect_uri,
+				scope: oauth2Params.scope || 'openid profile email',
+				state: oauth2Params.state,
+				code_challenge: oauth2Params.code_challenge,
+				code_challenge_method: oauth2Params.code_challenge_method,
+				nonce: oauth2Params.nonce,
 			}
+
+			const result = await authorizeOAuth2(authRequest)
 
 			// Check if consent is required
 			if (result.consent_required) {
@@ -147,6 +123,8 @@ export default function OAuth2AuthorizePage() {
 				}
 
 				window.location.href = redirectUrl.toString()
+			} else if (result.error) {
+				throw new Error(result.error_description || result.error || 'Authorization failed')
 			} else {
 				throw new Error('No authorization code received')
 			}

@@ -5,7 +5,9 @@ import { rateLimiter, RATE_LIMIT_CONFIGS, isRateLimitError } from './rateLimiter
 import { tokenManager } from './token-storage'
 import { contextManager } from './context-manager'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL!
+console.log(`🔗 API Base URL: ${API_BASE_URL}`);
+
 
 // Permission API endpoints that need CSRF protection
 const PERMISSION_ENDPOINTS = [
@@ -51,7 +53,7 @@ class ApiClient {
 				'Content-Type': 'application/json',
 				'X-Request-ID': generateUUID(),
 			},
-			withCredentials: true,
+			withCredentials: false, // Disable credentials to avoid CORS issues
 		})
 
 		this.setupInterceptors()

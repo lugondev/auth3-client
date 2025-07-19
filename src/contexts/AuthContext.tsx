@@ -15,7 +15,6 @@ import {multiTenantTokenManager} from '@/lib/multi-tenant-token-manager'
 import {contextManager} from '@/lib/context-manager'
 import {decodeJwt} from '@/lib/jwt'
 import {clearPermissionsCache} from '@/services/permissionService'
-import {logTokenDebugInfo} from '@/lib/token-debug'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
@@ -81,6 +80,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	// Debounce refs to prevent multiple simultaneous calls
 	const adminCheckInProgress = useRef(false)
 	const authCheckInProgress = useRef(false)
+	const hasInitialAuthCheck = useRef(false) // Track if initial auth check is done
 
 	// Dual context state
 	const [currentMode, setCurrentMode] = useState<ContextMode>('global')
@@ -359,11 +359,24 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				}
 			}
 
-			if (appUser && scheduleTokenRefreshRef.current) {
-				scheduleTokenRefreshRef.current(authResult.refresh_token || authResult.access_token)
-			}
+			// Return the new access token for external scheduling
+			return authResult.access_token
 		},
 		[currentMode, checkSystemAdminStatus, updateContextState, router],
+	)
+
+	// Public wrapper that matches the interface (returns void)
+	const handleAuthSuccess = useCallback(
+		async (authResult: AuthResult, preserveContext = false) => {
+			const newAccessToken = await handleAuthSuccessInternal(authResult, preserveContext)
+			
+			// Schedule refresh for new logins (not for refreshes)
+			if (newAccessToken && scheduleTokenRefreshRef.current) {
+				console.log('📅 Scheduling token refresh for new authentication')
+				scheduleTokenRefreshRef.current(newAccessToken)
+			}
+		},
+		[handleAuthSuccessInternal],
 	)
 
 	// Context switching methods
@@ -617,21 +630,28 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	// Token refresh logic
 	const handleScheduledRefreshInternal = useCallback(async () => {
-		console.log('Attempting scheduled token refresh (internal)...')
+		console.log('🔄 Attempting scheduled token refresh (internal)...')
 		const currentTokens = tokenManager.getTokens(currentMode)
 
 		if (!currentTokens.refreshToken) {
-			console.log('No refresh token available for scheduled refresh.')
+			console.log('❌ No refresh token available for scheduled refresh.')
 			await clearAuthData()
 			return
 		}
 
 		try {
 			const refreshResponse = await serviceRefreshToken(currentTokens.refreshToken)
-			await handleAuthSuccessInternal(refreshResponse.auth, true) // Preserve current context
-			console.log('Scheduled token refresh successful.')
+			// Handle the auth success and get the new token for rescheduling
+			const newAccessToken = await handleAuthSuccessInternal(refreshResponse.auth, true) // preserveContext=true
+			console.log('✅ Scheduled token refresh successful.')
+			
+			// Schedule the next refresh for the new token
+			if (newAccessToken && scheduleTokenRefreshRef.current) {
+				console.log('📅 Scheduling next token refresh for refreshed token')
+				scheduleTokenRefreshRef.current(newAccessToken)
+			}
 		} catch (error) {
-			console.error('Scheduled token refresh failed:', error)
+			console.error('❌ Scheduled token refresh failed:', error)
 			toast.error('Session expired. Please log in again.')
 			await clearAuthData()
 		}
@@ -760,16 +780,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			setLoading(false)
 			setIsInitialLoad(false)
 			authCheckInProgress.current = false
+			hasInitialAuthCheck.current = true // Mark initial check as done
 		}
-	}, [currentMode, handleAuthSuccessInternal, clearAuthData, checkSystemAdminStatus, updateContextState])
+	}, [currentMode, handleAuthSuccessInternal, clearAuthData, checkSystemAdminStatus, updateContextState]) // Keep original dependencies
 
 	// Check auth status only after context mode is initialized
 	useEffect(() => {
-		// Only check auth status after initial context mode is set
-		if (currentMode) {
+		// Only check auth status after initial context mode is set and not already checked
+		if (currentMode && !hasInitialAuthCheck.current && !authCheckInProgress.current) {
+			console.log('🔄 Initial auth check for mode:', currentMode)
 			checkAuthStatus()
 		}
-	}, [checkAuthStatus, currentMode])
+	}, [checkAuthStatus, currentMode]) // Keep checkAuthStatus but use ref to control execution
 
 	// Listen for storage changes to detect token updates from other tabs or after login
 	useEffect(() => {
@@ -834,7 +856,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'google', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccessInternal(response.auth)
+			await handleAuthSuccess(response.auth)
 			toast.success('Successfully signed in with Google!')
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Google sign-in failed.'
@@ -843,7 +865,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [handleAuthSuccessInternal])
+	}, [handleAuthSuccess])
 
 	const signInWithFacebook = useCallback(async () => {
 		setLoading(true)
@@ -853,7 +875,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'facebook', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccessInternal(response.auth)
+			await handleAuthSuccess(response.auth)
 			toast.success('Successfully signed in with Facebook!')
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Facebook sign-in failed.'
@@ -862,7 +884,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [handleAuthSuccessInternal])
+	}, [handleAuthSuccess])
 
 	const signInWithApple = useCallback(async () => {
 		setLoading(true)
@@ -872,7 +894,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'apple', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccessInternal(response.auth)
+			await handleAuthSuccess(response.auth)
 			toast.success('Successfully signed in with Apple!')
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Apple sign-in failed.'
@@ -881,7 +903,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [handleAuthSuccessInternal])
+	}, [handleAuthSuccess])
 
 	const signInWithTwitter = useCallback(async () => {
 		setLoading(true)
@@ -891,7 +913,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'twitter', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccessInternal(response.auth)
+			await handleAuthSuccess(response.auth)
 			toast.success('Successfully signed in with Twitter!')
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Twitter sign-in failed.'
@@ -900,7 +922,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [handleAuthSuccessInternal])
+	}, [handleAuthSuccess])
 
 	const signInWithEmail = useCallback(
 		async (data: LoginInput) => {
@@ -913,7 +935,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					setLoading(false)
 					return {success: true, twoFactorRequired: true, sessionToken: response.two_factor_session_token}
 				} else if (response.auth) {
-					await handleAuthSuccessInternal(response.auth)
+					await handleAuthSuccess(response.auth)
 					toast.success('Successfully signed in!')
 					return {success: true, twoFactorRequired: false}
 				} else {
@@ -926,7 +948,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				return {success: false, twoFactorRequired: false, error}
 			}
 		},
-		[handleAuthSuccessInternal],
+		[handleAuthSuccess],
 	)
 
 	const verifyTwoFactorCode = useCallback(
@@ -938,7 +960,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				}
 				const response = await verifyTwoFactorLogin({...data, two_factor_session_token: twoFactorSessionToken})
 				if (response.auth) {
-					await handleAuthSuccessInternal(response.auth)
+					await handleAuthSuccess(response.auth)
 					setIsTwoFactorPending(false)
 					setTwoFactorSessionToken(null)
 					toast.success('Successfully verified 2FA!')
@@ -956,7 +978,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setLoading(false)
 			}
 		},
-		[twoFactorSessionToken, handleAuthSuccessInternal],
+		[twoFactorSessionToken, handleAuthSuccess],
 	)
 
 	const register = useCallback(async (data: RegisterInput) => {
@@ -1030,7 +1052,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				sessionStorage.removeItem('oauth2_code_verifier')
 				sessionStorage.removeItem('oauth2_code_challenge')
 
-				await handleAuthSuccessInternal({access_token, refresh_token})
+				await handleAuthSuccess({access_token, refresh_token})
 				toast.success('Successfully authenticated!')
 			} catch (error) {
 				console.error('OAuth2 code exchange failed:', error)
@@ -1041,7 +1063,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setLoading(false)
 			}
 		},
-		[handleAuthSuccessInternal],
+		[handleAuthSuccess],
 	)
 
 	/**
@@ -1054,7 +1076,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setLoading(true)
 
 				// Handle authentication success with DID tokens
-				await handleAuthSuccessInternal({
+				await handleAuthSuccess({
 					access_token: data.access_token,
 					refresh_token: data.refresh_token,
 				})
@@ -1068,7 +1090,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setLoading(false)
 			}
 		},
-		[handleAuthSuccessInternal],
+		[handleAuthSuccess],
 	)
 
 	const value: AuthContextType = {
@@ -1107,7 +1129,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		twoFactorSessionToken,
 
 		// Enhanced methods
-		handleAuthSuccess: handleAuthSuccessInternal,
+		handleAuthSuccess: handleAuthSuccess,
 		signInWithOAuth2Code,
 
 		// Utilities

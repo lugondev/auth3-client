@@ -429,3 +429,97 @@ export const deleteClient = withErrorHandling(
     await apiClient.delete(`${baseOauth2URL}/clients/${clientId}`);
   }
 );
+
+/**
+ * Process OAuth2 consent (allow or deny)
+ */
+export interface ConsentRequest {
+  action: 'allow' | 'deny';
+  client_id: string;
+  scopes: string[];
+  redirect_uri: string;
+  state?: string;
+  response_type?: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
+}
+
+export interface ConsentResponse {
+  success: boolean;
+  redirect_url?: string;
+  code?: string;
+  state?: string;
+  error?: string;
+  error_description?: string;
+}
+
+export const processConsent = withErrorHandling(
+  async (consentRequest: ConsentRequest): Promise<ConsentResponse> => {
+    const response = await apiClient.post<ConsentResponse>(`${baseOauth2URL}/consent`, consentRequest);
+    return response.data;
+  }
+);
+
+/**
+ * Get consent details for a client
+ */
+export interface ConsentDetails {
+  clientId: string;
+  clientName: string;
+  clientLogoUri?: string;
+  requestedScopes: string[];
+  redirectUri: string;
+  state: string;
+  responseType: string;
+  codeChallenge?: string;
+  codeChallengeMethod?: string;
+}
+
+export const getConsentDetails = withErrorHandling(
+  async (clientId: string, scope: string, redirectUri: string, state?: string, responseType?: string, codeChallenge?: string, codeChallengeMethod?: string): Promise<ConsentDetails> => {
+    // Get client details
+    const client = await getClient(clientId);
+
+    return {
+      clientId,
+      clientName: client.name || clientId,
+      clientLogoUri: client.logo_uri,
+      requestedScopes: scope.split(' '),
+      redirectUri,
+      state: state || '',
+      responseType: responseType || 'code',
+      codeChallenge,
+      codeChallengeMethod,
+    };
+  }
+);
+
+/**
+ * OAuth2 authorization request
+ */
+export interface AuthorizeRequest {
+  response_type: string;
+  client_id: string;
+  redirect_uri: string;
+  scope?: string;
+  state?: string;
+  code_challenge?: string;
+  code_challenge_method?: string;
+  nonce?: string;
+}
+
+export interface OAuth2AuthorizeResponse {
+  consent_required?: boolean;
+  code?: string;
+  state?: string;
+  error?: string;
+  error_description?: string;
+  message?: string;
+}
+
+export const authorizeOAuth2 = withErrorHandling(
+  async (request: AuthorizeRequest): Promise<OAuth2AuthorizeResponse> => {
+    const response = await apiClient.post<OAuth2AuthorizeResponse>(`${baseOauth2URL}/authorize`, request);
+    return response.data;
+  }
+);
