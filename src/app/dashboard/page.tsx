@@ -9,13 +9,13 @@ import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/compo
 import {Badge} from '@/components/ui/badge'
 import {Skeleton} from '@/components/ui/skeleton'
 import {AnalyticsService, PersonalDashboardAnalytics} from '@/services/analyticsService'
+import {credentialService, UserCredentialAnalytics} from '@/services/credentialService'
 import {getCurrentUser} from '@/services/userService'
 import {UserOutput} from '@/types/user'
 import {DIDWidget} from '@/components/dashboard/DIDWidget'
-import {CredentialWidget} from '@/components/dashboard/CredentialWidget'
 import {TenantSelector} from '@/components/tenants/TenantSelector'
 import {ContextSwitcher} from '@/components/context/ContextSwitcher'
-import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone, Building2, Globe, Users, Database, Star, BarChart3} from 'lucide-react'
+import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone, Building2, Globe, Users, Database, Star, BarChart3, Send} from 'lucide-react'
 
 const quickActions = [
 	{
@@ -55,6 +55,7 @@ const quickActions = [
 export default function UserDashboardPage() {
 	const {user, isSystemAdmin, loading, currentMode, currentTenantId, isAuthenticated} = useAuth()
 	const [analytics, setAnalytics] = useState<PersonalDashboardAnalytics | null>(null)
+	const [credentialAnalytics, setCredentialAnalytics] = useState<UserCredentialAnalytics | null>(null)
 	const [userDetails, setUserDetails] = useState<UserOutput | null>(null)
 
 	// Check if user has required role for action
@@ -89,6 +90,12 @@ export default function UserDashboardPage() {
 				// Load analytics
 				const data = await AnalyticsService.getPersonalDashboardAnalytics()
 				setAnalytics(data)
+
+				// Load credential analytics
+				const credAnalytics = await credentialService.getMyCredentialAnalytics({
+					interval: 'month',
+				})
+				setCredentialAnalytics(credAnalytics)
 			} catch (error) {
 				console.error('Failed to fetch dashboard data:', error)
 			}
@@ -103,14 +110,29 @@ export default function UserDashboardPage() {
 		return (
 			<div className='container mx-auto p-4 md:p-6'>
 				<Skeleton className='mb-8 h-10 w-48' />
+				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
+					<Skeleton className='h-32' />
+					<Skeleton className='h-32' />
+					<Skeleton className='h-32' />
+					<Skeleton className='h-32' />
+				</div>
 				<Card className='mb-8'>
 					<CardHeader>
 						<Skeleton className='h-8 w-40' />
+						<Skeleton className='h-4 w-64' />
 					</CardHeader>
 					<CardContent className='space-y-4'>
-						<Skeleton className='h-4 w-full' />
-						<Skeleton className='h-4 w-3/4' />
-						<Skeleton className='h-4 w-1/2' />
+						<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+							<Skeleton className='h-20' />
+							<Skeleton className='h-20' />
+							<Skeleton className='h-20' />
+							<Skeleton className='h-20' />
+						</div>
+						<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+							<Skeleton className='h-12' />
+							<Skeleton className='h-12' />
+							<Skeleton className='h-12' />
+						</div>
 					</CardContent>
 				</Card>
 			</div>
@@ -154,7 +176,7 @@ export default function UserDashboardPage() {
 			</div>
 
 			{/* Key Metrics Overview */}
-			<div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-8'>
+			<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
 				<Card>
 					<CardContent className='p-6'>
 						<div className='flex items-center gap-3'>
@@ -207,6 +229,98 @@ export default function UserDashboardPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Credential Statistics */}
+			<Card className='mb-8'>
+				<CardHeader>
+					<CardTitle>Credential Overview</CardTitle>
+					<CardDescription>Your digital credential statistics and recent activity</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-4'>
+						<div className='text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
+							<Database className='h-8 w-8 text-blue-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-blue-600'>{credentialAnalytics?.overview_metrics.total_credentials || 0}</p>
+							<p className='text-sm text-muted-foreground'>Total Credentials</p>
+						</div>
+						<div className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+							<CheckCircle className='h-8 w-8 text-green-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-green-600'>{credentialAnalytics?.overview_metrics.active_credentials || 0}</p>
+							<p className='text-sm text-muted-foreground'>Active</p>
+						</div>
+						<div className='text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg'>
+							<Send className='h-8 w-8 text-orange-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-orange-600'>{credentialAnalytics?.overview_metrics.issued_credentials || 0}</p>
+							<p className='text-sm text-muted-foreground'>Issued</p>
+						</div>
+						<div className='text-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg'>
+							<AlertTriangle className='h-8 w-8 text-red-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-red-600'>{credentialAnalytics?.overview_metrics.revoked_credentials || 0}</p>
+							<p className='text-sm text-muted-foreground'>Revoked</p>
+						</div>
+					</div>
+					<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+						<div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
+							<span className='text-sm font-medium'>Issued Today</span>
+							<Badge variant='secondary'>{credentialAnalytics?.issuance_metrics.issued_today || 0}</Badge>
+						</div>
+						<div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
+							<span className='text-sm font-medium'>Issued This Week</span>
+							<Badge variant='secondary'>{credentialAnalytics?.issuance_metrics.issued_this_week || 0}</Badge>
+						</div>
+						<div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
+							<span className='text-sm font-medium'>Issued This Month</span>
+							<Badge variant='secondary'>{credentialAnalytics?.issuance_metrics.issued_this_month || 0}</Badge>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Presentations Statistics */}
+			<Card className='mb-8'>
+				<CardHeader>
+					<CardTitle>Presentation Overview</CardTitle>
+					<CardDescription>Your credential presentation statistics and verification metrics</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className='grid grid-cols-1 md:grid-cols-4 gap-4 mb-4'>
+						<div className='text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
+							<BarChart3 className='h-8 w-8 text-purple-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-purple-600'>{credentialAnalytics?.presentation_metrics.total_presentations || 0}</p>
+							<p className='text-sm text-muted-foreground'>Total Presentations</p>
+						</div>
+						<div className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+							<CheckCircle className='h-8 w-8 text-green-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-green-600'>{credentialAnalytics?.presentation_metrics.verification_success_rate || 0}%</p>
+							<p className='text-sm text-muted-foreground'>Success Rate</p>
+						</div>
+						<div className='text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
+							<Clock className='h-8 w-8 text-blue-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-blue-600'>{credentialAnalytics?.presentation_metrics.average_verification_time_hours || 0}h</p>
+							<p className='text-sm text-muted-foreground'>Avg Verification Time</p>
+						</div>
+						<div className='text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg'>
+							<Activity className='h-8 w-8 text-orange-600 mx-auto mb-2' />
+							<p className='text-2xl font-bold text-orange-600'>{credentialAnalytics?.presentation_metrics.presentations_this_month || 0}</p>
+							<p className='text-sm text-muted-foreground'>This Month</p>
+						</div>
+					</div>
+					<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+						<div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
+							<span className='text-sm font-medium'>Today</span>
+							<Badge variant='secondary'>{credentialAnalytics?.presentation_metrics.presentations_today || 0}</Badge>
+						</div>
+						<div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
+							<span className='text-sm font-medium'>This Week</span>
+							<Badge variant='secondary'>{credentialAnalytics?.presentation_metrics.presentations_this_week || 0}</Badge>
+						</div>
+						<div className='flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
+							<span className='text-sm font-medium'>Most Active Period</span>
+							<Badge variant='outline'>{credentialAnalytics?.presentation_metrics.most_active_presentation_period?.period || 'N/A'}</Badge>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
 
 			{/* Account Status and Context */}
 			<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mb-8'>
@@ -298,6 +412,14 @@ export default function UserDashboardPage() {
 				</Card>
 			)}
 
+			{/* DID and Credentials Overview */}
+			<div className='mb-8'>
+				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>DIDs</h2>
+				<div className='grid gap-6 md:grid-cols-1'>
+					<DIDWidget />
+				</div>
+			</div>
+
 			{/* Account Security Status */}
 			<Card className='mb-8'>
 				<CardHeader>
@@ -309,20 +431,12 @@ export default function UserDashboardPage() {
 						<div className='flex items-center space-x-2'>
 							{userDetails?.is_email_verified ? <CheckCircle className='h-5 w-5 text-green-500' /> : <AlertTriangle className='h-5 w-5 text-yellow-500' />}
 							<span className='text-sm'>Email {userDetails?.is_email_verified ? 'Verified' : 'Not Verified'}</span>
-							{userDetails?.email_verified_at && (
-								<span className='text-xs text-muted-foreground'>
-									({new Date(userDetails.email_verified_at).toLocaleDateString()})
-								</span>
-							)}
+							{userDetails?.email_verified_at && <span className='text-xs text-muted-foreground'>({new Date(userDetails.email_verified_at).toLocaleDateString()})</span>}
 						</div>
 						<div className='flex items-center space-x-2'>
 							{userDetails?.is_phone_verified ? <CheckCircle className='h-5 w-5 text-green-500' /> : <AlertTriangle className='h-5 w-5 text-yellow-500' />}
 							<span className='text-sm'>Phone {userDetails?.is_phone_verified ? 'Verified' : 'Not Configured'}</span>
-							{userDetails?.phone_verified_at && (
-								<span className='text-xs text-muted-foreground'>
-									({new Date(userDetails.phone_verified_at).toLocaleDateString()})
-								</span>
-							)}
+							{userDetails?.phone_verified_at && <span className='text-xs text-muted-foreground'>({new Date(userDetails.phone_verified_at).toLocaleDateString()})</span>}
 						</div>
 						<div className='flex items-center space-x-2'>
 							{userDetails?.is_two_factor_enabled ? <CheckCircle className='h-5 w-5 text-green-500' /> : <AlertTriangle className='h-5 w-5 text-yellow-500' />}
@@ -340,28 +454,20 @@ export default function UserDashboardPage() {
 						<div className='mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
 							<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
 								<div>
-									<strong>Account Status:</strong> 
-									<span className={`ml-2 capitalize ${userDetails.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
-										{userDetails.status}
-									</span>
+									<strong>Account Status:</strong>
+									<span className={`ml-2 capitalize ${userDetails.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{userDetails.status}</span>
 								</div>
 								<div>
-									<strong>Phone Number:</strong> 
-									<span className='ml-2 text-muted-foreground'>
-										{userDetails.phone || 'Not provided'}
-									</span>
+									<strong>Phone Number:</strong>
+									<span className='ml-2 text-muted-foreground'>{userDetails.phone || 'Not provided'}</span>
 								</div>
 								<div>
-									<strong>Account Created:</strong> 
-									<span className='ml-2 text-muted-foreground'>
-										{new Date(userDetails.created_at).toLocaleDateString()}
-									</span>
+									<strong>Account Created:</strong>
+									<span className='ml-2 text-muted-foreground'>{new Date(userDetails.created_at).toLocaleDateString()}</span>
 								</div>
 								<div>
-									<strong>Last Updated:</strong> 
-									<span className='ml-2 text-muted-foreground'>
-										{new Date(userDetails.updated_at).toLocaleDateString()}
-									</span>
+									<strong>Last Updated:</strong>
+									<span className='ml-2 text-muted-foreground'>{new Date(userDetails.updated_at).toLocaleDateString()}</span>
 								</div>
 							</div>
 						</div>
@@ -369,15 +475,6 @@ export default function UserDashboardPage() {
 					{analytics?.last_login && <div className='mt-4 text-sm text-gray-600 dark:text-gray-400'>Last login: {new Date(analytics.last_login).toLocaleString()}</div>}
 				</CardContent>
 			</Card>
-
-			{/* DID and Credentials Overview */}
-			<div className='mb-8'>
-				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>Identity & Credentials</h2>
-				<div className='grid gap-6 md:grid-cols-2'>
-					<DIDWidget />
-					<CredentialWidget />
-				</div>
-			</div>
 
 			{/* Personal Information */}
 			<Card className='mb-8'>
@@ -390,85 +487,59 @@ export default function UserDashboardPage() {
 						{userDetails ? (
 							<>
 								<div className='flex items-center gap-3 mb-4'>
-									{userDetails.avatar && (
-										<Image 
-											src={userDetails.avatar} 
-											alt="Profile Avatar"
-											width={64}
-											height={64}
-											className='rounded-full object-cover border-2 border-gray-200 dark:border-gray-700'
-											unoptimized
-										/>
-									)}
+									{userDetails.avatar && <Image src={userDetails.avatar} alt='Profile Avatar' width={64} height={64} className='rounded-full object-cover border-2 border-gray-200 dark:border-gray-700' unoptimized />}
 									<div>
-										<p className='text-lg font-semibold'>
-											{userDetails.first_name || userDetails.last_name ? 
-												`${userDetails.first_name || ''} ${userDetails.last_name || ''}`.trim() : 
-												userDetails.email?.split('@')[0] || 'User'
-											}
-										</p>
+										<p className='text-lg font-semibold'>{userDetails.first_name || userDetails.last_name ? `${userDetails.first_name || ''} ${userDetails.last_name || ''}`.trim() : userDetails.email?.split('@')[0] || 'User'}</p>
 										<p className='text-sm text-muted-foreground'>{userDetails.email}</p>
 									</div>
 								</div>
-								
+
 								<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
 									<div>
-										<strong>Full Name:</strong> 
-										<span className='ml-2'>
-											{userDetails.first_name || userDetails.last_name ? 
-												`${userDetails.first_name || ''} ${userDetails.last_name || ''}`.trim() : 
-												'Not provided'
-											}
-										</span>
+										<strong>Full Name:</strong>
+										<span className='ml-2'>{userDetails.first_name || userDetails.last_name ? `${userDetails.first_name || ''} ${userDetails.last_name || ''}`.trim() : 'Not provided'}</span>
 									</div>
 									<div>
-										<strong>Email:</strong> 
+										<strong>Email:</strong>
 										<span className='ml-2'>{userDetails.email}</span>
 									</div>
 									<div>
-										<strong>User ID:</strong> 
+										<strong>User ID:</strong>
 										<span className='ml-2 font-mono text-xs'>{userDetails.id}</span>
 									</div>
 									<div>
-										<strong>Roles:</strong> 
-										<span className='ml-2'>
-											{userDetails.roles && userDetails.roles.length > 0 ? 
-												userDetails.roles.join(', ') : 
-												'No roles assigned'
-											}
-										</span>
+										<strong>Roles:</strong>
+										<span className='ml-2'>{userDetails.roles && userDetails.roles.length > 0 ? userDetails.roles.join(', ') : 'No roles assigned'}</span>
 									</div>
 									<div>
-										<strong>Phone:</strong> 
+										<strong>Phone:</strong>
 										<span className='ml-2'>{userDetails.phone || 'Not provided'}</span>
 									</div>
 									<div>
-										<strong>Account Status:</strong> 
-										<span className={`ml-2 capitalize ${userDetails.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
-											{userDetails.status}
-										</span>
+										<strong>Account Status:</strong>
+										<span className={`ml-2 capitalize ${userDetails.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>{userDetails.status}</span>
 									</div>
 								</div>
-								
+
 								{userDetails.profile && (
 									<div className='mt-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-md'>
 										<h4 className='font-medium mb-2'>Profile Details</h4>
 										<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-sm'>
 											{userDetails.profile.bio && (
 												<div className='md:col-span-2'>
-													<strong>Bio:</strong> 
+													<strong>Bio:</strong>
 													<span className='ml-2'>{userDetails.profile.bio}</span>
 												</div>
 											)}
 											{userDetails.profile.address && (
 												<div>
-													<strong>Address:</strong> 
+													<strong>Address:</strong>
 													<span className='ml-2'>{userDetails.profile.address}</span>
 												</div>
 											)}
 											{userDetails.profile.date_of_birth && (
 												<div>
-													<strong>Date of Birth:</strong> 
+													<strong>Date of Birth:</strong>
 													<span className='ml-2'>{new Date(userDetails.profile.date_of_birth).toLocaleDateString()}</span>
 												</div>
 											)}
@@ -489,7 +560,7 @@ export default function UserDashboardPage() {
 								</p>
 							</div>
 						)}
-						
+
 						{isSystemAdmin && (
 							<div className='mt-4 pt-4 border-t border-gray-200 dark:border-gray-700'>
 								<Badge variant='destructive' className='mr-2'>

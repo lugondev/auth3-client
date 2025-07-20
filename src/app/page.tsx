@@ -50,14 +50,11 @@ export default function Home() {
 							<Shield className='h-14 w-14 text-blue-600 dark:text-blue-400' />
 							<div className='absolute -top-1 -right-1 h-4 w-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full animate-pulse' />
 						</div>
-						<h1 className='text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent'>
-							Auth3 System
-						</h1>
+						<h1 className='text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 bg-clip-text text-transparent'>Auth3 System</h1>
 					</div>
 					<p className='text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed'>
-						Enterprise-grade authentication & identity management with 
-						<span className='font-semibold text-blue-600 dark:text-blue-400'> DID technology</span>, 
-						<span className='font-semibold text-purple-600 dark:text-purple-400'> OAuth2/OIDC</span>, and 
+						Enterprise-grade authentication & identity management with
+						<span className='font-semibold text-blue-600 dark:text-blue-400'> DID technology</span>,<span className='font-semibold text-purple-600 dark:text-purple-400'> OAuth2/OIDC</span>, and
 						<span className='font-semibold text-cyan-600 dark:text-cyan-400'> multi-tenant RBAC</span>
 					</p>
 				</div>
@@ -70,15 +67,11 @@ export default function Home() {
 								<List className='h-6 w-6 text-blue-600 dark:text-blue-400' />
 							</div>
 							<CardTitle className='text-slate-800 dark:text-slate-200'>DID Management</CardTitle>
-							<CardDescription className='text-slate-600 dark:text-slate-400'>
-								Manage decentralized identities and credentials
-							</CardDescription>
+							<CardDescription className='text-slate-600 dark:text-slate-400'>Manage decentralized identities and credentials</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Button asChild className='w-full bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700'>
-								<Link href='/dashboard/did'>
-									Manage DIDs
-								</Link>
+								<Link href='/dashboard/did'>Manage DIDs</Link>
 							</Button>
 						</CardContent>
 					</Card>
@@ -89,15 +82,11 @@ export default function Home() {
 								<Plus className='h-6 w-6 text-purple-600 dark:text-purple-400' />
 							</div>
 							<CardTitle className='text-slate-800 dark:text-slate-200'>OAuth2 Apps</CardTitle>
-							<CardDescription className='text-slate-600 dark:text-slate-400'>
-								Create and manage OAuth2 applications
-							</CardDescription>
+							<CardDescription className='text-slate-600 dark:text-slate-400'>Create and manage OAuth2 applications</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Button asChild className='w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-600 dark:hover:bg-purple-700'>
-								<Link href='/dashboard/oauth2'>
-									Manage Apps
-								</Link>
+								<Link href='/dashboard/oauth2'>Manage Apps</Link>
 							</Button>
 						</CardContent>
 					</Card>
@@ -108,15 +97,11 @@ export default function Home() {
 								<Send className='h-6 w-6 text-cyan-600 dark:text-cyan-400' />
 							</div>
 							<CardTitle className='text-slate-800 dark:text-slate-200'>Presentations</CardTitle>
-							<CardDescription className='text-slate-600 dark:text-slate-400'>
-								Submit verifiable presentations
-							</CardDescription>
+							<CardDescription className='text-slate-600 dark:text-slate-400'>Submit verifiable presentations</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Button asChild className='w-full bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-600 dark:hover:bg-cyan-700'>
-								<Link href='/presentation-requests'>
-									Presentations
-								</Link>
+								<Link href='/presentation-requests'>Presentations</Link>
 							</Button>
 						</CardContent>
 					</Card>
@@ -127,39 +112,11 @@ export default function Home() {
 								<div className='text-2xl'>🚀</div>
 							</div>
 							<CardTitle className='text-emerald-800 dark:text-emerald-200'>Live Demo</CardTitle>
-							<CardDescription className='text-emerald-700 dark:text-emerald-300'>
-								Try the interactive Auth3 demo
-							</CardDescription>
+							<CardDescription className='text-emerald-700 dark:text-emerald-300'>Try the interactive Auth3 demo</CardDescription>
 						</CardHeader>
 						<CardContent>
 							<Button asChild className='w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white shadow-lg'>
-								<Link href='/demo/presentation'>
-									Try Demo
-								</Link>
-							</Button>
-						</CardContent>
-					</Card>
-
-					<Card className='group border-2 border-blue-200 dark:border-blue-700 hover:border-blue-400 dark:hover:border-blue-500 transition-all duration-300 hover:shadow-lg hover:shadow-blue-100 dark:hover:shadow-blue-900/20 bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 dark:from-blue-950/50 dark:via-indigo-950/50 dark:to-cyan-950/50 backdrop-blur-sm'>
-						<CardHeader className='text-center pb-4'>
-							<div className='h-12 w-12 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center group-hover:scale-110 transition-transform duration-300'>
-								<div className='text-2xl'>📱</div>
-							</div>
-							<CardTitle className='text-blue-800 dark:text-blue-200'>QR Login Demo</CardTitle>
-							<CardDescription className='text-blue-700 dark:text-blue-300'>
-								Experience QR code authentication flow
-							</CardDescription>
-						</CardHeader>
-						<CardContent className='space-y-2'>
-							<Button asChild className='w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg'>
-								<Link href='/demo/qr-login'>
-									Web QR Demo
-								</Link>
-							</Button>
-							<Button asChild variant='outline' size='sm' className='w-full border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30'>
-								<Link href='/qr-scan' target='_blank'>
-									📱 Mobile Scanner
-								</Link>
+								<Link href='/demo/presentation'>Try Demo</Link>
 							</Button>
 						</CardContent>
 					</Card>
@@ -170,34 +127,24 @@ export default function Home() {
 					<Card className='border-2 border-slate-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-xl shadow-slate-200/50 dark:shadow-slate-900/50'>
 						<CardHeader className='text-center pb-6'>
 							<CardTitle className='text-2xl text-slate-800 dark:text-slate-200'>Welcome Back</CardTitle>
-							<CardDescription className='text-slate-600 dark:text-slate-400'>
-								Sign in to access your Auth3 dashboard
-							</CardDescription>
+							<CardDescription className='text-slate-600 dark:text-slate-400'>Sign in to access your Auth3 dashboard</CardDescription>
 						</CardHeader>
 						<CardContent className='space-y-6'>
 							<LoginButtons />
 							<div className='relative my-6'>
 								<Separator className='bg-slate-200 dark:bg-slate-700' />
-								<span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform bg-white dark:bg-slate-800 px-3 text-xs text-slate-500 dark:text-slate-400 font-medium'>
-									OR CONTINUE WITH EMAIL
-								</span>
+								<span className='absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform bg-white dark:bg-slate-800 px-3 text-xs text-slate-500 dark:text-slate-400 font-medium'>OR CONTINUE WITH EMAIL</span>
 							</div>
 							<LoginForm />
 							<div className='mt-6 text-center text-sm space-y-2'>
 								<div>
-									<Link 
-										href='/forgot-password' 
-										className='text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-4 transition-colors'
-									>
+									<Link href='/forgot-password' className='text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-4 transition-colors'>
 										Forgot your password?
 									</Link>
 								</div>
 								<div className='text-slate-600 dark:text-slate-400'>
 									Don{'\u0027'}t have an account?{' '}
-									<Link 
-										href='/register' 
-										className='text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-4 font-medium transition-colors'
-									>
+									<Link href='/register' className='text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline underline-offset-4 font-medium transition-colors'>
 										Create account
 									</Link>
 								</div>

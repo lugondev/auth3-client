@@ -249,12 +249,12 @@ export default function AdminLogsPage() {
 
 								<div>
 									<Label htmlFor='filterAction'>Action</Label>
-									<Select value={filterAction} onValueChange={(value) => setFilterAction(value as ActionType | '')}>
+									<Select value={filterAction || 'all'} onValueChange={(value) => setFilterAction(value === 'all' ? '' : (value as ActionType))}>
 										<SelectTrigger id='filterAction'>
 											<SelectValue placeholder='Select action' />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value=''>All Actions</SelectItem>
+											<SelectItem value='all'>All Actions</SelectItem>
 											{Object.values(ActionTypes).map((action) => (
 												<SelectItem key={action} value={action}>
 													{action.charAt(0).toUpperCase() + action.slice(1).replace('_', ' ')}
@@ -266,12 +266,12 @@ export default function AdminLogsPage() {
 
 								<div>
 									<Label htmlFor='filterResource'>Resource</Label>
-									<Select value={filterResource} onValueChange={(value) => setFilterResource(value as ResourceType | '')}>
+									<Select value={filterResource || 'all'} onValueChange={(value) => setFilterResource(value === 'all' ? '' : (value as ResourceType))}>
 										<SelectTrigger id='filterResource'>
 											<SelectValue placeholder='Select resource' />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value=''>All Resources</SelectItem>
+											<SelectItem value='all'>All Resources</SelectItem>
 											{Object.values(ResourceTypes).map((resource) => (
 												<SelectItem key={resource} value={resource}>
 													{resource.charAt(0).toUpperCase() + resource.slice(1)}

@@ -126,6 +126,213 @@ export interface ValidationResult {
 	warnings?: string[];
 }
 
+// Statistics Types
+export interface CredentialStatistics {
+	totalCredentials: number;
+	activeCredentials: number;
+	revokedCredentials: number;
+	expiredCredentials: number;
+	issuedToday: number;
+	issuedThisWeek: number;
+	issuedThisMonth: number;
+}
+
+// User Credential Analytics Types (for /api/v1/credentials/analytics/me)
+export interface UserCredentialAnalyticsFilters {
+	start_date?: string; // YYYY-MM-DD format
+	end_date?: string;   // YYYY-MM-DD format
+	interval?: string;   // day, week, month
+	limit?: number;
+	offset?: number;
+	tenant_id?: string;
+	issuer_did?: string;
+	tags?: string;       // comma-separated
+}
+
+export interface OverviewMetrics {
+	total_credentials: number;
+	issued_credentials: number;
+	active_credentials: number;
+	revoked_credentials: number;
+	deactivated_credentials: number;
+}
+
+export interface IssuanceMetrics {
+	total_issued: number;
+	issued_today: number;
+	issued_this_week: number;
+	issued_this_month: number;
+	avg_issuance_time_seconds: number;
+	most_active_issuance_period: {
+		period: string;
+		count: number;
+		day_of_week: string;
+		hour_of_day: number;
+		start_date: string;
+		end_date: string;
+	};
+	issuance_timeline: Array<{
+		date: string;
+		count: number;
+	}>;
+	issued_by_status: Array<{
+		status: string;
+		count: number;
+		percentage: number;
+	}>;
+	issued_by_template: Array<{
+		template_name: string;
+		count: number;
+		percentage: number;
+	}>;
+	issued_by_type: Array<{
+		type: string;
+		count: number;
+		percentage: number;
+	}>;
+}
+
+export interface ReceivedMetrics {
+	total_received: number;
+	received_today: number;
+	received_this_week: number;
+	received_this_month: number;
+	verification_success_rate: number;
+	most_active_receiving_period: {
+		period: string;
+		count: number;
+		day_of_week: string;
+		hour_of_day: number;
+		start_date: string | null;
+		end_date: string | null;
+	};
+	received_timeline: Array<{
+		date: string;
+		count: number;
+	}>;
+	received_by_status: Array<{
+		status: string;
+		count: number;
+		percentage: number;
+	}>;
+	received_by_issuer: Array<{
+		issuer: string;
+		count: number;
+		percentage: number;
+	}>;
+	received_by_type: Array<{
+		type: string;
+		count: number;
+		percentage: number;
+	}>;
+}
+
+export interface StatusMetrics {
+	active_credentials: {
+		count: number;
+		average_age_days: number;
+		expiring_within_30_days: number;
+		by_type: Array<{
+			type: string;
+			count: number;
+		}>;
+		by_issuer: Array<{
+			issuer: string;
+			count: number;
+		}>;
+	};
+	revoked_credentials: {
+		count: number;
+		revoked_today: number;
+		revoked_this_week: number;
+		revoked_this_month: number;
+		by_reason: Array<{
+			reason: string;
+			count: number;
+			percentage: number;
+		}>;
+		by_type: Array<{
+			type: string;
+			count: number;
+		}>;
+		revocation_timeline: Array<{
+			date: string;
+			count: number;
+		}>;
+	};
+	deactivated_credentials: {
+		count: number;
+		deactivated_today: number;
+		deactivated_this_week: number;
+		deactivated_this_month: number;
+		by_reason: Array<{
+			reason: string;
+			count: number;
+			percentage: number;
+		}>;
+		by_type: Array<{
+			type: string;
+			count: number;
+		}>;
+		deactivation_timeline: Array<{
+			date: string;
+			count: number;
+		}>;
+	};
+}
+
+export interface PresentationMetrics {
+	total_presentations: number;
+	presentations_today: number;
+	presentations_this_week: number;
+	presentations_this_month: number;
+	verification_success_rate: number;
+	average_verification_time_hours: number;
+	most_active_presentation_period: {
+		period: string;
+		count: number;
+		day_of_week: string;
+		hour_of_day: number;
+		start_date: string;
+		end_date: string;
+	};
+	presentation_timeline: Array<{
+		date: string;
+		count: number;
+	}>;
+	presentations_by_status: Array<{
+		status: string;
+		count: number;
+		percentage: number;
+	}>;
+}
+
+export interface UserCredentialAnalytics {
+	user_id: string;
+	generated_at: string;
+	period: {
+		start_date: string;
+		end_date: string;
+		interval: string;
+	};
+	filters_applied: {
+		start_date: string;
+		end_date: string;
+		interval: string;
+		limit: number;
+		offset: number;
+		tenant_id: string | null;
+		issuer_did: string;
+		tags: string[];
+		user_id: string;
+	};
+	overview_metrics: OverviewMetrics;
+	issuance_metrics: IssuanceMetrics;
+	received_metrics: ReceivedMetrics;
+	status_metrics: StatusMetrics;
+	presentation_metrics: PresentationMetrics;
+}
+
 class CredentialService {
 	// Issue a single credential
 	async issueCredential(request: IssueCredentialRequest): Promise<IssueCredentialResponse> {
@@ -247,6 +454,32 @@ class CredentialService {
 	// Verify a credential
 	async verifyCredential(request: VerifyCredentialRequest): Promise<VerifyCredentialResponse> {
 		const response = await apiClient.post<VerifyCredentialResponse>(`${API_BASE_URL}/verify`, request);
+		return response.data;
+	}
+
+	// Get credential statistics (Admin only)
+	async getStatistics(): Promise<CredentialStatistics> {
+		const response = await apiClient.get<CredentialStatistics>(`${API_BASE_URL}/statistics`);
+		return response.data;
+	}
+
+	// Get user credential analytics
+	async getMyCredentialAnalytics(filters?: UserCredentialAnalyticsFilters): Promise<UserCredentialAnalytics> {
+		const params = new URLSearchParams();
+
+		if (filters?.start_date) params.append('start_date', filters.start_date);
+		if (filters?.end_date) params.append('end_date', filters.end_date);
+		if (filters?.interval) params.append('interval', filters.interval);
+		if (filters?.limit) params.append('limit', filters.limit.toString());
+		if (filters?.offset) params.append('offset', filters.offset.toString());
+		if (filters?.tenant_id) params.append('tenant_id', filters.tenant_id);
+		if (filters?.issuer_did) params.append('issuer_did', filters.issuer_did);
+		if (filters?.tags) params.append('tags', filters.tags);
+
+		const queryString = params.toString();
+		const url = `${API_BASE_URL}/analytics/me${queryString ? `?${queryString}` : ''}`;
+
+		const response = await apiClient.get<UserCredentialAnalytics>(url);
 		return response.data;
 	}
 }
