@@ -424,8 +424,68 @@ export const resolveUniversalDID = withErrorHandling(
   }
 );
 
-// Export all functions as default service object
-export const didService = {
+/**
+ * Admin: Lists all DIDs in the system (Admin only)
+ * @param input - Optional filtering and pagination parameters
+ * @returns Promise resolving to the list of all DIDs
+ */
+export const adminListDIDs = withErrorHandling(
+  async (input?: ListDIDsInput): Promise<ListDIDsOutput> => {
+    const params = new URLSearchParams();
+    if (input?.method) params.append('method', input.method);
+    if (input?.status) params.append('status', input.status);
+    if (input?.limit) params.append('limit', input.limit.toString());
+    if (input?.sort) params.append('sort', input.sort);
+
+    if (input?.page) {
+      // If page is provided, use it
+      const limit = input.limit || 10;
+      const offset = (input.page - 1) * limit;
+      params.append('offset', offset.toString());
+      params.append('page', input.page.toString());
+    } else if (input?.offset !== undefined) {
+      // If page is not provided but offset is, use offset
+      params.append('offset', input.offset.toString());
+    }
+
+    const response = await apiClient.get<ListDIDsOutput>(
+      `/api/v1/admin/dids?${params.toString()}`
+    );
+    return response.data;
+  }
+);
+
+/**
+ * Admin: Deactivates a DID (Admin only)
+ * @param did DID string to deactivate
+ * @param reason Optional reason for deactivation
+ * @returns Promise<void>
+ */
+export const adminDeactivateDID = withErrorHandling(
+  async (did: string, reason?: string): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/dids/${did}/deactivate`, {
+      reason: reason,
+      timestamp: new Date().toISOString(),
+    });
+  }
+);
+
+/**
+ * Admin: Revokes a DID (Admin only)
+ * @param did DID string to revoke
+ * @param reason Optional reason for revocation
+ * @returns Promise<void>
+ */
+export const adminRevokeDID = withErrorHandling(
+  async (did: string, reason?: string): Promise<void> => {
+    await apiClient.post(`/api/v1/admin/dids/${did}/revoke`, {
+      reason: reason,
+      timestamp: new Date().toISOString(),
+    });
+  }
+);
+
+const didService = {
   createDID,
   updateDID,
   getDID,
@@ -449,6 +509,10 @@ export const didService = {
   removeVerificationMethod,
   getVerificationMethods,
   resolveUniversalDID,
+  // Admin functions
+  adminListDIDs,
+  adminDeactivateDID,
+  adminRevokeDID,
 };
 
 export default didService;

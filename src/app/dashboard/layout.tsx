@@ -2,11 +2,9 @@
 
 import ProtectedWrapper from '@/components/auth/ProtectedWrapper'
 import AppShell from '@/components/layout/AppShell'
-import {useAuth} from '@/contexts/AuthContext'
 import {usePathname} from 'next/navigation'
 
 export default function ProtectedLayout({children}: {children: React.ReactNode}) {
-	const {isSystemAdmin} = useAuth()
 	const pathname = usePathname()
 
 	// Check if current route is tenant space or admin space
@@ -14,15 +12,15 @@ export default function ProtectedLayout({children}: {children: React.ReactNode})
 	const isTenantSpace = /^\/dashboard\/tenant\/[^\/]+/.test(pathname) || pathname.match(/^\/dashboard\/tenant\/[a-zA-Z0-9-_]+/)
 	const isAdminSpace = pathname.startsWith('/dashboard/admin')
 
-	// console.log('🔍 Dashboard Layout Debug:', {
-	// 	pathname,
-	// 	isTenantSpace,
-	// 	isAdminSpace,
-	// 	'regex test 1': /^\/dashboard\/tenant\/[^\/]+/.test(pathname),
-	// 	'regex test 2': pathname.match(/^\/dashboard\/tenant\/[a-zA-Z0-9-_]+/),
-	// 	'pathname segments': pathname.split('/'),
-	// 	'should skip AppShell': isTenantSpace || isAdminSpace
-	// })
+	console.log('🔍 Dashboard Layout Debug:', {
+		pathname,
+		isTenantSpace,
+		isAdminSpace,
+		'regex test 1': /^\/dashboard\/tenant\/[^\/]+/.test(pathname),
+		'regex test 2': pathname.match(/^\/dashboard\/tenant\/[a-zA-Z0-9-_]+/),
+		'pathname segments': pathname.split('/'),
+		'should skip AppShell': isTenantSpace || isAdminSpace,
+	})
 
 	// Force skip AppShell for any path containing tenant ID
 	if (pathname.split('/').length >= 4 && pathname.includes('/dashboard/tenant/')) {

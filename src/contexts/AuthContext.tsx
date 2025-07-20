@@ -69,6 +69,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [isTwoFactorPending, setIsTwoFactorPending] = useState(false)
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
 	const [isInitialLoad, setIsInitialLoad] = useState(true)
+	const [lastProcessedKey, setLastProcessedKey] = useState<string | null>(null)
 
 	// Cache for system admin status to prevent spam
 	const [adminStatusCache, setAdminStatusCache] = useState<{
@@ -81,6 +82,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const adminCheckInProgress = useRef(false)
 	const authCheckInProgress = useRef(false)
 	const hasInitialAuthCheck = useRef(false) // Track if initial auth check is done
+	const checkAuthStatusRef = useRef<(() => Promise<void>) | null>(null) // Ref to latest checkAuthStatus
+	const isInternalTokenUpdate = useRef(false) // Flag to ignore self-triggered storage events
 
 	// Dual context state
 	const [currentMode, setCurrentMode] = useState<ContextMode>('global')
@@ -119,6 +122,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			// If context is 'auto', clear all contexts
 			if (context === 'auto') {
+				// Mark as internal update to prevent storage listener loops
+				isInternalTokenUpdate.current = true
+
 				// Clear all tokens and contexts
 				tokenManager.clearTokens('global')
 				tokenManager.clearTokens('tenant')
@@ -130,7 +136,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 				// Clear all permissions cache
 				clearPermissionsCache()
+
+				// Reset flag after delay
+				setTimeout(() => {
+					isInternalTokenUpdate.current = false
+				}, 100)
 			} else {
+				// Mark as internal update to prevent storage listener loops
+				isInternalTokenUpdate.current = true
+
 				// Clear tokens for specific context
 				tokenManager.clearTokens(targetContext)
 				// Clear context state
@@ -142,6 +156,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				} else if (targetContext === 'global') {
 					clearPermissionsCache() // Clear global permissions
 				}
+
+				// Reset flag after delay
+				setTimeout(() => {
+					isInternalTokenUpdate.current = false
+				}, 100)
 			}
 
 			// Update UI state based on context
@@ -286,7 +305,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			}
 
 			// Store tokens in appropriate context
+			isInternalTokenUpdate.current = true // Mark as internal update
 			tokenManager.setTokens(targetContext, authResult.access_token, authResult.refresh_token || null)
+
+			// Reset flag after a short delay to allow storage event to be ignored
+			setTimeout(() => {
+				isInternalTokenUpdate.current = false
+			}, 100)
 
 			// Set cookies for middleware
 			document.cookie = `accessToken=${authResult.access_token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
@@ -295,7 +320,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			}
 
 			// Dispatch custom event to notify components in same tab about token update
-			window.dispatchEvent(new CustomEvent('tokenUpdated', {detail: {targetContext}}))
+			// Note: Removed tokenUpdated event as it causes infinite loops in storage listener
+			// window.dispatchEvent(new CustomEvent('tokenUpdated', {detail: {targetContext}})))
 
 			apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
 
@@ -369,7 +395,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const handleAuthSuccess = useCallback(
 		async (authResult: AuthResult, preserveContext = false) => {
 			const newAccessToken = await handleAuthSuccessInternal(authResult, preserveContext)
-			
+
 			// Schedule refresh for new logins (not for refreshes)
 			if (newAccessToken && scheduleTokenRefreshRef.current) {
 				console.log('📅 Scheduling token refresh for new authentication')
@@ -464,7 +490,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 				// Switch context using existing tokens
 				const tokens = multiTenantTokenManager.getTenantTokens(tenantId)
+				isInternalTokenUpdate.current = true
 				tokenManager.setTokens('tenant', tokens.accessToken, tokens.refreshToken)
+				setTimeout(() => {
+					isInternalTokenUpdate.current = false
+				}, 100)
 
 				// Update context
 				setCurrentMode('tenant')
@@ -644,7 +674,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			// Handle the auth success and get the new token for rescheduling
 			const newAccessToken = await handleAuthSuccessInternal(refreshResponse.auth, true) // preserveContext=true
 			console.log('✅ Scheduled token refresh successful.')
-			
+
 			// Schedule the next refresh for the new token
 			if (newAccessToken && scheduleTokenRefreshRef.current) {
 				console.log('📅 Scheduling next token refresh for refreshed token')
@@ -784,23 +814,57 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}, [currentMode, handleAuthSuccessInternal, clearAuthData, checkSystemAdminStatus, updateContextState]) // Keep original dependencies
 
+	// Update ref whenever checkAuthStatus changes
+	checkAuthStatusRef.current = checkAuthStatus
+
 	// Check auth status only after context mode is initialized
 	useEffect(() => {
 		// Only check auth status after initial context mode is set and not already checked
 		if (currentMode && !hasInitialAuthCheck.current && !authCheckInProgress.current) {
 			console.log('🔄 Initial auth check for mode:', currentMode)
-			checkAuthStatus()
+			checkAuthStatusRef.current?.()
 		}
-	}, [checkAuthStatus, currentMode]) // Keep checkAuthStatus but use ref to control execution
+	}, [currentMode]) // Remove checkAuthStatus from deps to prevent infinite loop
+	// Note: checkAuthStatus is accessed via ref to prevent infinite re-renders
 
 	// Listen for storage changes to detect token updates from other tabs or after login
 	useEffect(() => {
 		let storageChangeTimeout: NodeJS.Timeout | null = null
 
 		const handleStorageChange = (e: StorageEvent) => {
+			// Ignore storage changes triggered by this component itself
+			if (isInternalTokenUpdate.current) {
+				console.log('🔕 Ignoring self-triggered storage change:', e.key)
+				return
+			}
+
+			// Only process if there's an actual key and it's different from last processed
+			if (!e.key) {
+				console.log('🔕 Ignoring storage change without key')
+				return
+			}
+
+			// Check if there's actually a value change (not just same value set again)
+			if (e.oldValue === e.newValue) {
+				console.log('🔕 Ignoring storage change with same value:', e.key)
+				return
+			}
+
+			// Check if this is the same key we just processed (prevent duplicate processing)
+			if (e.key === lastProcessedKey) {
+				console.log('🔕 Ignoring duplicate storage change for same key:', e.key)
+				return
+			}
+
 			// Check if the changed key is related to tokens or context
-			if (e.key && (e.key.includes('accessToken') || e.key.includes('refreshToken') || e.key.includes('auth3_') || e.key.includes('dual_context_'))) {
-				console.log('🔄 Token/context storage changed, re-checking auth status:', e.key)
+			if (e.key.includes('accessToken') || e.key.includes('refreshToken') || e.key.includes('auth3_') || e.key.includes('dual_context_')) {
+				console.log('🔄 External token/context storage changed, re-checking auth status:', e.key, {
+					oldValue: e.oldValue ? `${e.oldValue.substring(0, 20)}...` : null,
+					newValue: e.newValue ? `${e.newValue.substring(0, 20)}...` : null,
+				})
+
+				// Update last processed key
+				setLastProcessedKey(e.key)
 
 				// Clear existing timeout to debounce multiple rapid storage changes
 				if (storageChangeTimeout) {
@@ -809,8 +873,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 				// Debounce storage changes with 300ms delay
 				storageChangeTimeout = setTimeout(() => {
-					checkAuthStatus()
+					checkAuthStatusRef.current?.()
 					storageChangeTimeout = null
+					// Reset last processed key after processing
+					setTimeout(() => {
+						setLastProcessedKey(null)
+					}, 1000) // Reset after 1 second to allow new changes
 				}, 300)
 			}
 		}
@@ -818,34 +886,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		// Add event listener for storage changes
 		window.addEventListener('storage', handleStorageChange)
 
-		// Also listen for custom events for same-tab token updates
-		const handleTokenUpdate = (event: Event) => {
-			const customEvent = event as CustomEvent
-			console.log('🔄 Token updated in same tab, re-checking auth status:', customEvent.detail)
-
-			// Clear existing timeout to debounce multiple rapid custom events
-			if (storageChangeTimeout) {
-				clearTimeout(storageChangeTimeout)
-			}
-
-			// Use same debounce mechanism for consistency
-			storageChangeTimeout = setTimeout(() => {
-				checkAuthStatus()
-				storageChangeTimeout = null
-			}, 300)
-		}
-
-		window.addEventListener('tokenUpdated', handleTokenUpdate)
-
 		return () => {
 			// Clean up timeout if component unmounts
 			if (storageChangeTimeout) {
 				clearTimeout(storageChangeTimeout)
 			}
 			window.removeEventListener('storage', handleStorageChange)
-			window.removeEventListener('tokenUpdated', handleTokenUpdate)
 		}
-	}, [checkAuthStatus])
+	}, [lastProcessedKey, setLastProcessedKey]) // Add dependencies for useState
 
 	// Social login methods (unchanged logic, but now context-aware)
 	const signInWithGoogle = useCallback(async () => {

@@ -12,10 +12,10 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Users, Key, Globe, Coins, Network, TrendingUp, Activity, Settings, Search, MoreHorizontal, Eye, Trash2, Power} from 'lucide-react'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
-import {getDIDStatistics, listDIDs} from '@/services/didService'
+import {getDIDStatistics, adminListDIDs, adminDeactivateDID, adminRevokeDID} from '@/services/didService'
 import {getUserById} from '@/services/userService'
 import type {DIDStatisticsOutput, ListDIDsOutput, DIDResponse, DIDMethod} from '@/types/did'
-import { DIDStatus } from '@/types/did'
+import {DIDStatus} from '@/types/did'
 import type {UserOutput} from '@/types/user'
 
 // Types for DID administration
@@ -77,7 +77,7 @@ export default function DIDAdminDashboard() {
 				}
 
 				// Fetch DIDs list
-				const didsData: ListDIDsOutput = await listDIDs({
+				const didsData: ListDIDsOutput = await adminListDIDs({
 					limit: pageSize,
 					offset: (currentPage - 1) * pageSize,
 					status: statusFilter !== 'all' ? (statusFilter as DIDStatus) : undefined,
@@ -102,19 +102,19 @@ export default function DIDAdminDashboard() {
 						}
 
 						return {
-					id: did.id,
-					did: did.did,
-					method: did.method,
-					status: did.status,
-					owner: {
-						id: did.user_id,
-						email: userEmail,
-						username,
-					},
-					createdAt: did.created_at,
-					updatedAt: did.updated_at,
-					lastUsed: undefined,
-				}
+							id: did.id,
+							did: did.did,
+							method: did.method,
+							status: did.status,
+							owner: {
+								id: did.user_id,
+								email: userEmail,
+								username,
+							},
+							createdAt: did.created_at,
+							updatedAt: did.updated_at,
+							lastUsed: undefined,
+						}
 					}),
 				)
 
@@ -140,6 +140,31 @@ export default function DIDAdminDashboard() {
 
 		return matchesSearch && matchesMethod && matchesStatus
 	})
+
+	// Handle admin DID actions
+	const handleDeactivateDID = async (didString: string) => {
+		try {
+			await adminDeactivateDID(didString, 'Admin deactivation from dashboard')
+
+			// Refresh the data
+			window.location.reload()
+		} catch (error) {
+			console.error('Failed to deactivate DID:', error)
+			// TODO: Show toast notification for error
+		}
+	}
+
+	const handleRevokeDID = async (didString: string) => {
+		try {
+			await adminRevokeDID(didString, 'Admin revocation from dashboard')
+
+			// Refresh the data
+			window.location.reload()
+		} catch (error) {
+			console.error('Failed to revoke DID:', error)
+			// TODO: Show toast notification for error
+		}
+	}
 
 	// Get status badge variant
 	const getStatusVariant = (status: string) => {
@@ -417,12 +442,12 @@ export default function DIDAdminDashboard() {
 																View Details
 															</DropdownMenuItem>
 															{did.status === DIDStatus.ACTIVE && (
-																<DropdownMenuItem>
+																<DropdownMenuItem onClick={() => handleDeactivateDID(did.did)}>
 																	<Power className='mr-2 h-4 w-4' />
 																	Deactivate
 																</DropdownMenuItem>
 															)}
-															<DropdownMenuItem className='text-destructive'>
+															<DropdownMenuItem className='text-destructive' onClick={() => handleRevokeDID(did.did)}>
 																<Trash2 className='mr-2 h-4 w-4' />
 																Revoke
 															</DropdownMenuItem>
