@@ -1,5 +1,75 @@
 import apiClient from '@/lib/apiClient';
-import type { PresentationRequest, PresentationResponse } from '@/types/presentation-request';
+
+// API response types
+interface ApiCredentialRequirement {
+  type: string;
+  essential: boolean;
+  purpose: string;
+  issuer?: string;
+  schema?: string;
+  constraints?: Record<string, unknown>;
+}
+
+interface ApiPresentationResponse {
+  id: string;
+  holder_did: string;
+  presentation_id: string;
+  status: string;
+  submitted_at: string;
+  verified_at?: string;
+  verification_result?: Record<string, unknown>;
+}
+
+interface ApiLatestResponse {
+  id: string;
+  holder_did: string;
+  status: string;
+  submitted_at: string;
+  verified_at?: string;
+}
+
+interface ApiPresentationRequest {
+  id: string;
+  request_id: string;
+  verifier_did: string;
+  verifier_name: string;
+  title: string;
+  description: string;
+  purpose: string;
+  required_credentials: ApiCredentialRequirement[];
+  status: 'active' | 'expired' | 'completed' | 'cancelled';
+  response_count: number;
+  max_responses: number;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+  share_url: string;
+  qr_code_data: string;
+  latest_response?: ApiLatestResponse | null;
+  responses?: ApiPresentationResponse[];
+  response_total?: number;
+}
+
+interface ApiHistoryResponse {
+  requests: ApiPresentationRequest[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+  filters: {
+    status?: string;
+    verifier_did?: string;
+  };
+}
+
+interface MockHistoryResponse {
+  data: HistoryItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
 export interface HistoryFilters {
   search?: string;
@@ -23,7 +93,7 @@ export interface PresentationRequestHistoryItem {
     purpose: string;
     issuer?: string;
     schema?: string;
-    constraints?: Record<string, any>;
+    constraints?: Record<string, unknown>;
   }>;
   status: 'active' | 'expired' | 'completed' | 'cancelled';
   response_count: number;
@@ -47,7 +117,7 @@ export interface PresentationRequestHistoryItem {
     status: string;
     submitted_at: string;
     verified_at?: string;
-    verification_result?: Record<string, any>;
+    verification_result?: Record<string, unknown>;
   }>;
   response_total?: number;
 }
@@ -91,7 +161,7 @@ export interface HistoryItem {
       status: string;
       submitted_at: string;
       verified_at?: string;
-      verification_result?: Record<string, any>;
+      verification_result?: Record<string, unknown>;
     }>;
   };
 }
@@ -116,16 +186,26 @@ class HistoryService {
 
       // Try to use test endpoint first for development
       let endpoint = `/api/v1/presentation-requests/history?${params.toString()}`;
-      
+
       // Check if we're in development and should use mock data
       if (typeof window !== 'undefined' && window.location.pathname.includes('/test/')) {
         endpoint = `/api/test/history?${params.toString()}`;
       }
 
-      const response = await apiClient.get<any>(endpoint);
-      
+      const response = await apiClient.get<MockHistoryResponse | ApiHistoryResponse>(endpoint);
+
+      // Type guard for mock response
+      const isMockResponse = (data: MockHistoryResponse | ApiHistoryResponse): data is MockHistoryResponse => {
+        return 'data' in data && Array.isArray((data as MockHistoryResponse).data);
+      };
+
+      // Type guard for API response
+      const isApiResponse = (data: MockHistoryResponse | ApiHistoryResponse): data is ApiHistoryResponse => {
+        return 'requests' in data && Array.isArray((data as ApiHistoryResponse).requests);
+      };
+
       // Handle mock data format (simpler structure)
-      if (response.data.data && Array.isArray(response.data.data)) {
+      if (isMockResponse(response.data)) {
         return {
           data: response.data.data,
           total: response.data.total,
@@ -133,11 +213,11 @@ class HistoryService {
           limit: response.data.limit,
         };
       }
-      
+
       // Handle real API data format
-      if (response.data.requests) {
+      if (isApiResponse(response.data)) {
         // Convert to HistoryItem format
-        const historyItems: HistoryItem[] = response.data.requests.map((request: any) => ({
+        const historyItems: HistoryItem[] = response.data.requests.map((request: ApiPresentationRequest) => ({
           id: request.id,
           type: 'request' as const,
           title: request.title,
@@ -147,7 +227,7 @@ class HistoryService {
           verifier: request.verifier_name || request.verifier_did,
           holder: request.latest_response?.holder_did,
           details: {
-            credentialTypes: request.required_credentials.map((cred: any) => cred.type),
+            credentialTypes: request.required_credentials.map((cred: ApiCredentialRequirement) => cred.type),
             requestId: request.request_id,
             responseTime: request.latest_response?.verified_at && request.latest_response?.submitted_at
               ? this.calculateResponseTime(request.latest_response.submitted_at, request.latest_response.verified_at)
@@ -239,7 +319,7 @@ class HistoryService {
     if (status === 'active') return 'pending';
     if (status === 'expired') return 'failed';
     if (status === 'cancelled') return 'failed';
-    
+
     // Fallback to response count logic for backward compatibility
     if (responseCount > 0) return 'completed';
     return 'pending';
@@ -272,7 +352,7 @@ class HistoryService {
     const verified = new Date(verifiedAt);
     const diffMs = verified.getTime() - submitted.getTime();
     const diffSeconds = Math.round(diffMs / 1000);
-    
+
     if (diffSeconds < 60) {
       return `${diffSeconds}s`;
     } else if (diffSeconds < 3600) {
@@ -283,7 +363,7 @@ class HistoryService {
   }
 
   private calculateVerificationScore(responses?: Array<{
-    verification_result?: Record<string, any>;
+    verification_result?: Record<string, unknown>;
     status: string;
   }>): number | undefined {
     if (!responses || responses.length === 0) {
@@ -291,8 +371,8 @@ class HistoryService {
     }
 
     // Calculate average verification score based on responses
-    const scoredResponses = responses.filter(resp => 
-      resp.verification_result && 
+    const scoredResponses = responses.filter(resp =>
+      resp.verification_result &&
       typeof resp.verification_result.score === 'number'
     );
 
@@ -302,9 +382,10 @@ class HistoryService {
       return Math.round((successfulResponses / responses.length) * 100);
     }
 
-    const totalScore = scoredResponses.reduce((sum, resp) => 
-      sum + (resp.verification_result?.score || 0), 0
-    );
+    const totalScore = scoredResponses.reduce((sum, resp) => {
+      const score = resp.verification_result?.score;
+      return sum + (typeof score === 'number' ? score : 0);
+    }, 0);
 
     return Math.round(totalScore / scoredResponses.length);
   }

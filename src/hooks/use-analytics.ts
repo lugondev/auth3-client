@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { AnalyticsAPI, handleApiError, formatTimeRange } from '@/services/analytics-api'
+import { AnalyticsAPI, handleApiError, formatTimeRange } from '@/services/analyticsService'
 
 interface UseAnalyticsOptions {
   refreshInterval?: number // in milliseconds
@@ -13,7 +13,7 @@ export function useAnalytics<T>(
   options: UseAnalyticsOptions = {}
 ) {
   const { refreshInterval = 30000, enabled = true, timeRange } = options
-  
+
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -29,8 +29,8 @@ export function useAnalytics<T>(
       setData(result)
       setLastRefresh(new Date())
     } catch (err) {
-      const errorMessage = handleApiError(err)
-      setError(errorMessage)
+      const apiError = handleApiError(err)
+      setError(apiError.message)
       console.error('Analytics fetch error:', err)
     } finally {
       setLoading(false)
@@ -58,7 +58,7 @@ export function useAnalytics<T>(
 // Specific analytics hooks
 export function useAuthAnalytics(timeRange?: number) {
   const params = timeRange ? formatTimeRange(timeRange) : undefined
-  
+
   return useAnalytics(() => AnalyticsAPI.auth.getAuthDashboard(params), {
     refreshInterval: 30000,
     timeRange,
@@ -67,7 +67,7 @@ export function useAuthAnalytics(timeRange?: number) {
 
 export function useOAuth2Analytics(timeRange?: number) {
   const params = timeRange ? formatTimeRange(timeRange) : undefined
-  
+
   return useAnalytics(() => AnalyticsAPI.oauth2.getOAuth2Dashboard(params), {
     refreshInterval: 30000,
     timeRange,
@@ -76,7 +76,7 @@ export function useOAuth2Analytics(timeRange?: number) {
 
 export function useDIDAnalytics(timeRange?: number) {
   const params = timeRange ? formatTimeRange(timeRange) : undefined
-  
+
   return useAnalytics(() => AnalyticsAPI.did.getDIDDashboard(params), {
     refreshInterval: 30000,
     timeRange,
@@ -85,7 +85,7 @@ export function useDIDAnalytics(timeRange?: number) {
 
 export function useKMSAnalytics(timeRange?: number) {
   const params = timeRange ? formatTimeRange(timeRange) : undefined
-  
+
   return useAnalytics(() => AnalyticsAPI.kms.getKMSDashboard(params), {
     refreshInterval: 30000,
     timeRange,
@@ -94,8 +94,9 @@ export function useKMSAnalytics(timeRange?: number) {
 
 export function useTenantAnalytics(timeRange?: number) {
   const params = timeRange ? formatTimeRange(timeRange) : undefined
-  
-  return useAnalytics(() => AnalyticsAPI.tenant.getTenantDashboard(params), {
+
+  // TODO: Implement proper tenant analytics API
+  return useAnalytics(() => AnalyticsAPI.system.getSystemDashboard(params), {
     refreshInterval: 30000,
     timeRange,
   })
@@ -121,7 +122,8 @@ export function useKMSRealTime() {
 }
 
 export function useTenantRealTime() {
-  return useAnalytics(() => AnalyticsAPI.tenant.getRealTimeTenantMetrics(), {
+  // TODO: Implement proper real-time tenant metrics API
+  return useAnalytics(() => AnalyticsAPI.system.getSystemDashboard(), {
     refreshInterval: 5000,
   })
 }
@@ -129,7 +131,7 @@ export function useTenantRealTime() {
 // Login analytics hook
 export function useLoginAnalytics(timeRange?: number) {
   const params = timeRange ? formatTimeRange(timeRange) : undefined
-  
+
   return useAnalytics(() => AnalyticsAPI.auth.getLoginAnalytics(params), {
     refreshInterval: 30000,
     timeRange,
@@ -149,7 +151,7 @@ export function useOAuth2FlowAnalytics(
     ...(timeRange ? formatTimeRange(timeRange) : {}),
     ...filters,
   }
-  
+
   return useAnalytics(() => AnalyticsAPI.oauth2.getOAuth2FlowAnalytics(params), {
     refreshInterval: 30000,
     timeRange,
@@ -168,7 +170,7 @@ export function useDIDCreationAnalytics(
     ...(timeRange ? formatTimeRange(timeRange) : {}),
     ...filters,
   }
-  
+
   return useAnalytics(() => AnalyticsAPI.did.getDIDCreationAnalytics(params), {
     refreshInterval: 30000,
     timeRange,
@@ -187,7 +189,7 @@ export function useSystemEvents(
     ...(timeRange ? formatTimeRange(timeRange) : {}),
     ...filters,
   }
-  
+
   return useAnalytics(() => AnalyticsAPI.system.getSystemEvents(params), {
     refreshInterval: 15000,
     timeRange,
@@ -203,7 +205,7 @@ export function useAnalyticsDashboard(timeRange?: number) {
   const tenantAnalytics = useTenantAnalytics(timeRange)
   const systemHealth = useSystemHealth()
 
-  const loading = 
+  const loading =
     authAnalytics.loading ||
     oauth2Analytics.loading ||
     didAnalytics.loading ||
@@ -211,7 +213,7 @@ export function useAnalyticsDashboard(timeRange?: number) {
     tenantAnalytics.loading ||
     systemHealth.loading
 
-  const error = 
+  const error =
     authAnalytics.error ||
     oauth2Analytics.error ||
     didAnalytics.error ||

@@ -15,7 +15,8 @@ import { PresentationRequestList } from '@/components/presentation-request/Prese
 import { PresentationRequestDetail } from '@/components/presentation-request/PresentationRequestDetail';
 import { AnalyticsView } from './AnalyticsView';
 import { HistoryView } from './HistoryView';
-import { analyticsService } from '@/services/analytics-service';
+// TODO: Implement analytics service integration
+// import { analyticsService } from '@/services/analytics-service';
 import { presentationRequestService } from '@/services/presentation-request-service';
 import type { PresentationRequest } from '@/types/presentation-request';
 

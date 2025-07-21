@@ -1,693 +1,298 @@
-import apiClient from '@/lib/apiClient';
-import { withErrorHandling } from './errorHandlingService';
+import apiClient from '@/lib/apiClient'
+import { withErrorHandling, handleApiError } from './errorHandlingService'
+import type {
+  SystemDashboardAnalytics,
+  PersonalDashboardAnalytics,
+  AuthDashboardResponse,
+  DIDDashboardResponse,
+  KMSDashboardResponse,
+  OAuth2DashboardResponse,
+  SystemHealthResponse,
+  SystemEventsResponse,
+  LoginActivityItem,
+  SecurityEventItem,
+  DeviceStatsItem,
+  LocationStatsItem,
+  UserGrowthItem,
+  TenantStatsItem,
+  TimeRangeRequest,
+  PaginatedRequest,
+  DIDCreationMetricsResponse,
+  DIDMethodMetricsResponse,
+  DIDResolutionMetricsResponse,
+  DIDPerformanceMetricsResponse,
+  DIDSecurityMetricsResponse,
+  DIDVerificationMetricsResponse,
+  KMSKeyManagementMetricsResponse,
+  KMSCryptographicMetricsResponse,
+  KMSSecurityMetricsResponse,
+  KMSPerformanceMetricsResponse,
+  KMSComplianceMetricsResponse,
+  KMSRealTimeMetricsResponse,
+  OAuth2ErrorAnalyticsResponse,
+  OAuth2FlowAnalyticsResponse,
+  ClientAnalyticsResponse,
+  RealTimeOAuth2Response,
+  LoginAnalyticsResponse,
+  RecentLoginsResponse
+} from '@/types/analytics'
 
-// Analytics Types
-export interface AnalyticsTimeRange {
-	start_date?: string; // YYYY-MM-DD format
-	end_date?: string;   // YYYY-MM-DD format
+// Error response interface
+export interface ErrorResponse {
+  error: string
+  message: string
+  code?: string
+  details?: Record<string, unknown>
 }
 
-export interface AnalyticsQuery {
-	time_range?: AnalyticsTimeRange;
-	user_id?: string;
-	limit?: number;
-	offset?: number;
-	interval?: 'day' | 'week' | 'month';
+// ============= System Analytics Service =============
+
+export class SystemAnalyticsService {
+  static getSystemDashboard = withErrorHandling(async (params?: TimeRangeRequest): Promise<SystemDashboardAnalytics> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/system', { params })
+    return response.data as SystemDashboardAnalytics
+  })
+
+  static getSystemHealth = withErrorHandling(async (): Promise<SystemHealthResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/system/health')
+    return response.data as SystemHealthResponse
+  })
+
+  static getSystemEvents = withErrorHandling(async (params?: {
+    event_type?: string
+    level?: string
+  } & TimeRangeRequest & PaginatedRequest): Promise<SystemEventsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/system/events', { params })
+    return response.data as SystemEventsResponse
+  })
+
+  static getLoginActivity = withErrorHandling(async (params?: {
+    start_date?: string
+    end_date?: string
+    interval?: string
+  }): Promise<LoginActivityItem[]> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/login-activity', { params })
+    return response.data as LoginActivityItem[]
+  })
+
+  static getSecurityEvents = withErrorHandling(async (params?: {
+    user_id?: string
+  } & PaginatedRequest): Promise<SecurityEventItem[]> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/security-events', { params })
+    return response.data as SecurityEventItem[]
+  })
+
+  static getTenantStats = withErrorHandling(async (params?: PaginatedRequest): Promise<TenantStatsItem[]> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/tenant-stats', { params })
+    return response.data as TenantStatsItem[]
+  })
+
+  static getTopDevices = withErrorHandling(async (params?: {
+    start_date?: string
+    end_date?: string
+    limit?: number
+  }): Promise<DeviceStatsItem[]> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/top-devices', { params })
+    return response.data as DeviceStatsItem[]
+  })
+
+  static getTopLocations = withErrorHandling(async (params?: {
+    start_date?: string
+    end_date?: string
+    limit?: number
+  }): Promise<LocationStatsItem[]> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/top-locations', { params })
+    return response.data as LocationStatsItem[]
+  })
+
+  static getUserGrowth = withErrorHandling(async (params?: {
+    start_date?: string
+    end_date?: string
+    interval?: string
+  }): Promise<UserGrowthItem[]> => {
+    const response = await apiClient.get('/api/v1/analytics/admin/user-growth', { params })
+    return response.data as UserGrowthItem[]
+  })
+
+  static recordMetric = withErrorHandling(async (metric: {
+    name: string
+    value: number
+    labels?: Record<string, string>
+    timestamp?: string
+  }) => {
+    const response = await apiClient.post('/api/v1/analytics/system/metrics', metric)
+    return response.data
+  })
 }
 
-// Credential Analytics Types
-export interface TimeSeriesStat {
-	timestamp: string;
-	count: number;
-	value?: number;
+// ============= Personal Analytics Service =============
+
+export class PersonalAnalyticsService {
+  static getPersonalDashboard = withErrorHandling(async (params?: TimeRangeRequest): Promise<PersonalDashboardAnalytics> => {
+    const response = await apiClient.get('/api/v1/analytics/dashboard', { params })
+    return response.data as PersonalDashboardAnalytics
+  })
 }
 
-export interface IssuerStat {
-	issuerDid: string;
-	issuerName: string;
-	count: number;
+// ============= Authentication Analytics Service =============
+
+export class AuthAnalyticsService {
+  static getAuthDashboard = withErrorHandling(async (params?: TimeRangeRequest): Promise<AuthDashboardResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/auth/dashboard', { params })
+    return response.data as AuthDashboardResponse
+  })
+
+  static getLoginAnalytics = withErrorHandling(async (params?: TimeRangeRequest): Promise<LoginAnalyticsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/auth/logins', { params })
+    return response.data as LoginAnalyticsResponse
+  })
+
+  static getRecentLogins = withErrorHandling(async (params?: { hours?: number }): Promise<RecentLoginsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/auth/recent-logins', { params })
+    return response.data as RecentLoginsResponse
+  })
 }
 
-export interface TemplateStat {
-	templateId: string;
-	templateName: string;
-	count: number;
+// ============= DID Analytics Service =============
+
+export class DIDAnalyticsService {
+  static getDIDDashboard = withErrorHandling(async (params?: TimeRangeRequest): Promise<DIDDashboardResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/dashboard', { params })
+    return response.data as DIDDashboardResponse
+  })
+
+  static getDIDCreationAnalytics = withErrorHandling(async (params?: {
+    did_method?: string
+    status?: string
+  } & TimeRangeRequest): Promise<DIDCreationMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/creation', { params })
+    return response.data as DIDCreationMetricsResponse
+  })
+
+  static getDIDMethodAnalytics = withErrorHandling(async (params?: {
+    did_method?: string
+  } & TimeRangeRequest): Promise<DIDMethodMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/methods', { params })
+    return response.data as DIDMethodMetricsResponse
+  })
+
+  static getDIDResolutionAnalytics = withErrorHandling(async (params?: {
+    did_method?: string
+    status?: string
+  } & TimeRangeRequest): Promise<DIDResolutionMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/resolution', { params })
+    return response.data as DIDResolutionMetricsResponse
+  })
+
+  static getDIDPerformanceMetrics = withErrorHandling(async (params?: TimeRangeRequest): Promise<DIDPerformanceMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/performance', { params })
+    return response.data as DIDPerformanceMetricsResponse
+  })
+
+  static getDIDSecurityAnalytics = withErrorHandling(async (params?: TimeRangeRequest): Promise<DIDSecurityMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/security', { params })
+    return response.data as DIDSecurityMetricsResponse
+  })
+
+  static getDIDVerificationAnalytics = withErrorHandling(async (params?: TimeRangeRequest): Promise<DIDVerificationMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/did/verification', { params })
+    return response.data as DIDVerificationMetricsResponse
+  })
 }
 
-export interface CredentialTypeStat {
-	typeUri: string;
-	count: number;
+// ============= KMS Analytics Service =============
+
+export class KMSAnalyticsService {
+  static getKMSDashboard = withErrorHandling(async (params?: TimeRangeRequest): Promise<KMSDashboardResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/dashboard', { params })
+    return response.data as KMSDashboardResponse
+  })
+
+  static getKMSKeyManagementMetrics = withErrorHandling(async (params?: TimeRangeRequest): Promise<KMSKeyManagementMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/key-management', { params })
+    return response.data as KMSKeyManagementMetricsResponse
+  })
+
+  static getKMSCryptographicMetrics = withErrorHandling(async (params?: TimeRangeRequest): Promise<KMSCryptographicMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/cryptographic', { params })
+    return response.data as KMSCryptographicMetricsResponse
+  })
+
+  static getKMSSecurityMetrics = withErrorHandling(async (params?: TimeRangeRequest): Promise<KMSSecurityMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/security', { params })
+    return response.data as KMSSecurityMetricsResponse
+  })
+
+  static getKMSPerformanceMetrics = withErrorHandling(async (params?: TimeRangeRequest): Promise<KMSPerformanceMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/performance', { params })
+    return response.data as KMSPerformanceMetricsResponse
+  })
+
+  static getKMSComplianceMetrics = withErrorHandling(async (params?: TimeRangeRequest): Promise<KMSComplianceMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/compliance', { params })
+    return response.data as KMSComplianceMetricsResponse
+  })
+
+  static getRealTimeKMSMetrics = withErrorHandling(async (): Promise<KMSRealTimeMetricsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/kms/realtime')
+    return response.data as KMSRealTimeMetricsResponse
+  })
 }
 
-export interface StatusStat {
-	status: string;
-	count: number;
+// ============= OAuth2 Analytics Service =============
+
+export class OAuth2AnalyticsService {
+  static getOAuth2Dashboard = withErrorHandling(async (params?: TimeRangeRequest): Promise<OAuth2DashboardResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/oauth2/dashboard', { params })
+    return response.data as OAuth2DashboardResponse
+  })
+
+  static getOAuth2FlowAnalytics = withErrorHandling(async (params?: {
+    client_id?: string
+    grant_type?: string
+    include_errors?: boolean
+  } & TimeRangeRequest): Promise<OAuth2FlowAnalyticsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/oauth2/flows', { params })
+    return response.data as OAuth2FlowAnalyticsResponse
+  })
+
+  static getClientAnalytics = withErrorHandling(async (params?: {
+    client_id?: string
+  } & TimeRangeRequest): Promise<ClientAnalyticsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/oauth2/client', { params })
+    return response.data as ClientAnalyticsResponse
+  })
+
+  static getErrorAnalytics = withErrorHandling(async (params?: {
+    error_type?: string
+  } & TimeRangeRequest): Promise<OAuth2ErrorAnalyticsResponse> => {
+    const response = await apiClient.get('/api/v1/analytics/oauth2/errors', { params })
+    return response.data as OAuth2ErrorAnalyticsResponse
+  })
+
+  static getRealTimeMetrics = withErrorHandling(async (): Promise<RealTimeOAuth2Response> => {
+    const response = await apiClient.get('/api/v1/analytics/oauth2/realtime')
+    return response.data as RealTimeOAuth2Response
+  })
 }
 
-export interface ResultStat {
-	result: string;
-	count: number;
+// ============= Common utility functions =============
+
+export const formatTimeRange = (days: number): TimeRangeRequest => {
+  const end_time = new Date().toISOString()
+  const start_time = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+  return { start_time, end_time }
 }
 
-export interface MethodStat {
-	method: string;
-	count: number;
+// Export default analytics service aggregator
+export const AnalyticsAPI = {
+  system: SystemAnalyticsService,
+  personal: PersonalAnalyticsService,
+  auth: AuthAnalyticsService,
+  did: DIDAnalyticsService,
+  kms: KMSAnalyticsService,
+  oauth2: OAuth2AnalyticsService,
 }
 
-export interface VerifierStat {
-	verifierDid: string;
-	verifierName: string;
-	count: number;
-}
-
-export interface FailureReasonStat {
-	reason: string;
-	count: number;
-}
-
-export interface UsageDistributionStat {
-	category: string;
-	count: number;
-}
-
-export interface IssuanceStatistics {
-	totalIssued: number;
-	issuedToday: number;
-	issuedThisWeek: number;
-	issuedThisMonth: number;
-	avgIssuanceTime: number;
-	topIssuers: IssuerStat[];
-	topTemplates: TemplateStat[];
-	issuanceByTime: TimeSeriesStat[];
-	issuanceByCredentialType: CredentialTypeStat[];
-	issuanceByStatus: StatusStat[];
-}
-
-export interface VerificationStatistics {
-	totalVerifications: number;
-	verificationsToday: number;
-	verificationsThisWeek: number;
-	verificationsThisMonth: number;
-	successRate: number;
-	avgVerificationTime: number;
-	verificationsByResult: ResultStat[];
-	verificationsByTime: TimeSeriesStat[];
-	verificationsByMethod: MethodStat[];
-	topVerifiers: VerifierStat[];
-	commonFailureReasons: FailureReasonStat[];
-}
-
-export interface TemplateUsageStats {
-	templateId: string;
-	templateName: string;
-	totalCredentialsIssued: number;
-	issuedThisMonth: number;
-	issuedThisWeek: number;
-	issuanceByTime: TimeSeriesStat[];
-	topIssuers: IssuerStat[];
-	usageDistribution: UsageDistributionStat[];
-	avgIssuanceTime: number;
-}
-
-export interface IssuerMetrics {
-	issuerDid: string;
-	issuerName: string;
-	totalCredentialsIssued: number;
-	issuedThisMonth: number;
-	issuanceByTime: TimeSeriesStat[];
-	trustScore: number;
-	credentialsByType: CredentialTypeStat[];
-	credentialsByStatus: StatusStat[];
-	responseTime: number;
-	upTime: number;
-}
-
-// Credential Analytics API Methods
-
-/**
- * Get credential issuance statistics
- */
-export const getIssuanceStatistics = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<IssuanceStatistics> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.interval) {
-			params.append('interval', query.interval);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/credentials/analytics/issuance${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<IssuanceStatistics>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get credential verification statistics
- */
-export const getVerificationStatistics = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<VerificationStatistics> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.interval) {
-			params.append('interval', query.interval);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/credentials/analytics/verification${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<VerificationStatistics>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get template usage statistics
- */
-export const getTemplateUsageStatistics = withErrorHandling(
-	async (templateId: string, query?: AnalyticsQuery): Promise<TemplateUsageStats> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.interval) {
-			params.append('interval', query.interval);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/credentials/analytics/templates/${templateId}${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<TemplateUsageStats>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get issuer performance metrics
- */
-export const getIssuerPerformanceMetrics = withErrorHandling(
-	async (issuerDid: string, query?: AnalyticsQuery): Promise<IssuerMetrics> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.interval) {
-			params.append('interval', query.interval);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/credentials/analytics/issuers/${issuerDid}${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<IssuerMetrics>(url);
-		return response.data;
-	}
-);
-
-/**
- * Interface for compliance report response
- */
-export interface ComplianceReportResponse {
-	reportId: string;
-	name: string;
-	type: string;
-	period: {
-		start_date: string;
-		end_date: string;
-	};
-	status: 'completed' | 'processing' | 'failed';
-	url?: string;
-	totalCredentialsIssued: number;
-	totalCredentialsVerified: number;
-	totalCredentialsRevoked: number;
-	complianceRate: number;
-	createdAt: string;
-}
-
-/**
- * Generate compliance report
- */
-export const generateComplianceReport = withErrorHandling(
-	async (startDate: string, endDate: string, reportType: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'): Promise<ComplianceReportResponse> => {
-		const url = `/api/v1/credentials/analytics/reports/compliance`;
-
-		const response = await apiClient.post<ComplianceReportResponse>(url, {
-			start_date: startDate,
-			end_date: endDate,
-			type: reportType
-		});
-
-		return response.data;
-	}
-);
-
-// Personal Dashboard Analytics
-export interface PersonalDashboardAnalytics {
-	total_logins: number;
-	recent_logins: number;
-	active_sessions: number;
-	security_events: number;
-	last_login?: string;
-	account_created: string;
-	two_factor_enabled: boolean;
-	email_verified: boolean;
-	phone_verified: boolean;
-	// DID-related analytics
-	total_dids: number;
-	total_credentials: number;
-	total_messages: number;
-	total_connections: number;
-	dids_this_month: number;
-	credentials_this_month: number;
-	messages_this_month: number;
-	last_activity?: string;
-}
-
-// System Dashboard Analytics
-export interface SystemDashboardAnalytics {
-	total_users: number;
-	active_users: number;
-	new_users_today: number;
-	total_tenants: number;
-	active_tenants: number;
-	total_logins: number;
-	failed_logins: number;
-	security_events: number;
-	system_health: 'healthy' | 'warning' | 'critical';
-	// DID-related system analytics
-	total_dids: number;
-	total_credentials: number;
-	total_messages: number;
-	user_growth_percentage: number;
-}
-
-// Chart Data Types
-export interface UserGrowthItem {
-	date: string;
-	new_users: number;
-	total_users: number;
-	active_users: number;
-}
-
-export interface LoginActivityItem {
-	date: string;
-	successful_logins: number;
-	failed_logins: number;
-}
-
-export interface DeviceStatsItem {
-	device_type: string;
-	count: number;
-	percentage: number;
-}
-
-export interface LocationStatsItem {
-	country: string;
-	city?: string;
-	count: number;
-	percentage: number;
-}
-
-export interface SecurityEventItem {
-	id: string;
-	user_id: string;
-	user_email: string;
-	event_type: string;
-	description: string;
-	ip_address: string;
-	user_agent: string;
-	location?: string;
-	created_at: string;
-	severity: 'low' | 'medium' | 'high' | 'critical';
-}
-
-export interface TenantStatsItem {
-	tenant_id: string;
-	tenant_name: string;
-	user_count: number;
-	active_users: number;
-	total_logins: number;
-	created_at: string;
-	is_active: boolean;
-}
-
-export interface LoginHistoryItem {
-	timestamp: string;
-	ip_address: string;
-	user_agent: string;
-	success: boolean;
-}
-
-export interface DeviceHistoryItem {
-	device: string;
-	last_used: string;
-	count: number;
-}
-
-/**
- * Get personal dashboard analytics for the current user
- */
-export const getPersonalDashboardAnalytics = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<PersonalDashboardAnalytics> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/personal${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<PersonalDashboardAnalytics>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get system dashboard analytics (admin only)
- */
-export const getSystemDashboardAnalytics = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<SystemDashboardAnalytics> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/system${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<SystemDashboardAnalytics>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get user growth data (admin only)
- */
-export const getUserGrowthData = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<UserGrowthItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.interval) {
-			params.append('interval', query.interval);
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/user-growth${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<UserGrowthItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get login activity data (admin only)
- */
-export const getLoginActivityData = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<LoginActivityItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.interval) {
-			params.append('interval', query.interval);
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/login-activity${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<LoginActivityItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get personal login history data
- */
-export const getPersonalLoginHistory = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<LoginHistoryItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/personal/login-history${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<LoginHistoryItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get personal device history data
- */
-export const getPersonalDeviceHistory = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<DeviceHistoryItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/personal/device-history${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<DeviceHistoryItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get top devices data (admin only)
- */
-export const getTopDevicesData = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<DeviceStatsItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/top-devices${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<DeviceStatsItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get top locations data (admin only)
- */
-export const getTopLocationsData = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<LocationStatsItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/top-locations${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<LocationStatsItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get security events data (admin only)
- */
-export const getSecurityEventsData = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<SecurityEventItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.user_id) {
-			params.append('user_id', query.user_id);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/security-events${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<SecurityEventItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Get tenant statistics data (admin only)
- */
-export const getTenantStatsData = withErrorHandling(
-	async (query?: AnalyticsQuery): Promise<TenantStatsItem[]> => {
-		const params = new URLSearchParams();
-
-		if (query?.time_range?.start_date) {
-			params.append('start_date', query.time_range.start_date);
-		}
-		if (query?.time_range?.end_date) {
-			params.append('end_date', query.time_range.end_date);
-		}
-		if (query?.limit) {
-			params.append('limit', query.limit.toString());
-		}
-		if (query?.offset) {
-			params.append('offset', query.offset.toString());
-		}
-
-		const queryString = params.toString();
-		const url = `/api/v1/analytics/admin/tenant-stats${queryString ? `?${queryString}` : ''}`;
-
-		const response = await apiClient.get<TenantStatsItem[]>(url);
-		return response.data;
-	}
-);
-
-/**
- * Analytics Service class that provides all analytics functionality
- */
-export class AnalyticsService {
-	/**
-	 * Get personal dashboard analytics for the current user
-	 */
-	static getPersonalDashboardAnalytics = getPersonalDashboardAnalytics;
-
-	/**
-	 * Get system dashboard analytics (admin only)
-	 */
-	static getSystemDashboardAnalytics = getSystemDashboardAnalytics;
-
-	/**
-	 * Get user growth data (admin only)
-	 */
-	static getUserGrowthData = getUserGrowthData;
-
-	/**
-	 * Get login activity data (admin only)
-	 */
-	static getLoginActivityData = getLoginActivityData;
-
-	/**
-	 * Get top devices data (admin only)
-	 */
-	static getTopDevicesData = getTopDevicesData;
-
-	/**
-	 * Get top locations data (admin only)
-	 */
-	static getTopLocationsData = getTopLocationsData;
-
-	/**
-	 * Get security events data (admin only)
-	 */
-	static getSecurityEventsData = getSecurityEventsData;
-
-	/**
-	 * Get tenant statistics data (admin only)
-	 */
-	static getTenantStatsData = getTenantStatsData;
-}
-
-// Export default instance
-export default AnalyticsService;
+// Re-export error handling function for backward compatibility
+export { handleApiError }

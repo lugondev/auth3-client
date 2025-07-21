@@ -9,90 +9,31 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {useAuth} from '@/contexts/AuthContext'
 import {BarChart3, TrendingUp, Activity, Server, Shield, Users, Database, Globe, AlertTriangle, CheckCircle, Clock, Zap, RefreshCw, ArrowUpRight, ArrowDownRight} from 'lucide-react'
 import Link from 'next/link'
-
-interface OverviewMetrics {
-	system_health: {
-		status: 'healthy' | 'warning' | 'critical'
-		uptime: number
-		response_time: number
-		error_rate: number
-	}
-	authentication: {
-		total_logins_today: number
-		failed_logins_today: number
-		active_sessions: number
-		success_rate: number
-	}
-	api: {
-		requests_per_minute: number
-		average_response_time: number
-		error_rate: number
-		peak_load: number
-	}
-	users: {
-		total_users: number
-		active_users_today: number
-		new_registrations_today: number
-		retention_rate: number
-	}
-	modules: {
-		oauth2_requests: number
-		did_operations: number
-		kms_operations: number
-		tenant_operations: number
-	}
-}
+import {SystemAnalyticsService, formatTimeRange, handleApiError} from '@/services/analyticsService'
+import type {SystemDashboardAnalytics} from '@/types/analytics'
 
 export default function AnalyticsOverviewPage() {
 	const {user} = useAuth()
 	const [loading, setLoading] = useState(true)
-	const [metrics, setMetrics] = useState<OverviewMetrics | null>(null)
+	const [metrics, setMetrics] = useState<SystemDashboardAnalytics | null>(null)
 	const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+	const [error, setError] = useState<string | null>(null)
 
 	const fetchOverviewMetrics = async () => {
 		try {
 			setLoading(true)
+			setError(null)
 
-			// Mock data for demonstration
-			await new Promise((resolve) => setTimeout(resolve, 1000))
+			// Fetch system dashboard analytics from API
+			const timeRange = formatTimeRange(7) // Last 7 days
+			const data = await SystemAnalyticsService.getSystemDashboard(timeRange)
 
-			const mockMetrics: OverviewMetrics = {
-				system_health: {
-					status: 'healthy',
-					uptime: 99.8,
-					response_time: 142,
-					error_rate: 0.2,
-				},
-				authentication: {
-					total_logins_today: 1247,
-					failed_logins_today: 23,
-					active_sessions: 892,
-					success_rate: 98.2,
-				},
-				api: {
-					requests_per_minute: 342,
-					average_response_time: 95,
-					error_rate: 1.2,
-					peak_load: 1200,
-				},
-				users: {
-					total_users: 15420,
-					active_users_today: 3241,
-					new_registrations_today: 47,
-					retention_rate: 87.5,
-				},
-				modules: {
-					oauth2_requests: 4231,
-					did_operations: 892,
-					kms_operations: 1543,
-					tenant_operations: 234,
-				},
-			}
-
-			setMetrics(mockMetrics)
+			setMetrics(data)
 			setLastRefresh(new Date())
 		} catch (error) {
 			console.error('Failed to fetch overview metrics:', error)
+			const apiError = handleApiError(error)
+			setError(apiError.message)
 		} finally {
 			setLoading(false)
 		}
@@ -105,6 +46,20 @@ export default function AnalyticsOverviewPage() {
 		const interval = setInterval(fetchOverviewMetrics, 30000)
 		return () => clearInterval(interval)
 	}, [])
+
+	// Calculate derived metrics from SystemDashboardAnalytics
+	const getSystemHealthStatus = () => {
+		if (!metrics) return 'unknown'
+
+		// Simple health calculation based on available metrics
+		const errorRate = metrics.security_overview?.failed_login_attempts || 0
+		const totalUsers = metrics.total_users || 1
+		const failureRate = (errorRate / totalUsers) * 100
+
+		if (failureRate > 5) return 'critical'
+		if (failureRate > 2) return 'warning'
+		return 'healthy'
+	}
 
 	const getStatusColor = (status: string) => {
 		switch (status) {
@@ -148,6 +103,10 @@ export default function AnalyticsOverviewPage() {
 		)
 	}
 
+	const systemStatus = getSystemHealthStatus()
+	const totalLoginAttempts = (metrics?.security_overview?.failed_login_attempts || 0) + (metrics?.active_sessions || 0)
+	const successRate = totalLoginAttempts > 0 ? ((metrics?.active_sessions || 0) / totalLoginAttempts) * 100 : 100
+
 	return (
 		<div className='container mx-auto py-8'>
 			{/* Header */}
@@ -161,18 +120,28 @@ export default function AnalyticsOverviewPage() {
 				</div>
 				<div className='flex items-center gap-2'>
 					<span className='text-sm text-muted-foreground'>Last updated: {lastRefresh.toLocaleTimeString()}</span>
-					<Button variant='outline' size='sm' onClick={fetchOverviewMetrics}>
-						<RefreshCw className='h-4 w-4' />
+					<Button variant='outline' size='sm' onClick={fetchOverviewMetrics} disabled={loading}>
+						<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
 					</Button>
 				</div>
 			</div>
 
-			{/* System Health Alert */}
-			{metrics && metrics.system_health.status !== 'healthy' && (
+			{/* Error Alert */}
+			{error && (
 				<Alert variant='destructive' className='mb-6'>
 					<AlertTriangle className='h-4 w-4' />
 					<AlertDescription>
-						<strong>System Alert:</strong> System status is {metrics.system_health.status}. Response time: {metrics.system_health.response_time}ms, Error rate: {metrics.system_health.error_rate}%
+						<strong>Error:</strong> {error}
+					</AlertDescription>
+				</Alert>
+			)}
+
+			{/* System Health Alert */}
+			{metrics && systemStatus !== 'healthy' && (
+				<Alert variant='destructive' className='mb-6'>
+					<AlertTriangle className='h-4 w-4' />
+					<AlertDescription>
+						<strong>System Alert:</strong> System status is {systemStatus}. Failed logins: {metrics.security_overview?.failed_login_attempts || 0}, Active sessions: {metrics.active_sessions || 0}
 					</AlertDescription>
 				</Alert>
 			)}
@@ -190,22 +159,22 @@ export default function AnalyticsOverviewPage() {
 						<div className='grid grid-cols-1 md:grid-cols-4 gap-6'>
 							<div className='text-center'>
 								<div className='flex items-center justify-center gap-2 mb-2'>
-									{getStatusIcon(metrics.system_health.status)}
-									<span className={`font-semibold ${getStatusColor(metrics.system_health.status)}`}>{metrics.system_health.status.charAt(0).toUpperCase() + metrics.system_health.status.slice(1)}</span>
+									{getStatusIcon(systemStatus)}
+									<span className={`font-semibold ${getStatusColor(systemStatus)}`}>{systemStatus.charAt(0).toUpperCase() + systemStatus.slice(1)}</span>
 								</div>
 								<p className='text-sm text-muted-foreground'>Overall Status</p>
 							</div>
 							<div className='text-center'>
-								<p className='text-2xl font-bold text-green-600'>{metrics.system_health.uptime}%</p>
-								<p className='text-sm text-muted-foreground'>Uptime</p>
+								<p className='text-2xl font-bold text-green-600'>{successRate.toFixed(1)}%</p>
+								<p className='text-sm text-muted-foreground'>Success Rate</p>
 							</div>
 							<div className='text-center'>
-								<p className='text-2xl font-bold text-blue-600'>{metrics.system_health.response_time}ms</p>
-								<p className='text-sm text-muted-foreground'>Avg Response Time</p>
+								<p className='text-2xl font-bold text-blue-600'>{metrics.active_sessions || 0}</p>
+								<p className='text-sm text-muted-foreground'>Active Sessions</p>
 							</div>
 							<div className='text-center'>
-								<p className={`text-2xl font-bold ${metrics.system_health.error_rate > 1 ? 'text-red-600' : 'text-green-600'}`}>{metrics.system_health.error_rate}%</p>
-								<p className='text-sm text-muted-foreground'>Error Rate</p>
+								<p className='text-2xl font-bold text-purple-600'>{metrics.total_users || 0}</p>
+								<p className='text-sm text-muted-foreground'>Total Users</p>
 							</div>
 						</div>
 					)}
@@ -223,21 +192,21 @@ export default function AnalyticsOverviewPage() {
 								<ArrowUpRight className='h-4 w-4 text-muted-foreground' />
 							</div>
 							<div>
-								<p className='text-2xl font-bold'>{metrics?.authentication.total_logins_today || 0}</p>
-								<p className='text-sm text-muted-foreground'>Logins Today</p>
+								<p className='text-2xl font-bold'>{metrics?.active_sessions || 0}</p>
+								<p className='text-sm text-muted-foreground'>Active Sessions</p>
 								<div className='flex items-center gap-2 mt-2'>
 									<Badge variant='default' className='text-xs'>
-										{metrics?.authentication.success_rate || 0}% Success
+										{successRate.toFixed(1)}% Success
 									</Badge>
-									<span className='text-xs text-red-600'>{metrics?.authentication.failed_logins_today || 0} Failed</span>
+									<span className='text-xs text-red-600'>{metrics?.security_overview?.failed_login_attempts || 0} Failed</span>
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 				</Link>
 
-				{/* API Metrics */}
-				<Link href='/dashboard/admin/analytics/api'>
+				{/* System Metrics */}
+				<Link href='/dashboard/admin/analytics/system'>
 					<Card className='hover:shadow-md transition-shadow cursor-pointer'>
 						<CardContent className='p-6'>
 							<div className='flex items-center justify-between mb-4'>
@@ -245,13 +214,13 @@ export default function AnalyticsOverviewPage() {
 								<ArrowUpRight className='h-4 w-4 text-muted-foreground' />
 							</div>
 							<div>
-								<p className='text-2xl font-bold'>{metrics?.api.requests_per_minute || 0}</p>
-								<p className='text-sm text-muted-foreground'>Requests/min</p>
+								<p className='text-2xl font-bold'>{metrics?.active_tenants || 0}</p>
+								<p className='text-sm text-muted-foreground'>Active Tenants</p>
 								<div className='flex items-center gap-2 mt-2'>
 									<Badge variant='secondary' className='text-xs'>
-										{metrics?.api.average_response_time || 0}ms Avg
+										{metrics?.total_tenants || 0} Total
 									</Badge>
-									<span className='text-xs text-muted-foreground'>Peak: {metrics?.api.peak_load || 0}</span>
+									<span className='text-xs text-muted-foreground'>Sessions: {metrics?.total_sessions || 0}</span>
 								</div>
 							</div>
 						</CardContent>
@@ -267,21 +236,21 @@ export default function AnalyticsOverviewPage() {
 								<ArrowUpRight className='h-4 w-4 text-muted-foreground' />
 							</div>
 							<div>
-								<p className='text-2xl font-bold'>{metrics?.users.active_users_today || 0}</p>
-								<p className='text-sm text-muted-foreground'>Active Users Today</p>
+								<p className='text-2xl font-bold'>{metrics?.active_users || 0}</p>
+								<p className='text-sm text-muted-foreground'>Active Users</p>
 								<div className='flex items-center gap-2 mt-2'>
 									<Badge variant='outline' className='text-xs'>
-										+{metrics?.users.new_registrations_today || 0} New
+										+{metrics?.new_users_today || 0} Today
 									</Badge>
-									<span className='text-xs text-green-600'>{metrics?.users.retention_rate || 0}% Retention</span>
+									<span className='text-xs text-green-600'>{metrics?.new_users_this_week || 0} This Week</span>
 								</div>
 							</div>
 						</CardContent>
 					</Card>
 				</Link>
 
-				{/* Database Metrics */}
-				<Link href='/dashboard/admin/analytics/database'>
+				{/* Security Metrics */}
+				<Link href='/dashboard/admin/analytics/security'>
 					<Card className='hover:shadow-md transition-shadow cursor-pointer'>
 						<CardContent className='p-6'>
 							<div className='flex items-center justify-between mb-4'>
@@ -289,13 +258,13 @@ export default function AnalyticsOverviewPage() {
 								<ArrowUpRight className='h-4 w-4 text-muted-foreground' />
 							</div>
 							<div>
-								<p className='text-2xl font-bold'>{metrics?.users.total_users || 0}</p>
-								<p className='text-sm text-muted-foreground'>Total Users</p>
+								<p className='text-2xl font-bold'>{metrics?.security_overview?.total_security_events || 0}</p>
+								<p className='text-sm text-muted-foreground'>Security Events</p>
 								<div className='flex items-center gap-2 mt-2'>
 									<Badge variant='secondary' className='text-xs'>
-										Active DB
+										{metrics?.security_overview?.users_2fa_enabled || 0} 2FA Users
 									</Badge>
-									<span className='text-xs text-green-600'>Healthy</span>
+									<span className='text-xs text-green-600'>{metrics?.security_overview?.users_email_verified || 0} Verified</span>
 								</div>
 							</div>
 						</CardContent>
@@ -308,32 +277,36 @@ export default function AnalyticsOverviewPage() {
 				<CardHeader>
 					<CardTitle className='flex items-center gap-2'>
 						<Zap className='h-5 w-5' />
-						Module Performance
+						Top Devices & Locations
 					</CardTitle>
-					<CardDescription>Today's activity across core system modules</CardDescription>
+					<CardDescription>Most active devices and locations in the system</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
-						<div className='text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
-							<Shield className='h-8 w-8 text-blue-600 mx-auto mb-2' />
-							<p className='text-2xl font-bold text-blue-600'>{metrics?.modules.oauth2_requests || 0}</p>
-							<p className='text-sm text-muted-foreground'>OAuth2 Requests</p>
-						</div>
-						<div className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
-							<Activity className='h-8 w-8 text-green-600 mx-auto mb-2' />
-							<p className='text-2xl font-bold text-green-600'>{metrics?.modules.did_operations || 0}</p>
-							<p className='text-sm text-muted-foreground'>DID Operations</p>
-						</div>
-						<div className='text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
-							<Database className='h-8 w-8 text-purple-600 mx-auto mb-2' />
-							<p className='text-2xl font-bold text-purple-600'>{metrics?.modules.kms_operations || 0}</p>
-							<p className='text-sm text-muted-foreground'>KMS Operations</p>
-						</div>
-						<div className='text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg'>
-							<Users className='h-8 w-8 text-orange-600 mx-auto mb-2' />
-							<p className='text-2xl font-bold text-orange-600'>{metrics?.modules.tenant_operations || 0}</p>
-							<p className='text-sm text-muted-foreground'>Tenant Operations</p>
-						</div>
+						{metrics?.top_devices?.slice(0, 2).map((device, index) => (
+							<div key={index} className='text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
+								<Activity className='h-8 w-8 text-blue-600 mx-auto mb-2' />
+								<p className='text-2xl font-bold text-blue-600'>{device.count}</p>
+								<p className='text-sm text-muted-foreground'>{device.device}</p>
+							</div>
+						)) || (
+							<div className='text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg'>
+								<Activity className='h-8 w-8 text-gray-600 mx-auto mb-2' />
+								<p className='text-sm text-muted-foreground'>No device data</p>
+							</div>
+						)}
+						{metrics?.top_locations?.slice(0, 2).map((location, index) => (
+							<div key={index} className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+								<Globe className='h-8 w-8 text-green-600 mx-auto mb-2' />
+								<p className='text-2xl font-bold text-green-600'>{location.count}</p>
+								<p className='text-sm text-muted-foreground'>{location.location}</p>
+							</div>
+						)) || (
+							<div className='text-center p-4 bg-gray-50 dark:bg-gray-900/20 rounded-lg'>
+								<Globe className='h-8 w-8 text-gray-600 mx-auto mb-2' />
+								<p className='text-sm text-muted-foreground'>No location data</p>
+							</div>
+						)}
 					</div>
 				</CardContent>
 			</Card>

@@ -8,7 +8,8 @@ import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card'
 import {Badge} from '@/components/ui/badge'
 import {Skeleton} from '@/components/ui/skeleton'
-import {AnalyticsService, PersonalDashboardAnalytics} from '@/services/analyticsService'
+import {PersonalAnalyticsService} from '@/services/analyticsService'
+import type {PersonalDashboardAnalytics} from '@/types/analytics'
 import {credentialService, UserCredentialAnalytics} from '@/services/credentialService'
 import {getCurrentUser} from '@/services/userService'
 import {UserOutput} from '@/types/user'
@@ -24,56 +25,56 @@ import {RealTimeEventsWidget} from '@/components/dashboard/RealTimeEventsWidget'
 import {AnalyticsSummary} from '@/components/dashboard/AnalyticsSummary'
 import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone, Building2, Globe, Users, Database, Star, BarChart3, Send, Server, Zap} from 'lucide-react'
 
-	const quickActions = [
-		{
-			title: 'System Analytics',
-			description: 'View comprehensive system-wide analytics',
-			href: '/dashboard/analytics/system',
-			icon: Server,
-			color: 'text-red-600',
-			roles: ['system_admin'],
-		},
-		{
-			title: 'Module Analytics',
-			description: 'Monitor OAuth2, DID, Tenant and KMS modules',
-			href: '/dashboard/analytics/modules',
-			icon: Zap,
-			color: 'text-indigo-600',
-			roles: ['admin', 'system_admin'],
-		},
-		{
-			title: 'Analytics Dashboard',
-			description: 'View detailed authentication analytics',
-			href: '/dashboard/auth/analytics',
-			icon: BarChart3,
-			color: 'text-blue-600',
-			roles: ['user', 'admin', 'system_admin'],
-		},
-		{
-			title: 'Credentials',
-			description: 'Manage your digital credentials',
-			href: '/dashboard/credentials',
-			icon: Database,
-			color: 'text-purple-600',
-			roles: ['user', 'admin', 'system_admin'],
-		},
-		{
-			title: 'Templates',
-			description: 'Credential templates library',
-			href: '/dashboard/templates',
-			icon: Star,
-			color: 'text-yellow-600',
-			roles: ['user', 'admin', 'system_admin'],
-		},
-		{
-			title: 'QR Scanner',
-			description: 'Scan QR codes for authentication',
-			href: '/qr-scanner',
-			icon: Smartphone,
-			color: 'text-green-600',
-			roles: ['user', 'admin', 'system_admin'],
-		},
-	]
+const quickActions = [
+	{
+		title: 'System Analytics',
+		description: 'View comprehensive system-wide analytics',
+		href: '/dashboard/analytics/system',
+		icon: Server,
+		color: 'text-red-600',
+		roles: ['system_admin'],
+	},
+	{
+		title: 'Module Analytics',
+		description: 'Monitor OAuth2, DID, Tenant and KMS modules',
+		href: '/dashboard/analytics/modules',
+		icon: Zap,
+		color: 'text-indigo-600',
+		roles: ['admin', 'system_admin'],
+	},
+	{
+		title: 'Analytics Dashboard',
+		description: 'View detailed authentication analytics',
+		href: '/dashboard/auth/analytics',
+		icon: BarChart3,
+		color: 'text-blue-600',
+		roles: ['user', 'admin', 'system_admin'],
+	},
+	{
+		title: 'Credentials',
+		description: 'Manage your digital credentials',
+		href: '/dashboard/credentials',
+		icon: Database,
+		color: 'text-purple-600',
+		roles: ['user', 'admin', 'system_admin'],
+	},
+	{
+		title: 'Templates',
+		description: 'Credential templates library',
+		href: '/dashboard/templates',
+		icon: Star,
+		color: 'text-yellow-600',
+		roles: ['user', 'admin', 'system_admin'],
+	},
+	{
+		title: 'QR Scanner',
+		description: 'Scan QR codes for authentication',
+		href: '/qr-scanner',
+		icon: Smartphone,
+		color: 'text-green-600',
+		roles: ['user', 'admin', 'system_admin'],
+	},
+]
 
 export default function UserDashboardPage() {
 	const {user, isSystemAdmin, loading, currentMode, currentTenantId, isAuthenticated} = useAuth()
@@ -111,7 +112,7 @@ export default function UserDashboardPage() {
 				setUserDetails(userResponse)
 
 				// Load analytics
-				const data = await AnalyticsService.getPersonalDashboardAnalytics()
+				const data = await PersonalAnalyticsService.getPersonalDashboard()
 				setAnalytics(data)
 
 				// Load credential analytics
@@ -219,7 +220,7 @@ export default function UserDashboardPage() {
 							<Clock className='h-8 w-8 text-green-600' />
 							<div>
 								<p className='text-sm font-medium text-muted-foreground'>Recent Logins</p>
-								<p className='text-2xl font-bold'>{analytics?.recent_logins || 0}</p>
+								<p className='text-2xl font-bold'>{analytics?.login_history?.length || 0}</p>
 								<p className='text-xs text-muted-foreground'>Last 30 days</p>
 							</div>
 						</div>
@@ -232,7 +233,7 @@ export default function UserDashboardPage() {
 							<Smartphone className='h-8 w-8 text-purple-600' />
 							<div>
 								<p className='text-sm font-medium text-muted-foreground'>Active Sessions</p>
-								<p className='text-2xl font-bold'>{analytics?.active_sessions || 0}</p>
+								<p className='text-2xl font-bold'>{analytics?.active_sessions_count || 0}</p>
 								<p className='text-xs text-muted-foreground'>Currently active</p>
 							</div>
 						</div>
@@ -245,7 +246,7 @@ export default function UserDashboardPage() {
 							<Shield className='h-8 w-8 text-orange-600' />
 							<div>
 								<p className='text-sm font-medium text-muted-foreground'>Security Events</p>
-								<p className='text-2xl font-bold'>{analytics?.security_events || 0}</p>
+								<p className='text-2xl font-bold'>{analytics?.security_events?.length || 0}</p>
 								<p className='text-xs text-muted-foreground'>Recent alerts</p>
 							</div>
 						</div>
@@ -573,7 +574,7 @@ export default function UserDashboardPage() {
 							</div>
 						</div>
 					)}
-					{analytics?.last_login && <div className='mt-4 text-sm text-gray-600 dark:text-gray-400'>Last login: {new Date(analytics.last_login).toLocaleString()}</div>}
+					{analytics?.last_login_at && <div className='mt-4 text-sm text-gray-600 dark:text-gray-400'>Last login: {new Date(analytics.last_login_at).toLocaleString()}</div>}
 				</CardContent>
 			</Card>
 
