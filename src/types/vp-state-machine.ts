@@ -5,17 +5,31 @@
 // VP State Transition Record
 export interface VPStateTransitionRecord {
   id: string
-  presentationId: string
-  fromState: string
-  toState: string
+  presentationId: string // Changed from presentationId to match JSON
+  fromState: string     // Changed from fromState to match JSON
+  toState: string       // Changed from toState to match JSON
   actor: string
   timestamp: string
   success: boolean
-  errorMessage?: string
-  duration: number // in milliseconds
-  metadata?: Record<string, any>
-  createdAt: string
-  updatedAt: string
+  errorMessage?: string // Changed from errorMessage to match JSON
+  duration: number       // in milliseconds
+  metadata?: {
+    actor: string
+    errors: string[]
+    warnings: string[]
+    notExpired: boolean
+    proofValid: boolean
+    domainValid: boolean
+    holderValid: boolean
+    challengeValid: boolean
+    credentialsValid: boolean
+    verificationValid: boolean
+    verificationMethod: string
+    verificationService: Record<string, string>
+  }
+  presentation?: unknown     // Added to match JSON (nullable)
+  createdAt: string     // Changed from createdAt to match JSON
+  updatedAt: string     // Changed from updatedAt to match JSON
 }
 
 // VP State Machine Events
@@ -27,7 +41,7 @@ export interface VPStateEvent {
   actor: string
   timestamp: string
   success: boolean
-  metadata?: Record<string, any>
+  metadata?: Record<string, string>
 }
 
 // VP Transition Statistics
@@ -66,7 +80,7 @@ export interface VPStateTransitionRequest {
   presentationId: string
   newState: string
   actor: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, string>
 }
 
 export interface VPStateTransitionResponse {

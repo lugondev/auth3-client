@@ -25,13 +25,13 @@ export async function triggerVPStateTransition(
   try {
     const response = await apiClient.post(`${API_BASE_URL}/transition`, request)
     const result = response.data as VPStateTransitionResponse
-    
+
     // If state transition successful, trigger presentation refresh
     if (result.success) {
       console.log('🔄 VP state transition successful, triggering presentation refresh');
       await triggerPresentationRefresh();
     }
-    
+
     return result
   } catch (error) {
     console.error('Error triggering VP state transition:', error)
@@ -67,7 +67,7 @@ export async function getVPStateTransitionHistory(
     if (filters?.toState) params.append('toState', filters.toState)
 
     const queryString = params.toString()
-    const url = queryString 
+    const url = queryString
       ? `${API_BASE_URL}/presentations/${presentationId}/transitions?${queryString}`
       : `${API_BASE_URL}/presentations/${presentationId}/transitions`
 
@@ -116,7 +116,7 @@ export async function getVPStateTransitionStatistics(
     if (filters?.actor) params.append('actor', filters.actor)
 
     const queryString = params.toString()
-    const url = queryString 
+    const url = queryString
       ? `${API_BASE_URL}/statistics?${queryString}`
       : `${API_BASE_URL}/statistics`
 
@@ -157,7 +157,7 @@ export async function getValidTransitions(
   currentState: string
 ): Promise<{
   validTransitions: string[]
-  rules: Record<string, any>
+  rules: Record<string, string>
 }> {
   try {
     const response = await apiClient.get(
@@ -165,7 +165,7 @@ export async function getValidTransitions(
     )
     return response.data as {
       validTransitions: string[]
-      rules: Record<string, any>
+      rules: Record<string, string>
     }
   } catch (error) {
     console.error('Error fetching valid transitions:', error)
@@ -212,15 +212,15 @@ export async function revokePresentation(
         reason
       }
     )
-    
+
     const result = response.data as VPStateTransitionResponse
-    
+
     // Trigger presentation refresh if successful
     if (result.success) {
       console.log('🔄 VP revoked successfully, triggering presentation refresh');
       await triggerPresentationRefresh();
     }
-    
+
     return result
   } catch (error) {
     console.error('Error revoking presentation:', error)
@@ -242,15 +242,15 @@ export async function rejectPresentation(
         reason
       }
     )
-    
+
     const result = response.data as VPStateTransitionResponse
-    
+
     // Trigger presentation refresh if successful
     if (result.success) {
       console.log('🔄 VP rejected successfully, triggering presentation refresh');
       await triggerPresentationRefresh();
     }
-    
+
     return result
   } catch (error) {
     console.error('Error rejecting presentation:', error)
@@ -267,7 +267,7 @@ export class VPStateEventListener {
     [key: string]: ((event: VPStateEvent) => void)[]
   } = {}
 
-  constructor(private presentationId?: string) {}
+  constructor(private presentationId?: string) { }
 
   connect() {
     if (this.ws) return
@@ -278,7 +278,7 @@ export class VPStateEventListener {
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as VPStateEvent
-        
+
         // Filter by presentation ID if specified
         if (this.presentationId && data.presentationId !== this.presentationId) {
           return
