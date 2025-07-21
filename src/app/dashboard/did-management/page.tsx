@@ -26,7 +26,7 @@ import {
 } from '@/components';
 
 import type { DIDDocument, UniversalResolutionResponse, DIDResponse } from '@/types/did';
-import { didService } from '@/services/didService';
+import didService from '@/services/didService';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 

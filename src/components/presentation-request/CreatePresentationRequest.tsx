@@ -16,7 +16,7 @@ import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { Plus, Trash2, Calendar, Clock, Shield, QrCode, Copy, Eye, Info, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { presentationRequestService } from '@/services/presentation-request-service';
-import { didService } from '@/services/didService';
+import didService from '@/services/didService';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CreatePresentationRequestDTO, CredentialRequirement } from '@/types/presentation-request';
 import type { DIDResponse } from '@/types/did';

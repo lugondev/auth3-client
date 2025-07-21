@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import {useEffect, useState, useMemo, useCallback} from 'react'
 import {useRouter, useSearchParams} from 'next/navigation'
 import {useAuth} from '@/contexts/AuthContext'
@@ -17,7 +18,7 @@ interface AuthorizationDetails {
 	clientLogo?: string
 }
 
-export default function OAuth2AuthorizePage() {
+function OAuth2AuthorizeContent() {
 	const {isAuthenticated, loading, user} = useAuth()
 	const router = useRouter()
 	const searchParams = useSearchParams()
@@ -366,5 +367,19 @@ export default function OAuth2AuthorizePage() {
 				</CardContent>
 			</Card>
 		</div>
+	)
+}
+
+export default function OAuth2AuthorizePage() {
+	return (
+		<Suspense fallback={
+			<div className='flex min-h-screen items-center justify-center bg-background'>
+				<div className='text-center'>
+					<p className='text-muted-foreground'>Loading authorization details...</p>
+				</div>
+			</div>
+		}>
+			<OAuth2AuthorizeContent />
+		</Suspense>
 	)
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import {useEffect, useState} from 'react'
 import {useSearchParams, useRouter} from 'next/navigation'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
@@ -7,7 +8,7 @@ import {Button} from '@/components/ui/button'
 import {handleOAuth2Callback} from '@/services/oauth2Service'
 import {Loader2, CheckCircle, XCircle} from 'lucide-react'
 
-export default function OAuth2CallbackPage() {
+function OAuth2CallbackContent() {
 	const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'waiting'>('waiting')
 	const [message, setMessage] = useState('Waiting for OAuth2 callback...')
 	const [tokenInfo, setTokenInfo] = useState<{
@@ -190,5 +191,20 @@ export default function OAuth2CallbackPage() {
 				</CardContent>
 			</Card>
 		</div>
+	)
+}
+
+export default function OAuth2CallbackPage() {
+	return (
+		<Suspense fallback={
+			<div className='flex min-h-screen items-center justify-center bg-background'>
+				<div className='text-center'>
+					<Loader2 className='mx-auto h-8 w-8 animate-spin mb-4' />
+					<p className='text-muted-foreground'>Loading...</p>
+				</div>
+			</div>
+		}>
+			<OAuth2CallbackContent />
+		</Suspense>
 	)
 }

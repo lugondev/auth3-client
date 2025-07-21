@@ -78,7 +78,7 @@ export const AdminSidebar: React.FC = () => {
 		{
 			icon: BarChart3,
 			label: 'Analytics',
-			href: '/dashboard/admin/dashboard',
+			href: '/dashboard/admin/analytics',
 			description: 'System metrics',
 			badge: 'Insights',
 		},

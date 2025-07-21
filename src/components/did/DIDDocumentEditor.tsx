@@ -27,7 +27,7 @@ import type {
   DIDEditorAction
 } from '@/types/did';
 
-import { didService } from '@/services/didService';
+import didService from '@/services/didService';
 import { DIDServiceEndpointsManager } from './DIDServiceEndpointsManager';
 import { DIDVerificationMethodsManager } from './DIDVerificationMethodsManager';
 import { DIDDocumentPreview } from './DIDDocumentPreview';

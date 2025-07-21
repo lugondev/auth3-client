@@ -1,13 +1,13 @@
 'use client'
 
-import React from 'react'
+import React, { Suspense } from 'react'
 import {useRouter, useSearchParams} from 'next/navigation'
 import {TenantSelector} from '@/components/tenants/TenantSelector'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {ArrowLeft} from 'lucide-react'
 
-export default function SelectTenantPage() {
+function SelectTenantContent() {
 	const router = useRouter()
 	const searchParams = useSearchParams()
 	const returnUrl = searchParams.get('returnUrl') || '/dashboard'
@@ -46,5 +46,19 @@ export default function SelectTenantPage() {
 				</Card>
 			</div>
 		</div>
+	)
+}
+
+export default function SelectTenantPage() {
+	return (
+		<Suspense fallback={
+			<div className='min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8'>
+				<div className='text-center'>
+					<p className='text-gray-600'>Loading...</p>
+				</div>
+			</div>
+		}>
+			<SelectTenantContent />
+		</Suspense>
 	)
 }

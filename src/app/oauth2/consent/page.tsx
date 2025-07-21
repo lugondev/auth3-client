@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense } from 'react'
 import {useEffect, useState} from 'react'
 import {useRouter, useSearchParams} from 'next/navigation'
 import {useAuth} from '@/contexts/AuthContext'
@@ -204,7 +205,15 @@ function ConsentPageContent() {
 export default function ConsentPage() {
 	return (
 		<OAuth2ConsentErrorBoundary>
-			<ConsentPageContent />
+			<Suspense fallback={
+				<div className='flex min-h-screen items-center justify-center bg-background'>
+					<div className='text-center'>
+						<p className='text-muted-foreground'>Loading...</p>
+					</div>
+				</div>
+			}>
+				<ConsentPageContent />
+			</Suspense>
 		</OAuth2ConsentErrorBoundary>
 	)
 }

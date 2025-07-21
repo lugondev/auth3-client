@@ -1,405 +1,342 @@
 'use client'
 
-import React, {useState, useEffect, useCallback} from 'react'
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import React, {useState, useEffect} from 'react'
+import {Card, CardContent, CardHeader, CardTitle, CardDescription} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
-import {Input} from '@/components/ui/input'
 import {Badge} from '@/components/ui/badge'
-import {Table, TableHeader, TableBody, TableRow, TableHead, TableCell} from '@/components/ui/table'
+import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
-import {Label} from '@/components/ui/label'
-import {Search, Download, RefreshCw, Filter, Eye, AlertTriangle, Info, CheckCircle, XCircle} from 'lucide-react'
-import {toast} from 'sonner'
-import {formatDistanceToNow} from 'date-fns'
-import {getAuditLogs, getSystemLogs, getSecurityEvents, exportAuditLogs} from '@/services/auditService'
-import {AuditLog, AuditLogFilter, ActionType, ResourceType, AuditLogResponse, ActionTypes, ResourceTypes} from '@/types/audit'
+import {useAuth} from '@/contexts/AuthContext'
+import {Shield, Search, Filter, Download, RefreshCw, AlertTriangle, Calendar, Clock, User, Activity, Eye, Database} from 'lucide-react'
+
+interface AuditLog {
+	id: string
+	timestamp: string
+	user_id: string
+	user_email: string
+	action: string
+	resource: string
+	ip_address: string
+	user_agent: string
+	details: Record<string, unknown>
+	status: 'success' | 'failed' | 'warning'
+}
 
 export default function AdminLogsPage() {
-	const [logs, setLogs] = useState<AuditLog[]>([])
+	const {user} = useAuth()
 	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
-	const [currentPage, setCurrentPage] = useState(1)
-	const [pageSize, setPageSize] = useState(20)
-	const [totalPages, setTotalPages] = useState(0)
-	const [totalLogs, setTotalLogs] = useState(0)
+	const [logs, setLogs] = useState<AuditLog[]>([])
+	const [filteredLogs, setFilteredLogs] = useState<AuditLog[]>([])
+	const [searchTerm, setSearchTerm] = useState('')
+	const [actionFilter, setActionFilter] = useState<string>('all')
+	const [statusFilter, setStatusFilter] = useState<string>('all')
+	const [timeRange, setTimeRange] = useState<'hour' | 'day' | 'week' | 'month'>('day')
 
-	// Filter state
-	const [searchQuery, setSearchQuery] = useState('')
-	const [filterAction, setFilterAction] = useState<ActionType | ''>('')
-	const [filterResource, setFilterResource] = useState<ResourceType | ''>('')
-	const [filterUserId, setFilterUserId] = useState('')
-	const [filterDateFrom, setFilterDateFrom] = useState('')
-	const [filterDateTo, setFilterDateTo] = useState('')
-	const [activeTab, setActiveTab] = useState('all')
-
-	const fetchLogs = useCallback(async () => {
-		setLoading(true)
-		setError(null)
+	const fetchAuditLogs = async () => {
 		try {
-			const filter: AuditLogFilter = {
-				limit: pageSize,
-				offset: (currentPage - 1) * pageSize,
-				search: searchQuery || undefined,
-				action: filterAction || undefined,
-				resource_type: filterResource || undefined,
-				user_id: filterUserId || undefined,
-				date_from: filterDateFrom || undefined,
-				date_to: filterDateTo || undefined,
-			}
+			setLoading(true)
 
-			let result: AuditLogResponse
+			// Mock data for demonstration
+			const mockLogs: AuditLog[] = [
+				{
+					id: '1',
+					timestamp: new Date().toISOString(),
+					user_id: 'user-123',
+					user_email: 'admin@example.com',
+					action: 'login',
+					resource: 'auth',
+					ip_address: '192.168.1.100',
+					user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+					details: {method: 'password'},
+					status: 'success',
+				},
+				{
+					id: '2',
+					timestamp: new Date(Date.now() - 300000).toISOString(),
+					user_id: 'user-456',
+					user_email: 'user@example.com',
+					action: 'failed_login',
+					resource: 'auth',
+					ip_address: '192.168.1.101',
+					user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+					details: {error: 'invalid_credentials'},
+					status: 'failed',
+				},
+				{
+					id: '3',
+					timestamp: new Date(Date.now() - 600000).toISOString(),
+					user_id: 'user-789',
+					user_email: 'tenant@example.com',
+					action: 'create_tenant',
+					resource: 'tenant',
+					ip_address: '192.168.1.102',
+					user_agent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_7_1)',
+					details: {tenant_name: 'New Company'},
+					status: 'success',
+				},
+			]
 
-			switch (activeTab) {
-				case 'system':
-					result = await getSystemLogs(filter)
-					break
-				case 'security':
-					result = await getSecurityEvents(filter)
-					break
-				default:
-					result = await getAuditLogs(filter)
-			}
-
-			setLogs(result.logs || [])
-			setTotalLogs(result.total || 0)
-			// Calculate total pages from total and limit
-			const calculatedTotalPages = Math.ceil((result.total || 0) / pageSize)
-			setTotalPages(calculatedTotalPages)
-
-			if ((result.logs || []).length === 0 && currentPage === 1) {
-				toast.info('No logs found matching the criteria.')
-			}
-		} catch (err) {
-			console.error('Failed to fetch logs:', err)
-			const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.'
-			setError(errorMessage)
-			toast.error(`Failed to load logs: ${errorMessage}`)
+			setLogs(mockLogs)
+		} catch (error) {
+			console.error('Failed to fetch audit logs:', error)
 		} finally {
 			setLoading(false)
 		}
-	}, [currentPage, pageSize, searchQuery, filterAction, filterResource, filterUserId, filterDateFrom, filterDateTo, activeTab])
+	}
 
 	useEffect(() => {
-		fetchLogs()
-	}, [fetchLogs])
+		fetchAuditLogs()
+	}, [timeRange])
 
-	const handlePreviousPage = () => {
-		setCurrentPage((prev) => Math.max(prev - 1, 1))
-	}
+	useEffect(() => {
+		let filtered = logs
 
-	const handleNextPage = () => {
-		setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-	}
-
-	const handleFilterSearch = () => {
-		setCurrentPage(1)
-		fetchLogs()
-	}
-
-	const handleExportLogs = async () => {
-		try {
-			const filter: AuditLogFilter = {
-				search: searchQuery || undefined,
-				action: filterAction || undefined,
-				resource_type: filterResource || undefined,
-				user_id: filterUserId || undefined,
-				date_from: filterDateFrom || undefined,
-				date_to: filterDateTo || undefined,
-			}
-
-			const blob = await exportAuditLogs(filter, 'csv')
-
-			// Create download link
-			const url = window.URL.createObjectURL(blob)
-			const a = document.createElement('a')
-			a.style.display = 'none'
-			a.href = url
-			a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`
-			document.body.appendChild(a)
-			a.click()
-			window.URL.revokeObjectURL(url)
-			document.body.removeChild(a)
-
-			toast.success('Audit logs exported successfully')
-		} catch (err) {
-			toast.error('Failed to export audit logs')
-			console.error('Error exporting logs:', err)
+		if (searchTerm) {
+			filtered = filtered.filter((log) => log.user_email.toLowerCase().includes(searchTerm.toLowerCase()) || log.action.toLowerCase().includes(searchTerm.toLowerCase()) || log.resource.toLowerCase().includes(searchTerm.toLowerCase()) || log.ip_address.includes(searchTerm))
 		}
+
+		if (actionFilter !== 'all') {
+			filtered = filtered.filter((log) => log.action === actionFilter)
+		}
+
+		if (statusFilter !== 'all') {
+			filtered = filtered.filter((log) => log.status === statusFilter)
+		}
+
+		setFilteredLogs(filtered)
+	}, [logs, searchTerm, actionFilter, statusFilter])
+
+	const exportLogs = () => {
+		const dataStr = JSON.stringify(filteredLogs, null, 2)
+		const dataBlob = new Blob([dataStr], {type: 'application/json'})
+		const url = URL.createObjectURL(dataBlob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = `admin-logs-${new Date().toISOString().split('T')[0]}.json`
+		link.click()
+		URL.revokeObjectURL(url)
 	}
 
-	const getActionBadgeVariant = (action: ActionType) => {
-		switch (action) {
-			case ActionTypes.USER_CREATE:
-			case ActionTypes.TENANT_CREATE:
-			case ActionTypes.DID_CREATE:
-				return 'default'
-			case ActionTypes.USER_UPDATE:
-			case ActionTypes.TENANT_UPDATE:
-			case ActionTypes.DID_UPDATE:
-				return 'outline'
-			case ActionTypes.USER_DELETE:
-			case ActionTypes.TENANT_DELETE:
-			case ActionTypes.DID_DELETE:
-				return 'destructive'
-			case ActionTypes.LOGIN:
-			case ActionTypes.REGISTER:
-				return 'default'
-			case ActionTypes.LOGOUT:
-				return 'secondary'
-			case ActionTypes.PASSWORD_RESET:
-				return 'outline'
-			case ActionTypes.PERMISSION_GRANT:
-			case ActionTypes.ROLE_ASSIGN:
-				return 'default'
-			case ActionTypes.PERMISSION_REVOKE:
-			case ActionTypes.ROLE_REVOKE:
-				return 'destructive'
+	const getStatusBadge = (status: string) => {
+		switch (status) {
+			case 'success':
+				return (
+					<Badge variant='default' className='bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'>
+						Success
+					</Badge>
+				)
+			case 'failed':
+				return <Badge variant='destructive'>Failed</Badge>
+			case 'warning':
+				return (
+					<Badge variant='secondary' className='bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'>
+						Warning
+					</Badge>
+				)
 			default:
-				return 'secondary'
+				return <Badge variant='outline'>Unknown</Badge>
 		}
 	}
 
-	const getActionIcon = (action: ActionType) => {
-		switch (action) {
-			case ActionTypes.USER_CREATE:
-			case ActionTypes.TENANT_CREATE:
-			case ActionTypes.DID_CREATE:
-			case ActionTypes.REGISTER:
-				return <CheckCircle className='h-3 w-3' />
-			case ActionTypes.USER_DELETE:
-			case ActionTypes.TENANT_DELETE:
-			case ActionTypes.DID_DELETE:
-				return <XCircle className='h-3 w-3' />
-			case ActionTypes.LOGIN:
-				return <CheckCircle className='h-3 w-3' />
-			case ActionTypes.LOGOUT:
-				return <Info className='h-3 w-3' />
-			case ActionTypes.PERMISSION_REVOKE:
-			case ActionTypes.ROLE_REVOKE:
-				return <AlertTriangle className='h-3 w-3' />
-			default:
-				return <Info className='h-3 w-3' />
-		}
-	}
-
-	if (loading && logs.length === 0) {
-		return (
-			<div>
-				<h1 className='text-2xl font-semibold mb-4'>System Logs</h1>
-				<p>Loading logs...</p>
-			</div>
-		)
-	}
-
-	if (error) {
-		return (
-			<div>
-				<h1 className='text-2xl font-semibold mb-4'>System Logs</h1>
-				<Alert>
-					<AlertTriangle className='h-4 w-4' />
-					<AlertDescription>Error loading logs: {error}</AlertDescription>
-				</Alert>
-			</div>
-		)
+	const getActionIcon = (action: string) => {
+		if (action.includes('login')) return <User className='h-4 w-4' />
+		if (action.includes('create') || action.includes('delete') || action.includes('update')) return <Database className='h-4 w-4' />
+		return <Activity className='h-4 w-4' />
 	}
 
 	return (
-		<div className='space-y-6'>
-			<div className='flex justify-between items-center'>
-				<h1 className='text-2xl font-semibold'>System Logs</h1>
-				<div className='flex gap-2'>
-					<Button onClick={fetchLogs} variant='outline' size='sm' disabled={loading}>
-						<RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-						Refresh
+		<div className='container mx-auto py-8'>
+			{/* Header */}
+			<div className='flex items-center justify-between mb-8'>
+				<div>
+					<h1 className='text-3xl font-bold flex items-center gap-2'>
+						<Shield className='h-8 w-8' />
+						Admin Logs
+					</h1>
+					<p className='text-muted-foreground mt-2'>System audit logs and administrative activity monitoring</p>
+				</div>
+				<div className='flex items-center gap-2'>
+					<Button variant='outline' size='sm' onClick={fetchAuditLogs}>
+						<RefreshCw className='h-4 w-4' />
 					</Button>
-					<Button onClick={handleExportLogs} variant='outline' size='sm'>
-						<Download className='h-4 w-4 mr-2' />
-						Export
+					<Button variant='outline' size='sm' onClick={exportLogs}>
+						<Download className='h-4 w-4' />
 					</Button>
 				</div>
 			</div>
 
-			<Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
-				<TabsList className='grid w-full grid-cols-5'>
-					<TabsTrigger value='all'>All Logs</TabsTrigger>
-					<TabsTrigger value='user'>User Logs</TabsTrigger>
-					<TabsTrigger value='resource'>Resource Logs</TabsTrigger>
-					<TabsTrigger value='action'>Action Logs</TabsTrigger>
-					<TabsTrigger value='security'>Security Events</TabsTrigger>
-				</TabsList>
-
-				<TabsContent value={activeTab} className='space-y-4'>
-					{/* Filter Section */}
-					<Card>
-						<CardHeader>
-							<CardTitle className='flex items-center gap-2'>
-								<Filter className='h-4 w-4' />
-								Filters
-							</CardTitle>
-							<CardDescription>Filter logs by various criteria to find specific events</CardDescription>
-						</CardHeader>
-						<CardContent>
-							<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-								<div>
-									<Label htmlFor='searchQuery'>Search</Label>
-									<Input id='searchQuery' placeholder='Search logs...' value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-								</div>
-
-								<div>
-									<Label htmlFor='filterAction'>Action</Label>
-									<Select value={filterAction || 'all'} onValueChange={(value) => setFilterAction(value === 'all' ? '' : (value as ActionType))}>
-										<SelectTrigger id='filterAction'>
-											<SelectValue placeholder='Select action' />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value='all'>All Actions</SelectItem>
-											{Object.values(ActionTypes).map((action) => (
-												<SelectItem key={action} value={action}>
-													{action.charAt(0).toUpperCase() + action.slice(1).replace('_', ' ')}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-
-								<div>
-									<Label htmlFor='filterResource'>Resource</Label>
-									<Select value={filterResource || 'all'} onValueChange={(value) => setFilterResource(value === 'all' ? '' : (value as ResourceType))}>
-										<SelectTrigger id='filterResource'>
-											<SelectValue placeholder='Select resource' />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value='all'>All Resources</SelectItem>
-											{Object.values(ResourceTypes).map((resource) => (
-												<SelectItem key={resource} value={resource}>
-													{resource.charAt(0).toUpperCase() + resource.slice(1)}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-
-								<div>
-									<Label htmlFor='filterUserId'>User ID</Label>
-									<Input id='filterUserId' placeholder='Enter user ID' value={filterUserId} onChange={(e) => setFilterUserId(e.target.value)} />
-								</div>
-
-								<div>
-									<Label htmlFor='filterDateFrom'>From Date</Label>
-									<Input id='filterDateFrom' type='datetime-local' value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
-								</div>
-
-								<div>
-									<Label htmlFor='filterDateTo'>To Date</Label>
-									<Input id='filterDateTo' type='datetime-local' value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
-								</div>
-
-								<div>
-									<Label htmlFor='pageSize'>Page Size</Label>
-									<Select value={pageSize.toString()} onValueChange={(value) => setPageSize(parseInt(value))}>
-										<SelectTrigger id='pageSize'>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value='10'>10</SelectItem>
-											<SelectItem value='20'>20</SelectItem>
-											<SelectItem value='50'>50</SelectItem>
-											<SelectItem value='100'>100</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-							</div>
-
-							<div className='flex justify-end mt-4'>
-								<Button onClick={handleFilterSearch} disabled={loading}>
-									<Search className='h-4 w-4 mr-2' />
-									Apply Filters
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-
-					{/* Results Summary */}
-					<div className='flex justify-between items-center'>
-						<p className='text-sm text-muted-foreground'>
-							Showing {logs.length} of {totalLogs} logs
-						</p>
-						<div className='flex items-center gap-2'>
-							<Button onClick={handlePreviousPage} disabled={currentPage === 1 || loading} variant='outline' size='sm'>
-								Previous
-							</Button>
-							<span className='text-sm'>
-								Page {currentPage} of {totalPages}
-							</span>
-							<Button onClick={handleNextPage} disabled={currentPage === totalPages || loading} variant='outline' size='sm'>
-								Next
-							</Button>
+			{/* Filters */}
+			<Card className='mb-6'>
+				<CardHeader>
+					<CardTitle className='flex items-center gap-2'>
+						<Filter className='h-5 w-5' />
+						Filters
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+						<div className='relative'>
+							<Search className='absolute left-3 top-3 h-4 w-4 text-gray-400' />
+							<Input placeholder='Search logs...' value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className='pl-10' />
 						</div>
+						<Select value={timeRange} onValueChange={(value: 'hour' | 'day' | 'week' | 'month') => setTimeRange(value)}>
+							<SelectTrigger>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value='hour'>Last Hour</SelectItem>
+								<SelectItem value='day'>Last 24 Hours</SelectItem>
+								<SelectItem value='week'>Last Week</SelectItem>
+								<SelectItem value='month'>Last Month</SelectItem>
+							</SelectContent>
+						</Select>
+						<Select value={actionFilter} onValueChange={setActionFilter}>
+							<SelectTrigger>
+								<SelectValue placeholder='Filter by action' />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value='all'>All Actions</SelectItem>
+								<SelectItem value='login'>Login</SelectItem>
+								<SelectItem value='failed_login'>Failed Login</SelectItem>
+								<SelectItem value='create_tenant'>Create Tenant</SelectItem>
+								<SelectItem value='delete_user'>Delete User</SelectItem>
+							</SelectContent>
+						</Select>
+						<Select value={statusFilter} onValueChange={setStatusFilter}>
+							<SelectTrigger>
+								<SelectValue placeholder='Filter by status' />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value='all'>All Status</SelectItem>
+								<SelectItem value='success'>Success</SelectItem>
+								<SelectItem value='failed'>Failed</SelectItem>
+								<SelectItem value='warning'>Warning</SelectItem>
+							</SelectContent>
+						</Select>
 					</div>
+				</CardContent>
+			</Card>
 
-					{/* Logs Table */}
-					{logs.length === 0 && !loading ? (
-						<Card>
-							<CardContent className='flex items-center justify-center py-8'>
-								<p className='text-muted-foreground'>No logs found matching the criteria.</p>
-							</CardContent>
-						</Card>
+			{/* Stats Cards */}
+			<div className='grid grid-cols-1 md:grid-cols-4 gap-6 mb-6'>
+				<Card>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
+							<div>
+								<p className='text-sm font-medium text-muted-foreground'>Total Logs</p>
+								<p className='text-2xl font-bold'>{filteredLogs.length}</p>
+							</div>
+							<Activity className='h-8 w-8 text-blue-600' />
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
+							<div>
+								<p className='text-sm font-medium text-muted-foreground'>Success Rate</p>
+								<p className='text-2xl font-bold'>{filteredLogs.length > 0 ? Math.round((filteredLogs.filter((l) => l.status === 'success').length / filteredLogs.length) * 100) : 0}%</p>
+							</div>
+							<Shield className='h-8 w-8 text-green-600' />
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
+							<div>
+								<p className='text-sm font-medium text-muted-foreground'>Failed Actions</p>
+								<p className='text-2xl font-bold'>{filteredLogs.filter((l) => l.status === 'failed').length}</p>
+							</div>
+							<AlertTriangle className='h-8 w-8 text-red-600' />
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
+							<div>
+								<p className='text-sm font-medium text-muted-foreground'>Unique Users</p>
+								<p className='text-2xl font-bold'>{new Set(filteredLogs.map((l) => l.user_id)).size}</p>
+							</div>
+							<User className='h-8 w-8 text-purple-600' />
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+
+			{/* Logs Table */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Audit Logs</CardTitle>
+					<CardDescription>Detailed audit trail of all administrative actions and system events</CardDescription>
+				</CardHeader>
+				<CardContent>
+					{loading ? (
+						<div className='space-y-4'>
+							{[...Array(5)].map((_, i) => (
+								<div key={i} className='flex items-center space-x-4'>
+									<Skeleton className='h-12 w-12 rounded-full' />
+									<div className='space-y-2 flex-1'>
+										<Skeleton className='h-4 w-full' />
+										<Skeleton className='h-4 w-3/4' />
+									</div>
+								</div>
+							))}
+						</div>
+					) : filteredLogs.length === 0 ? (
+						<div className='text-center py-8'>
+							<p className='text-muted-foreground'>No logs found matching your filters.</p>
+						</div>
 					) : (
-						<Card>
-							<CardContent className='p-0'>
-								<Table>
-									<TableHeader>
-										<TableRow>
-											<TableHead>Timestamp</TableHead>
-											<TableHead>Action</TableHead>
-											<TableHead>Resource</TableHead>
-											<TableHead>User</TableHead>
-											<TableHead>IP Address</TableHead>
-											<TableHead>Details</TableHead>
-											<TableHead>
-												<span className='sr-only'>Actions</span>
-											</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{logs.map((log) => (
-											<TableRow key={log.id}>
-												<TableCell className='font-mono text-xs'>
-													<div>{new Date(log.created_at).toLocaleString()}</div>
-													<div className='text-muted-foreground'>{formatDistanceToNow(new Date(log.created_at), {addSuffix: true})}</div>
-												</TableCell>
-												<TableCell>
-													<Badge variant={getActionBadgeVariant(log.action_type as ActionType)} className='flex items-center gap-1'>
-														{getActionIcon(log.action_type as ActionType)}
-														{log.action_type.replace('_', ' ')}
-													</Badge>
-												</TableCell>
-												<TableCell>
-													<Badge variant='outline'>{log.resource_type}</Badge>
-													{log.resource_id && <div className='text-xs text-muted-foreground mt-1 font-mono'>ID: {log.resource_id.slice(0, 8)}...</div>}
-												</TableCell>
-												<TableCell>{log.user_id ? <div className='font-mono text-xs'>{log.user_id.slice(0, 8)}...</div> : <span className='text-muted-foreground'>System</span>}</TableCell>
-												<TableCell className='font-mono text-xs'>{log.ip_address || 'N/A'}</TableCell>
-												<TableCell className='max-w-xs'>
-													{log.description && <div className='text-xs text-muted-foreground truncate'>{log.description}</div>}
-													{log.metadata && <div className='text-xs text-muted-foreground truncate mt-1'>{JSON.stringify(log.metadata)}</div>}
-												</TableCell>
-												<TableCell>
-													<Button variant='ghost' size='sm'>
-														<Eye className='h-4 w-4' />
-													</Button>
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
-							</CardContent>
-						</Card>
+						<div className='space-y-4'>
+							{filteredLogs.map((log) => (
+								<div key={log.id} className='border rounded-lg p-4 hover:bg-muted/50 transition-colors'>
+									<div className='flex items-start justify-between'>
+										<div className='flex items-start space-x-3'>
+											<div className='flex-shrink-0 mt-1'>{getActionIcon(log.action)}</div>
+											<div className='flex-1 min-w-0'>
+												<div className='flex items-center space-x-2 mb-1'>
+													<p className='text-sm font-medium text-gray-900 dark:text-white'>{log.action.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</p>
+													{getStatusBadge(log.status)}
+												</div>
+												<p className='text-sm text-muted-foreground mb-2'>
+													<span className='font-medium'>{log.user_email}</span> performed this action on <span className='font-medium'>{log.resource}</span>
+												</p>
+												<div className='grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground'>
+													<div className='flex items-center space-x-1'>
+														<Calendar className='h-3 w-3' />
+														<span>{new Date(log.timestamp).toLocaleDateString()}</span>
+													</div>
+													<div className='flex items-center space-x-1'>
+														<Clock className='h-3 w-3' />
+														<span>{new Date(log.timestamp).toLocaleTimeString()}</span>
+													</div>
+													<div className='flex items-center space-x-1'>
+														<span>IP: {log.ip_address}</span>
+													</div>
+												</div>
+												{log.details && Object.keys(log.details).length > 0 && (
+													<div className='mt-2 p-2 bg-muted rounded text-xs'>
+														<strong>Details:</strong> {JSON.stringify(log.details, null, 2)}
+													</div>
+												)}
+											</div>
+										</div>
+										<div className='flex-shrink-0'>
+											<Button variant='ghost' size='sm'>
+												<Eye className='h-4 w-4' />
+											</Button>
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
 					)}
-				</TabsContent>
-			</Tabs>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }

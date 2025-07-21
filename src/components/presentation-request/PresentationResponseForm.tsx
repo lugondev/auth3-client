@@ -25,7 +25,7 @@ import {
 import { toast } from 'sonner';
 import { presentationRequestService } from '@/services/presentation-request-service';
 import { credentialService } from '@/services/credentialService';
-import { didService } from '@/services/didService';
+import didService from '@/services/didService';
 import { createPresentation, getMyPresentations } from '@/services/presentationService';
 import type { CreatePresentationRequest, VerifiablePresentation } from '@/types/presentations';
 import { usePresentationRefreshTrigger } from '@/hooks/usePresentationRefresh';

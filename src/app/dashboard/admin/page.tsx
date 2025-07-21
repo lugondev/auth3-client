@@ -5,19 +5,7 @@ import {DashboardLayout} from '@/components/layout/DashboardLayout'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
-import {
-	Building2,
-	Users,
-	Key,
-	Shield,
-	Settings,
-	ChevronRight,
-	TrendingUp,
-	Activity,
-	FileText,
-	Database,
-	UserCheck,
-} from 'lucide-react'
+import {Building2, Users, Key, Shield, Settings, ChevronRight, TrendingUp, Activity, FileText, Database, UserCheck} from 'lucide-react'
 import Link from 'next/link'
 import {useAuth} from '@/contexts/AuthContext'
 
@@ -143,40 +131,47 @@ const quickStats = [
 const getStatusBadge = (status: 'available' | 'partial' | 'planned') => {
 	switch (status) {
 		case 'available':
-			return <Badge variant="default" className="text-xs">Available</Badge>
+			return (
+				<Badge variant='default' className='text-xs'>
+					Available
+				</Badge>
+			)
 		case 'partial':
-			return <Badge variant="secondary" className="text-xs">Partial</Badge>
+			return (
+				<Badge variant='secondary' className='text-xs'>
+					Partial
+				</Badge>
+			)
 		case 'planned':
-			return <Badge variant="outline" className="text-xs">Planned</Badge>
+			return (
+				<Badge variant='outline' className='text-xs'>
+					Planned
+				</Badge>
+			)
 		default:
-			return <Badge variant="outline" className="text-xs">Unknown</Badge>
+			return (
+				<Badge variant='outline' className='text-xs'>
+					Unknown
+				</Badge>
+			)
 	}
 }
 
 export default function AdminDashboardPage() {
-	const {user, currentMode} = useAuth()
+	const {currentMode} = useAuth()
 
 	return (
-		<DashboardLayout
-			title="Administration Dashboard"
-			description="System administration and management console"
-			showContextControls={true}
-			allowedRoles={['admin', 'system_admin']}
-		>
-			<div className="space-y-8">
+		<DashboardLayout title='Administration Dashboard' description='System administration and management console' showContextControls={true} allowedRoles={['admin', 'system_admin', 'SystemSuperAdmin']}>
+			<div className='space-y-8'>
 				{/* Context Warning for non-global mode */}
 				{currentMode !== 'global' && (
-					<Card className="border-yellow-200 bg-yellow-50">
-						<CardContent className="pt-6">
-							<div className="flex items-center gap-3">
-								<Shield className="h-5 w-5 text-yellow-600" />
+					<Card className='border-yellow-200 bg-yellow-50'>
+						<CardContent className='pt-6'>
+							<div className='flex items-center gap-3'>
+								<Shield className='h-5 w-5 text-yellow-600' />
 								<div>
-									<p className="text-sm font-medium text-yellow-800">
-										Admin functions require global context
-									</p>
-									<p className="text-xs text-yellow-700">
-										Switch to global mode to access all administrative features
-									</p>
+									<p className='text-sm font-medium text-yellow-800'>Admin functions require global context</p>
+									<p className='text-xs text-yellow-700'>Switch to global mode to access all administrative features</p>
 								</div>
 							</div>
 						</CardContent>
@@ -184,34 +179,22 @@ export default function AdminDashboardPage() {
 				)}
 
 				{/* Quick Stats */}
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'>
 					{quickStats.map((stat) => (
-						<Card key={stat.title} className="hover:shadow-md transition-shadow cursor-pointer">
+						<Card key={stat.title} className='hover:shadow-md transition-shadow cursor-pointer'>
 							<Link href={stat.href}>
-								<CardContent className="pt-6">
-									<div className="flex items-center justify-between">
+								<CardContent className='pt-6'>
+									<div className='flex items-center justify-between'>
 										<div>
-											<p className="text-sm font-medium text-muted-foreground">
-												{stat.title}
-											</p>
-											<p className="text-2xl font-bold">{stat.value}</p>
-											<div className="flex items-center gap-1 mt-1">
-												<span className={`text-xs font-medium ${
-													stat.changeType === 'positive' 
-														? 'text-green-600' 
-														: 'text-red-600'
-												}`}>
-													{stat.change}
-												</span>
-												{typeof stat.change !== 'string' && (
-													<span className="text-xs text-muted-foreground">
-														vs last period
-													</span>
-												)}
+											<p className='text-sm font-medium text-muted-foreground'>{stat.title}</p>
+											<p className='text-2xl font-bold'>{stat.value}</p>
+											<div className='flex items-center gap-1 mt-1'>
+												<span className={`text-xs font-medium ${stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'}`}>{stat.change}</span>
+												{typeof stat.change !== 'string' && <span className='text-xs text-muted-foreground'>vs last period</span>}
 											</div>
 										</div>
-										<div className="p-2 bg-gray-100 rounded-lg">
-											<stat.icon className="h-5 w-5 text-gray-600" />
+										<div className='p-2 bg-gray-100 rounded-lg'>
+											<stat.icon className='h-5 w-5 text-gray-600' />
 										</div>
 									</div>
 								</CardContent>
@@ -221,42 +204,36 @@ export default function AdminDashboardPage() {
 				</div>
 
 				{/* Admin Menu Grid */}
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+				<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
 					{adminMenuItems.map((item) => (
-						<Card key={item.href} className="group hover:shadow-md transition-shadow">
-							<CardHeader className="pb-3">
-								<div className="flex items-start justify-between">
-									<div className="flex items-center gap-3">
-										<div className="p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors">
+						<Card key={item.href} className='group hover:shadow-md transition-shadow'>
+							<CardHeader className='pb-3'>
+								<div className='flex items-start justify-between'>
+									<div className='flex items-center gap-3'>
+										<div className='p-2 bg-gray-100 rounded-lg group-hover:bg-gray-200 transition-colors'>
 											<item.icon className={`h-5 w-5 ${item.color}`} />
 										</div>
 										<div>
-											<CardTitle className="text-base group-hover:text-blue-600 transition-colors">
-												{item.title}
-											</CardTitle>
-											<div className="flex items-center gap-2 mt-1">
-												<Badge variant="secondary" className="text-xs">
+											<CardTitle className='text-base group-hover:text-blue-600 transition-colors'>{item.title}</CardTitle>
+											<div className='flex items-center gap-2 mt-1'>
+												<Badge variant='secondary' className='text-xs'>
 													{item.badge}
 												</Badge>
 												{getStatusBadge(item.status)}
 											</div>
 										</div>
 									</div>
-									<ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-blue-600 transition-colors" />
+									<ChevronRight className='h-4 w-4 text-muted-foreground group-hover:text-blue-600 transition-colors' />
 								</div>
 							</CardHeader>
-							<CardContent className="pt-0">
-								<CardDescription className="text-sm mb-4">
-									{item.description}
-								</CardDescription>
+							<CardContent className='pt-0'>
+								<CardDescription className='text-sm mb-4'>{item.description}</CardDescription>
 								{item.status === 'available' ? (
-									<Button asChild variant="outline" size="sm" className="w-full">
-										<Link href={item.href}>
-											Open Module
-										</Link>
+									<Button asChild variant='outline' size='sm' className='w-full'>
+										<Link href={item.href}>Open Module</Link>
 									</Button>
 								) : (
-									<Button variant="ghost" size="sm" className="w-full" disabled>
+									<Button variant='ghost' size='sm' className='w-full' disabled>
 										Coming Soon
 									</Button>
 								)}
@@ -269,33 +246,31 @@ export default function AdminDashboardPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>Quick Actions</CardTitle>
-						<CardDescription>
-							Common administrative tasks
-						</CardDescription>
+						<CardDescription>Common administrative tasks</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-							<Link href="/dashboard/tenants">
-								<Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-blue-50">
-									<Building2 className="h-5 w-5 text-blue-600" />
+						<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+							<Link href='/dashboard/tenants'>
+								<Button variant='outline' className='w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-blue-50'>
+									<Building2 className='h-5 w-5 text-blue-600' />
 									<span>Manage Tenants</span>
 								</Button>
 							</Link>
-							<Link href="/dashboard/admin/users">
-								<Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-green-50">
-									<Users className="h-5 w-5 text-green-600" />
+							<Link href='/dashboard/admin/users'>
+								<Button variant='outline' className='w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-green-50'>
+									<Users className='h-5 w-5 text-green-600' />
 									<span>Manage Users</span>
 								</Button>
 							</Link>
-							<Link href="/dashboard/admin/roles">
-								<Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-purple-50">
-									<Shield className="h-5 w-5 text-purple-600" />
+							<Link href='/dashboard/admin/roles'>
+								<Button variant='outline' className='w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-purple-50'>
+									<Shield className='h-5 w-5 text-purple-600' />
 									<span>Manage Roles</span>
 								</Button>
 							</Link>
-							<Link href="/dashboard/admin/logs">
-								<Button variant="outline" className="w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-red-50">
-									<Activity className="h-5 w-5 text-red-600" />
+							<Link href='/dashboard/admin/logs'>
+								<Button variant='outline' className='w-full h-auto p-4 flex flex-col items-center space-y-2 hover:bg-red-50'>
+									<Activity className='h-5 w-5 text-red-600' />
 									<span>View System Logs</span>
 								</Button>
 							</Link>
@@ -306,16 +281,14 @@ export default function AdminDashboardPage() {
 				{/* Recent Activity */}
 				<Card>
 					<CardHeader>
-						<CardTitle className="flex items-center gap-2">
-							<Activity className="h-5 w-5" />
+						<CardTitle className='flex items-center gap-2'>
+							<Activity className='h-5 w-5' />
 							Recent System Activity
 						</CardTitle>
-						<CardDescription>
-							Recent administrative actions and system events
-						</CardDescription>
+						<CardDescription>Recent administrative actions and system events</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<div className="space-y-4">
+						<div className='space-y-4'>
 							{[
 								{
 									action: 'Tenant "Acme Corp" created',
@@ -348,32 +321,21 @@ export default function AdminDashboardPage() {
 									type: 'system',
 								},
 							].map((activity, index) => (
-								<div key={index} className="flex items-center justify-between py-2 border-b last:border-b-0">
-									<div className="flex items-center gap-3">
-										<div className={`w-2 h-2 rounded-full ${
-											activity.type === 'create' ? 'bg-green-500' :
-											activity.type === 'update' ? 'bg-blue-500' :
-											activity.type === 'config' ? 'bg-purple-500' :
-											'bg-gray-500'
-										}`} />
+								<div key={index} className='flex items-center justify-between py-2 border-b last:border-b-0'>
+									<div className='flex items-center gap-3'>
+										<div className={`w-2 h-2 rounded-full ${activity.type === 'create' ? 'bg-green-500' : activity.type === 'update' ? 'bg-blue-500' : activity.type === 'config' ? 'bg-purple-500' : 'bg-gray-500'}`} />
 										<div>
-											<p className="text-sm font-medium">{activity.action}</p>
-											<p className="text-xs text-muted-foreground">
-												by {activity.user}
-											</p>
+											<p className='text-sm font-medium'>{activity.action}</p>
+											<p className='text-xs text-muted-foreground'>by {activity.user}</p>
 										</div>
 									</div>
-									<span className="text-xs text-muted-foreground">
-										{activity.time}
-									</span>
+									<span className='text-xs text-muted-foreground'>{activity.time}</span>
 								</div>
 							))}
 						</div>
-						<div className="mt-4 pt-4 border-t">
-							<Button variant="outline" size="sm" asChild>
-								<Link href="/dashboard/admin/logs">
-									View All Logs
-								</Link>
+						<div className='mt-4 pt-4 border-t'>
+							<Button variant='outline' size='sm' asChild>
+								<Link href='/dashboard/admin/logs'>View All Logs</Link>
 							</Button>
 						</div>
 					</CardContent>

@@ -39,7 +39,7 @@ import type {
   DIDDocumentDifference
 } from '@/types/did';
 
-import { didService } from '@/services/didService';
+import didService from '@/services/didService';
 import { DIDDocumentPreview } from './DIDDocumentPreview';
 
 interface AdvancedDIDResolverProps {

@@ -6,12 +6,7 @@ import {TokenDebugPanel} from '@/components/debug/TokenDebugPanel'
 
 export default function TokenDebugPage() {
 	return (
-		<DashboardLayout
-			title="Token Debug"
-			description="Debug and inspect authentication tokens and context"
-			showContextControls={true}
-			allowedRoles={['admin', 'system_admin']}
-		>
+		<DashboardLayout title='Token Debug' description='Debug and inspect authentication tokens and context' showContextControls={true} allowedRoles={['admin', 'system_admin', 'SystemSuperAdmin']}>
 			<TokenDebugPanel />
 		</DashboardLayout>
 	)

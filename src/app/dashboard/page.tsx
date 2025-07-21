@@ -15,42 +15,65 @@ import {UserOutput} from '@/types/user'
 import {DIDWidget} from '@/components/dashboard/DIDWidget'
 import {TenantSelector} from '@/components/tenants/TenantSelector'
 import {ContextSwitcher} from '@/components/context/ContextSwitcher'
-import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone, Building2, Globe, Users, Database, Star, BarChart3, Send} from 'lucide-react'
+import {ModuleDashboard} from '@/components/dashboard/ModuleDashboard'
+import {SystemAnalyticsDashboard} from '@/components/dashboard/SystemAnalyticsDashboard'
+import {QuickAnalyticsWidget} from '@/components/dashboard/QuickAnalyticsWidget'
+import {SystemHealthDashboard} from '@/components/dashboard/SystemHealthDashboard'
+import {AnalyticsCharts} from '@/components/dashboard/AnalyticsCharts'
+import {RealTimeEventsWidget} from '@/components/dashboard/RealTimeEventsWidget'
+import {AnalyticsSummary} from '@/components/dashboard/AnalyticsSummary'
+import {Activity, Shield, Clock, CheckCircle, AlertTriangle, Smartphone, Building2, Globe, Users, Database, Star, BarChart3, Send, Server, Zap} from 'lucide-react'
 
-const quickActions = [
-	{
-		title: 'Analytics Dashboard',
-		description: 'View detailed authentication analytics',
-		href: '/dashboard/auth/analytics',
-		icon: BarChart3,
-		color: 'text-blue-600',
-		roles: ['user', 'admin', 'system_admin'],
-	},
-	{
-		title: 'Credentials',
-		description: 'Manage your digital credentials',
-		href: '/dashboard/credentials',
-		icon: Database,
-		color: 'text-purple-600',
-		roles: ['user', 'admin', 'system_admin'],
-	},
-	{
-		title: 'Templates',
-		description: 'Credential templates library',
-		href: '/dashboard/templates',
-		icon: Star,
-		color: 'text-yellow-600',
-		roles: ['user', 'admin', 'system_admin'],
-	},
-	{
-		title: 'QR Scanner',
-		description: 'Scan QR codes for authentication',
-		href: '/qr-scanner',
-		icon: Smartphone,
-		color: 'text-green-600',
-		roles: ['user', 'admin', 'system_admin'],
-	},
-]
+	const quickActions = [
+		{
+			title: 'System Analytics',
+			description: 'View comprehensive system-wide analytics',
+			href: '/dashboard/analytics/system',
+			icon: Server,
+			color: 'text-red-600',
+			roles: ['system_admin'],
+		},
+		{
+			title: 'Module Analytics',
+			description: 'Monitor OAuth2, DID, Tenant and KMS modules',
+			href: '/dashboard/analytics/modules',
+			icon: Zap,
+			color: 'text-indigo-600',
+			roles: ['admin', 'system_admin'],
+		},
+		{
+			title: 'Analytics Dashboard',
+			description: 'View detailed authentication analytics',
+			href: '/dashboard/auth/analytics',
+			icon: BarChart3,
+			color: 'text-blue-600',
+			roles: ['user', 'admin', 'system_admin'],
+		},
+		{
+			title: 'Credentials',
+			description: 'Manage your digital credentials',
+			href: '/dashboard/credentials',
+			icon: Database,
+			color: 'text-purple-600',
+			roles: ['user', 'admin', 'system_admin'],
+		},
+		{
+			title: 'Templates',
+			description: 'Credential templates library',
+			href: '/dashboard/templates',
+			icon: Star,
+			color: 'text-yellow-600',
+			roles: ['user', 'admin', 'system_admin'],
+		},
+		{
+			title: 'QR Scanner',
+			description: 'Scan QR codes for authentication',
+			href: '/qr-scanner',
+			icon: Smartphone,
+			color: 'text-green-600',
+			roles: ['user', 'admin', 'system_admin'],
+		},
+	]
 
 export default function UserDashboardPage() {
 	const {user, isSystemAdmin, loading, currentMode, currentTenantId, isAuthenticated} = useAuth()
@@ -414,11 +437,89 @@ export default function UserDashboardPage() {
 
 			{/* DID and Credentials Overview */}
 			<div className='mb-8'>
-				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>DIDs</h2>
+				<h2 className='mb-4 text-2xl font-semibold text-gray-700 dark:text-gray-200'>DIDs & Credentials</h2>
 				<div className='grid gap-6 md:grid-cols-1'>
 					<DIDWidget />
 				</div>
 			</div>
+
+			{/* User Analytics - Simple version for regular users */}
+			{!user?.roles?.includes('admin') && !user?.roles?.includes('system_admin') && (
+				<Card className='mb-8'>
+					<CardHeader>
+						<CardTitle>My Activity Overview</CardTitle>
+						<CardDescription>Your recent activity and engagement summary</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+							<div className='text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg'>
+								<Activity className='h-8 w-8 text-blue-600 mx-auto mb-2' />
+								<p className='text-2xl font-bold text-blue-600'>{analytics?.total_logins || 0}</p>
+								<p className='text-sm text-muted-foreground'>Total Logins</p>
+							</div>
+							<div className='text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg'>
+								<Database className='h-8 w-8 text-green-600 mx-auto mb-2' />
+								<p className='text-2xl font-bold text-green-600'>{credentialAnalytics?.overview_metrics.total_credentials || 0}</p>
+								<p className='text-sm text-muted-foreground'>My Credentials</p>
+							</div>
+							<div className='text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg'>
+								<BarChart3 className='h-8 w-8 text-purple-600 mx-auto mb-2' />
+								<p className='text-2xl font-bold text-purple-600'>{credentialAnalytics?.presentation_metrics.total_presentations || 0}</p>
+								<p className='text-sm text-muted-foreground'>Presentations</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Quick Analytics Widget - Only for Admin/System Admin */}
+			{(user?.roles?.includes('admin') || user?.roles?.includes('system_admin')) && (
+				<div className='mb-8'>
+					<QuickAnalyticsWidget />
+				</div>
+			)}
+
+			{/* System Health Dashboard - Only for Admin/System Admin */}
+			{(user?.roles?.includes('admin') || user?.roles?.includes('system_admin')) && (
+				<div className='mb-8'>
+					<SystemHealthDashboard />
+				</div>
+			)}
+
+			{/* Module Analytics for Admin Users */}
+			{(user?.roles?.includes('admin') || user?.roles?.includes('system_admin')) && (
+				<div className='mb-8'>
+					<ModuleDashboard onRefresh={() => console.log('Module analytics refreshed')} />
+				</div>
+			)}
+
+			{/* Analytics Charts */}
+			{(user?.roles?.includes('admin') || user?.roles?.includes('system_admin')) && (
+				<div className='mb-8'>
+					<AnalyticsCharts timeRange='week' onTimeRangeChange={(range) => console.log('Time range changed:', range)} />
+				</div>
+			)}
+
+			{/* Real-time Events */}
+			{(user?.roles?.includes('admin') || user?.roles?.includes('system_admin')) && (
+				<div className='mb-8'>
+					<RealTimeEventsWidget />
+				</div>
+			)}
+
+			{/* Analytics Summary - Only for Admin/System Admin */}
+			{(user?.roles?.includes('admin') || user?.roles?.includes('system_admin')) && (
+				<div className='mb-8'>
+					<AnalyticsSummary userRoles={user?.roles || []} />
+				</div>
+			)}
+
+			{/* System Analytics for System Admins */}
+			{user?.roles?.includes('system_admin') && (
+				<div className='mb-8'>
+					<SystemAnalyticsDashboard onRefresh={() => console.log('System analytics refreshed')} />
+				</div>
+			)}
 
 			{/* Account Security Status */}
 			<Card className='mb-8'>

@@ -30,7 +30,7 @@ import type {
   JWK
 } from '@/types/did';
 
-import { didService } from '@/services/didService';
+import didService from '@/services/didService';
 
 interface DIDVerificationMethodsManagerProps {
   did: string;
