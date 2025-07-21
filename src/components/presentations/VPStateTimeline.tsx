@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { Clock, User, CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 
@@ -47,7 +47,7 @@ export function VPStateTimeline({
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set())
 
   // Load transition history
-  const loadTransitions = async () => {
+  const loadTransitions = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -76,11 +76,11 @@ export function VPStateTimeline({
     } finally {
       setLoading(false)
     }
-  }
+  }, [presentationId, onStatusChange])
 
   useEffect(() => {
     loadTransitions()
-  }, [presentationId])
+  }, [loadTransitions])
 
   // Auto-refresh
   useEffect(() => {
@@ -88,7 +88,7 @@ export function VPStateTimeline({
 
     const interval = setInterval(loadTransitions, refreshInterval)
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, presentationId])
+  }, [autoRefresh, refreshInterval, loadTransitions])
 
   const toggleExpanded = (transitionId: string) => {
     const newExpanded = new Set(expandedItems)
@@ -108,7 +108,11 @@ export function VPStateTimeline({
     }
   }
 
-  const getStateBadgeColor = (state: string) => {
+  const getStateBadgeColor = (state: string | undefined | null) => {
+    if (!state) {
+      return 'bg-gray-100 text-gray-600 border-gray-300'
+    }
+    
     switch (state.toLowerCase()) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800 border-yellow-200'
@@ -128,12 +132,45 @@ export function VPStateTimeline({
   }
 
   const formatDuration = (duration: number) => {
+    if (!duration || isNaN(duration)) {
+      return 'N/A'
+    }
     if (duration < 1000) {
       return `${duration}ms`
     } else if (duration < 60000) {
       return `${(duration / 1000).toFixed(1)}s`
     } else {
       return `${(duration / 60000).toFixed(1)}m`
+    }
+  }
+
+  const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return 'N/A'
+    
+    try {
+      const date = new Date(timestamp)
+      if (isNaN(date.getTime())) {
+        return 'Invalid date'
+      }
+      return formatDistanceToNow(date, { addSuffix: true })
+    } catch (error) {
+      console.error('Error formatting timestamp:', error)
+      return 'Invalid date'
+    }
+  }
+
+  const formatTimestampTitle = (timestamp: string) => {
+    if (!timestamp) return 'N/A'
+    
+    try {
+      const date = new Date(timestamp)
+      if (isNaN(date.getTime())) {
+        return 'Invalid date'
+      }
+      return format(date, 'PPpp')
+    } catch (error) {
+      console.error('Error formatting timestamp title:', error)
+      return 'Invalid date'
     }
   }
 
@@ -238,14 +275,14 @@ export function VPStateTimeline({
                           variant="outline"
                           className={getStateBadgeColor(transition.fromState)}
                         >
-                          {transition.fromState}
+                          {transition.fromState || 'unknown'}
                         </Badge>
                         <span className="text-gray-400">→</span>
                         <Badge 
                           variant="outline"
                           className={getStateBadgeColor(transition.toState)}
                         >
-                          {transition.toState}
+                          {transition.toState || 'unknown'}
                         </Badge>
                         {!transition.success && (
                           <Badge variant="destructive" className="ml-2">
@@ -265,8 +302,8 @@ export function VPStateTimeline({
                           <Clock className="h-3 w-3" />
                           <span>{formatDuration(transition.duration)}</span>
                         </div>
-                        <span title={format(new Date(transition.timestamp), 'PPpp')}>
-                          {formatDistanceToNow(new Date(transition.timestamp), { addSuffix: true })}
+                        <span title={formatTimestampTitle(transition.timestamp)}>
+                          {formatTimestamp(transition.timestamp)}
                         </span>
                       </div>
                       
