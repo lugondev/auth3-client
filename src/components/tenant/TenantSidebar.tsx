@@ -1,11 +1,10 @@
 'use client'
 
 import React from 'react'
-import {useParams, usePathname} from 'next/navigation'
+import {usePathname} from 'next/navigation'
 import Link from 'next/link'
 import {cn} from '@/lib/utils'
 import {Button} from '@/components/ui/button'
-import {useAuth} from '@/contexts/AuthContext'
 import {Building, Home, Users, Settings, BarChart3, Activity, Shield, Key, CreditCard, Presentation, Fingerprint} from 'lucide-react'
 
 interface TenantSidebarProps {
@@ -43,13 +42,13 @@ export const TenantSidebar: React.FC<TenantSidebarProps> = ({tenantId}) => {
 		{
 			icon: CreditCard,
 			label: 'Credentials',
-			href: `/dashboard/tenant/${tenantId}/credentials`,
+			href: `/dashboard/tenant/${tenantId}/vc`,
 			description: 'Manage verifiable credentials',
 		},
 		{
 			icon: Presentation,
 			label: 'Presentations',
-			href: `/dashboard/tenant/${tenantId}/presentations`,
+			href: `/dashboard/tenant/${tenantId}/vp`,
 			description: 'Manage presentations',
 		},
 		{

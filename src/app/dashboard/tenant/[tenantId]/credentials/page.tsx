@@ -2,15 +2,40 @@
 
 import React, {useState, useEffect} from 'react'
 import {useParams} from 'next/navigation'
+import dynamicImport from 'next/dynamic'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
-import {CreditCard, Plus, Search, Eye, RefreshCw, Shield, CheckCircle, AlertCircle, Clock} from 'lucide-react'
+import {CreditCard, Plus, Search, Eye, RefreshCw, Shield, CheckCircle, AlertCircle, Clock, ArrowLeft} from 'lucide-react'
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '@/components/ui/dialog'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+
+// Dynamically import TenantCredentialWizard
+const TenantCredentialWizard = dynamicImport(
+	() =>
+		import('@/components/credentials/tenant/TenantCredentialWizard').then((mod) => ({
+			default: mod.TenantCredentialWizard,
+		})),
+	{
+		ssr: false,
+		loading: () => <div className='p-8 text-center'>Loading credential wizard...</div>,
+	},
+)
+
+// Dynamically import CredentialVerificationInterface
+const CredentialVerificationInterface = dynamicImport(
+	() =>
+		import('@/components/credentials/verify/CredentialVerificationInterface').then((mod) => ({
+			default: mod.CredentialVerificationInterface,
+		})),
+	{
+		ssr: false,
+		loading: () => <div className='p-8 text-center'>Loading verification interface...</div>,
+	},
+)
 
 interface Credential {
 	id: string
@@ -33,44 +58,15 @@ export default function TenantCredentialsPage() {
 	const params = useParams()
 	const tenantId = params.tenantId as string
 
+	// View state management
+	const [currentView, setCurrentView] = useState<'list' | 'issue' | 'verify'>('list')
+
+	// Existing states
 	const [credentials, setCredentials] = useState<Credential[]>([])
 	const [loading, setLoading] = useState(true)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [statusFilter, setStatusFilter] = useState<string>('all')
 	const [selectedCredential, setSelectedCredential] = useState<Credential | null>(null)
-
-	// Mock data for development
-	useEffect(() => {
-		const mockCredentials: Credential[] = [
-			{
-				id: 'cred_1234567890',
-				type: ['VerifiableCredential', 'EducationCredential'],
-				issuer: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
-				subject: 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH',
-				issuanceDate: '2024-12-15T10:30:00Z',
-				expirationDate: '2025-12-15T10:30:00Z',
-				status: 'active',
-				credentialSubject: {
-					id: 'did:key:z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH',
-					name: 'John Doe',
-					degree: 'Bachelor of Science',
-					university: 'Tech University',
-					graduationDate: '2024-06-15',
-				},
-				proof: {
-					type: 'Ed25519Signature2020',
-					created: '2024-12-15T10:30:00Z',
-					verificationMethod: 'did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK#z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK',
-					proofPurpose: 'assertionMethod',
-				},
-			},
-		]
-
-		setTimeout(() => {
-			setCredentials(mockCredentials)
-			setLoading(false)
-		}, 1000)
-	}, [])
 
 	const filteredCredentials = credentials.filter((cred) => {
 		const matchesSearch =
@@ -122,6 +118,55 @@ export default function TenantCredentialsPage() {
 		)
 	}
 
+	// Render different views based on currentView state
+	if (currentView === 'issue') {
+		return (
+			<div className='container mx-auto px-4 py-8'>
+				<div className='space-y-6'>
+					{/* Header with back button */}
+					<div className='flex items-center gap-4'>
+						<Button variant='outline' onClick={() => setCurrentView('list')}>
+							<ArrowLeft className='mr-2 h-4 w-4' />
+							Back to Credentials
+						</Button>
+						<div>
+							<h1 className='text-3xl font-bold tracking-tight'>Issue New Credential</h1>
+							<p className='text-muted-foreground'>Create and issue a new verifiable credential</p>
+						</div>
+					</div>
+
+					{/* Tenant Credential Wizard */}
+					<TenantCredentialWizard tenantId={tenantId} />
+				</div>
+			</div>
+		)
+	}
+
+	if (currentView === 'verify') {
+		return (
+			<div className='container mx-auto px-4 py-8'>
+				<div className='space-y-6'>
+					{/* Header with back button */}
+					<div className='flex items-center gap-4'>
+						<Button variant='outline' onClick={() => setCurrentView('list')}>
+							<ArrowLeft className='mr-2 h-4 w-4' />
+							Back to Credentials
+						</Button>
+						<div>
+							<h1 className='text-3xl font-bold tracking-tight'>Verify Credential</h1>
+							<p className='text-muted-foreground'>Upload and verify a credential</p>
+						</div>
+					</div>
+
+					{/* Credential Verification Interface */}
+					<CredentialVerificationInterface />
+				</div>
+			</div>
+		)
+	}
+
+	// Default list view
+
 	return (
 		<div className='container mx-auto px-4 py-8'>
 			<div className='space-y-6'>
@@ -132,10 +177,16 @@ export default function TenantCredentialsPage() {
 						<p className='text-muted-foreground'>Manage verifiable credentials for tenant: {tenantId}</p>
 					</div>
 
-					<Button>
-						<Plus className='mr-2 h-4 w-4' />
-						Issue Credential
-					</Button>
+					<div className='flex gap-2'>
+						<Button variant='outline' onClick={() => setCurrentView('verify')}>
+							<Shield className='mr-2 h-4 w-4' />
+							Verify
+						</Button>
+						<Button onClick={() => setCurrentView('issue')}>
+							<Plus className='mr-2 h-4 w-4' />
+							Issue Credential
+						</Button>
+					</div>
 				</div>
 
 				{/* Stats Cards */}
