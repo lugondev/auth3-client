@@ -5,14 +5,14 @@ import {useForm} from 'react-hook-form'
 import {zodResolver} from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import {useMutation, useQueryClient} from '@tanstack/react-query'
+import {toast} from 'sonner'
 
 import {Button} from '@/components/ui/button'
 import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 import {Input} from '@/components/ui/input'
 import {Label} from '@/components/ui/label'
-// import {createTenant} from '@/services/tenantService'
-import {CreateTenantPayload} from '@/types/tenantManagement'
-// import {toast} from '@/components/ui/toast' // Corrected import path - Commented out for now
+import {createTenant} from '@/services/tenantService'
+import {CreateTenantRequest} from '@/types/tenant'
 
 const tenantFormSchema = z.object({
 	name: z.string().min(2, 'Name must be at least 2 characters').max(100, 'Name must be at most 100 characters'),
@@ -37,7 +37,7 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 	const {
 		register,
 		handleSubmit,
-		formState: {errors, isSubmitting},
+		formState: {errors},
 		reset,
 		watch,
 		setValue,
@@ -70,18 +70,17 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 	}, [nameValue, setValue])
 
 	const mutation = useMutation({
-		mutationFn: (data: CreateTenantPayload) => {
-			// Placeholder for the actual API call
-			// return createTenant(data)
-			return new Promise((resolve) => {
-				setTimeout(() => {
-					resolve(data)
-				}, 1000)
-			})
+		mutationFn: (data: TenantFormData) => {
+			const tenantData: CreateTenantRequest = {
+				name: data.name,
+				slug: data.slug,
+			}
+			return createTenant(tenantData)
 		},
-		onSuccess: () => {
-			console.log('Tenant created successfully') // Placeholder
+		onSuccess: (data) => {
+			toast.success(`Tenant "${data.name}" created successfully!`)
 			queryClient.invalidateQueries({queryKey: ['ownedTenants']})
+			queryClient.invalidateQueries({queryKey: ['joinedTenants']})
 			queryClient.invalidateQueries({queryKey: ['allTenantsForAdmin']})
 			setIsOpen(false)
 			reset()
@@ -90,7 +89,7 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 			}
 		},
 		onError: (error: Error) => {
-			console.error('Failed to create tenant:', error.message) // Placeholder
+			toast.error(`Failed to create tenant: ${error.message}`)
 		},
 	})
 
@@ -119,11 +118,11 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({children, o
 						<p className='text-xs text-gray-500 mt-1'>Alphanumeric, min 3, max 50. Hyphens allowed.</p>
 					</div>
 					<DialogFooter>
-						<Button type='button' variant='outline' onClick={() => setIsOpen(false)} disabled={isSubmitting}>
+						<Button type='button' variant='outline' onClick={() => setIsOpen(false)} disabled={mutation.isPending}>
 							Cancel
 						</Button>
-						<Button type='submit' disabled={isSubmitting}>
-							{isSubmitting ? 'Creating...' : 'Create Tenant'}
+						<Button type='submit' disabled={mutation.isPending}>
+							{mutation.isPending ? 'Creating...' : 'Create Tenant'}
 						</Button>
 					</DialogFooter>
 				</form>

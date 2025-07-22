@@ -2,11 +2,10 @@
 
 import React from 'react'
 import {useAuth} from '@/contexts/AuthContext'
-import Link from 'next/link'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Skeleton} from '@/components/ui/skeleton'
-import {useQuery} from '@tanstack/react-query'
+import {useQuery, useQueryClient} from '@tanstack/react-query'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {getJoinedTenants, getOwnedTenants, getTenantPermissions} from '@/services/tenantService'
 import {JoinedTenantsResponse, OwnedTenantsResponse, JoinedTenantMembership} from '@/types/tenantManagement'
@@ -14,14 +13,16 @@ import {TenantTable} from '@/components/tenants/TenantTable'
 import {TenantPermission} from '@/types/tenantRbac'
 import {loginTenantContext} from '@/services/authService'
 import {useRouter} from 'next/navigation'
-import {ChevronDown, ChevronUp, Loader2} from 'lucide-react'
+import {ChevronDown, ChevronUp, Loader2, Plus} from 'lucide-react'
 import {toast} from 'sonner'
 import {tokenManager} from '@/lib/token-storage'
 import {decodeJwt} from '@/lib/jwt'
+import {CreateTenantModal} from '@/components/tenants/CreateTenantModal'
 
 export default function TenantManagementPage() {
 	const {user, loading, isAuthenticated} = useAuth()
 	const router = useRouter()
+	const queryClient = useQueryClient()
 	const [isSwitchingTenant, setIsSwitchingTenant] = React.useState(false)
 	const [openPermissionsTenantId, setOpenPermissionsTenantId] = React.useState<string | null>(null)
 
@@ -37,85 +38,96 @@ export default function TenantManagementPage() {
 
 	const [joinedTenantPermissions, setJoinedTenantPermissions] = React.useState<Record<string, TenantPermission | null>>({})
 
-	React.useEffect(() => {
-		const fetchJoinedPermissions = async () => {
-			if (!user) return
+	const fetchJoinedPermissions = React.useCallback(async () => {
+		if (!user) return
 
-			const permissions: Record<string, TenantPermission | null> = {}
-			for (const membership of joinedTenantsData?.memberships || []) {
-				console.log(`Fetching permissions for tenant...`, membership)
+		const permissions: Record<string, TenantPermission | null> = {}
+		for (const membership of joinedTenantsData?.memberships || []) {
+			console.log(`Fetching permissions for tenant...`, membership)
 
-				if (!membership.user_roles.includes('TenantOwner')) {
-					try {
-						const tenantPerms = await getTenantPermissions(membership.tenant_id)
-						permissions[membership.tenant_id] = tenantPerms
-					} catch (error) {
-						console.error(`Failed to fetch permissions for tenant ${membership.tenant_id}:`, error)
-						permissions[membership.tenant_id] = null
-					}
+			if (!membership.user_roles.includes('TenantOwner')) {
+				try {
+					const tenantPerms = await getTenantPermissions(membership.tenant_id)
+					permissions[membership.tenant_id] = tenantPerms
+				} catch (error) {
+					console.error(`Failed to fetch permissions for tenant ${membership.tenant_id}:`, error)
+					permissions[membership.tenant_id] = null
 				}
 			}
-			setJoinedTenantPermissions(permissions)
 		}
+		setJoinedTenantPermissions(permissions)
+	}, [user, joinedTenantsData?.memberships])
 
+	React.useEffect(() => {
 		fetchJoinedPermissions()
-	}, [joinedTenantsData, user])
+	}, [fetchJoinedPermissions])
 
-	const handleJoinedTenantManagement = async (tenantId: string) => {
-		setIsSwitchingTenant(true)
-		try {
-			// Check if current access token has tenant information for this specific tenant
-			const tenantTokens = tokenManager.getTokens('tenant')
-			
-			let needsLoginTenant = false
-			
-			// If we have tenant tokens, check if they're for the correct tenant
-			if (tenantTokens.accessToken) {
-				try {
-					const decoded = decodeJwt<{ tenant_id?: string; exp?: number }>(tenantTokens.accessToken)
-					if (!decoded?.tenant_id || 
-						decoded.tenant_id !== tenantId || 
-						(decoded.exp && decoded.exp * 1000 < Date.now())) {
+	const handleJoinedTenantManagement = React.useCallback(
+		async (tenantId: string) => {
+			setIsSwitchingTenant(true)
+			try {
+				// Check if current access token has tenant information for this specific tenant
+				const tenantTokens = tokenManager.getTokens('tenant')
+
+				let needsLoginTenant = false
+
+				// If we have tenant tokens, check if they're for the correct tenant
+				if (tenantTokens.accessToken) {
+					try {
+						const decoded = decodeJwt<{tenant_id?: string; exp?: number}>(tenantTokens.accessToken)
+						if (!decoded?.tenant_id || decoded.tenant_id !== tenantId || (decoded.exp && decoded.exp * 1000 < Date.now())) {
+							needsLoginTenant = true
+						}
+					} catch {
+						console.log('Invalid tenant token, need to login')
 						needsLoginTenant = true
 					}
-				} catch (error) {
-					console.log('Invalid tenant token, need to login')
+				} else {
+					// No tenant tokens, need to login
 					needsLoginTenant = true
 				}
-			} else {
-				// No tenant tokens, need to login
-				needsLoginTenant = true
-			}
-			
-			// If access token doesn't have tenant info, perform login-tenant
-			if (needsLoginTenant) {
-				console.log(`🔄 Getting tenant access token for tenant ${tenantId}`)
-				const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
-				if (!contextResult.success) {
-					throw new Error(contextResult.error || 'Context switch failed')
+
+				// If access token doesn't have tenant info, perform login-tenant
+				if (needsLoginTenant) {
+					console.log(`🔄 Getting tenant access token for tenant ${tenantId}`)
+					const contextResult = await loginTenantContext(tenantId, true, false) // Skip validation for initial context switch
+					if (!contextResult.success) {
+						throw new Error(contextResult.error || 'Context switch failed')
+					}
 				}
-			}
-			
-			router.push(`/dashboard/tenant/${tenantId}`)
-		} catch (error) {
-			console.error('Failed to login tenant context:', error)
-			
-			// More specific error handling
-			if (error instanceof Error) {
-				if (error.message.includes('403') || error.message.includes('Forbidden')) {
-					toast.error('You do not have permission to access this tenant.')
-				} else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-					toast.error('Authentication failed. Please log in again.')
+
+				router.push(`/dashboard/tenant/${tenantId}`)
+			} catch (error) {
+				console.error('Failed to login tenant context:', error)
+
+				// More specific error handling
+				if (error instanceof Error) {
+					if (error.message.includes('403') || error.message.includes('Forbidden')) {
+						toast.error('You do not have permission to access this tenant.')
+					} else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+						toast.error('Authentication failed. Please log in again.')
+					} else {
+						toast.error(`Unable to switch tenant context: ${error.message}`)
+					}
 				} else {
-					toast.error(`Unable to switch tenant context: ${error.message}`)
+					toast.error('Unable to switch tenant context. Please try again.')
 				}
-			} else {
-				toast.error('Unable to switch tenant context. Please try again.')
+			} finally {
+				setIsSwitchingTenant(false)
 			}
-		} finally {
-			setIsSwitchingTenant(false)
-		}
-	}
+		},
+		[router],
+	)
+
+	const togglePermissions = React.useCallback((tenantId: string) => {
+		setOpenPermissionsTenantId((prev) => (prev === tenantId ? null : tenantId))
+	}, [])
+
+	const handleTenantCreated = React.useCallback(() => {
+		// Refetch both tenant queries when a new tenant is created
+		queryClient.invalidateQueries({queryKey: ['joinedTenantsDashboard']})
+		queryClient.invalidateQueries({queryKey: ['ownedTenantsDashboard']})
+	}, [queryClient])
 
 	const {
 		data: ownedTenantsData,
@@ -157,9 +169,12 @@ export default function TenantManagementPage() {
 			<Card className='mb-8'>
 				<CardHeader className='flex flex-row items-center justify-between'>
 					<CardTitle className='text-2xl font-semibold text-gray-700 dark:text-gray-200'>Organizations</CardTitle>
-					<Button asChild variant='default' size='sm' className='hover:bg-gray-700'>
-						<Link href='/dashboard/admin/tenants/create'>Create Organization</Link>
-					</Button>
+					<CreateTenantModal onTenantCreated={handleTenantCreated}>
+						<Button variant='default' size='sm' className='hover:bg-gray-700'>
+							<Plus className='h-4 w-4 mr-2' />
+							Create Organization
+						</Button>
+					</CreateTenantModal>
 				</CardHeader>
 				<CardContent>
 					<Tabs defaultValue='joined' className='w-full'>
@@ -195,11 +210,11 @@ export default function TenantManagementPage() {
 													</span>
 													<br />
 													<div className='mt-2 flex items-center space-x-2'>
-														<Button variant='outline' size='sm' onClick={() => handleJoinedTenantManagement(membership.tenant_id)}>
+														<Button variant='outline' size='sm' onClick={() => handleJoinedTenantManagement(membership.tenant_id)} aria-label={`Manage ${membership.tenant_name} organization`}>
 															Management
 														</Button>
 														{!!joinedTenantPermissions[membership.tenant_id]?.permissions?.length && (
-															<Button variant='ghost' size='sm' onClick={() => setOpenPermissionsTenantId(openPermissionsTenantId === membership.tenant_id ? null : membership.tenant_id)}>
+															<Button variant='ghost' size='sm' onClick={() => togglePermissions(membership.tenant_id)} aria-label={`${openPermissionsTenantId === membership.tenant_id ? 'Hide' : 'Show'} permissions for ${membership.tenant_name}`}>
 																{openPermissionsTenantId === membership.tenant_id ? <ChevronUp className='h-4 w-4' /> : <ChevronDown className='h-4 w-4' />}
 															</Button>
 														)}
@@ -227,7 +242,7 @@ export default function TenantManagementPage() {
 								<h2 className='text-xl font-semibold mb-2 text-gray-700 dark:text-gray-200'>Organizations I&#39;ve Created</h2>
 								{isLoadingOwned && <p className='text-gray-500 dark:text-gray-400'>Loading created organizations...</p>}
 								{errorOwned && <p className='text-red-500'>Error loading created organizations: {errorOwned.message}</p>}
-								{ownedTenantsData && ownedTenantsData.tenants && <TenantTable tenants={ownedTenantsData.tenants}/>}
+								{ownedTenantsData && ownedTenantsData.tenants && <TenantTable tenants={ownedTenantsData.tenants} />}
 								{ownedTenantsData && ownedTenantsData.tenants?.length === 0 && <p className='text-gray-500 dark:text-gray-400'>You have not created any organizations yet.</p>}
 							</div>
 						</TabsContent>
