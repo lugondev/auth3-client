@@ -10,13 +10,15 @@ import {toast} from 'sonner'
 import {CredentialTemplate, JSONValue} from '@/types/template'
 import {IssuedCredential} from '@/types/credentials'
 import {credentialService} from '@/services/credentialService'
+import * as tenantCredentialService from '@/services/tenantCredentialService'
 import {getCurrentDateString} from '@/utils/dateUtils'
 import {TemplateSelector} from '../templates/TemplateSelector'
 import {DataEntryStep} from './DataEntryStep'
 import {ReviewStep} from './ReviewStep'
 import {IssueResultStep} from './IssueResultStep'
 import {listDIDs} from '@/services/didService'
-import {DIDStatus, DIDResponse} from '@/types/did'
+import * as tenantDIDService from '@/services/tenantDIDService'
+import {DIDStatus, DIDResponse, DIDDocument} from '@/types/did'
 
 interface SimpleWizardData {
 	selectedTemplate?: CredentialTemplate
@@ -45,6 +47,7 @@ interface SimpleCredentialWizardProps {
 	onCancel?: () => void
 	initialTemplate?: CredentialTemplate
 	className?: string
+	tenantId?: string // Optional tenant ID
 }
 
 const STEPS = [
@@ -74,7 +77,7 @@ const STEPS = [
 	},
 ]
 
-export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, className}: SimpleCredentialWizardProps) {
+export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, className, tenantId}: SimpleCredentialWizardProps) {
 	const [currentStep, setCurrentStep] = useState(0)
 	const [wizardData, setWizardData] = useState<SimpleWizardData>({
 		selectedTemplate: initialTemplate,
@@ -97,16 +100,53 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 		const fetchDIDs = async () => {
 			try {
 				setLoadingDIDs(true)
-				const response = await listDIDs({
-					status: DIDStatus.ACTIVE,
-					limit: 100, // Get all active DIDs
-				})
+				let dids: DIDResponse[] = []
 
-				if (response.dids && response.dids.length > 0) {
-					setAvailableDIDs(response.dids)
-					// Do not set any default DID - require explicit selection
+				if (tenantId) {
+					// Fetch tenant DIDs
+					const response = await tenantDIDService.getTenantDIDs({
+						tenantId,
+						page: 1,
+						pageSize: 100,
+					})
+					if (response.dids) {
+						dids = response.dids.map(
+							(d): DIDResponse => ({
+								id: d.id,
+								user_id: '', // Tenant DIDs don't have a user_id in the same way
+								did: d.id,
+								method: d.method,
+								identifier: d.id,
+								document: d.document as unknown as DIDDocument,
+								status: d.status as DIDStatus,
+								created_at: new Date().toISOString(), // Placeholder
+								updated_at: new Date().toISOString(), // Placeholder
+							}),
+						)
+					}
 				} else {
-					console.warn('No active DIDs found for current user')
+					// Fetch personal DIDs
+					const response = await listDIDs({
+						status: DIDStatus.ACTIVE,
+						limit: 100,
+					})
+					if (response.dids) {
+						dids = response.dids
+					}
+				}
+
+				if (dids.length > 0) {
+					setAvailableDIDs(dids)
+					// Auto-select first active DID if available
+					setWizardData((prev) => ({
+						...prev,
+						issuerOptions: {
+							...prev.issuerOptions,
+							selectedDID: dids[0].id,
+						},
+					}))
+				} else {
+					console.warn(`No active DIDs found for ${tenantId ? `tenant ${tenantId}` : 'current user'}`)
 					toast.warning('No active DIDs found. You may need to create a DID first.')
 				}
 			} catch (error) {
@@ -118,7 +158,7 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 		}
 
 		fetchDIDs()
-	}, [])
+	}, [tenantId])
 
 	// Debug effect to track issuer options changes
 	useEffect(() => {
@@ -333,7 +373,15 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 
 			console.log('Issue credential - request payload:', requestPayload)
 
-			const response = await credentialService.issueCredential(requestPayload)
+			let response
+			if (tenantId) {
+				response = await tenantCredentialService.issueCredential({
+					...requestPayload,
+					tenantId,
+				})
+			} else {
+				response = await credentialService.issueCredential(requestPayload)
+			}
 
 			setWizardData((prev) => ({
 				...prev,
@@ -370,13 +418,7 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 	const renderCurrentStep = () => {
 		switch (currentStep) {
 			case 0:
-				return (
-					<TemplateSelector
-						selectedTemplate={wizardData.selectedTemplate}
-						onTemplateSelect={(template) => handleTemplateSelect(template!)}
-						showAnalytics={true}
-					/>
-				)
+				return <TemplateSelector selectedTemplate={wizardData.selectedTemplate} onTemplateSelect={(template) => handleTemplateSelect(template!)} showAnalytics={true} />
 
 			case 1:
 				if (!wizardData.selectedTemplate) {

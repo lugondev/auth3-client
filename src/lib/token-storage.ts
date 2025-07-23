@@ -1,8 +1,11 @@
-// Token Storage Management for Dual Context
+// Unified Token Storage Management for Dual Context
 // Handles token isolation, backup, and restoration between global and tenant contexts
+// Uses reactive localStorage hooks and maintains backward compatibility
 
 import { ContextMode, TokenStorage } from '@/types/dual-context'
 import { decodeJwt } from './jwt'
+import { useLocalStorage } from '@uidotdev/usehooks'
+import { useCallback, useMemo, useEffect } from 'react'
 
 // Storage keys for different contexts
 const STORAGE_KEYS = {
@@ -17,7 +20,8 @@ const STORAGE_KEYS = {
   backup: {
     accessToken: 'backup_accessToken',
     refreshToken: 'backup_refreshToken',
-  }
+  },
+  currentMode: 'auth_current_mode'
 } as const
 
 // Token validation interface
@@ -29,42 +33,392 @@ interface TokenPayload {
   iat: number
 }
 
-// Global Token Storage Class
-export class GlobalTokenStorage {
-  private static instance: GlobalTokenStorage
+// ========================================
+// REACT HOOKS VERSION (Primary)
+// ========================================
 
-  static getInstance(): GlobalTokenStorage {
-    if (!GlobalTokenStorage.instance) {
-      GlobalTokenStorage.instance = new GlobalTokenStorage()
+// Enhanced Token Storage Hook using useLocalStorage
+export const useTokenStorage = () => {
+  // Global tokens with reactive localStorage
+  const [globalAccessToken, setGlobalAccessToken] = useLocalStorage<string | null>(
+    STORAGE_KEYS.global.accessToken, 
+    null
+  )
+  const [globalRefreshToken, setGlobalRefreshToken] = useLocalStorage<string | null>(
+    STORAGE_KEYS.global.refreshToken, 
+    null
+  )
+
+  // Tenant tokens with reactive localStorage
+  const [tenantAccessToken, setTenantAccessToken] = useLocalStorage<string | null>(
+    STORAGE_KEYS.tenant.accessToken, 
+    null
+  )
+  const [tenantRefreshToken, setTenantRefreshToken] = useLocalStorage<string | null>(
+    STORAGE_KEYS.tenant.refreshToken, 
+    null
+  )
+
+  // Current context mode
+  const [currentMode, setCurrentMode] = useLocalStorage<ContextMode>(
+    STORAGE_KEYS.currentMode,
+    'global'
+  )
+
+  // Backup tokens
+  const [backupAccessToken, setBackupAccessToken] = useLocalStorage<string | null>(
+    STORAGE_KEYS.backup.accessToken,
+    null
+  )
+  const [backupRefreshToken, setBackupRefreshToken] = useLocalStorage<string | null>(
+    STORAGE_KEYS.backup.refreshToken,
+    null
+  )
+
+  // Helper function to validate token
+  const isTokenValid = useCallback((token: string | null): boolean => {
+    if (!token) return false
+
+    try {
+      const decoded = decodeJwt<TokenPayload>(token)
+      return decoded.exp * 1000 > Date.now()
+    } catch {
+      return false
     }
-    return GlobalTokenStorage.instance
+  }, [])
+
+  // Extract tenant ID from token
+  const extractTenantId = useCallback((token: string): string | null => {
+    try {
+      const decoded = decodeJwt<TokenPayload>(token)
+      return decoded.tenant_id || null
+    } catch {
+      return null
+    }
+  }, [])
+
+  // Get tokens for specific context
+  const getTokens = useCallback((context: ContextMode): TokenStorage => {
+    switch (context) {
+      case 'global':
+        return {
+          accessToken: globalAccessToken,
+          refreshToken: globalRefreshToken,
+          timestamp: Date.now()
+        }
+      case 'tenant':
+        return {
+          accessToken: tenantAccessToken,
+          refreshToken: tenantRefreshToken,
+          timestamp: Date.now()
+        }
+      case 'auto':
+        // Auto mode returns tenant tokens if available and valid, otherwise global
+        if (tenantAccessToken && isTokenValid(tenantAccessToken)) {
+          return {
+            accessToken: tenantAccessToken,
+            refreshToken: tenantRefreshToken,
+            timestamp: Date.now()
+          }
+        }
+        return {
+          accessToken: globalAccessToken,
+          refreshToken: globalRefreshToken,
+          timestamp: Date.now()
+        }
+      default:
+        return { accessToken: null, refreshToken: null, timestamp: Date.now() }
+    }
+  }, [globalAccessToken, globalRefreshToken, tenantAccessToken, tenantRefreshToken, isTokenValid])
+
+  // Set tokens for specific context
+  const setTokens = useCallback((
+    context: ContextMode, 
+    accessToken: string | null, 
+    refreshToken: string | null
+  ): void => {
+    console.log(`📝 Setting tokens for ${context} context`, {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken
+    })
+
+    switch (context) {
+      case 'global':
+        setGlobalAccessToken(accessToken)
+        setGlobalRefreshToken(refreshToken)
+        break
+      case 'tenant':
+        setTenantAccessToken(accessToken)
+        setTenantRefreshToken(refreshToken)
+        break
+      case 'auto':
+        // Auto mode sets tokens based on token content
+        if (accessToken) {
+          const tenantId = extractTenantId(accessToken)
+          if (tenantId) {
+            console.log(`🏢 Auto-detected tenant token: ${tenantId}`)
+            setTenantAccessToken(accessToken)
+            setTenantRefreshToken(refreshToken)
+          } else {
+            console.log(`🌐 Auto-detected global token`)
+            setGlobalAccessToken(accessToken)
+            setGlobalRefreshToken(refreshToken)
+          }
+        }
+        break
+    }
+  }, [setGlobalAccessToken, setGlobalRefreshToken, setTenantAccessToken, setTenantRefreshToken, extractTenantId])
+
+  // Clear tokens for specific context
+  const clearTokens = useCallback((context: ContextMode): void => {
+    console.log(`🗑️ Clearing tokens for ${context} context`)
+    
+    switch (context) {
+      case 'global':
+        setGlobalAccessToken(null)
+        setGlobalRefreshToken(null)
+        break
+      case 'tenant':
+        setTenantAccessToken(null)
+        setTenantRefreshToken(null)
+        break
+      case 'auto':
+        setGlobalAccessToken(null)
+        setGlobalRefreshToken(null)
+        setTenantAccessToken(null)
+        setTenantRefreshToken(null)
+        break
+    }
+  }, [setGlobalAccessToken, setGlobalRefreshToken, setTenantAccessToken, setTenantRefreshToken])
+
+  // Backup tokens
+  const backupTokens = useCallback((fromContext: ContextMode): void => {
+    const tokens = getTokens(fromContext)
+    console.log(`💾 Backing up tokens from ${fromContext} context`)
+    setBackupAccessToken(tokens.accessToken)
+    setBackupRefreshToken(tokens.refreshToken)
+  }, [getTokens, setBackupAccessToken, setBackupRefreshToken])
+
+  // Restore tokens from backup
+  const restoreTokens = useCallback((toContext: ContextMode): boolean => {
+    if (backupAccessToken || backupRefreshToken) {
+      console.log(`🔄 Restoring tokens to ${toContext} context`)
+      setTokens(toContext, backupAccessToken, backupRefreshToken)
+      // Clear backup after restore
+      setBackupAccessToken(null)
+      setBackupRefreshToken(null)
+      return true
+    }
+    return false
+  }, [backupAccessToken, backupRefreshToken, setTokens, setBackupAccessToken, setBackupRefreshToken])
+
+  // Validate tokens for specific context
+  const validateTokens = useCallback((context: ContextMode): boolean => {
+    const tokens = getTokens(context)
+    return isTokenValid(tokens.accessToken)
+  }, [getTokens, isTokenValid])
+
+  // Get token expiry
+  const getTokenExpiry = useCallback((context: ContextMode): number | null => {
+    const tokens = getTokens(context)
+    if (!tokens.accessToken) return null
+
+    try {
+      const decoded = decodeJwt<TokenPayload>(tokens.accessToken)
+      return decoded.exp * 1000
+    } catch {
+      return null
+    }
+  }, [getTokens])
+
+  // Check if token is expiring soon
+  const isTokenExpiringSoon = useCallback((
+    context: ContextMode, 
+    marginMs: number = 5 * 60 * 1000
+  ): boolean => {
+    const expiry = getTokenExpiry(context)
+    if (!expiry) return true
+    return expiry - Date.now() < marginMs
+  }, [getTokenExpiry])
+
+  // Get current active tokens based on current mode
+  const currentTokens = useMemo(() => getTokens(currentMode), [getTokens, currentMode])
+
+  // Check if currently authenticated
+  const isAuthenticated = useMemo(() => 
+    isTokenValid(currentTokens.accessToken), 
+    [currentTokens.accessToken, isTokenValid]
+  )
+
+  // Get current user info from token
+  const currentUser = useMemo(() => {
+    if (!currentTokens.accessToken) return null
+    
+    try {
+      const decoded = decodeJwt<TokenPayload>(currentTokens.accessToken)
+      return {
+        id: decoded.sub,
+        email: decoded.email,
+        tenant_id: decoded.tenant_id,
+        exp: decoded.exp
+      }
+    } catch {
+      return null
+    }
+  }, [currentTokens.accessToken])
+
+  // Auto-cleanup expired tokens
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Check and clear expired global tokens
+      if (globalAccessToken && !isTokenValid(globalAccessToken)) {
+        console.log('🧹 Auto-cleaning expired global tokens')
+        setGlobalAccessToken(null)
+        setGlobalRefreshToken(null)
+      }
+
+      // Check and clear expired tenant tokens
+      if (tenantAccessToken && !isTokenValid(tenantAccessToken)) {
+        console.log('🧹 Auto-cleaning expired tenant tokens')
+        setTenantAccessToken(null)
+        setTenantRefreshToken(null)
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(interval)
+  }, [
+    globalAccessToken, 
+    tenantAccessToken, 
+    isTokenValid, 
+    setGlobalAccessToken, 
+    setGlobalRefreshToken, 
+    setTenantAccessToken, 
+    setTenantRefreshToken
+  ])
+
+  return {
+    // Current state
+    currentMode,
+    setCurrentMode,
+    currentTokens,
+    isAuthenticated,
+    currentUser,
+
+    // Token management
+    getTokens,
+    setTokens,
+    clearTokens,
+    validateTokens,
+
+    // Backup/restore
+    backupTokens,
+    restoreTokens,
+
+    // Utilities
+    getTokenExpiry,
+    isTokenExpiringSoon,
+    extractTenantId,
+    isTokenValid,
+
+    // Raw token states (for debugging)
+    globalTokens: {
+      accessToken: globalAccessToken,
+      refreshToken: globalRefreshToken
+    },
+    tenantTokens: {
+      accessToken: tenantAccessToken,
+      refreshToken: tenantRefreshToken
+    },
+    backupTokensState: {
+      accessToken: backupAccessToken,
+      refreshToken: backupRefreshToken
+    }
+  }
+}
+
+// ========================================
+// LEGACY CLASS-BASED VERSION (Backward Compatibility)
+// ========================================
+
+// Legacy Token Manager for backward compatibility
+// Uses direct localStorage access when hooks are not available
+export class TokenManager {
+  private static instance: TokenManager
+
+  static getInstance(): TokenManager {
+    if (!TokenManager.instance) {
+      TokenManager.instance = new TokenManager()
+    }
+    return TokenManager.instance
   }
 
-  getTokens(): TokenStorage {
+  getTokens(context: ContextMode): TokenStorage {
     if (typeof window === 'undefined') {
       return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
 
+    switch (context) {
+      case 'global':
+        return this.getGlobalTokens()
+      case 'tenant':
+        return this.getTenantTokens()
+      case 'auto':
+        const tenantTokens = this.getTenantTokens()
+        if (tenantTokens.accessToken && this.isTokenValid(tenantTokens.accessToken)) {
+          return tenantTokens
+        }
+        return this.getGlobalTokens()
+      default:
+        return { accessToken: null, refreshToken: null, timestamp: Date.now() }
+    }
+  }
+
+  private getGlobalTokens(): TokenStorage {
     try {
       const accessToken = localStorage.getItem(STORAGE_KEYS.global.accessToken)
       const refreshToken = localStorage.getItem(STORAGE_KEYS.global.refreshToken)
-
-      return {
-        accessToken,
-        refreshToken,
-        timestamp: Date.now()
-      }
+      return { accessToken, refreshToken, timestamp: Date.now() }
     } catch (error) {
       console.error('Failed to get global tokens:', error)
       return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
   }
 
-  setTokens(accessToken: string | null, refreshToken: string | null): void {
-    if (typeof window === 'undefined') {
-      return
+  private getTenantTokens(): TokenStorage {
+    try {
+      const accessToken = localStorage.getItem(STORAGE_KEYS.tenant.accessToken)
+      const refreshToken = localStorage.getItem(STORAGE_KEYS.tenant.refreshToken)
+      return { accessToken, refreshToken, timestamp: Date.now() }
+    } catch (error) {
+      console.error('Failed to get tenant tokens:', error)
+      return { accessToken: null, refreshToken: null, timestamp: Date.now() }
     }
+  }
 
+  setTokens(context: ContextMode, accessToken: string | null, refreshToken: string | null): void {
+    if (typeof window === 'undefined') return
+
+    switch (context) {
+      case 'global':
+        this.setGlobalTokens(accessToken, refreshToken)
+        break
+      case 'tenant':
+        this.setTenantTokens(accessToken, refreshToken)
+        break
+      case 'auto':
+        if (accessToken) {
+          const tenantId = this.extractTenantId(accessToken)
+          if (tenantId) {
+            this.setTenantTokens(accessToken, refreshToken)
+          } else {
+            this.setGlobalTokens(accessToken, refreshToken)
+          }
+        }
+        break
+    }
+  }
+
+  private setGlobalTokens(accessToken: string | null, refreshToken: string | null): void {
     try {
       if (accessToken) {
         localStorage.setItem(STORAGE_KEYS.global.accessToken, accessToken)
@@ -82,72 +436,7 @@ export class GlobalTokenStorage {
     }
   }
 
-  clearTokens(): void {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    try {
-      localStorage.removeItem(STORAGE_KEYS.global.accessToken)
-      localStorage.removeItem(STORAGE_KEYS.global.refreshToken)
-    } catch (error) {
-      console.error('Failed to clear global tokens:', error)
-    }
-  }
-
-  validateTokens(): boolean {
-    const { accessToken } = this.getTokens()
-    return this.isTokenValid(accessToken)
-  }
-
-  private isTokenValid(token: string | null): boolean {
-    if (!token) return false
-
-    try {
-      const decoded = decodeJwt<TokenPayload>(token)
-      return decoded.exp * 1000 > Date.now()
-    } catch {
-      return false
-    }
-  }
-}
-
-// Tenant Token Storage Class
-export class TenantTokenStorage {
-  private static instance: TenantTokenStorage
-
-  static getInstance(): TenantTokenStorage {
-    if (!TenantTokenStorage.instance) {
-      TenantTokenStorage.instance = new TenantTokenStorage()
-    }
-    return TenantTokenStorage.instance
-  }
-
-  getTokens(): TokenStorage {
-    if (typeof window === 'undefined') {
-      return { accessToken: null, refreshToken: null, timestamp: Date.now() }
-    }
-
-    try {
-      const accessToken = localStorage.getItem(STORAGE_KEYS.tenant.accessToken)
-      const refreshToken = localStorage.getItem(STORAGE_KEYS.tenant.refreshToken)
-
-      return {
-        accessToken,
-        refreshToken,
-        timestamp: Date.now()
-      }
-    } catch (error) {
-      console.error('Failed to get tenant tokens:', error)
-      return { accessToken: null, refreshToken: null, timestamp: Date.now() }
-    }
-  }
-
-  setTokens(accessToken: string | null, refreshToken: string | null): void {
-    if (typeof window === 'undefined') {
-      return
-    }
-
+  private setTenantTokens(accessToken: string | null, refreshToken: string | null): void {
     try {
       if (accessToken) {
         localStorage.setItem(STORAGE_KEYS.tenant.accessToken, accessToken)
@@ -165,21 +454,29 @@ export class TenantTokenStorage {
     }
   }
 
-  clearTokens(): void {
-    if (typeof window === 'undefined') {
-      return
-    }
+  clearTokens(context: ContextMode): void {
+    if (typeof window === 'undefined') return
 
-    try {
-      localStorage.removeItem(STORAGE_KEYS.tenant.accessToken)
-      localStorage.removeItem(STORAGE_KEYS.tenant.refreshToken)
-    } catch (error) {
-      console.error('Failed to clear tenant tokens:', error)
+    switch (context) {
+      case 'global':
+        localStorage.removeItem(STORAGE_KEYS.global.accessToken)
+        localStorage.removeItem(STORAGE_KEYS.global.refreshToken)
+        break
+      case 'tenant':
+        localStorage.removeItem(STORAGE_KEYS.tenant.accessToken)
+        localStorage.removeItem(STORAGE_KEYS.tenant.refreshToken)
+        break
+      case 'auto':
+        localStorage.removeItem(STORAGE_KEYS.global.accessToken)
+        localStorage.removeItem(STORAGE_KEYS.global.refreshToken)
+        localStorage.removeItem(STORAGE_KEYS.tenant.accessToken)
+        localStorage.removeItem(STORAGE_KEYS.tenant.refreshToken)
+        break
     }
   }
 
-  validateTokens(): boolean {
-    const { accessToken } = this.getTokens()
+  validateTokens(context: ContextMode): boolean {
+    const { accessToken } = this.getTokens(context)
     return this.isTokenValid(accessToken)
   }
 
@@ -193,124 +490,13 @@ export class TenantTokenStorage {
       return false
     }
   }
-}
 
-// Unified Token Manager
-export class TokenManager {
-  private globalStorage: GlobalTokenStorage
-  private tenantStorage: TenantTokenStorage
-
-  constructor() {
-    this.globalStorage = GlobalTokenStorage.getInstance()
-    this.tenantStorage = TenantTokenStorage.getInstance()
-  }
-
-  getTokens(context: ContextMode): TokenStorage {
-    switch (context) {
-      case 'global':
-        return this.globalStorage.getTokens()
-      case 'tenant':
-        return this.tenantStorage.getTokens()
-      case 'auto':
-        // Auto mode returns tenant tokens if available, otherwise global
-        const tenantTokens = this.tenantStorage.getTokens()
-        if (tenantTokens.accessToken && this.tenantStorage.validateTokens()) {
-          return tenantTokens
-        }
-        return this.globalStorage.getTokens()
-      default:
-        return { accessToken: null, refreshToken: null, timestamp: Date.now() }
-    }
-  }
-
-  setTokens(context: ContextMode, accessToken: string | null, refreshToken: string | null): void {
-    switch (context) {
-      case 'global':
-        this.globalStorage.setTokens(accessToken, refreshToken)
-        break
-      case 'tenant':
-        this.tenantStorage.setTokens(accessToken, refreshToken)
-        break
-      case 'auto':
-        // Auto mode sets tokens based on token content
-        if (accessToken) {
-          const tenantId = this.extractTenantId(accessToken)
-          if (tenantId) {
-            this.tenantStorage.setTokens(accessToken, refreshToken)
-          } else {
-            this.globalStorage.setTokens(accessToken, refreshToken)
-          }
-        }
-        break
-    }
-  }
-
-  clearTokens(context: ContextMode): void {
-    switch (context) {
-      case 'global':
-        this.globalStorage.clearTokens()
-        break
-      case 'tenant':
-        this.tenantStorage.clearTokens()
-        break
-      case 'auto':
-        this.globalStorage.clearTokens()
-        this.tenantStorage.clearTokens()
-        break
-    }
-  }
-
-  backupTokens(fromContext: ContextMode): void {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    const tokens = this.getTokens(fromContext)
+  private extractTenantId(token: string): string | null {
     try {
-      if (tokens.accessToken) {
-        localStorage.setItem(STORAGE_KEYS.backup.accessToken, tokens.accessToken)
-      }
-      if (tokens.refreshToken) {
-        localStorage.setItem(STORAGE_KEYS.backup.refreshToken, tokens.refreshToken)
-      }
-    } catch (error) {
-      console.error('Failed to backup tokens:', error)
-    }
-  }
-
-  restoreTokens(toContext: ContextMode): boolean {
-    if (typeof window === 'undefined') {
-      return false
-    }
-
-    try {
-      const accessToken = localStorage.getItem(STORAGE_KEYS.backup.accessToken)
-      const refreshToken = localStorage.getItem(STORAGE_KEYS.backup.refreshToken)
-
-      if (accessToken || refreshToken) {
-        this.setTokens(toContext, accessToken, refreshToken)
-        // Clear backup after restore
-        localStorage.removeItem(STORAGE_KEYS.backup.accessToken)
-        localStorage.removeItem(STORAGE_KEYS.backup.refreshToken)
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('Failed to restore tokens:', error)
-      return false
-    }
-  }
-
-  validateTokens(context: ContextMode): boolean {
-    switch (context) {
-      case 'global':
-        return this.globalStorage.validateTokens()
-      case 'tenant':
-        return this.tenantStorage.validateTokens()
-      case 'auto':
-        return this.globalStorage.validateTokens() || this.tenantStorage.validateTokens()
-      default:
-        return false
+      const decoded = decodeJwt<TokenPayload>(token)
+      return decoded.tenant_id || null
+    } catch {
+      return null
     }
   }
 
@@ -329,24 +515,53 @@ export class TokenManager {
   isTokenExpiringSoon(context: ContextMode, marginMs: number = 5 * 60 * 1000): boolean {
     const expiry = this.getTokenExpiry(context)
     if (!expiry) return true
-
     return expiry - Date.now() < marginMs
   }
 
-  private extractTenantId(token: string): string | null {
+  backupTokens(fromContext: ContextMode): void {
+    if (typeof window === 'undefined') return
+
+    const tokens = this.getTokens(fromContext)
     try {
-      const decoded = decodeJwt<TokenPayload>(token)
-      return decoded.tenant_id || null
-    } catch {
-      return null
+      if (tokens.accessToken) {
+        localStorage.setItem(STORAGE_KEYS.backup.accessToken, tokens.accessToken)
+      }
+      if (tokens.refreshToken) {
+        localStorage.setItem(STORAGE_KEYS.backup.refreshToken, tokens.refreshToken)
+      }
+    } catch (error) {
+      console.error('Failed to backup tokens:', error)
+    }
+  }
+
+  restoreTokens(toContext: ContextMode): boolean {
+    if (typeof window === 'undefined') return false
+
+    try {
+      const accessToken = localStorage.getItem(STORAGE_KEYS.backup.accessToken)
+      const refreshToken = localStorage.getItem(STORAGE_KEYS.backup.refreshToken)
+
+      if (accessToken || refreshToken) {
+        this.setTokens(toContext, accessToken, refreshToken)
+        localStorage.removeItem(STORAGE_KEYS.backup.accessToken)
+        localStorage.removeItem(STORAGE_KEYS.backup.refreshToken)
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Failed to restore tokens:', error)
+      return false
     }
   }
 }
 
-// Export singleton instance
+// Export singleton instance for backward compatibility
 export const tokenManager = new TokenManager()
 
-// Utility functions
+// ========================================
+// UTILITY FUNCTIONS (Backward Compatibility)
+// ========================================
+
 export const getActiveTokens = (context: ContextMode): TokenStorage => {
   return tokenManager.getTokens(context)
 }
@@ -362,3 +577,10 @@ export const clearActiveTokens = (context: ContextMode): void => {
 export const validateActiveTokens = (context: ContextMode): boolean => {
   return tokenManager.validateTokens(context)
 }
+
+// ========================================
+// EXPORT TYPES
+// ========================================
+
+export type ReactiveTokenStorage = ReturnType<typeof useTokenStorage>
+export { STORAGE_KEYS }

@@ -57,6 +57,9 @@ export interface AuthContextType {
   canSwitchToTenant: (tenantId: string) => boolean
   rollbackContext: () => Promise<ContextSwitchResult>
   checkAuthStatus: () => Promise<void>
+  
+  // Debug utilities (temporarily disabled)
+  // debugTokenFlow: () => void
 }
 
 // Enhanced PermissionContextType with dual context support

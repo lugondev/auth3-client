@@ -1,6 +1,6 @@
 'use client'
 
-import React, {useCallback, useState, useEffect} from 'react'
+import React, {useCallback, useState} from 'react'
 import {useParams, useRouter, useSearchParams} from 'next/navigation'
 import dynamicImport from 'next/dynamic'
 import {IssuedCredential} from '@/types/credentials'
@@ -14,19 +14,18 @@ import {FileText, Users, Shield, ArrowLeft} from 'lucide-react'
 // Disable static generation to prevent prerendering issues
 export const dynamic = 'force-dynamic'
 
-// Dynamically import the tenant-specific wizard
-const TenantCredentialWizard = dynamicImport(
+// Dynamically import the wizard to prevent SSR issues
+const SimpleCredentialWizard = dynamicImport(
 	() =>
-		import('@/components/credentials/tenant/TenantCredentialWizard').then((mod) => ({
-			default: mod.TenantCredentialWizard,
+		import('@/components/credentials/issue/SimpleCredentialWizard').then((mod) => ({
+			default: mod.SimpleCredentialWizard,
 		})),
 	{
 		ssr: false,
-		loading: () => <div className='p-8 text-center'>Loading tenant credential wizard...</div>,
+		loading: () => <div className='p-8 text-center'>Loading credential wizard...</div>,
 	},
 )
 
-// Dynamically import the bulk issuance interface
 const BulkIssuanceInterface = dynamicImport(
 	() =>
 		import('@/components/credentials/issue/BulkIssuanceInterface').then((mod) => ({
@@ -38,7 +37,6 @@ const BulkIssuanceInterface = dynamicImport(
 	},
 )
 
-// Dynamically import the verification interface
 const CredentialVerificationInterface = dynamicImport(
 	() =>
 		import('@/components/credentials/verify/CredentialVerificationInterface').then((mod) => ({
@@ -56,20 +54,36 @@ export default function TenantCredentialActionsPage() {
 	const searchParams = useSearchParams()
 	const {toast} = useToast()
 	const tenantId = params.tenantId as string
-	const tabParam = searchParams.get('tab')
-	const [activeTab, setActiveTab] = useState(tabParam || 'single')
 
-	// Update tab when URL parameter changes
-	useEffect(() => {
-		if (tabParam && ['single', 'bulk', 'verify'].includes(tabParam)) {
-			setActiveTab(tabParam)
-		}
-	}, [tabParam])
+	// Get the tab from URL param, using useRef to avoid re-renders
+	const tabParamRef = React.useRef(searchParams.get('tab') || 'single')
+	const validTabs = ['single', 'bulk', 'verify']
+	const initialTab = validTabs.includes(tabParamRef.current) ? tabParamRef.current : 'single'
 
+	// Use state with a stable initializer function to avoid dependency on URL params
+	const [activeTab, setActiveTab] = useState(() => initialTab)
+
+	// Handle tab change and update URL - but do not update state here to avoid loops
+	const handleTabChange = useCallback(
+		(newTab: string) => {
+			// Only update state if the tab is actually changing
+			if (newTab !== activeTab) {
+				setActiveTab(newTab)
+
+				// Update URL without causing a navigation
+				const newUrl = new URL(window.location.href)
+				newUrl.searchParams.set('tab', newTab)
+				window.history.replaceState({}, '', newUrl.toString())
+			}
+		},
+		[activeTab],
+	)
+
+	// Memoize callback functions to prevent unnecessary re-renders
 	const handleComplete = useCallback(
 		(credential: IssuedCredential) => {
 			toast({
-				title: "Success",
+				title: 'Success',
 				description: `Credential ${credential.id} issued successfully for tenant!`,
 			})
 			// Redirect to tenant credentials list
@@ -85,7 +99,7 @@ export default function TenantCredentialActionsPage() {
 	const handleBulkComplete = useCallback(
 		(results: BulkIssueResponse) => {
 			toast({
-				title: "Bulk Issuance Complete",
+				title: 'Bulk Issuance Complete',
 				description: `${results.successCount} credentials issued successfully for tenant`,
 			})
 			// Redirect to tenant credentials list
@@ -97,9 +111,9 @@ export default function TenantCredentialActionsPage() {
 	const handleVerificationComplete = useCallback(
 		(result: {isValid: boolean; errors?: string[]}) => {
 			toast({
-				title: "Verification Complete",
-				description: result.isValid ? "Credential is valid!" : "Credential verification failed",
-				variant: result.isValid ? "default" : "destructive",
+				title: 'Verification Complete',
+				description: result.isValid ? 'Credential is valid!' : 'Credential verification failed',
+				variant: result.isValid ? 'default' : 'destructive',
 			})
 		},
 		[toast],
@@ -111,7 +125,7 @@ export default function TenantCredentialActionsPage() {
 				{/* Header with back button */}
 				<div className='mb-6'>
 					<div className='flex items-center gap-4 mb-4'>
-						<Button variant="outline" onClick={handleCancel}>
+						<Button variant='outline' onClick={handleCancel}>
 							<ArrowLeft className='h-4 w-4 mr-2' />
 							Back to Credentials
 						</Button>
@@ -120,7 +134,7 @@ export default function TenantCredentialActionsPage() {
 					<p className='text-muted-foreground'>Create, issue, and verify credentials for tenant: {tenantId}</p>
 				</div>
 
-				<Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
+				<Tabs value={activeTab} onValueChange={handleTabChange} className='w-full'>
 					<TabsList className='grid w-full grid-cols-3'>
 						<TabsTrigger value='single' className='flex items-center gap-2'>
 							<FileText className='h-4 w-4' />
@@ -140,17 +154,10 @@ export default function TenantCredentialActionsPage() {
 						<Card>
 							<CardHeader>
 								<CardTitle>Single Credential Issuance</CardTitle>
-								<CardDescription>
-									Use the step-by-step wizard to issue a single credential for tenant {tenantId}
-								</CardDescription>
+								<CardDescription>Use the step-by-step wizard to issue a single credential for tenant {tenantId}</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<TenantCredentialWizard 
-									tenantId={tenantId}
-									onComplete={handleComplete} 
-									onCancel={handleCancel} 
-									className='w-full'
-								/>
+								<SimpleCredentialWizard onComplete={handleComplete} onCancel={handleCancel} className='w-full' tenantId={tenantId} />
 							</CardContent>
 						</Card>
 					</TabsContent>
@@ -159,15 +166,10 @@ export default function TenantCredentialActionsPage() {
 						<Card>
 							<CardHeader>
 								<CardTitle>Bulk Credential Issuance</CardTitle>
-								<CardDescription>
-									Upload a CSV file to issue multiple credentials at once for tenant {tenantId}
-								</CardDescription>
+								<CardDescription>Upload a CSV file to issue multiple credentials at once for tenant {tenantId}</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<BulkIssuanceInterface 
-									onComplete={handleBulkComplete} 
-									className='w-full'
-								/>
+								<BulkIssuanceInterface onComplete={handleBulkComplete} className='w-full' />
 							</CardContent>
 						</Card>
 					</TabsContent>
@@ -176,16 +178,10 @@ export default function TenantCredentialActionsPage() {
 						<Card>
 							<CardHeader>
 								<CardTitle>Credential Verification</CardTitle>
-								<CardDescription>
-									Verify the authenticity and validity of a verifiable credential
-								</CardDescription>
+								<CardDescription>Verify the authenticity and validity of a verifiable credential</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<CredentialVerificationInterface 
-									onComplete={handleVerificationComplete}
-									className='w-full'
-									tenantId={tenantId}
-								/>
+								<CredentialVerificationInterface onComplete={handleVerificationComplete} className='w-full' tenantId={tenantId} />
 							</CardContent>
 						</Card>
 					</TabsContent>

@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation'
 import {GoogleAuthProvider, FacebookAuthProvider, OAuthProvider, signInWithPopup} from 'firebase/auth'
 import {auth} from '@/lib/firebase'
 import {exchangeFirebaseToken, logoutUser as serviceLogout, refreshToken as serviceRefreshToken, signInWithEmail as serviceSignInWithEmail, register as serviceRegister, verifyTwoFactorLogin, loginTenantContext} from '@/services/authService'
+import {getCurrentUser} from '@/services/userService'
 import apiClient from '@/lib/apiClient'
 import {SocialTokenExchangeInput, LoginInput, RegisterInput, AuthResult, Verify2FARequest} from '@/types/user'
 import {toast} from 'sonner'
@@ -60,7 +61,10 @@ const REFRESH_MARGIN_MS = 10 * 60 * 1000
 const MIN_REFRESH_DELAY_MS = 5 * 1000
 
 export function AuthProvider({children}: {children: React.ReactNode}) {
-	// Current active state
+		// Enhanced reactive token storage integration (temporarily disabled for production build compatibility)
+	// TODO: Implement client-side only reactive features with proper SSR handling
+
+	// Current active state - Enhanced with reactive state
 	const [user, setUser] = useState<AppUser | null>(null)
 	const [isSystemAdmin, setIsSystemAdmin] = useState<boolean | null>(null)
 	const [loading, setLoading] = useState(true)
@@ -327,7 +331,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 			const appUser = decodeToken(authResult.access_token)
 			if (appUser) {
-				// Update current active state
+				// Update current active state with basic token info
 				setUser(appUser)
 				setIsAuthenticated(true)
 				setCurrentTenantId(appUser.tenant_id || null)
@@ -341,6 +345,30 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 					contextManager.setCurrentMode(targetContext)
 				}
 
+				await checkSystemAdminStatus(targetContext)
+
+				// 🔄 Fetch complete user profile from /me endpoint
+				try {
+					console.log('🔄 Fetching complete user profile from /api/v1/users/me...')
+					const fullUserProfile = await getCurrentUser()
+					
+					// Update user state with complete profile data
+					const enrichedUser: AppUser = {
+						...appUser,
+						// Merge additional profile data if available
+						first_name: fullUserProfile.first_name || appUser.first_name,
+						last_name: fullUserProfile.last_name || appUser.last_name,
+						avatar: fullUserProfile.avatar || appUser.avatar,
+						// Add any other profile fields that might be missing from JWT
+					}
+					
+					setUser(enrichedUser)
+					console.log('✅ User profile updated with complete data from /me endpoint')
+				} catch (profileError) {
+					console.warn('⚠️ Failed to fetch complete profile, using token data:', profileError)
+					// Continue with basic token data if profile fetch fails
+				}
+			} else {
 				await checkSystemAdminStatus(targetContext)
 			}
 
@@ -522,19 +550,24 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				console.log(`✅ Successfully switched to tenant ${tenantId}`)
 
 				// The tokens are already stored by loginTenantContext
-				// Just update the state
+				// Update context mode
 				setCurrentMode('tenant')
-				contextManager.setCurrentMode('tenant') // Update context manager
+				contextManager.setCurrentMode('tenant')
 				setCurrentTenantId(tenantId)
 
-				// Get and set user from new token
+				// Get tenant tokens and call handleAuthSuccessInternal for consistent profile fetching
 				const tenantTokens = tokenManager.getTokens('tenant')
 				if (tenantTokens.accessToken) {
-					const decoded = decodeToken(tenantTokens.accessToken)
-					if (decoded) {
-						setUser(decoded)
-						setIsAuthenticated(true)
+					// Create AuthResult format for handleAuthSuccessInternal
+					const authResult: AuthResult = {
+						access_token: tenantTokens.accessToken,
+						refresh_token: tenantTokens.refreshToken || undefined,
+						expires_in: 0 // Not used in this context
 					}
+					
+					// Use handleAuthSuccessInternal to ensure consistent profile fetching
+					// Pass preserveContext=true since we're already in the right tenant context
+					await handleAuthSuccessInternal(authResult, true)
 				}
 			} else {
 				throw new Error(result.error || 'Failed to switch tenant context')
@@ -546,7 +579,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		} finally {
 			setLoading(false)
 		}
-	}, [])
+	}, [handleAuthSuccessInternal])
 
 	const switchToGlobal = useCallback(
 		async (options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
