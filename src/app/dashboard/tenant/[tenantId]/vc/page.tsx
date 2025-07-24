@@ -1,18 +1,16 @@
 'use client'
 
 import React, {useState, useEffect, useCallback} from 'react'
-import {useParams} from 'next/navigation'
+import {useParams, useRouter} from 'next/navigation'
 import {useToast} from '@/hooks/use-toast'
 
 // UI Components
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
-import {Badge} from '@/components/ui/badge'
-import {Label} from '@/components/ui/label'
 import {Dialog, DialogTrigger} from '@/components/ui/dialog'
 
 // Icons
-import {FileText, Plus, Copy, Download, RefreshCw, Shield, Trash2, Eye, EyeOff, Settings} from 'lucide-react'
+import {FileText, Plus, RefreshCw, Shield, Settings} from 'lucide-react'
 
 // Types and Services
 import {
@@ -20,6 +18,7 @@ import {
 	revokeCredential,
 	CredentialWithStatusInfo, // Import the type from the helper
 } from './helpers/credential-helpers'
+import {CollapsibleCredentialCard} from './components/CollapsibleCredentialCard'
 
 /**
  * TenantVCPage Component
@@ -27,6 +26,7 @@ import {
  */
 export default function TenantVCPage() {
 	const params = useParams()
+	const router = useRouter()
 	const {toast} = useToast()
 	const tenantId = params.tenantId as string
 
@@ -34,6 +34,7 @@ export default function TenantVCPage() {
 	const [credentials, setCredentials] = useState<CredentialWithStatusInfo[]>([])
 	const [loading, setLoading] = useState(true)
 	const [showProof, setShowProof] = useState<string | null>(null)
+	const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set())
 
 	/**
 	 * Fetch tenant credentials
@@ -62,6 +63,56 @@ export default function TenantVCPage() {
 			fetchCredentials()
 		}
 	}, [fetchCredentials, tenantId])
+
+	/**
+	 * Navigate to credential details page
+	 */
+	const handleViewCredential = (credentialId: string) => {
+		router.push(`/dashboard/tenant/${tenantId}/vc/${credentialId}`)
+	}
+
+	/**
+	 * Toggle collapse state for a credential card
+	 */
+	const toggleCardCollapse = (credentialId: string) => {
+		setCollapsedCards((prev) => {
+			const newSet = new Set(prev)
+			if (newSet.has(credentialId)) {
+				newSet.delete(credentialId)
+			} else {
+				newSet.add(credentialId)
+			}
+			return newSet
+		})
+	}
+
+	/**
+	 * Check if card is collapsed
+	 */
+	const isCardCollapsed = (credentialId: string) => {
+		return !collapsedCards.has(credentialId) // Default is collapsed, so inverted logic
+	}
+
+	/**
+	 * Expand all cards
+	 */
+	const expandAllCards = () => {
+		setCollapsedCards(new Set(credentials.map((c) => c.id)))
+	}
+
+	/**
+	 * Collapse all cards
+	 */
+	const collapseAllCards = () => {
+		setCollapsedCards(new Set())
+	}
+
+	/**
+	 * Check if all cards are expanded
+	 */
+	const areAllCardsExpanded = () => {
+		return collapsedCards.size === credentials.length
+	}
 
 	/**
 	 * Copy text to clipboard
@@ -172,14 +223,17 @@ export default function TenantVCPage() {
 						<p className='text-muted-foreground'>Manage Verifiable Credentials for tenant: {tenantId}</p>
 					</div>
 
-					<Button
-						onClick={() => {
-							// navigate to /vc/actions
-							window.location.href = `/dashboard/tenant/${tenantId}/vc/actions`
-						}}>
-						<Settings className='mr-2 h-4 w-4' />
-						Actions
-					</Button>
+					<div className='flex gap-2'>
+						{credentials.length > 0 && (
+							<Button variant='outline' size='sm' onClick={areAllCardsExpanded() ? collapseAllCards : expandAllCards}>
+								{areAllCardsExpanded() ? 'Collapse All' : 'Expand All'}
+							</Button>
+						)}
+						<Button onClick={() => router.push(`/dashboard/tenant/${tenantId}/vc/actions`)}>
+							<Settings className='mr-2 h-4 w-4' />
+							Actions
+						</Button>
+					</div>
 				</div>
 
 				{/* Stats Cards */}
@@ -227,100 +281,26 @@ export default function TenantVCPage() {
 
 				{/* Credentials List */}
 				<div className='space-y-4'>
-					{credentials.map((vc) => {
-						const status = getCredentialStatus(vc)
-						return (
-							<Card key={vc.id}>
-								<CardHeader>
-									<div className='flex items-center justify-between'>
-										<div className='space-y-1'>
-											<div className='flex items-center gap-2'>
-												<CardTitle className='text-lg'>Verifiable Credential</CardTitle>
-												<Badge variant={status === 'active' ? 'default' : 'secondary'}>{status}</Badge>
-												{vc.type.map((type) => (
-													<Badge key={type} variant='outline'>
-														{type}
-													</Badge>
-												))}
-											</div>
-											<p className='text-sm text-muted-foreground font-mono'>{vc.id}</p>
-										</div>
-
-										<div className='flex gap-2'>
-											<Button variant='outline' size='sm' onClick={() => copyToClipboard(vc.id)}>
-												<Copy className='h-4 w-4' />
-											</Button>
-											<Button variant='outline' size='sm' onClick={() => downloadVC(vc)}>
-												<Download className='h-4 w-4' />
-											</Button>
-											{status === 'active' && (
-												<Button
-													variant='outline'
-													size='sm'
-													onClick={() => {
-														if (window.confirm('Are you sure you want to revoke this credential? This action cannot be undone.')) {
-															handleRevokeVC(vc.id)
-														}
-													}}
-													className='text-red-600 hover:text-red-700 hover:bg-red-50'>
-													<Trash2 className='h-4 w-4' />
-												</Button>
-											)}
-										</div>
-									</div>
-								</CardHeader>
-
-								<CardContent className='space-y-4'>
-									{/* Basic Info */}
-									<div className='grid grid-cols-2 gap-4 text-sm'>
-										<div>
-											<Label className='text-xs text-muted-foreground'>Issuer</Label>
-											<p className='font-mono'>{formatIssuer(vc.issuer)}</p>
-										</div>
-										<div>
-											<Label className='text-xs text-muted-foreground'>Subject</Label>
-											<p className='font-mono'>{'id' in vc.credentialSubject ? (vc.credentialSubject.id as string) : 'Unknown'}</p>
-										</div>
-										<div>
-											<Label className='text-xs text-muted-foreground'>Issued</Label>
-											<p>{new Date(vc.issuanceDate).toLocaleString()}</p>
-										</div>
-										<div>
-											<Label className='text-xs text-muted-foreground'>Expires</Label>
-											<p>{vc.expirationDate ? new Date(vc.expirationDate).toLocaleString() : 'Never'}</p>
-										</div>
-									</div>
-
-									{/* Credential Subject */}
-									<div>
-										<Label className='text-sm font-medium'>Credential Subject</Label>
-										<div className='mt-1'>
-											<pre className='pre-code-json'>{JSON.stringify(vc.credentialSubject, null, 2)}</pre>
-										</div>
-									</div>
-
-									{/* Proof */}
-									<div>
-										<div className='flex items-center justify-between'>
-											<Label className='text-sm font-medium'>Cryptographic Proof</Label>
-											<Button variant='ghost' size='sm' onClick={() => setShowProof(showProof === vc.id ? null : vc.id)}>
-												{showProof === vc.id ? <EyeOff className='h-4 w-4' /> : <Eye className='h-4 w-4' />}
-											</Button>
-										</div>
-										<div className='mt-1'>
-											{showProof === vc.id ? (
-												<pre className='pre-code-json'>{JSON.stringify(vc.proof, null, 2)}</pre>
-											) : (
-												<div className='bg-gray-50 p-3 rounded-md border'>
-													<p className='text-xs text-gray-600'>Proof hidden for security - click to reveal</p>
-												</div>
-											)}
-										</div>
-									</div>
-								</CardContent>
-							</Card>
-						)
-					})}
+					{credentials.map((vc) => (
+						<CollapsibleCredentialCard
+							key={vc.id}
+							credential={vc}
+							isCollapsed={isCardCollapsed(vc.id)}
+							showProof={showProof === vc.id}
+							onToggleCollapse={() => toggleCardCollapse(vc.id)}
+							onViewCredential={() => handleViewCredential(vc.id)}
+							onCopyId={() => copyToClipboard(vc.id)}
+							onDownload={() => downloadVC(vc)}
+							onRevoke={() => {
+								if (window.confirm('Are you sure you want to revoke this credential? This action cannot be undone.')) {
+									handleRevokeVC(vc.id)
+								}
+							}}
+							onToggleProof={() => setShowProof(showProof === vc.id ? null : vc.id)}
+							getCredentialStatus={getCredentialStatus}
+							formatIssuer={formatIssuer}
+						/>
+					))}
 
 					{credentials.length === 0 && (
 						<Card>

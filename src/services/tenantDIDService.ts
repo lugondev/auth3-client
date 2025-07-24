@@ -188,6 +188,18 @@ export const revokeTenantDID = withErrorHandling(
 );
 
 /**
+ * Reactivate a tenant DID
+ */
+export const reactivateTenantDID = withErrorHandling(
+	async (tenantId: string, didId: string, reason?: string): Promise<{ success: boolean; message: string }> => {
+		const response = await apiClient.post(`/api/v1/tenants/${tenantId}/dids/${didId}/reactivate`, {
+			reason: reason || 'Reactivated by user',
+		});
+		return response.data as { success: boolean; message: string };
+	}
+);
+
+/**
  * Get tenant DID statistics
  */
 export const getTenantDIDStats = withErrorHandling(

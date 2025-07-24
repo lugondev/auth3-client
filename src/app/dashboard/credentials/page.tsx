@@ -2,6 +2,7 @@
 
 import {useState, useEffect} from 'react'
 import {useQuery} from '@tanstack/react-query'
+import {useRouter} from 'next/navigation'
 import {Plus, Search, Eye, Shield, AlertTriangle} from 'lucide-react'
 import Link from 'next/link'
 import {toast} from 'sonner'
@@ -14,9 +15,9 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/c
 import {Skeleton} from '@/components/ui/skeleton'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 
-import {listCredentials, listMyIssuedCredentials, listMyReceivedCredentials} from '@/services/vcService'
+import {listMyIssuedCredentials, listMyReceivedCredentials} from '@/services/vcService'
 import * as vcService from '@/services/vcService'
-import {useOverviewMetrics, useCredentialAnalytics, getAnalyticsQueryPresets} from '@/hooks/useCredentialAnalytics'
+import {useCredentialAnalytics, getAnalyticsQueryPresets} from '@/hooks/useCredentialAnalytics'
 import type {CredentialStatus, ListCredentialsInput, CredentialMetadata} from '@/types/credentials'
 import {CredentialMetadataCard, VerifyCredentialModal} from '@/components/credentials'
 import {BulkCredentialManager} from '@/components/credentials/BulkCredentialManager'
@@ -33,6 +34,7 @@ import {AnalyticsOverview} from '@/components/credentials/AnalyticsOverview'
  * - Credential statistics
  */
 export default function CredentialsDashboard() {
+	const router = useRouter()
 	const [searchTerm, setSearchTerm] = useState('')
 	const [statusFilter, setStatusFilter] = useState<CredentialStatus | 'all'>('all')
 	const [typeFilter, setTypeFilter] = useState<string>('all')
@@ -81,6 +83,14 @@ export default function CredentialsDashboard() {
 	}
 
 	/**
+	 * Handle viewing a credential details page
+	 * @param credentialId - The credential ID to view
+	 */
+	const handleViewCredential = (credentialId: string) => {
+		router.push(`/dashboard/credentials/${credentialId}`)
+	}
+
+	/**
 	 * Handle downloading a credential as JSON file
 	 * @param credential - The credential to download
 	 */
@@ -108,11 +118,9 @@ export default function CredentialsDashboard() {
 	const handleRevokeCredential = async (credentialId: string) => {
 		try {
 			// Find the credential to get issuer DID from current tab's data
-			const currentCredentials = activeTab === 'issued' 
-				? issuedCredentialsData?.credentials 
-				: receivedCredentialsData?.credentials
-			const credential = currentCredentials?.find(c => c.id === credentialId)
-			
+			const currentCredentials = activeTab === 'issued' ? issuedCredentialsData?.credentials : receivedCredentialsData?.credentials
+			const credential = currentCredentials?.find((c) => c.id === credentialId)
+
 			if (!credential) {
 				toast.error('Credential not found')
 				return
@@ -129,9 +137,9 @@ export default function CredentialsDashboard() {
 			await vcService.revokeCredential({
 				credentialId: credentialId,
 				issuerDID,
-				reason: 'Revoked by issuer'
+				reason: 'Revoked by issuer',
 			})
-			
+
 			toast.success('Credential revoked successfully')
 			// Refresh the appropriate credentials list
 			if (activeTab === 'issued') {
@@ -171,19 +179,13 @@ export default function CredentialsDashboard() {
 
 	// For backward compatibility and current tab logic
 	const credentialsData = activeTab === 'issued' ? issuedCredentialsData : receivedCredentialsData
-	const isLoading = activeTab === 'issued' ? isLoadingIssued : isLoadingReceived
-	const error = activeTab === 'issued' ? errorIssued : errorReceived
 	const refetch = activeTab === 'issued' ? refetchIssued : refetchReceived
 
 	// Get analytics query presets for different time periods
 	const analyticsPresets = getAnalyticsQueryPresets()
 
 	// Fetch analytics data for enhanced statistics
-	const {
-		data: analyticsData,
-		isLoading: isLoadingAnalytics,
-		error: analyticsError,
-	} = useCredentialAnalytics(analyticsPresets.lastMonth)
+	const {data: analyticsData, isLoading: isLoadingAnalytics, error: analyticsError} = useCredentialAnalytics(analyticsPresets.lastMonth)
 
 	// Calculate statistics with enhanced analytics data
 	const stats = {
@@ -218,18 +220,18 @@ export default function CredentialsDashboard() {
 
 			{/* Time Period Filter */}
 			<Card>
-				<CardContent className="pt-6">
-					<div className="flex items-center gap-4">
-						<label className="text-sm font-medium">Time Period:</label>
-						<Select defaultValue="month">
-							<SelectTrigger className="w-[180px]">
-								<SelectValue placeholder="Select period" />
+				<CardContent className='pt-6'>
+					<div className='flex items-center gap-4'>
+						<label className='text-sm font-medium'>Time Period:</label>
+						<Select defaultValue='month'>
+							<SelectTrigger className='w-[180px]'>
+								<SelectValue placeholder='Select period' />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="day">Last 24 Hours</SelectItem>
-								<SelectItem value="week">Last 7 Days</SelectItem>
-								<SelectItem value="month">Last 30 Days</SelectItem>
-								<SelectItem value="custom">Custom Range</SelectItem>
+								<SelectItem value='day'>Last 24 Hours</SelectItem>
+								<SelectItem value='week'>Last 7 Days</SelectItem>
+								<SelectItem value='month'>Last 30 Days</SelectItem>
+								<SelectItem value='custom'>Custom Range</SelectItem>
 							</SelectContent>
 						</Select>
 					</div>
@@ -238,106 +240,72 @@ export default function CredentialsDashboard() {
 
 			{/* Statistics Cards - VC Issued, VC Received, Revoked, Active */}
 			<div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
-				<Card className="border-l-4 border-l-blue-500">
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
+				<Card className='border-l-4 border-l-blue-500'>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">VC Issued</p>
-								<div className="text-3xl font-bold text-blue-600">
-									{isLoadingAnalytics ? (
-										<Skeleton className="h-8 w-16" />
-									) : (
-										analyticsData?.issuance_metrics?.total_issued || 0
-									)}
-								</div>
+								<p className='text-sm font-medium text-muted-foreground'>VC Issued</p>
+								<div className='text-3xl font-bold text-blue-600'>{isLoadingAnalytics ? <Skeleton className='h-8 w-16' /> : analyticsData?.issuance_metrics?.total_issued || 0}</div>
 							</div>
-							<div className="p-3 bg-blue-50 rounded-full">
-								<Plus className="h-6 w-6 text-blue-600" />
+							<div className='p-3 bg-blue-50 rounded-full'>
+								<Plus className='h-6 w-6 text-blue-600' />
 							</div>
 						</div>
-						<p className="text-xs text-muted-foreground mt-2">
-							+{analyticsData?.issuance_metrics?.issued_this_month || 0} this month
-						</p>
+						<p className='text-xs text-muted-foreground mt-2'>+{analyticsData?.issuance_metrics?.issued_this_month || 0} this month</p>
 					</CardContent>
 				</Card>
 
-				<Card className="border-l-4 border-l-green-500">
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
+				<Card className='border-l-4 border-l-green-500'>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">VC Received</p>
-								<div className="text-3xl font-bold text-green-600">
-									{isLoadingAnalytics ? (
-										<Skeleton className="h-8 w-16" />
-									) : (
-										analyticsData?.received_metrics?.total_received || 0
-									)}
-								</div>
+								<p className='text-sm font-medium text-muted-foreground'>VC Received</p>
+								<div className='text-3xl font-bold text-green-600'>{isLoadingAnalytics ? <Skeleton className='h-8 w-16' /> : analyticsData?.received_metrics?.total_received || 0}</div>
 							</div>
-							<div className="p-3 bg-green-50 rounded-full">
-								<Eye className="h-6 w-6 text-green-600" />
+							<div className='p-3 bg-green-50 rounded-full'>
+								<Eye className='h-6 w-6 text-green-600' />
 							</div>
 						</div>
-						<p className="text-xs text-muted-foreground mt-2">
-							+{analyticsData?.received_metrics?.received_this_month || 0} this month
-						</p>
+						<p className='text-xs text-muted-foreground mt-2'>+{analyticsData?.received_metrics?.received_this_month || 0} this month</p>
 					</CardContent>
 				</Card>
 
-				<Card className="border-l-4 border-l-red-500">
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
+				<Card className='border-l-4 border-l-red-500'>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Revoked</p>
-								<div className="text-3xl font-bold text-red-600">
-									{isLoadingAnalytics ? (
-										<Skeleton className="h-8 w-16" />
-									) : (
-										analyticsData?.overview_metrics?.revoked_credentials || stats.revoked
-									)}
-								</div>
+								<p className='text-sm font-medium text-muted-foreground'>Revoked</p>
+								<div className='text-3xl font-bold text-red-600'>{isLoadingAnalytics ? <Skeleton className='h-8 w-16' /> : analyticsData?.overview_metrics?.revoked_credentials || stats.revoked}</div>
 							</div>
-							<div className="p-3 bg-red-50 rounded-full">
-								<AlertTriangle className="h-6 w-6 text-red-600" />
+							<div className='p-3 bg-red-50 rounded-full'>
+								<AlertTriangle className='h-6 w-6 text-red-600' />
 							</div>
 						</div>
-						<p className="text-xs text-muted-foreground mt-2">
-							{analyticsData?.status_metrics?.revoked_credentials?.revoked_this_month || 0} this month
-						</p>
+						<p className='text-xs text-muted-foreground mt-2'>{analyticsData?.status_metrics?.revoked_credentials?.revoked_this_month || 0} this month</p>
 					</CardContent>
 				</Card>
 
-				<Card className="border-l-4 border-l-orange-500">
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
+				<Card className='border-l-4 border-l-orange-500'>
+					<CardContent className='p-6'>
+						<div className='flex items-center justify-between'>
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Deactivated</p>
-								<div className="text-3xl font-bold text-orange-600">
-									{isLoadingAnalytics ? (
-										<Skeleton className="h-8 w-16" />
-									) : (
-										analyticsData?.overview_metrics?.deactivated_credentials || stats.deactivated
-									)}
-								</div>
+								<p className='text-sm font-medium text-muted-foreground'>Deactivated</p>
+								<div className='text-3xl font-bold text-orange-600'>{isLoadingAnalytics ? <Skeleton className='h-8 w-16' /> : analyticsData?.overview_metrics?.deactivated_credentials || stats.deactivated}</div>
 							</div>
-							<div className="p-3 bg-orange-50 rounded-full">
-								<AlertTriangle className="h-6 w-6 text-orange-600" />
+							<div className='p-3 bg-orange-50 rounded-full'>
+								<AlertTriangle className='h-6 w-6 text-orange-600' />
 							</div>
 						</div>
-						<p className="text-xs text-muted-foreground mt-2">
-							{analyticsData?.status_metrics?.deactivated_credentials?.deactivated_this_month || 0} this month
-						</p>
+						<p className='text-xs text-muted-foreground mt-2'>{analyticsData?.status_metrics?.deactivated_credentials?.deactivated_this_month || 0} this month</p>
 					</CardContent>
 				</Card>
 
 				{/* Analytics Error Alert */}
 				{analyticsError && (
-					<div className="col-span-full">
-						<Alert variant="default">
-							<AlertTriangle className="h-4 w-4" />
-							<AlertDescription>
-								Enhanced analytics temporarily unavailable. Showing basic statistics.
-							</AlertDescription>
+					<div className='col-span-full'>
+						<Alert variant='default'>
+							<AlertTriangle className='h-4 w-4' />
+							<AlertDescription>Enhanced analytics temporarily unavailable. Showing basic statistics.</AlertDescription>
 						</Alert>
 					</div>
 				)}
@@ -411,12 +379,7 @@ export default function CredentialsDashboard() {
 								<div className='text-center py-12'>
 									<Shield className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
 									<h3 className='text-lg font-semibold mb-2'>No issued credentials found</h3>
-									<p className='text-muted-foreground mb-4'>
-										{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
-											? 'No credentials match your current filters.' 
-											: "You haven't issued any credentials yet."
-										}
-									</p>
+									<p className='text-muted-foreground mb-4'>{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' ? 'No credentials match your current filters.' : "You haven't issued any credentials yet."}</p>
 									{!searchTerm && statusFilter === 'all' && typeFilter === 'all' && (
 										<Button asChild>
 											<Link href='/dashboard/credentials/issue'>
@@ -430,41 +393,32 @@ export default function CredentialsDashboard() {
 								<>
 									<div className={`space-y-4 ${isLoadingIssued ? 'opacity-60 pointer-events-none' : ''}`}>
 										{issuedCredentialsData.credentials.map((credential) => (
-											<CredentialMetadataCard 
-												key={credential.id} 
-												credential={credential} 
-												onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} 
-												onDownload={() => handleDownloadCredential(credential)}
-												onRevoke={handleRevokeCredential}
-												showRevokeOption={true} // Hiện revoke option cho credentials do user issue
-											/>
+											<CredentialMetadataCard key={credential.id} credential={credential} onView={() => handleViewCredential(credential.id)} onDownload={() => handleDownloadCredential(credential)} onRevoke={handleRevokeCredential} showRevokeOption={true} />
 										))}
 									</div>
-									
+
 									{/* Pagination for Issued Credentials */}
 									{issuedCredentialsData && issuedCredentialsData.total > limit && (
 										<div className='flex justify-center mt-6'>
 											<div className='flex gap-2'>
-												<Button 
-													variant='outline' 
+												<Button
+													variant='outline'
 													onClick={() => {
 														setIssuedPage((p) => Math.max(1, p - 1))
-													}} 
-													disabled={issuedPage <= 1 || isLoadingIssued}
-												>
+													}}
+													disabled={issuedPage <= 1 || isLoadingIssued}>
 													{isLoadingIssued && issuedPage > 1 ? 'Loading...' : 'Previous'}
 												</Button>
 												<span className='flex items-center px-4'>
 													Page {issuedPage} of {Math.ceil(issuedCredentialsData.total / limit)}
 												</span>
-												<Button 
-													variant='outline' 
+												<Button
+													variant='outline'
 													onClick={() => {
 														setIssuedPage((p) => p + 1)
-													}} 
-													disabled={issuedPage >= Math.ceil(issuedCredentialsData.total / limit) || isLoadingIssued}
-												>
-													{isLoadingIssued ? 'Loading...' : 'Next'}
+													}}
+													disabled={issuedPage >= Math.ceil(issuedCredentialsData.total / limit) || isLoadingIssued}>
+													{isLoadingIssued ? 'Loading..' : 'Next'}
 												</Button>
 											</div>
 										</div>
@@ -489,51 +443,44 @@ export default function CredentialsDashboard() {
 								<div className='text-center py-12'>
 									<Shield className='h-12 w-12 text-muted-foreground mx-auto mb-4' />
 									<h3 className='text-lg font-semibold mb-2'>No received credentials found</h3>
-									<p className='text-muted-foreground mb-4'>
-										{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' 
-											? 'No credentials match your current filters.' 
-											: "You haven't received any credentials yet."
-										}
-									</p>
+									<p className='text-muted-foreground mb-4'>{searchTerm || statusFilter !== 'all' || typeFilter !== 'all' ? 'No credentials match your current filters.' : "You haven't received any credentials yet."}</p>
 								</div>
 							) : (
 								<>
 									<div className={`space-y-4 ${isLoadingReceived ? 'opacity-60 pointer-events-none' : ''}`}>
 										{receivedCredentialsData.credentials.map((credential) => (
-											<CredentialMetadataCard 
-												key={credential.id} 
-												credential={credential} 
-												onView={() => (window.location.href = `/dashboard/credentials/${credential.id}`)} 
+											<CredentialMetadataCard
+												key={credential.id}
+												credential={credential}
+												onView={() => handleViewCredential(credential.id)}
 												onDownload={() => handleDownloadCredential(credential)}
 												onRevoke={handleRevokeCredential}
 												showRevokeOption={true} // Cho phép holder revoke credentials họ nhận được
 											/>
 										))}
 									</div>
-									
+
 									{/* Pagination for Received Credentials */}
 									{receivedCredentialsData && receivedCredentialsData.total > limit && (
 										<div className='flex justify-center mt-6'>
 											<div className='flex gap-2'>
-												<Button 
-													variant='outline' 
+												<Button
+													variant='outline'
 													onClick={() => {
 														setReceivedPage((p) => Math.max(1, p - 1))
-													}} 
-													disabled={receivedPage <= 1 || isLoadingReceived}
-												>
+													}}
+													disabled={receivedPage <= 1 || isLoadingReceived}>
 													{isLoadingReceived && receivedPage > 1 ? 'Loading...' : 'Previous'}
 												</Button>
 												<span className='flex items-center px-4'>
 													Page {receivedPage} of {Math.ceil(receivedCredentialsData.total / limit)}
 												</span>
-												<Button 
-													variant='outline' 
+												<Button
+													variant='outline'
 													onClick={() => {
 														setReceivedPage((p) => p + 1)
-													}} 
-													disabled={receivedPage >= Math.ceil(receivedCredentialsData.total / limit) || isLoadingReceived}
-												>
+													}}
+													disabled={receivedPage >= Math.ceil(receivedCredentialsData.total / limit) || isLoadingReceived}>
 													{isLoadingReceived ? 'Loading...' : 'Next'}
 												</Button>
 											</div>
@@ -544,17 +491,11 @@ export default function CredentialsDashboard() {
 						</TabsContent>
 
 						<TabsContent value='bulk' className='mt-6'>
-							<BulkCredentialManager
-								credentials={credentialsData?.credentials || []}
-								onCredentialsUpdated={() => refetch()}
-							/>
+							<BulkCredentialManager credentials={credentialsData?.credentials || []} onCredentialsUpdated={() => refetch()} />
 						</TabsContent>
 
 						<TabsContent value='monitor' className='mt-6'>
-							<RealTimeStatusMonitor
-								credentials={credentialsData?.credentials || []}
-								onStatusChange={() => refetch()}
-							/>
+							<RealTimeStatusMonitor credentials={credentialsData?.credentials || []} onStatusChange={() => refetch()} />
 						</TabsContent>
 
 						<TabsContent value='analytics' className='mt-6'>

@@ -438,6 +438,7 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 						credential={wizardData.issuedCredential}
 						isSuccess={!!wizardData.isSuccess}
 						error={wizardData.error}
+						tenantId={tenantId}
 						onStartOver={() => {
 							setCurrentStep(0)
 							setWizardData({

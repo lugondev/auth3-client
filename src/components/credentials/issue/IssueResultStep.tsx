@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import {useRouter} from 'next/navigation'
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
@@ -16,9 +17,26 @@ interface IssueResultStepProps {
 	onStartOver: () => void
 	onDownload?: () => void
 	onViewCredential?: () => void
+	tenantId?: string // Optional tenant ID for tenant-specific routing
 }
 
-export function IssueResultStep({isSuccess, credential, error, onStartOver, onDownload, onViewCredential}: IssueResultStepProps) {
+export function IssueResultStep({isSuccess, credential, error, onStartOver, onDownload, onViewCredential, tenantId}: IssueResultStepProps) {
+	const router = useRouter()
+
+	const handleViewCredential = () => {
+		if (credential?.id) {
+			// Route to tenant-specific credential detail page if tenantId is provided
+			if (tenantId) {
+				router.push(`/dashboard/tenant/${tenantId}/vc/${credential.id}`)
+			} else {
+				// Route to personal credential detail page
+				router.push(`/dashboard/credentials/${credential.id}`)
+			}
+		} else if (onViewCredential) {
+			onViewCredential()
+		}
+	}
+
 	const copyCredentialId = () => {
 		if (credential?.id) {
 			navigator.clipboard.writeText(credential.id)
@@ -141,8 +159,8 @@ export function IssueResultStep({isSuccess, credential, error, onStartOver, onDo
 								</Button>
 							)}
 
-							{onViewCredential && (
-								<Button variant='outline' onClick={onViewCredential} className='flex items-center gap-2'>
+							{(onViewCredential || credential?.id) && (
+								<Button variant='outline' onClick={handleViewCredential} className='flex items-center gap-2'>
 									<ExternalLink className='h-4 w-4' />
 									View Details
 								</Button>
@@ -202,7 +220,7 @@ export function IssueResultStep({isSuccess, credential, error, onStartOver, onDo
 						Issue Another Credential
 					</Button>
 
-					<Button onClick={() => (window.location.href = '/dashboard/credentials')}>View All Credentials</Button>
+					<Button onClick={() => router.push(tenantId ? `/dashboard/tenant/${tenantId}` : '/dashboard/credentials')}>View All Credentials</Button>
 				</div>
 			</div>
 		)
@@ -274,7 +292,7 @@ export function IssueResultStep({isSuccess, credential, error, onStartOver, onDo
 					Start Over
 				</Button>
 
-				<Button variant='outline' onClick={() => window.location.reload()}>
+				<Button variant='outline' onClick={() => router.refresh()}>
 					<RefreshCw className='h-4 w-4 mr-2' />
 					Retry
 				</Button>

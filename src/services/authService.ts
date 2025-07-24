@@ -306,7 +306,7 @@ export const requestPhoneVerification = withErrorHandling(
 export const verifyPhone = withErrorHandling(
 	async (otp: string): Promise<{ message: string; verified: boolean }> => {
 		const response = await apiClient.post<{ message: string; verified: boolean }>(
-			'/api/v1/auth/verify-phone/confirm', 
+			'/api/v1/auth/verify-phone/confirm',
 			{ otp }
 		);
 		console.log('Phone verification successful.');
@@ -436,9 +436,9 @@ export const loginTenantContext = async (
 		// Skip validation if already in tenant context with the same tenant ID
 		const currentMode = contextManager.getCurrentMode()
 		const currentTenantState = contextManager.getContextState('tenant')
-		
+
 		console.log(`🔄 Login tenant context - Current mode: ${currentMode}, Target tenant: ${tenantId}`)
-		
+
 		if (currentMode === 'tenant' && currentTenantState?.tenantId === tenantId) {
 			console.log(`✅ Already in tenant ${tenantId} context, skipping login-tenant API call`)
 			return {
@@ -451,9 +451,18 @@ export const loginTenantContext = async (
 
 		// Validate context switch if requested and not already in target context
 		if (validateContext) {
-			const validation = contextManager.validateContext('tenant');
-			if (!validation.isValid) {
-				throw new Error(`Context switch validation failed: ${validation.errors.join(', ')}`);
+			// When switching TO tenant context, validate the CURRENT context (usually global)
+			// Don't validate tenant context since we're trying to CREATE it
+			const currentContextValidation = contextManager.validateContext(currentMode as ContextMode);
+			if (!currentContextValidation.isValid) {
+				console.warn(`Current ${currentMode} context validation failed:`, currentContextValidation.errors);
+				// Only throw error if it's a critical validation failure
+				const criticalErrors = currentContextValidation.errors.filter(error =>
+					!error.includes('No state found') && !error.includes('expired')
+				);
+				if (criticalErrors.length > 0) {
+					throw new Error(`Context switch validation failed: ${criticalErrors.join(', ')}`);
+				}
 			}
 		}
 
@@ -465,18 +474,18 @@ export const loginTenantContext = async (
 		console.log(`📡 Calling login-tenant API for tenant: ${tenantId}`)
 
 		// Call backend login-tenant API
-		const response = await apiClient.post<{ 
-			access_token: string, 
-			refresh_token: string, 
-			expires_at: string, 
-			expires_in: number, 
-			token_type: string 
+		const response = await apiClient.post<{
+			access_token: string,
+			refresh_token: string,
+			expires_at: string,
+			expires_in: number,
+			token_type: string
 		}>('/api/v1/auth/login-tenant', requestData);
 
 		// Store tenant tokens
 		if (response.data && response.data.access_token) {
 			console.log(`💾 Storing tenant tokens for tenant: ${tenantId}`)
-			
+
 			// Store new tenant tokens using both managers for compatibility
 			tokenManager.setTokens('tenant', response.data.access_token, response.data.refresh_token || null);
 			multiTenantTokenManager.setTenantTokens(tenantId, response.data.access_token, response.data.refresh_token || null);
@@ -524,9 +533,19 @@ export const loginGlobalContext = async (
 	try {
 		// Validate context switch if requested
 		if (validateContext) {
-			const validation = contextManager.validateContext('global');
-			if (!validation.isValid) {
-				throw new Error(`Context switch validation failed: ${validation.errors.join(', ')}`);
+			// When switching TO global context, validate the CURRENT context (usually tenant)
+			// Don't validate global context since we're trying to CREATE/REFRESH it
+			const currentMode = contextManager.getCurrentMode();
+			const currentContextValidation = contextManager.validateContext(currentMode as ContextMode);
+			if (!currentContextValidation.isValid) {
+				console.warn(`Current ${currentMode} context validation failed:`, currentContextValidation.errors);
+				// Only throw error if it's a critical validation failure
+				const criticalErrors = currentContextValidation.errors.filter(error =>
+					!error.includes('No state found') && !error.includes('expired')
+				);
+				if (criticalErrors.length > 0) {
+					throw new Error(`Context switch validation failed: ${criticalErrors.join(', ')}`);
+				}
 			}
 		}
 

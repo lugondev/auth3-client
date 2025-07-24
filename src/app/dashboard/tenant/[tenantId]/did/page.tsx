@@ -36,10 +36,10 @@ export default function TenantDIDPage() {
 	const [newDIDMethod, setNewDIDMethod] = useState('key')
 	const [newKeyType, setNewKeyType] = useState('Ed25519')
 	const [createDialogOpen, setCreateDialogOpen] = useState(false)
-	
+
 	// Confirmation modals state
 	const [confirmAction, setConfirmAction] = useState<{
-		type: 'deactivate' | 'revoke' | null
+		type: 'deactivate' | 'revoke' | 'reactivate' | null
 		didId: string | null
 		isOpen: boolean
 		reason: string
@@ -49,9 +49,9 @@ export default function TenantDIDPage() {
 		didId: null,
 		isOpen: false,
 		reason: '',
-		isProcessing: false
+		isProcessing: false,
 	})
-	
+
 	const [permissions, setPermissions] = useState<{
 		canCreate: boolean
 		canRead: boolean
@@ -146,7 +146,7 @@ export default function TenantDIDPage() {
 			didId,
 			isOpen: true,
 			reason: '',
-			isProcessing: false
+			isProcessing: false,
 		})
 	}
 
@@ -156,7 +156,17 @@ export default function TenantDIDPage() {
 			didId,
 			isOpen: true,
 			reason: '',
-			isProcessing: false
+			isProcessing: false,
+		})
+	}
+
+	const openReactivateModal = (didId: string) => {
+		setConfirmAction({
+			type: 'reactivate',
+			didId,
+			isOpen: true,
+			reason: '',
+			isProcessing: false,
 		})
 	}
 
@@ -167,28 +177,47 @@ export default function TenantDIDPage() {
 			didId: null,
 			isOpen: false,
 			reason: '',
-			isProcessing: false
+			isProcessing: false,
 		})
 	}
 
 	const updateConfirmReason = (reason: string) => {
-		setConfirmAction(prev => ({
+		setConfirmAction((prev) => ({
 			...prev,
-			reason
+			reason,
 		}))
 	}
 
 	const handleCreateDID = async () => {
 		console.log('🔍 Creating DID with method:', newDIDMethod, 'for tenant:', tenantId)
 
-		// if (!permissions?.canCreate) {
-		// 	toast({
-		// 		title: 'Permission Denied',
-		// 		description: 'You do not have permission to create DIDs for this tenant.',
-		// 		variant: 'destructive',
-		// 	})
-		// 	return
-		// }
+		if (!permissions?.canCreate) {
+			toast({
+				title: 'Permission Denied',
+				description: 'You do not have permission to create DIDs for this tenant.',
+				variant: 'destructive',
+			})
+			return
+		}
+
+		// Validate inputs
+		if (!newDIDMethod.trim()) {
+			toast({
+				title: 'Validation Error',
+				description: 'Please select a DID method.',
+				variant: 'destructive',
+			})
+			return
+		}
+
+		if (!newKeyType.trim()) {
+			toast({
+				title: 'Validation Error',
+				description: 'Please select a key type.',
+				variant: 'destructive',
+			})
+			return
+		}
 
 		setIsCreating(true)
 
@@ -203,23 +232,72 @@ export default function TenantDIDPage() {
 
 			console.log('📥 API Response:', response)
 
-			if (response.success) {
+			// Check for successful response
+			if (response && (response.success === true || response.success !== false)) {
+				console.log('✅ DID created successfully')
+
 				toast({
 					title: 'Success',
-					description: 'DID created successfully!',
+					description: `DID created successfully with method: ${newDIDMethod}`,
 				})
 
-				// Close dialog and refresh the list
+				// Close dialog first to avoid any state conflicts
 				setCreateDialogOpen(false)
-				await fetchDIDs()
+
+				// Reset form to default values
+				setNewDIDMethod('key')
+				setNewKeyType('Ed25519')
+
+				// Small delay before refresh to ensure modal closes smoothly
+				setTimeout(async () => {
+					try {
+						console.log('🔄 Refreshing DID list after creation...')
+						await fetchDIDs()
+						console.log('✅ DID list refreshed successfully')
+					} catch (refreshError) {
+						console.error('❌ Error refreshing DID list:', refreshError)
+						toast({
+							title: 'Warning',
+							description: 'DID created but failed to refresh the list. Please refresh the page.',
+							variant: 'destructive',
+						})
+					}
+				}, 200)
 			} else {
-				throw new Error(response.message || 'Failed to create DID')
+				// Handle API error response
+				const errorMessage = response?.message || 'Failed to create DID'
+				console.error('❌ API returned error:', errorMessage)
+				throw new Error(errorMessage)
 			}
 		} catch (error) {
 			console.error('❌ Error creating DID:', error)
+
+			// Determine error message based on error type
+			let errorMessage = 'Failed to create DID. Please try again.'
+
+			if (error instanceof Error) {
+				errorMessage = error.message
+			} else if (typeof error === 'string') {
+				errorMessage = error
+			} else if (error && typeof error === 'object') {
+				const errorObj = error as Record<string, unknown>
+				errorMessage = (errorObj.message as string) || (errorObj.error as string) || errorMessage
+			}
+
+			// Show user-friendly error messages for common issues
+			if (errorMessage.toLowerCase().includes('network')) {
+				errorMessage = 'Network error. Please check your connection and try again.'
+			} else if (errorMessage.toLowerCase().includes('unauthorized')) {
+				errorMessage = 'You are not authorized to perform this action.'
+			} else if (errorMessage.toLowerCase().includes('tenant')) {
+				errorMessage = 'Invalid tenant. Please check the tenant ID.'
+			} else if (errorMessage.toLowerCase().includes('method')) {
+				errorMessage = 'Invalid DID method selected. Please try a different method.'
+			}
+
 			toast({
-				title: 'Error',
-				description: error instanceof Error ? error.message : 'Failed to create DID. Please try again.',
+				title: 'Error Creating DID',
+				description: errorMessage,
 				variant: 'destructive',
 			})
 		} finally {
@@ -272,20 +350,20 @@ export default function TenantDIDPage() {
 			return
 		}
 
-		setConfirmAction(prev => ({ ...prev, isProcessing: true }))
+		setConfirmAction((prev) => ({...prev, isProcessing: true}))
 
 		try {
 			console.log('🔄 Deactivating DID:', confirmAction.didId, 'with reason:', confirmAction.reason)
 			const response = await tenantDIDService.deactivateTenantDID(tenantId, confirmAction.didId, confirmAction.reason)
 			console.log('📥 Deactivate Response:', response)
-			
+
 			// Check if response indicates success (could be response.success or just no error)
 			if (response?.success !== false) {
 				toast({
 					title: 'Success',
 					description: 'DID deactivated successfully!',
 				})
-				
+
 				// Close modal first to avoid any state conflicts
 				const shouldClose = true
 				if (shouldClose) {
@@ -306,7 +384,7 @@ export default function TenantDIDPage() {
 				variant: 'destructive',
 			})
 		} finally {
-			setConfirmAction(prev => ({ ...prev, isProcessing: false }))
+			setConfirmAction((prev) => ({...prev, isProcessing: false}))
 		}
 	}
 
@@ -329,20 +407,20 @@ export default function TenantDIDPage() {
 			return
 		}
 
-		setConfirmAction(prev => ({ ...prev, isProcessing: true }))
+		setConfirmAction((prev) => ({...prev, isProcessing: true}))
 
 		try {
 			console.log('🗑️ Revoking DID:', confirmAction.didId, 'with reason:', confirmAction.reason)
 			const response = await tenantDIDService.revokeTenantDID(tenantId, confirmAction.didId, confirmAction.reason)
 			console.log('📥 Revoke Response:', response)
-			
+
 			// Check if response indicates success (could be response.success or just no error)
 			if (response?.success !== false) {
 				toast({
 					title: 'Success',
 					description: 'DID revoked successfully!',
 				})
-				
+
 				// Close modal first to avoid any state conflicts
 				const shouldClose = true
 				if (shouldClose) {
@@ -363,12 +441,12 @@ export default function TenantDIDPage() {
 				variant: 'destructive',
 			})
 		} finally {
-			setConfirmAction(prev => ({ ...prev, isProcessing: false }))
+			setConfirmAction((prev) => ({...prev, isProcessing: false}))
 		}
 	}
 
-	const handleReactivateDID = async (_didId: string) => {
-		if (!permissions?.canUpdate) {
+	const handleReactivateDID = async () => {
+		if (!confirmAction.didId || !permissions?.canUpdate) {
 			toast({
 				title: 'Permission Denied',
 				description: 'You do not have permission to reactivate DIDs.',
@@ -377,24 +455,59 @@ export default function TenantDIDPage() {
 			return
 		}
 
-		try {
-			// For now, we'll use a placeholder - you may need to implement reactivate in the backend
-			// const response = await tenantDIDService.reactivateTenantDID(tenantId, didId, 'Reactivated by user')
-
-			// Temporary: Show success message and refresh (implement actual API call later)
+		if (!confirmAction.reason.trim()) {
 			toast({
-				title: 'Notice',
-				description: 'Reactivate feature needs to be implemented in the backend.',
-				variant: 'default',
-			})
-			// await fetchDIDs()
-		} catch (error) {
-			console.error('Error reactivating DID:', error)
-			toast({
-				title: 'Error',
-				description: 'Failed to reactivate DID. Please try again.',
+				title: 'Reason Required',
+				description: 'Please provide a reason for reactivating this DID.',
 				variant: 'destructive',
 			})
+			return
+		}
+
+		setConfirmAction((prev) => ({...prev, isProcessing: true}))
+
+		try {
+			console.log('🔄 Reactivating DID:', confirmAction.didId, 'with reason:', confirmAction.reason)
+
+			// Call the actual reactivate API
+			const response = await tenantDIDService.reactivateTenantDID(tenantId, confirmAction.didId, confirmAction.reason)
+			console.log('📥 Reactivate Response:', response)
+
+			// Check if response indicates success
+			if (response?.success !== false) {
+				toast({
+					title: 'Success',
+					description: 'DID reactivated successfully!',
+				})
+
+				// Close modal first to avoid any state conflicts
+				closeConfirmModal()
+
+				// Small delay before refresh to ensure modal closes
+				setTimeout(async () => {
+					try {
+						await fetchDIDs()
+					} catch (refreshError) {
+						console.error('❌ Error refreshing DID list:', refreshError)
+						toast({
+							title: 'Warning',
+							description: 'DID reactivated but failed to refresh the list. Please refresh the page.',
+							variant: 'destructive',
+						})
+					}
+				}, 200)
+			} else {
+				throw new Error(response?.message || 'Failed to reactivate DID')
+			}
+		} catch (error) {
+			console.error('❌ Error reactivating DID:', error)
+			toast({
+				title: 'Error',
+				description: error instanceof Error ? error.message : 'Failed to reactivate DID. Please try again.',
+				variant: 'destructive',
+			})
+		} finally {
+			setConfirmAction((prev) => ({...prev, isProcessing: false}))
 		}
 	}
 
@@ -570,38 +683,19 @@ export default function TenantDIDPage() {
 
 											{/* Status-based action buttons */}
 											{did.status === 'active' && permissions?.canUpdate && (
-												<Button
-													variant='outline'
-													size='sm'
-													onClick={() => openDeactivateModal(did.id)}
-													className='text-orange-600 hover:text-orange-700 hover:bg-orange-50'
-													title='Deactivate DID'>
+												<Button variant='outline' size='sm' onClick={() => openDeactivateModal(did.id)} className='text-orange-600 hover:text-orange-700 hover:bg-orange-50' title='Deactivate DID'>
 													<Ban className='h-4 w-4' />
 												</Button>
 											)}
 
 											{did.status === 'deactivated' && permissions?.canUpdate && (
-												<Button
-													variant='outline'
-													size='sm'
-													onClick={() => {
-														if (window.confirm('Are you sure you want to reactivate this DID?')) {
-															handleReactivateDID(did.id)
-														}
-													}}
-													className='text-green-600 hover:text-green-700 hover:bg-green-50'
-													title='Reactivate DID'>
+												<Button variant='outline' size='sm' onClick={() => openReactivateModal(did.id)} className='text-green-600 hover:text-green-700 hover:bg-green-50' title='Reactivate DID'>
 													<RotateCcw className='h-4 w-4' />
 												</Button>
 											)}
 
 											{permissions?.canDelete && did.status !== 'revoked' && (
-												<Button
-													variant='outline'
-													size='sm'
-													onClick={() => openRevokeModal(did.id)}
-													className='text-red-600 hover:text-red-700 hover:bg-red-50'
-													title='Revoke DID (permanent)'>
+												<Button variant='outline' size='sm' onClick={() => openRevokeModal(did.id)} className='text-red-600 hover:text-red-700 hover:bg-red-50' title='Revoke DID (permanent)'>
 													<Trash2 className='h-4 w-4' />
 												</Button>
 											)}
@@ -739,89 +833,94 @@ export default function TenantDIDPage() {
 				</div>
 
 				{/* Confirmation Modal */}
-				<Dialog 
-					open={confirmAction.isOpen} 
+				<Dialog
+					open={confirmAction.isOpen}
 					onOpenChange={(open) => {
 						if (!open && !confirmAction.isProcessing) {
 							closeConfirmModal()
 						}
-					}}
-				>
-					<DialogContent className="sm:max-w-md">
+					}}>
+					<DialogContent className='sm:max-w-md'>
 						<DialogHeader>
-							<DialogTitle className="flex items-center gap-2">
+							<DialogTitle className='flex items-center gap-2'>
 								{confirmAction.type === 'deactivate' ? (
-									<><Ban className="h-5 w-5 text-orange-600" />Deactivate DID</>
+									<>
+										<Ban className='h-5 w-5 text-orange-600' />
+										Deactivate DID
+									</>
+								) : confirmAction.type === 'revoke' ? (
+									<>
+										<Trash2 className='h-5 w-5 text-red-600' />
+										Revoke DID
+									</>
 								) : (
-									<><Trash2 className="h-5 w-5 text-red-600" />Revoke DID</>
+									<>
+										<RotateCcw className='h-5 w-5 text-green-600' />
+										Reactivate DID
+									</>
 								)}
 							</DialogTitle>
-							<DialogDescription>
-								{confirmAction.type === 'deactivate' 
-									? 'This will deactivate the DID. It can be reactivated later if needed.'
-									: 'This will permanently revoke the DID. This action CANNOT be undone!'
-								}
-							</DialogDescription>
+							<DialogDescription>{confirmAction.type === 'deactivate' ? 'This will deactivate the DID. It can be reactivated later if needed.' : confirmAction.type === 'revoke' ? 'This will permanently revoke the DID. This action CANNOT be undone!' : 'This will reactivate the DID, making it usable again.'}</DialogDescription>
 						</DialogHeader>
 
 						<div className='space-y-4'>
 							{/* DID ID Display */}
-							<div className="p-3 bg-muted rounded-md">
-								<p className="text-xs text-muted-foreground mb-1">DID to {confirmAction.type}:</p>
-								<p className="font-mono text-sm break-all">{confirmAction.didId}</p>
+							<div className='p-3 bg-muted rounded-md'>
+								<p className='text-xs text-muted-foreground mb-1'>DID to {confirmAction.type}:</p>
+								<p className='font-mono text-sm break-all'>{confirmAction.didId}</p>
 							</div>
 
 							{/* Reason Input */}
 							<div className='space-y-2'>
 								<Label htmlFor='reason'>Reason *</Label>
-								<Textarea
-									id='reason'
-									placeholder={`Enter reason for ${confirmAction.type === 'deactivate' ? 'deactivating' : 'revoking'} this DID...`}
-									value={confirmAction.reason}
-									onChange={(e) => updateConfirmReason(e.target.value)}
-									className='min-h-[100px]'
-									disabled={confirmAction.isProcessing}
-								/>
-								<p className='text-xs text-muted-foreground'>
-									Please provide a clear reason for this action for audit purposes.
-								</p>
+								<Textarea id='reason' placeholder={`Enter reason for ${confirmAction.type === 'deactivate' ? 'deactivating' : confirmAction.type === 'revoke' ? 'revoking' : 'reactivating'} this DID...`} value={confirmAction.reason} onChange={(e) => updateConfirmReason(e.target.value)} className='min-h-[100px]' disabled={confirmAction.isProcessing} />
+								<p className='text-xs text-muted-foreground'>Please provide a clear reason for this action for audit purposes.</p>
 							</div>
 
 							{/* Warning for Revoke */}
 							{confirmAction.type === 'revoke' && (
-								<Alert className="border-red-200 bg-red-50">
+								<Alert className='border-red-200 bg-red-50'>
 									<AlertCircle className='h-4 w-4 text-red-600' />
-									<AlertDescription className='text-red-600 font-medium'>
-										Warning: Revoking a DID is permanent and cannot be undone. The DID will no longer be usable.
-									</AlertDescription>
+									<AlertDescription className='text-red-600 font-medium'>Warning: Revoking a DID is permanent and cannot be undone. The DID will no longer be usable.</AlertDescription>
+								</Alert>
+							)}
+
+							{/* Info for Reactivate */}
+							{confirmAction.type === 'reactivate' && (
+								<Alert className='border-green-200 bg-green-50'>
+									<AlertCircle className='h-4 w-4 text-green-600' />
+									<AlertDescription className='text-green-600 font-medium'>This DID will become active and usable again after reactivation.</AlertDescription>
 								</Alert>
 							)}
 						</div>
 
-						<DialogFooter className="gap-2">
-							<Button 
-								variant='outline' 
-								onClick={closeConfirmModal}
-								disabled={confirmAction.isProcessing}
-							>
+						<DialogFooter className='gap-2'>
+							<Button variant='outline' onClick={closeConfirmModal} disabled={confirmAction.isProcessing}>
 								Cancel
 							</Button>
-							<Button 
-								variant={confirmAction.type === 'revoke' ? 'destructive' : 'default'}
-								onClick={confirmAction.type === 'deactivate' ? handleDeactivateDID : handleRevokeDID}
-								disabled={confirmAction.isProcessing || !confirmAction.reason.trim()}
-							>
+							<Button variant={confirmAction.type === 'revoke' ? 'destructive' : confirmAction.type === 'reactivate' ? 'default' : 'default'} onClick={confirmAction.type === 'deactivate' ? handleDeactivateDID : confirmAction.type === 'revoke' ? handleRevokeDID : handleReactivateDID} disabled={confirmAction.isProcessing || !confirmAction.reason.trim()}>
 								{confirmAction.isProcessing ? (
 									<>
 										<RefreshCw className='mr-2 h-4 w-4 animate-spin' />
-										{confirmAction.type === 'deactivate' ? 'Deactivating...' : 'Revoking...'}
+										{confirmAction.type === 'deactivate' ? 'Deactivating...' : confirmAction.type === 'revoke' ? 'Revoking...' : 'Reactivating...'}
 									</>
 								) : (
 									<>
 										{confirmAction.type === 'deactivate' ? (
-											<><Ban className='mr-2 h-4 w-4' />Deactivate DID</>
+											<>
+												<Ban className='mr-2 h-4 w-4' />
+												Deactivate DID
+											</>
+										) : confirmAction.type === 'revoke' ? (
+											<>
+												<Trash2 className='mr-2 h-4 w-4' />
+												Revoke DID
+											</>
 										) : (
-											<><Trash2 className='mr-2 h-4 w-4' />Revoke DID</>
+											<>
+												<RotateCcw className='mr-2 h-4 w-4' />
+												Reactivate DID
+											</>
 										)}
 									</>
 								)}

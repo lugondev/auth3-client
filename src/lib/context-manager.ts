@@ -101,6 +101,32 @@ export class ContextManager {
     }
   }
 
+  // Get context state or create empty state if not exists
+  getOrCreateContextState(context: ContextMode, tenantId?: string): ContextAuthState {
+    const existingState = this.getContextState(context)
+    if (existingState) {
+      return existingState
+    }
+
+    // Create empty state if not exists
+    const emptyState: ContextAuthState = {
+      user: null,
+      isAuthenticated: false,
+      tenantId: context === 'tenant' ? (tenantId || null) : null,
+      permissions: [],
+      roles: [],
+      tokens: {
+        accessToken: null,
+        refreshToken: null,
+        timestamp: Date.now()
+      },
+      lastUpdated: Date.now()
+    }
+
+    this.setContextState(context, emptyState)
+    return emptyState
+  }
+
   // Set context state
   setContextState(context: ContextMode, state: Omit<ContextAuthState, 'lastUpdated'>): void {
     if (typeof window === 'undefined') {
