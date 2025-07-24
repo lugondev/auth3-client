@@ -11,7 +11,7 @@ export default function LogoutPage() {
 	useEffect(() => {
 		const performLogout = async () => {
 			if (user) {
-				await logout()
+				await logout() // Full logout, not contextOnly
 			}
 			// After logout, the AuthContext's useEffect should redirect to /login
 			// If for some reason it doesn't, or if the user is already logged out and lands here,

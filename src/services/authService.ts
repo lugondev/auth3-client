@@ -558,8 +558,27 @@ export const loginGlobalContext = async (
 		// Backend returns AuthResult, not ContextSwitchResult
 		const response = await apiClient.post<{ access_token: string, refresh_token: string, expires_at: string, expires_in: number, token_type: string }>('/api/v1/auth/login-global', requestData);
 
-		// Convert AuthResult to ContextSwitchResult format
+		// Store global tokens
 		if (response.data && response.data.access_token) {
+			console.log('💾 Storing global tokens after login-global')
+
+			// Store new global tokens
+			tokenManager.setTokens('global', response.data.access_token, response.data.refresh_token || null);
+
+			// Update context state for global context
+			contextManager.setContextState('global', {
+				user: null, // Will be updated by AuthContext after decoding token
+				isAuthenticated: true,
+				tenantId: null, // Global context has no tenant
+				permissions: [],
+				roles: [],
+				tokens: {
+					accessToken: response.data.access_token,
+					refreshToken: response.data.refresh_token || null,
+					timestamp: Date.now()
+				}
+			});
+
 			console.log('Global context switched successfully.');
 			return {
 				success: true,

@@ -51,7 +51,7 @@ export function AuthStatus() {
 					<DropdownMenuItem>Profile</DropdownMenuItem>
 				</Link>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={logout} disabled={loading}>
+				<DropdownMenuItem onClick={() => logout(false)} disabled={loading}>
 					{loading ? 'Signing out...' : 'Sign out'}
 				</DropdownMenuItem>
 			</DropdownMenuContent>

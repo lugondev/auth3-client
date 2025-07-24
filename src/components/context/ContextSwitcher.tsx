@@ -150,7 +150,7 @@ export function ContextSwitcher({variant = 'dropdown', size = 'md', showCurrentC
 		if (disabled) return
 
 		try {
-			await logout()
+			await logout() // Full logout, not contextOnly
 			toast.success('Logged out successfully')
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Failed to logout'

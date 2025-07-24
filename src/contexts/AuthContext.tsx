@@ -843,9 +843,35 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 				// If we have a valid decoded user, proceed with authentication
 				if (decodedUser) {
-					// 🔧 FIX: Update API client FIRST before any other operations
+					// 🔧 ENHANCED FIX: Validate context consistency before setting API client token
+					const tokenTenantId = decodedUser.tenant_id
+					const isTokenForTenant = !!tokenTenantId
+
+					// Check if token context matches expected context mode
+					if ((actualMode === 'tenant' && !isTokenForTenant) || (actualMode === 'global' && isTokenForTenant)) {
+						console.warn(`⚠️ Context-Token mismatch detected:`, {
+							contextMode: actualMode,
+							tokenHasTenantId: isTokenForTenant,
+							tokenTenantId,
+							currentPath: typeof window !== 'undefined' ? window.location.pathname : 'unknown',
+						})
+
+						// Don't set the API client token if there's a mismatch
+						// The route-based context detection effect will handle the context switch
+						console.log('🔄 Skipping API client update due to context mismatch, awaiting context switch...')
+
+						// Still update basic state for UI consistency, but don't set API client
+						setUser(decodedUser)
+						setIsAuthenticated(true)
+						setCurrentTenantId(decodedUser.tenant_id || null)
+						updateContextState(actualMode, decodedUser, true)
+
+						return // Exit early without setting API client
+					}
+
+					// 🔧 FIX: Update API client FIRST before any other operations (only if context is consistent)
 					apiClient.defaults.headers.Authorization = `Bearer ${currentTokens.accessToken}`
-					console.log(`🔧 API client updated in checkAuthStatus with ${actualMode} token`)
+					console.log(`🔧 API client updated in checkAuthStatus with ${actualMode} token (context validated)`)
 
 					// Update cookies
 					document.cookie = `accessToken=${currentTokens.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
@@ -894,6 +920,66 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 	// Update ref whenever checkAuthStatus changes
 	checkAuthStatusRef.current = checkAuthStatus
+
+	// Auto-detect context based on current route and switch if needed
+	useEffect(() => {
+		if (typeof window === 'undefined' || !isAuthenticated || isTransitioning) return
+
+		const currentPath = window.location.pathname
+		const isTenantRoute = currentPath.includes('/dashboard/tenant/')
+		const isAdminRoute = currentPath.includes('/dashboard/admin')
+
+		// Extract tenant ID from tenant routes (e.g., /dashboard/tenant/123/...)
+		const tenantIdFromRoute = isTenantRoute ? currentPath.split('/dashboard/tenant/')[1]?.split('/')[0] : null
+
+		console.log(`🔍 Route-based context detection:`, {
+			currentPath,
+			currentMode,
+			isTenantRoute,
+			isAdminRoute,
+			tenantIdFromRoute,
+			currentTenantId,
+		})
+
+		// Case 1: User is on tenant route but not in tenant context
+		if (isTenantRoute && tenantIdFromRoute && currentMode !== 'tenant') {
+			console.log(`🔄 Auto-switching to tenant context for route: ${tenantIdFromRoute}`)
+			switchToTenantById(tenantIdFromRoute).catch((error) => {
+				console.error('❌ Auto-switch to tenant failed:', error)
+				// If switching fails, redirect to select tenant or global dashboard
+				router.push('/dashboard/profile')
+			})
+			return
+		}
+
+		// Case 2: User is in tenant context but tenant ID changed in route
+		if (isTenantRoute && tenantIdFromRoute && currentMode === 'tenant' && currentTenantId !== tenantIdFromRoute) {
+			console.log(`🔄 Switching to different tenant: ${currentTenantId} -> ${tenantIdFromRoute}`)
+			switchToTenantById(tenantIdFromRoute).catch((error) => {
+				console.error('❌ Tenant switch failed:', error)
+				router.push('/dashboard/profile')
+			})
+			return
+		}
+
+		// Case 3: User is in tenant context but on non-tenant, non-admin route -> switch to global
+		if (!isTenantRoute && !isAdminRoute && currentMode === 'tenant') {
+			console.log(`🔄 Auto-switching to global context for non-tenant route: ${currentPath}`)
+			switchToGlobal({preserveGlobalContext: true}).catch((error) => {
+				console.error('❌ Auto-switch to global failed:', error)
+			})
+			return
+		}
+
+		// Case 4: User is on admin route but not in global context -> switch to global
+		if (isAdminRoute && currentMode !== 'global') {
+			console.log(`🔄 Auto-switching to global context for admin route: ${currentPath}`)
+			switchToGlobal({preserveGlobalContext: true}).catch((error) => {
+				console.error('❌ Auto-switch to global for admin failed:', error)
+			})
+			return
+		}
+	}, [isAuthenticated, currentMode, currentTenantId, isTransitioning, switchToTenantById, switchToGlobal, router])
 
 	// Check auth status only after context mode is initialized
 	useEffect(() => {
@@ -1126,26 +1212,81 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		}
 	}, [])
 
-	const logout = useCallback(async () => {
-		setLoading(true)
+	const exitTenantContext = useCallback(async () => {
+		if (currentMode !== 'tenant') {
+			console.log('ℹ️ Not in tenant context, nothing to exit')
+			return
+		}
 
-		// Check if currently in tenant space and redirect to avoid issues after login
-		if (typeof window !== 'undefined') {
-			const currentPath = window.location.pathname
-			if (currentPath.includes('/dashboard/tenant/') && !currentPath.includes('/tenant-management')) {
-				console.log('🔄 Logout from tenant space, will redirect to main dashboard')
-				// Clear all auth data and contexts - use 'auto' to clear everything
-				await clearAuthData(true, true, 'auto') // firebase signout, redirect, clear all contexts
+		setLoading(true)
+		try {
+			// Check if we have global tokens to fall back to
+			const globalTokens = tokenManager.getTokens('global')
+
+			if (globalTokens.accessToken) {
+				// We have global tokens, switch to global context
+				console.log('🔄 Exiting tenant context, switching to global...')
+				await switchToGlobal({preserveGlobalContext: true})
+
+				// Redirect to a safe global route
+				const currentPath = window.location.pathname
+				if (currentPath.includes('/dashboard/tenant/')) {
+					router.push('/dashboard/profile')
+				}
+
+				toast.success('Exited tenant context')
+			} else {
+				// No global tokens available, need to fully logout
+				console.log('🔄 No global tokens available, performing full logout...')
+				await clearAuthData(true, true, 'auto')
+				toast.success('Logged out successfully')
+			}
+		} catch (error) {
+			console.error('❌ Error exiting tenant context:', error)
+			// Fallback: full logout
+			await clearAuthData(true, true, 'auto')
+			toast.error('Error exiting tenant context, logged out')
+		} finally {
+			setLoading(false)
+		}
+	}, [currentMode, switchToGlobal, clearAuthData, router])
+
+	const logout = useCallback(
+		async (contextOnly = false) => {
+			setLoading(true)
+
+			// If contextOnly is true and we're in tenant context, just exit tenant
+			if (contextOnly && currentMode === 'tenant') {
+				await exitTenantContext()
 				setLoading(false)
 				return
 			}
-		}
 
-		// Normal logout - clear all contexts
-		await clearAuthData(true, true, 'auto')
-		setLoading(false)
-		toast.success('Successfully signed out.')
-	}, [clearAuthData])
+			// Check if currently in tenant space and we want to do a graceful exit first
+			if (typeof window !== 'undefined' && currentMode === 'tenant') {
+				const currentPath = window.location.pathname
+				if (currentPath.includes('/dashboard/tenant/') && !currentPath.includes('/tenant-management')) {
+					console.log('🔄 Logout from tenant space, attempting graceful exit first...')
+
+					// Try to exit tenant context first
+					const globalTokens = tokenManager.getTokens('global')
+					if (globalTokens.accessToken) {
+						// We have global tokens, just exit tenant context
+						await exitTenantContext()
+						setLoading(false)
+						return
+					}
+					// No global tokens, proceed with full logout
+				}
+			}
+
+			// Normal logout - clear all contexts
+			await clearAuthData(true, true, 'auto')
+			setLoading(false)
+			toast.success('Successfully signed out.')
+		},
+		[clearAuthData, currentMode, exitTenantContext],
+	)
 
 	const signInWithOAuth2Code = useCallback(
 		async (code: string, state?: string | null) => {
@@ -1245,6 +1386,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		verifyTwoFactorCode,
 		register,
 		logout,
+		exitTenantContext,
 
 		// Context switching
 		switchToTenant,
