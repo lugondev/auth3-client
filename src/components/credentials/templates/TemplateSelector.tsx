@@ -10,7 +10,7 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {ScrollArea} from '@/components/ui/scroll-area'
 import {Label} from '@/components/ui/label'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
-import {Search, FileText, User, GraduationCap, Briefcase, Shield, Award, Check, Star, TrendingUp, Clock, SortAsc, SortDesc, Plus, Grid3x3, List, MoreHorizontal} from 'lucide-react'
+import {Search, FileText, User, GraduationCap, Briefcase, Shield, Award, Check, Star, Clock, SortAsc, SortDesc, Plus, Grid3x3, List, MoreHorizontal} from 'lucide-react'
 import {toast} from 'sonner'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 
@@ -58,33 +58,38 @@ interface EnhancedTemplate extends CredentialTemplate {
  * - Responsive design with mobile optimization
  */
 export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCustom, className = '', showAnalytics = false, enableBulkSelection = false, selectedTemplates = [], onBulkSelectionChange, viewMode: initialViewMode = 'grid', compactMode = false}: TemplateSelectorProps) {
-	const [templates, setTemplates] = useState<EnhancedTemplate[]>([])
+	// Note: showAnalytics temporarily disabled
+	console.debug('Analytics enabled:', showAnalytics) // Temporary to avoid unused parameter warning
+	const [allTemplates, setAllTemplates] = useState<EnhancedTemplate[]>([]) // Store all templates for client-side filtering
 	const [loading, setLoading] = useState(true)
+	const [searchLoading, setSearchLoading] = useState(false) // Separate loading state for search
 	const [error, setError] = useState<string | null>(null)
 	const [searchTerm, setSearchTerm] = useState('')
 	const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
 	const [sortBy, setSortBy] = useState<'name' | 'usage' | 'recent' | 'rating'>('name')
 	const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
 	const [viewMode, setViewMode] = useState<'grid' | 'list'>(initialViewMode)
-	const [loadingStats, setLoadingStats] = useState(false)
-	const [statsCache, setStatsCache] = useState<Record<string, TemplateStats>>({})
-	const loadingStatsRef = useRef(false) // Prevent concurrent requests
+	// Analytics-related states temporarily disabled to prevent spam
+	// const [loadingStats, setLoadingStats] = useState(false)
+	// const [statsCache, setStatsCache] = useState<Record<string, TemplateStats>>({})
+	// const loadingStatsRef = useRef(false) // Prevent concurrent requests
+	const searchInputRef = useRef<HTMLInputElement>(null) // Reference to search input
 	const [filters] = useState<TemplateFilters>({
 		page: 1,
 		limit: 100, // Load all for better UX
 		active: true,
 	})
 
-	// Debounce search term to avoid excessive API calls
+	// Debounce search term for server-side search (optional enhancement)
 	useEffect(() => {
 		const timer = setTimeout(() => {
 			setDebouncedSearchTerm(searchTerm)
-		}, 300) // Wait 300ms after user stops typing
+		}, 500) // Longer delay for server search since we have client-side filtering
 
 		return () => clearTimeout(timer)
 	}, [searchTerm])
 
-	// Load templates without stats first for faster initial render
+	// Load all templates initially (no search dependency to prevent reloading)
 	useEffect(() => {
 		const loadTemplates = async () => {
 			try {
@@ -93,7 +98,7 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 
 				const response = await templateService.listTemplates({
 					...filters,
-					search: debouncedSearchTerm || undefined,
+					// Don't include search in initial load - load all templates
 				})
 
 				// Create basic enhanced templates without stats first
@@ -103,7 +108,7 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 					isRecent: template.updatedAt ? new Date(template.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : false,
 				}))
 
-				setTemplates(basicEnhancedTemplates)
+				setAllTemplates(basicEnhancedTemplates) // Store all templates
 			} catch (err) {
 				console.error('Error loading templates:', err)
 				setError('Failed to load templates')
@@ -114,98 +119,46 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 		}
 
 		loadTemplates()
-	}, [filters, debouncedSearchTerm])
+	}, [filters]) // Only depend on filters, not search terms
 
-	// Load analytics data separately if enabled to avoid blocking initial render
+	// Optional: Enhanced server-side search for more comprehensive results
 	useEffect(() => {
-		if (!showAnalytics || templates.length === 0) return
+		if (!debouncedSearchTerm || debouncedSearchTerm.length < 3) return // Only for longer search terms
 
-		// Check if we're already loading stats to prevent concurrent requests
-		if (loadingStatsRef.current) return
-
-		const loadAnalyticsData = async () => {
+		const performServerSearch = async () => {
 			try {
-				loadingStatsRef.current = true
-				setLoadingStats(true)
+				setSearchLoading(true)
 
-				// Load stats for templates that aren't already cached
-				const templatesToLoadStats = templates.filter((template) => !statsCache[template.id])
+				const response = await templateService.listTemplates({
+					...filters,
+					search: debouncedSearchTerm,
+				})
 
-				if (templatesToLoadStats.length === 0) {
-					// All stats already cached, just update templates with existing cache
-					const updatedTemplates = templates.map((template) => ({
-						...template,
-						stats: statsCache[template.id],
-						isPopular: statsCache[template.id] ? statsCache[template.id].usageCount > 10 : false,
-					}))
-					setTemplates(updatedTemplates)
-					return
-				}
+				// Update allTemplates with server results for comprehensive search
+				const enhancedTemplates: EnhancedTemplate[] = response.templates.map((template) => ({
+					...template,
+					category: (template.metadata?.category as string) || 'Other',
+					isRecent: template.updatedAt ? new Date(template.updatedAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) : false,
+				}))
 
-				// Reduce batch size and add more aggressive rate limiting
-				const newStatsCache = {...statsCache}
-				const batchSize = 3 // Reduce to 3 templates at a time
-
-				for (let i = 0; i < templatesToLoadStats.length; i += batchSize) {
-					const batch = templatesToLoadStats.slice(i, i + batchSize)
-
-					// Process batch with proper error handling
-					// await Promise.allSettled(
-					// 	batch.map(async (template) => {
-					// 		try {
-					// 			const usageStats = await templateService.getTemplateUsageStats(template.id)
-					// 			const stats: TemplateStats = {
-					// 				usageCount: usageStats.totalCredentials || 0,
-					// 				recentUsage: usageStats.usageThisWeek || 0,
-					// 				lastUsed: usageStats.lastUsed,
-					// 			}
-					// 			newStatsCache[template.id] = stats
-					// 			return { templateId: template.id, stats, success: true }
-					// 		} catch (error) {
-					// 			console.warn(`Failed to load stats for template ${template.id}:`, error)
-					// 			// Fallback to basic stats
-					// 			const fallbackStats: TemplateStats = {
-					// 				usageCount: 0,
-					// 				recentUsage: 0,
-					// 			}
-					// 			newStatsCache[template.id] = fallbackStats
-					// 			return { templateId: template.id, stats: fallbackStats, success: false }
-					// 		}
-					// 	})
-					// )
-
-					// Update templates incrementally for better UX
-					const enhancedTemplates = templates.map((template) => ({
-						...template,
-						stats: newStatsCache[template.id],
-						isPopular: newStatsCache[template.id] ? newStatsCache[template.id].usageCount > 10 : false,
-					}))
-					setTemplates(enhancedTemplates)
-
-					// Longer delay between batches to reduce server load
-					if (i + batchSize < templatesToLoadStats.length) {
-						await new Promise((resolve) => setTimeout(resolve, 500)) // Increased delay
-					}
-				}
-
-				// Final update of cache
-				setStatsCache(newStatsCache)
-			} catch (error) {
-				console.error('Error loading analytics data:', error)
-				// Don't show error toast for analytics failures
+				setAllTemplates(enhancedTemplates)
+			} catch (err) {
+				console.error('Error performing server search:', err)
+				// Don't show error for background search - fallback to client-side filtering
 			} finally {
-				loadingStatsRef.current = false
-				setLoadingStats(false)
+				setSearchLoading(false)
 			}
 		}
 
-		// Use a longer delay and create a debounced effect
-		const timeoutId = setTimeout(loadAnalyticsData, 500) // Increased delay
-		return () => {
-			clearTimeout(timeoutId)
-			loadingStatsRef.current = false
-		}
-	}, [showAnalytics, templates.length]) // Remove statsCache from dependencies to prevent loops
+		performServerSearch()
+	}, [debouncedSearchTerm, filters])
+
+	// TODO: Re-enable analytics loading when API is optimized
+	// Load analytics data separately if enabled to avoid blocking initial render
+	// useEffect(() => {
+	// 	if (!showAnalytics || allTemplates.length === 0) return
+	// 	// ... analytics loading code temporarily disabled to prevent spam
+	// }, [showAnalytics, allTemplates, statsCache])
 
 	// Get template icon based on type/category
 	const getTemplateIcon = (template: EnhancedTemplate) => {
@@ -232,7 +185,8 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 
 	// Filter and sort templates with client-side search for better UX
 	const getFilteredAndSortedTemplates = () => {
-		const filtered = templates.filter((template) => {
+		// Use allTemplates for filtering to ensure we search through all available templates
+		const filtered = allTemplates.filter((template) => {
 			// Use immediate searchTerm for client-side filtering (responsive UI)
 			const matchesSearch = !searchTerm || template.name.toLowerCase().includes(searchTerm.toLowerCase()) || template.description.toLowerCase().includes(searchTerm.toLowerCase()) || (template.category && template.category.toLowerCase().includes(searchTerm.toLowerCase())) || (template.type && template.type.some((type) => type.toLowerCase().includes(searchTerm.toLowerCase())))
 
@@ -248,13 +202,17 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 					comparison = a.name.localeCompare(b.name)
 					break
 				case 'usage':
-					comparison = (a.stats?.usageCount || 0) - (b.stats?.usageCount || 0)
+					// Temporarily disabled - fallback to name sorting
+					comparison = a.name.localeCompare(b.name)
+					// comparison = (a.stats?.usageCount || 0) - (b.stats?.usageCount || 0)
 					break
 				case 'recent':
 					comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
 					break
 				case 'rating':
-					comparison = (a.stats?.averageRating || 0) - (b.stats?.averageRating || 0)
+					// Temporarily disabled - fallback to name sorting
+					comparison = a.name.localeCompare(b.name)
+					// comparison = (a.stats?.averageRating || 0) - (b.stats?.averageRating || 0)
 					break
 			}
 
@@ -343,12 +301,13 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 										</Badge>
 									)}
 
-									{showAnalytics && template.stats && template.stats.usageCount > 0 && (
+									{/* Analytics stats temporarily disabled */}
+									{/* {showAnalytics && template.stats && template.stats.usageCount > 0 && (
 										<Badge variant='outline' className='text-xs'>
 											<TrendingUp className='h-3 w-3 mr-1' />
 											{template.stats.usageCount} uses
 										</Badge>
-									)}
+									)} */}
 								</div>
 							</div>
 						</div>
@@ -399,7 +358,8 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 									</Badge>
 								)}
 
-								{showAnalytics && template.stats && (
+								{/* Analytics stats temporarily disabled */}
+								{/* {showAnalytics && template.stats && (
 									<>
 										{template.stats.usageCount > 0 && (
 											<Badge variant='outline' className='text-xs'>
@@ -414,7 +374,7 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 											</Badge>
 										)}
 									</>
-								)}
+								)} */}
 							</div>
 
 							{/* Schema fields preview for grid view */}
@@ -485,12 +445,12 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 					<div className='flex items-center gap-2'>
 						{enableBulkSelection && <Badge variant='outline'>{selectedTemplates.length} selected</Badge>}
 
-						{/* Analytics Loading Indicator */}
-						{showAnalytics && loadingStats && (
+						{/* Analytics Loading Indicator - Temporarily disabled */}
+						{/* {showAnalytics && loadingStats && (
 							<Badge variant='outline' className='bg-blue-50 text-blue-700'>
 								Loading stats...
 							</Badge>
-						)}
+						)} */}
 
 						{/* View Mode Toggle */}
 						<div className='flex items-center border rounded-md'>
@@ -511,7 +471,8 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 							</DropdownMenuTrigger>
 							<DropdownMenuContent align='end'>
 								<DropdownMenuItem onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}>Switch to {viewMode === 'grid' ? 'List' : 'Grid'} View</DropdownMenuItem>
-								{showAnalytics && (
+								{/* Analytics options temporarily disabled */}
+								{/* {showAnalytics && (
 									<>
 										<DropdownMenuSeparator />
 										<DropdownMenuItem
@@ -525,7 +486,7 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 											Refresh Analytics
 										</DropdownMenuItem>
 									</>
-								)}
+								)} */}
 								<DropdownMenuSeparator />
 								{onCreateCustom && (
 									<DropdownMenuItem onClick={onCreateCustom}>
@@ -545,9 +506,9 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 					{/* Search */}
 					<div className='relative'>
 						<Search className='absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground' />
-						<Input placeholder='Search templates...' value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className='pl-10' />
-						{/* Show loading indicator when server search is pending */}
-						{searchTerm !== debouncedSearchTerm && searchTerm.length > 0 && (
+						<Input ref={searchInputRef} placeholder='Search templates...' value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className='pl-10' />
+						{/* Show loading indicator when enhanced server search is pending */}
+						{searchLoading && searchTerm.length >= 3 && (
 							<div className='absolute right-3 top-1/2 transform -translate-y-1/2'>
 								<div className='animate-spin h-4 w-4 border-2 border-muted-foreground border-t-transparent rounded-full'></div>
 							</div>
@@ -563,12 +524,13 @@ export function TemplateSelector({selectedTemplate, onTemplateSelect, onCreateCu
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value='name'>Name</SelectItem>
-								{showAnalytics && (
+								{/* Temporarily disabled analytics-based sorting */}
+								{/* {showAnalytics && (
 									<>
 										<SelectItem value='usage'>Usage</SelectItem>
 										<SelectItem value='rating'>Rating</SelectItem>
 									</>
-								)}
+								)} */}
 								<SelectItem value='recent'>Updated</SelectItem>
 							</SelectContent>
 						</Select>

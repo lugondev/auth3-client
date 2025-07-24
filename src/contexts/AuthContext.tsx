@@ -61,7 +61,7 @@ const REFRESH_MARGIN_MS = 10 * 60 * 1000
 const MIN_REFRESH_DELAY_MS = 5 * 1000
 
 export function AuthProvider({children}: {children: React.ReactNode}) {
-		// Enhanced reactive token storage integration (temporarily disabled for production build compatibility)
+	// Enhanced reactive token storage integration (temporarily disabled for production build compatibility)
 	// TODO: Implement client-side only reactive features with proper SSR handling
 
 	// Current active state - Enhanced with reactive state
@@ -74,6 +74,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 	const [twoFactorSessionToken, setTwoFactorSessionToken] = useState<string | null>(null)
 	const [isInitialLoad, setIsInitialLoad] = useState(true)
 	const [lastProcessedKey, setLastProcessedKey] = useState<string | null>(null)
+	const [apiClientToken, setApiClientToken] = useState<string | null>(null)
 
 	// Cache for system admin status to prevent spam
 	const [adminStatusCache, setAdminStatusCache] = useState<{
@@ -114,6 +115,36 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		console.log('🔧 Initializing context mode from storage:', storedMode)
 		setCurrentMode(storedMode)
 	}, [])
+
+	// 🔧 DEBUG: Update API client token tracker whenever API client headers change
+	useEffect(() => {
+		const interval = setInterval(() => {
+			const currentApiToken = apiClient.defaults.headers.Authorization
+			const tokenString = typeof currentApiToken === 'string' ? currentApiToken.replace('Bearer ', '') : null
+			if (tokenString !== apiClientToken) {
+				console.log(`🔍 API Client token changed: ${tokenString ? tokenString.substring(0, 30) + '...' : 'null'}`)
+				setApiClientToken(tokenString)
+			}
+		}, 1000)
+
+		return () => clearInterval(interval)
+	}, [apiClientToken])
+
+	// 🔧 DEBUG: Monitor token synchronization issues
+	useEffect(() => {
+		if (currentMode && user && isAuthenticated) {
+			const expectedTokens = tokenManager.getTokens(currentMode)
+			const apiClientHeader = apiClient.defaults.headers.Authorization
+			const apiToken = typeof apiClientHeader === 'string' ? apiClientHeader.replace('Bearer ', '') : null
+
+			if (expectedTokens.accessToken && apiToken !== expectedTokens.accessToken) {
+				console.warn(`❌ TOKEN SYNC ISSUE: Mode=${currentMode}, Expected=${expectedTokens.accessToken?.substring(0, 30)}, API Client=${apiToken?.substring(0, 30)}`)
+				// Auto-fix: Update API client with correct token
+				apiClient.defaults.headers.Authorization = `Bearer ${expectedTokens.accessToken}`
+				console.log(`🔧 Auto-fixed API client token for mode: ${currentMode}`)
+			}
+		}
+	}, [currentMode, user, isAuthenticated])
 
 	const clearAuthData = useCallback(
 		async (doFirebaseSignOut = true, shouldRedirect = true, context?: ContextMode) => {
@@ -323,11 +354,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				document.cookie = `refreshToken=${authResult.refresh_token}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
 			}
 
-			// Dispatch custom event to notify components in same tab about token update
-			// Note: Removed tokenUpdated event as it causes infinite loops in storage listener
-			// window.dispatchEvent(new CustomEvent('tokenUpdated', {detail: {targetContext}})))
-
+			// 🔧 FIX: Immediately update API client with new token BEFORE any other operations
 			apiClient.defaults.headers.Authorization = `Bearer ${authResult.access_token}`
+			console.log(`🔧 API client header updated with ${targetContext} token`)
 
 			const appUser = decodeToken(authResult.access_token)
 			if (appUser) {
@@ -336,14 +365,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				setIsAuthenticated(true)
 				setCurrentTenantId(appUser.tenant_id || null)
 
-				// Update context state
-				updateContextState(targetContext, appUser, true)
-
-				// Switch to appropriate context if not preserving
+				// Switch to appropriate context if not preserving (BEFORE updating context state)
 				if (!preserveContext) {
 					setCurrentMode(targetContext)
 					contextManager.setCurrentMode(targetContext)
+					console.log(`🔧 Context mode switched to: ${targetContext}`)
 				}
+
+				// Update context state
+				updateContextState(targetContext, appUser, true)
 
 				await checkSystemAdminStatus(targetContext)
 
@@ -351,7 +381,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				try {
 					console.log('🔄 Fetching complete user profile from /api/v1/users/me...')
 					const fullUserProfile = await getCurrentUser()
-					
+
 					// Update user state with complete profile data
 					const enrichedUser: AppUser = {
 						...appUser,
@@ -361,7 +391,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						avatar: fullUserProfile.avatar || appUser.avatar,
 						// Add any other profile fields that might be missing from JWT
 					}
-					
+
 					setUser(enrichedUser)
 					console.log('✅ User profile updated with complete data from /me endpoint')
 				} catch (profileError) {
@@ -455,14 +485,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						// Decode new tenant token to get user with tenant_id
 						const tenantUser = decodeToken(tenantTokens.accessToken)
 						if (tenantUser) {
+							// 🔧 FIX: Update API client immediately BEFORE updating context state
+							apiClient.defaults.headers.Authorization = `Bearer ${tenantTokens.accessToken}`
+							console.log(`🔧 API client updated with tenant token for tenant: ${tenantId}`)
+
 							setCurrentMode('tenant')
 							contextManager.setCurrentMode('tenant') // Update context manager
 							setUser(tenantUser)
 							setIsAuthenticated(true)
 							setCurrentTenantId(tenantId)
-
-							// Update API client with tenant token
-							apiClient.defaults.headers.Authorization = `Bearer ${tenantTokens.accessToken}`
 
 							// Update context state
 							contextManager.setContextState('tenant', {
@@ -506,80 +537,89 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 		[currentMode],
 	)
 
-	const switchToTenantById = useCallback(async (tenantId: string): Promise<void> => {
-		try {
-			setLoading(true)
+	const switchToTenantById = useCallback(
+		async (tenantId: string): Promise<void> => {
+			try {
+				setLoading(true)
 
-			// Check if we already have valid tokens for this tenant
-			const validation = multiTenantTokenManager.validateTenantTokens(tenantId)
+				// Check if we already have valid tokens for this tenant
+				const validation = multiTenantTokenManager.validateTenantTokens(tenantId)
 
-			if (validation.isValid) {
-				console.log(`✅ Using cached tokens for tenant ${tenantId}`)
+				if (validation.isValid) {
+					console.log(`✅ Using cached tokens for tenant ${tenantId}`)
 
-				// Switch context using existing tokens
-				const tokens = multiTenantTokenManager.getTenantTokens(tenantId)
-				isInternalTokenUpdate.current = true
-				tokenManager.setTokens('tenant', tokens.accessToken, tokens.refreshToken)
-				setTimeout(() => {
-					isInternalTokenUpdate.current = false
-				}, 100)
+					// Switch context using existing tokens
+					const tokens = multiTenantTokenManager.getTenantTokens(tenantId)
+					isInternalTokenUpdate.current = true
+					tokenManager.setTokens('tenant', tokens.accessToken, tokens.refreshToken)
+					setTimeout(() => {
+						isInternalTokenUpdate.current = false
+					}, 100)
 
-				// Update context
-				setCurrentMode('tenant')
-				contextManager.setCurrentMode('tenant') // Update context manager
-				setCurrentTenantId(tenantId)
-
-				// Update user from token
-				if (tokens.accessToken) {
-					const decoded = decodeToken(tokens.accessToken)
-					if (decoded) {
-						setUser(decoded)
-						setIsAuthenticated(true)
+					// 🔧 FIX: Update API client IMMEDIATELY with cached tenant token
+					if (tokens.accessToken) {
+						apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
+						console.log(`🔧 API client updated with cached tenant token for: ${tenantId}`)
 					}
+
+					// Update context
+					setCurrentMode('tenant')
+					contextManager.setCurrentMode('tenant') // Update context manager
+					setCurrentTenantId(tenantId)
+
+					// Update user from token
+					if (tokens.accessToken) {
+						const decoded = decodeToken(tokens.accessToken)
+						if (decoded) {
+							setUser(decoded)
+							setIsAuthenticated(true)
+						}
+					}
+
+					return
 				}
 
-				return
-			}
+				console.log(`🔄 Need to authenticate for tenant ${tenantId}`)
 
-			console.log(`🔄 Need to authenticate for tenant ${tenantId}`)
+				// Call login-tenant to get new tokens
+				const result = await loginTenantContext(tenantId, true, false)
 
-			// Call login-tenant to get new tokens
-			const result = await loginTenantContext(tenantId, true, false)
+				if (result.success) {
+					console.log(`✅ Successfully switched to tenant ${tenantId}`)
 
-			if (result.success) {
-				console.log(`✅ Successfully switched to tenant ${tenantId}`)
+					// The tokens are already stored by loginTenantContext
+					// Update context mode
+					setCurrentMode('tenant')
+					contextManager.setCurrentMode('tenant')
+					setCurrentTenantId(tenantId)
 
-				// The tokens are already stored by loginTenantContext
-				// Update context mode
-				setCurrentMode('tenant')
-				contextManager.setCurrentMode('tenant')
-				setCurrentTenantId(tenantId)
+					// Get tenant tokens and call handleAuthSuccessInternal for consistent profile fetching
+					const tenantTokens = tokenManager.getTokens('tenant')
+					if (tenantTokens.accessToken) {
+						// Create AuthResult format for handleAuthSuccessInternal
+						const authResult: AuthResult = {
+							access_token: tenantTokens.accessToken,
+							refresh_token: tenantTokens.refreshToken || undefined,
+							expires_in: 0, // Not used in this context
+						}
 
-				// Get tenant tokens and call handleAuthSuccessInternal for consistent profile fetching
-				const tenantTokens = tokenManager.getTokens('tenant')
-				if (tenantTokens.accessToken) {
-					// Create AuthResult format for handleAuthSuccessInternal
-					const authResult: AuthResult = {
-						access_token: tenantTokens.accessToken,
-						refresh_token: tenantTokens.refreshToken || undefined,
-						expires_in: 0 // Not used in this context
+						// Use handleAuthSuccessInternal to ensure consistent profile fetching
+						// Pass preserveContext=true since we're already in the right tenant context
+						await handleAuthSuccessInternal(authResult, true)
 					}
-					
-					// Use handleAuthSuccessInternal to ensure consistent profile fetching
-					// Pass preserveContext=true since we're already in the right tenant context
-					await handleAuthSuccessInternal(authResult, true)
+				} else {
+					throw new Error(result.error || 'Failed to switch tenant context')
 				}
-			} else {
-				throw new Error(result.error || 'Failed to switch tenant context')
+			} catch (error) {
+				console.error('Error switching to tenant:', error)
+				toast.error('Failed to switch to tenant context')
+				throw error
+			} finally {
+				setLoading(false)
 			}
-		} catch (error) {
-			console.error('Error switching to tenant:', error)
-			toast.error('Failed to switch to tenant context')
-			throw error
-		} finally {
-			setLoading(false)
-		}
-	}, [handleAuthSuccessInternal])
+		},
+		[handleAuthSuccessInternal],
+	)
 
 	const switchToGlobal = useCallback(
 		async (options: ContextSwitchOptions = {}): Promise<ContextSwitchResult> => {
@@ -601,14 +641,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						// Decode new global token to get user without tenant_id
 						const globalUser = decodeToken(globalTokens.accessToken)
 						if (globalUser) {
+							// 🔧 FIX: Update API client immediately BEFORE updating context state
+							apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
+							console.log(`🔧 API client updated with global token`)
+
 							setCurrentMode('global')
 							contextManager.setCurrentMode('global') // Update context manager
 							setUser(globalUser)
 							setIsAuthenticated(true)
 							setCurrentTenantId(null) // Global context has no tenant
-
-							// Update API client with global token
-							apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
 
 							// Update context state
 							contextManager.setContextState('global', {
@@ -802,7 +843,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
 				// If we have a valid decoded user, proceed with authentication
 				if (decodedUser) {
+					// 🔧 FIX: Update API client FIRST before any other operations
 					apiClient.defaults.headers.Authorization = `Bearer ${currentTokens.accessToken}`
+					console.log(`🔧 API client updated in checkAuthStatus with ${actualMode} token`)
+
+					// Update cookies
 					document.cookie = `accessToken=${currentTokens.accessToken}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`
 					if (currentTokens.refreshToken) {
 						document.cookie = `refreshToken=${currentTokens.refreshToken}; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`
@@ -1018,8 +1063,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				} else if (response.auth) {
 					await handleAuthSuccess(response.auth)
 					toast.success('Successfully signed in!')
+					setLoading(false) // 🔧 FIX: Set loading to false after successful auth
 					return {success: true, twoFactorRequired: false}
 				} else {
+					setLoading(false) // 🔧 FIX: Set loading to false for invalid response
 					throw new Error('Invalid response from server')
 				}
 			} catch (error: unknown) {
