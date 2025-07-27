@@ -43,4 +43,3 @@ export { RealTimeStatusMonitor } from './RealTimeStatusMonitor'
 // Enhanced Template Components
 export { TemplateSelector } from './templates/TemplateSelector'
 export { TemplateAnalytics } from './templates/TemplateAnalytics'
-export { BulkTemplateIssuance } from './templates/BulkTemplateIssuance'

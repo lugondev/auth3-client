@@ -17,8 +17,8 @@ import {Upload, Download, FileText, Users, Play, Pause, CheckCircle, AlertCircle
 import {toast} from 'sonner'
 
 import {CredentialTemplate} from '@/types/template'
-import {IssuedCredential} from '@/types/credentials'
-import {credentialService, BulkIssueResponse} from '@/services/credentialService'
+import {IssuedCredential, BulkIssueCredentialResponse} from '@/types/credentials'
+import {credentialService} from '@/services/credentialService'
 
 interface BulkRecipient {
 	id: string
@@ -32,7 +32,7 @@ interface BulkRecipient {
 
 interface BulkTemplateIssuanceProps {
 	selectedTemplates?: CredentialTemplate[]
-	onComplete?: (results: BulkIssueResponse) => void
+	onComplete?: (results: BulkIssueCredentialResponse) => void
 	onCancel?: () => void
 	className?: string
 }
@@ -324,17 +324,23 @@ export function BulkTemplateIssuance({selectedTemplates = [], onComplete, onCanc
 				}
 			}
 
-			const finalResults: BulkIssueResponse = {
-				batchId: `batch-${Date.now()}`,
-				totalRequests: total,
+			const finalResults: BulkIssueCredentialResponse = {
+				batchId: `bulk_${Date.now()}`,
+				totalRequested: total,
 				successCount: successful,
 				failureCount: failed,
-				results: recipients.map((recipient, index) => ({
-					index,
-					success: recipient.status === 'success',
-					credentialId: recipient.credentialId,
-					error: recipient.error,
+				credentials: issuedCredentials.map((cred, index) => ({
+					credentialId: cred.id || '',
+					status: 'success' as const,
+					issuedAt: new Date().toISOString(),
 				})),
+				failures: errors.map((error, index) => ({
+					error: error || 'Unknown error',
+					index,
+				})),
+				processedAt: new Date().toISOString(),
+				message: `Bulk issuance completed: ${successful} successful, ${failed} failed`,
+				status: failed === 0 ? 'completed' : successful === 0 ? 'failed' : 'partial',
 			}
 
 			setResults({

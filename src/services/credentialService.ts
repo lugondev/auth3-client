@@ -28,31 +28,7 @@ export interface IssueCredentialResponse {
 	message?: string;
 }
 
-export interface BulkIssueRequest {
-	templateId: string;
-	recipients: Array<{
-		credentialSubject: Record<string, JSONValue>;
-		recipientDID?: string;
-		recipientEmail?: string;
-		metadata?: Record<string, JSONValue>;
-	}>;
-	issuanceDate?: string;
-	expirationDate?: string;
-	additionalContext?: string[];
-}
 
-export interface BulkIssueResponse {
-	batchId: string;
-	totalRequests: number;
-	successCount: number;
-	failureCount: number;
-	results: Array<{
-		index: number;
-		success: boolean;
-		credentialId?: string;
-		error?: string;
-	}>;
-}
 
 export interface CredentialListFilters {
 	page?: number;
@@ -355,19 +331,6 @@ class CredentialService {
 		return response.data;
 	}
 
-	// Issue multiple credentials in bulk
-	async bulkIssueCredentials(request: BulkIssueRequest): Promise<BulkIssueResponse> {
-		// Convert date formats from YYYY-MM-DD to RFC3339 before sending to backend
-		const convertedRequest = {
-			...request,
-			issuanceDate: request.issuanceDate ? dateStringToRFC3339(request.issuanceDate) : undefined,
-			expirationDate: request.expirationDate ? dateStringToRFC3339(request.expirationDate) : undefined,
-		};
-
-		const response = await apiClient.post<BulkIssueResponse>(`${API_BASE_URL}/bulk-issue`, convertedRequest);
-		return response.data;
-	}
-
 	// Get a specific credential by ID
 	async getCredential(id: string): Promise<VerifiableCredential> {
 		const response = await apiClient.get<VerifiableCredential>(`${API_BASE_URL}/${id}`);
@@ -415,27 +378,6 @@ class CredentialService {
 		link.click();
 		document.body.removeChild(link);
 		URL.revokeObjectURL(url);
-	}
-
-	// Upload CSV for bulk issuance
-	async uploadBulkIssuanceCSV(file: File, templateId: string): Promise<BulkIssueResponse> {
-		const formData = new FormData();
-		formData.append('file', file);
-		formData.append('templateId', templateId);
-
-		const response = await apiClient.post<BulkIssueResponse>(`${API_BASE_URL}/bulk-issue/csv`, formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
-		});
-
-		return response.data;
-	}
-
-	// Get bulk issuance status
-	async getBulkIssuanceStatus(batchId: string): Promise<BulkIssueResponse> {
-		const response = await apiClient.get<BulkIssueResponse>(`${API_BASE_URL}/bulk-issue/${batchId}/status`);
-		return response.data;
 	}
 
 	// Preview credential before issuance
