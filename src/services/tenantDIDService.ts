@@ -30,6 +30,7 @@ export interface TenantDIDDocument {
 	privateKey?: string;
 	status: 'active' | 'revoked' | 'deactivated';
 	capabilities?: string[];
+	tenant_capabilities?: Record<string, boolean>;
 	tenant_id: string;
 	created_at: string;
 	updated_at: string;

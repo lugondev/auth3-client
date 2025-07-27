@@ -103,7 +103,7 @@ export default function TenantCredentialActionsPage() {
 				description: `${result.successCount} credentials issued successfully for tenant`,
 			})
 			// Redirect to tenant credentials list
-			router.push(`/dashboard/tenant/${tenantId}/credentials`)
+			// router.push(`/dashboard/tenant/${tenantId}/credentials`)
 		},
 		[router, tenantId, toast],
 	)

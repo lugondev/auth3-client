@@ -92,22 +92,6 @@ const userLinks: NavLink[] = [
 		],
 	},
 	{
-		href: '/dashboard/verification',
-		label: 'Verification',
-		icon: Search,
-		isCollapsible: true,
-		children: [
-			{href: '/dashboard/test-verification', label: 'Test Verification', icon: Search},
-			{href: '/dashboard/demo', label: 'Demo', icon: Activity},
-		],
-	},
-	{
-		href: '/dashboard/messages',
-		label: 'Messages',
-		icon: Mail,
-	},
-
-	{
 		href: '/dashboard/tenant-management',
 		label: 'My Organizations',
 		icon: Building,

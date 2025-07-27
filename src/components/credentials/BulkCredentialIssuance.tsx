@@ -18,7 +18,9 @@ import {ScrollArea} from '@/components/ui/scroll-area'
 import type {BulkCredentialRecipient, BulkIssueCredentialResponse} from '@/types/credentials'
 import type {CredentialTemplate} from '@/types/template'
 import {TemplateSelector} from '@/components/credentials/templates/TemplateSelector'
+import {TenantDIDSelector} from '@/components/tenant/TenantDIDSelector'
 import * as tenantCredentialService from '@/services/tenantCredentialService'
+import type {TenantDIDDocument} from '@/services/tenantDIDService'
 
 interface BulkCredentialIssuanceProps {
 	tenantId: string
@@ -34,6 +36,74 @@ interface BulkRecipient extends BulkCredentialRecipient {
 	error?: string
 	credentialId?: string
 }
+
+// Memoized RecipientCard component to prevent unnecessary re-renders
+const RecipientCard = React.memo(({recipient, index, onUpdate, onRemove, isProcessing}: {recipient: BulkRecipient; index: number; onUpdate: (id: string, field: 'recipientDid' | 'recipientEmail', value: string) => void; onRemove: (id: string) => void; isProcessing: boolean}) => {
+	const getStatusIcon = (status: string) => {
+		switch (status) {
+			case 'success':
+				return <CheckCircle className='h-4 w-4 text-green-600' />
+			case 'error':
+				return <AlertCircle className='h-4 w-4 text-red-600' />
+			case 'processing':
+				return <Clock className='h-4 w-4 text-blue-600 animate-spin' />
+			default:
+				return <Clock className='h-4 w-4 text-gray-400' />
+		}
+	}
+
+	const handleDIDChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			onUpdate(recipient.id, 'recipientDid', e.target.value)
+		},
+		[recipient.id, onUpdate],
+	)
+
+	const handleEmailChange = useCallback(
+		(e: React.ChangeEvent<HTMLInputElement>) => {
+			onUpdate(recipient.id, 'recipientEmail', e.target.value)
+		},
+		[recipient.id, onUpdate],
+	)
+
+	const handleRemove = useCallback(() => {
+		onRemove(recipient.id)
+	}, [recipient.id, onRemove])
+
+	return (
+		<Card className='p-4'>
+			<div className='flex items-start justify-between mb-3'>
+				<div className='flex items-center gap-2'>
+					{getStatusIcon(recipient.status)}
+					<span className='text-sm font-medium'>Recipient {index + 1}</span>
+				</div>
+				<Button onClick={handleRemove} variant='ghost' size='sm' disabled={isProcessing}>
+					<Trash2 className='h-4 w-4' />
+				</Button>
+			</div>
+
+			<div className='grid grid-cols-2 gap-3'>
+				<div>
+					<Label className='text-xs'>DID</Label>
+					<Input placeholder='did:example:recipient123' value={recipient.recipientDid || ''} onChange={handleDIDChange} disabled={isProcessing} />
+				</div>
+				<div>
+					<Label className='text-xs'>Email</Label>
+					<Input placeholder='recipient@example.com' value={recipient.recipientEmail || ''} onChange={handleEmailChange} disabled={isProcessing} />
+				</div>
+			</div>
+
+			{recipient.error && (
+				<Alert className='mt-2'>
+					<AlertCircle className='h-4 w-4' />
+					<AlertDescription>{recipient.error}</AlertDescription>
+				</Alert>
+			)}
+		</Card>
+	)
+})
+
+RecipientCard.displayName = 'RecipientCard'
 
 /**
  * BulkCredentialIssuance Component - Production-ready bulk credential issuance
@@ -51,6 +121,7 @@ export function BulkCredentialIssuance({tenantId, selectedTemplates = [], onComp
 	// State management
 	const [selectedTemplate, setSelectedTemplate] = useState<CredentialTemplate | null>(selectedTemplates[0] || null)
 	const [issuerDID, setIssuerDID] = useState('')
+	const [issuerDIDDocument, setIssuerDIDDocument] = useState<TenantDIDDocument | null>(null)
 	const [recipients, setRecipients] = useState<BulkRecipient[]>([])
 	const [template] = useState<Record<string, unknown>>({})
 	const [issuanceDate, setIssuanceDate] = useState('')
@@ -67,6 +138,12 @@ export function BulkCredentialIssuance({tenantId, selectedTemplates = [], onComp
 	const [csvFile, setCsvFile] = useState<File | null>(null)
 	const [csvValidationErrors, setCsvValidationErrors] = useState<string[]>([])
 	const fileInputRef = useRef<HTMLInputElement>(null)
+
+	// Handle DID selection
+	const handleDIDSelect = useCallback((didId: string, didDocument: TenantDIDDocument) => {
+		setIssuerDID(didId)
+		setIssuerDIDDocument(didDocument)
+	}, [])
 
 	// Add new recipient manually
 	const addRecipient = useCallback(() => {
@@ -90,6 +167,17 @@ export function BulkCredentialIssuance({tenantId, selectedTemplates = [], onComp
 	const updateRecipient = useCallback((id: string, updates: Partial<BulkRecipient>) => {
 		setRecipients((prev) => prev.map((r) => (r.id === id ? {...r, ...updates} : r)))
 	}, [])
+
+	// Memoize filterCapabilities to prevent unnecessary re-renders
+	const filterCapabilities = React.useMemo(() => ['can_issue_credentials'], [])
+
+	// Memoized handlers for input changes
+	const handleRecipientFieldUpdate = useCallback(
+		(id: string, field: 'recipientDid' | 'recipientEmail', value: string) => {
+			updateRecipient(id, {[field]: value})
+		},
+		[updateRecipient],
+	)
 
 	// Handle CSV file selection
 	const handleCSVFileSelect = useCallback(async (file: File | null) => {
@@ -272,23 +360,12 @@ export function BulkCredentialIssuance({tenantId, selectedTemplates = [], onComp
 		setProgress(0)
 		setShowResults(false)
 		setIsProcessing(false)
+		setIssuerDID('')
+		setIssuerDIDDocument(null)
 		if (fileInputRef.current) {
 			fileInputRef.current.value = ''
 		}
 	}, [])
-
-	const getStatusIcon = (status: string) => {
-		switch (status) {
-			case 'success':
-				return <CheckCircle className='h-4 w-4 text-green-600' />
-			case 'error':
-				return <AlertCircle className='h-4 w-4 text-red-600' />
-			case 'processing':
-				return <Clock className='h-4 w-4 text-blue-600 animate-spin' />
-			default:
-				return <Clock className='h-4 w-4 text-gray-400' />
-		}
-	}
 
 	const getStatusBadge = (status: string) => {
 		const variants = {
@@ -318,10 +395,10 @@ export function BulkCredentialIssuance({tenantId, selectedTemplates = [], onComp
 						<TemplateSelector selectedTemplate={selectedTemplate || undefined} onTemplateSelect={setSelectedTemplate} className='w-full' />
 					</div>
 
-					{/* Issuer DID */}
+					{/* Issuer DID Selection */}
 					<div className='space-y-2'>
 						<Label htmlFor='issuerDid'>Issuer DID</Label>
-						<Input id='issuerDid' placeholder='did:example:issuer123' value={issuerDID} onChange={(e) => setIssuerDID(e.target.value)} disabled={isProcessing} />
+						<TenantDIDSelector tenantId={tenantId} selectedDID={issuerDID} onDIDSelect={handleDIDSelect} variant='select' showRefreshButton={true} showCreateButton={false} disabled={isProcessing} placeholder='Select tenant DID for issuing credentials...' filterActiveOnly={true} filterCapabilities={filterCapabilities} className='w-full' />
 					</div>
 
 					{/* Input Method Selection */}
@@ -346,54 +423,8 @@ export function BulkCredentialIssuance({tenantId, selectedTemplates = [], onComp
 									<div className='text-center text-gray-500 py-8'>No recipients added yet. Click "Add Recipient" to start.</div>
 								) : (
 									<div className='space-y-4'>
-										{recipients.map((recipient) => (
-											<Card key={recipient.id} className='p-4'>
-												<div className='flex items-start justify-between mb-3'>
-													<div className='flex items-center gap-2'>
-														{getStatusIcon(recipient.status)}
-														<span className='text-sm font-medium'>Recipient {recipients.indexOf(recipient) + 1}</span>
-													</div>
-													<Button onClick={() => removeRecipient(recipient.id)} variant='ghost' size='sm' disabled={isProcessing}>
-														<Trash2 className='h-4 w-4' />
-													</Button>
-												</div>
-
-												<div className='grid grid-cols-2 gap-3'>
-													<div>
-														<Label className='text-xs'>DID</Label>
-														<Input
-															placeholder='did:example:recipient123'
-															value={recipient.recipientDid || ''}
-															onChange={(e) =>
-																updateRecipient(recipient.id, {
-																	recipientDid: e.target.value,
-																})
-															}
-															disabled={isProcessing}
-														/>
-													</div>
-													<div>
-														<Label className='text-xs'>Email</Label>
-														<Input
-															placeholder='recipient@example.com'
-															value={recipient.recipientEmail || ''}
-															onChange={(e) =>
-																updateRecipient(recipient.id, {
-																	recipientEmail: e.target.value,
-																})
-															}
-															disabled={isProcessing}
-														/>
-													</div>
-												</div>
-
-												{recipient.error && (
-													<Alert className='mt-2'>
-														<AlertCircle className='h-4 w-4' />
-														<AlertDescription>{recipient.error}</AlertDescription>
-													</Alert>
-												)}
-											</Card>
+										{recipients.map((recipient, index) => (
+											<RecipientCard key={recipient.id} recipient={recipient} index={index} onUpdate={handleRecipientFieldUpdate} onRemove={removeRecipient} isProcessing={isProcessing} />
 										))}
 									</div>
 								)}

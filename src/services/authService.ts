@@ -14,8 +14,6 @@ import {
 	ResetPasswordInput,
 	SocialTokenExchangeInput,
 	EmailVerificationOutput,
-	// Phone Verification
-	VerifyPhoneInput,
 	// 2FA Types
 	Generate2FAResponse,
 	Verify2FARequest,
@@ -457,8 +455,11 @@ export const loginTenantContext = async (
 			if (!currentContextValidation.isValid) {
 				console.warn(`Current ${currentMode} context validation failed:`, currentContextValidation.errors);
 				// Only throw error if it's a critical validation failure
+				// Allow context switches even with some validation errors as they might be transient
 				const criticalErrors = currentContextValidation.errors.filter(error =>
-					!error.includes('No state found') && !error.includes('expired')
+					!error.includes('No state found') &&
+					!error.includes('expired') &&
+					!error.includes('Authenticated state without user data') // Allow this during context switches
 				);
 				if (criticalErrors.length > 0) {
 					throw new Error(`Context switch validation failed: ${criticalErrors.join(', ')}`);
@@ -540,8 +541,11 @@ export const loginGlobalContext = async (
 			if (!currentContextValidation.isValid) {
 				console.warn(`Current ${currentMode} context validation failed:`, currentContextValidation.errors);
 				// Only throw error if it's a critical validation failure
+				// Allow context switches even with some validation errors as they might be transient
 				const criticalErrors = currentContextValidation.errors.filter(error =>
-					!error.includes('No state found') && !error.includes('expired')
+					!error.includes('No state found') &&
+					!error.includes('expired') &&
+					!error.includes('Authenticated state without user data') // Allow this during context switches
 				);
 				if (criticalErrors.length > 0) {
 					throw new Error(`Context switch validation failed: ${criticalErrors.join(', ')}`);

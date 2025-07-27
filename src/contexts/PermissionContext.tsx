@@ -4,7 +4,7 @@ import React, {createContext, useContext, useEffect, useState, useCallback, useR
 import {useAuth} from './AuthContext'
 import apiClient from '@/lib/apiClient'
 import {PermissionContextType} from '@/types/auth'
-import {Permission, ContextMode, ContextSwitchOptions} from '@/types/dual-context'
+import {Permission, ContextMode} from '@/types/dual-context'
 import {contextManager} from '@/lib/context-manager'
 import {tokenManager} from '@/lib/token-storage'
 
@@ -39,6 +39,19 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 
 	const cacheRef = useRef<Map<string, PermissionCache>>(new Map())
 	const fetchingRef = useRef<Set<string>>(new Set())
+	const tenantPermissionsCache = useRef<Map<string, {permissions: Permission[]; roles: string[]; timestamp: number}>>(new Map())
+	const currentTenantPermissionsFetched = useRef<string | null>(null)
+	const currentModeRef = useRef(currentMode)
+	const currentTenantIdRef = useRef(currentTenantId)
+
+	// Update refs when values change
+	useEffect(() => {
+		currentModeRef.current = currentMode
+	}, [currentMode])
+
+	useEffect(() => {
+		currentTenantIdRef.current = currentTenantId
+	}, [currentTenantId])
 
 	// Generate cache key for specific context
 	const getCacheKey = useCallback((context: ContextMode, tenantId?: string | null): string => {
@@ -104,12 +117,22 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				const cacheKey = getCacheKey(context, tenantId)
 				localStorage.removeItem(cacheKey)
 				cacheRef.current.delete(cacheKey)
+
+				// Also clear in-memory tenant cache if clearing tenant context
+				if (context === 'tenant' && tenantId) {
+					tenantPermissionsCache.current.delete(tenantId)
+					if (currentTenantPermissionsFetched.current === tenantId) {
+						currentTenantPermissionsFetched.current = null
+					}
+				}
 			} else {
 				// Clear all caches
 				cacheRef.current.forEach((_, key) => {
 					localStorage.removeItem(key)
 				})
 				cacheRef.current.clear()
+				tenantPermissionsCache.current.clear()
+				currentTenantPermissionsFetched.current = null
 			}
 		},
 		[getCacheKey],
@@ -174,11 +197,22 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 	// Refresh permissions for specific context
 	const refreshPermissions = useCallback(
 		async (context?: ContextMode, tenantId?: string | null) => {
-			const targetContext = context || currentMode
-			const targetTenantId = tenantId || (targetContext === 'tenant' ? currentTenantId : null)
+			const targetContext = context || currentModeRef.current
+			const targetTenantId = tenantId || (targetContext === 'tenant' ? currentTenantIdRef.current : null)
 			const fetchKey = `${targetContext}_${targetTenantId || 'global'}`
 
 			if (fetchingRef.current.has(fetchKey)) return
+
+			// For tenant context, check if we already have cached data for this tenant
+			if (targetContext === 'tenant' && targetTenantId) {
+				const cached = tenantPermissionsCache.current.get(targetTenantId)
+				if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+					// Use cached data if still valid
+					setTenantPermissions(cached.permissions)
+					setTenantRoles(cached.roles)
+					return
+				}
+			}
 
 			setLoading(true)
 			setError(null)
@@ -191,15 +225,19 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				if (targetContext === 'global') {
 					setGlobalPermissions(newPermissions)
 					setGlobalRoles(newRoles)
-				} else if (targetContext === 'tenant') {
+				} else if (targetContext === 'tenant' && targetTenantId) {
 					setTenantPermissions(newPermissions)
 					setTenantRoles(newRoles)
-				}
 
-				// Update active state if this is the current context
-				if (targetContext === currentMode) {
-					setPermissions(newPermissions)
-					setRoles(newRoles)
+					// Cache tenant permissions for reuse
+					tenantPermissionsCache.current.set(targetTenantId, {
+						permissions: newPermissions,
+						roles: newRoles,
+						timestamp: Date.now(),
+					})
+
+					// Track current tenant as fetched
+					currentTenantPermissionsFetched.current = targetTenantId
 				}
 
 				saveCache(targetContext, newPermissions, newRoles, targetTenantId)
@@ -212,7 +250,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				fetchingRef.current.delete(fetchKey)
 			}
 		},
-		[currentMode, currentTenantId, fetchPermissions, saveCache],
+		[fetchPermissions, saveCache],
 	)
 
 	// Switch permissions to match current context
@@ -241,7 +279,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 	// Get permissions for specific context
 	const getPermissionsForContext = useCallback(
 		(context?: ContextMode): string[] => {
-			const targetContext = context || currentMode
+			const targetContext = context || currentModeRef.current
 
 			if (targetContext === 'global') {
 				return globalPermissions.map((p) => `${p.object}.${p.action}`)
@@ -249,7 +287,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				return tenantPermissions.map((p) => `${p.object}.${p.action}`)
 			} else if (targetContext === 'auto') {
 				// Auto mode: use tenant permissions if in tenant context, otherwise global
-				if (currentTenantId) {
+				if (currentTenantIdRef.current) {
 					return tenantPermissions.map((p) => `${p.object}.${p.action}`)
 				} else {
 					return globalPermissions.map((p) => `${p.object}.${p.action}`)
@@ -258,7 +296,30 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 
 			return permissions.map((p) => `${p.object}.${p.action}`)
 		},
-		[currentMode, globalPermissions, tenantPermissions, permissions, currentTenantId],
+		[globalPermissions, tenantPermissions, permissions],
+	)
+
+	// Check if user is system admin
+	const isSystemAdmin = useCallback(
+		(context?: ContextMode): boolean => {
+			const targetContext = context || currentModeRef.current
+			const contextState = contextManager.getContextState(targetContext)
+
+			if (!contextState?.isAuthenticated) return false
+
+			// Check roles directly from context-specific state
+			let targetRoles: string[]
+			if (context === 'global') {
+				targetRoles = globalRoles
+			} else if (context === 'tenant') {
+				targetRoles = tenantRoles
+			} else {
+				targetRoles = roles
+			}
+
+			return targetRoles.includes('SystemSuperAdmin') || targetRoles.includes('SystemAdmin')
+		},
+		[roles, globalRoles, tenantRoles],
 	)
 
 	// Check if user has a specific permission (string format: "object.action")
@@ -332,13 +393,13 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 
 			return false
 		},
-		[isAuthenticated, user, getPermissionsForContext],
+		[isAuthenticated, user, getPermissionsForContext, isSystemAdmin],
 	)
 
 	// Check if user has a specific role
 	const hasRole = useCallback(
 		(role: string, context?: ContextMode): boolean => {
-			const targetContext = context || currentMode
+			const targetContext = context || currentModeRef.current
 			const contextState = contextManager.getContextState(targetContext)
 
 			if (!role || !contextState?.isAuthenticated) return false
@@ -355,7 +416,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 
 			return targetRoles.includes(role)
 		},
-		[roles, globalRoles, tenantRoles, currentMode],
+		[roles, globalRoles, tenantRoles],
 	)
 
 	// Check if user has any of the specified permissions
@@ -394,31 +455,19 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 		[hasRole],
 	)
 
-	// Check if user is system admin
-	const isSystemAdmin = useCallback(
-		(context?: ContextMode): boolean => {
-			const targetContext = context || currentMode
-			const contextState = contextManager.getContextState(targetContext)
-
-			if (!contextState?.isAuthenticated) return false
-			return hasRole('SystemSuperAdmin', context) || hasRole('SystemAdmin', context)
-		},
-		[hasRole, currentMode],
-	)
-
 	// Check if user is tenant admin
 	const isTenantAdmin = useCallback(
 		(context?: ContextMode): boolean => {
-			const targetContext = context || currentMode
+			const targetContext = context || currentModeRef.current
 			const contextState = contextManager.getContextState(targetContext)
 
 			if (!contextState?.isAuthenticated) return false
 
 			// For tenant admin check, prefer tenant context if available
-			const checkContext = targetContext === 'auto' && currentTenantId ? 'tenant' : targetContext
+			const checkContext = targetContext === 'auto' && currentTenantIdRef.current ? 'tenant' : targetContext
 			return hasRole('TenantAdmin', checkContext) || hasRole('Admin', checkContext)
 		},
-		[hasRole, currentMode, currentTenantId],
+		[hasRole],
 	)
 
 	// Get user permissions (for debugging/display)
@@ -444,7 +493,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 	// Dynamic permission check via API
 	const checkPermission = useCallback(
 		async (object: string, action: string, context?: ContextMode): Promise<boolean> => {
-			const targetContext = context || currentMode
+			const targetContext = context || currentModeRef.current
 			const contextState = contextManager.getContextState(targetContext)
 
 			if (!object || !action || !contextState?.isAuthenticated || !contextState.user?.id) {
@@ -467,7 +516,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
 
 				// If not in cache, make API call to backend check endpoint
-				const tenantId = targetContext === 'tenant' ? contextState.tenantId || currentTenantId : null
+				const tenantId = targetContext === 'tenant' ? contextState.tenantId || currentTenantIdRef.current : null
 				const endpoint = tenantId ? `/api/v1/tenants/${tenantId}/rbac/check` : '/api/v1/rbac/check'
 
 				const response = await apiClient.get<{hasPermission?: boolean}>(endpoint, {
@@ -494,13 +543,13 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				return false
 			}
 		},
-		[hasPermission, currentMode, currentTenantId],
+		[hasPermission],
 	)
 
 	// Bulk permission check via API
 	const checkPermissions = useCallback(
 		async (permissionList: string[], context?: ContextMode): Promise<Record<string, boolean>> => {
-			const targetContext = context || currentMode
+			const targetContext = context || currentModeRef.current
 			const contextState = contextManager.getContextState(targetContext)
 
 			if (!permissionList || permissionList.length === 0 || !contextState?.isAuthenticated || !contextState.user?.id) {
@@ -542,7 +591,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				apiClient.defaults.headers.Authorization = `Bearer ${tokens.accessToken}`
 
 				// Make API call for uncached permissions
-				const tenantId = targetContext === 'tenant' ? contextState.tenantId || currentTenantId : null
+				const tenantId = targetContext === 'tenant' ? contextState.tenantId || currentTenantIdRef.current : null
 				const endpoint = tenantId ? `/api/v1/tenants/${tenantId}/rbac/check-bulk` : '/api/v1/rbac/check-bulk'
 
 				const response = await apiClient.post<{results?: Record<string, boolean>}>(endpoint, {
@@ -582,7 +631,7 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				return results
 			}
 		},
-		[hasPermission, currentMode, currentTenantId],
+		[hasPermission],
 	)
 
 	// Load permissions on mount and when dependencies change
@@ -595,6 +644,9 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 			setTenantPermissions([])
 			setTenantRoles([])
 			setError(null)
+			// Clear tenant cache when user logs out
+			tenantPermissionsCache.current.clear()
+			currentTenantPermissionsFetched.current = null
 			return
 		}
 
@@ -611,36 +663,86 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 				}
 			}
 
-			// Load tenant context permissions
+			// Load tenant context permissions - only if not already fetched for this tenant
 			if (tenantContext.isAuthenticated && tenantContext.tenantId) {
-				const tenantCache = loadCache('tenant', tenantContext.tenantId)
-				if (tenantCache) {
-					setTenantPermissions(tenantCache.permissions)
-					setTenantRoles(tenantCache.roles)
+				// Check if we already have this tenant's permissions cached
+				const cached = tenantPermissionsCache.current.get(tenantContext.tenantId)
+				if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+					// Use in-memory cache
+					setTenantPermissions(cached.permissions)
+					setTenantRoles(cached.roles)
+					currentTenantPermissionsFetched.current = tenantContext.tenantId
 				} else {
-					await refreshPermissions('tenant', tenantContext.tenantId)
+					// Check localStorage cache first
+					const tenantCache = loadCache('tenant', tenantContext.tenantId)
+					if (tenantCache) {
+						setTenantPermissions(tenantCache.permissions)
+						setTenantRoles(tenantCache.roles)
+						// Also update in-memory cache
+						tenantPermissionsCache.current.set(tenantContext.tenantId, {
+							permissions: tenantCache.permissions,
+							roles: tenantCache.roles,
+							timestamp: tenantCache.timestamp,
+						})
+						currentTenantPermissionsFetched.current = tenantContext.tenantId
+					} else if (currentTenantPermissionsFetched.current !== tenantContext.tenantId) {
+						// Only fetch if we haven't fetched for this tenant yet
+						await refreshPermissions('tenant', tenantContext.tenantId)
+					}
 				}
 			}
-
-			// Set active permissions based on current mode
-			switchPermissionContext(currentMode)
 		}
 
 		loadContextPermissions()
-	}, [isAuthenticated, user?.id, globalContext.isAuthenticated, tenantContext.isAuthenticated, tenantContext.tenantId])
+	}, [isAuthenticated, user?.id, globalContext.isAuthenticated, tenantContext.isAuthenticated, tenantContext.tenantId, loadCache, refreshPermissions])
 
-	// Switch permissions when context mode changes
+	// Switch permissions when context mode changes or permissions load
 	useEffect(() => {
-		switchPermissionContext(currentMode)
-	}, [currentMode, switchPermissionContext])
+		if (currentMode === 'global') {
+			setPermissions(globalPermissions)
+			setRoles(globalRoles)
+		} else if (currentMode === 'tenant') {
+			setPermissions(tenantPermissions)
+			setRoles(tenantRoles)
+		} else if (currentMode === 'auto') {
+			// Auto mode: use tenant permissions if in tenant context, otherwise global
+			if (currentTenantId) {
+				setPermissions(tenantPermissions)
+				setRoles(tenantRoles)
+			} else {
+				setPermissions(globalPermissions)
+				setRoles(globalRoles)
+			}
+		}
+	}, [currentMode, globalPermissions, globalRoles, tenantPermissions, tenantRoles, currentTenantId])
 
-	// Refresh permissions when tenant changes
+	// Refresh permissions when tenant changes (only if not already cached)
 	useEffect(() => {
 		if (isAuthenticated && user?.id && currentTenantId) {
-			// Check if we need to refresh tenant permissions
-			const tenantCache = loadCache('tenant', currentTenantId)
-			if (!tenantCache) {
-				refreshPermissions('tenant', currentTenantId)
+			// Check if we already have permissions for this tenant
+			const inMemoryCache = tenantPermissionsCache.current.get(currentTenantId)
+			if (inMemoryCache && Date.now() - inMemoryCache.timestamp < CACHE_TTL) {
+				// Use in-memory cache
+				setTenantPermissions(inMemoryCache.permissions)
+				setTenantRoles(inMemoryCache.roles)
+				currentTenantPermissionsFetched.current = currentTenantId
+			} else {
+				// Check localStorage cache
+				const tenantCache = loadCache('tenant', currentTenantId)
+				if (tenantCache) {
+					// Update in-memory cache
+					tenantPermissionsCache.current.set(currentTenantId, {
+						permissions: tenantCache.permissions,
+						roles: tenantCache.roles,
+						timestamp: tenantCache.timestamp,
+					})
+					setTenantPermissions(tenantCache.permissions)
+					setTenantRoles(tenantCache.roles)
+					currentTenantPermissionsFetched.current = currentTenantId
+				} else if (currentTenantPermissionsFetched.current !== currentTenantId) {
+					// Only fetch if we haven't fetched for this tenant yet
+					refreshPermissions('tenant', currentTenantId)
+				}
 			}
 		}
 	}, [currentTenantId, isAuthenticated, user?.id, loadCache, refreshPermissions])
@@ -681,25 +783,27 @@ export function PermissionProvider({children}: {children: React.ReactNode}) {
 		switchPermissionContext,
 
 		// Smart permission resolution
-		resolvePermission: (permission: string, options?: ContextSwitchOptions) => {
+		resolvePermission: (permission: string) => {
 			// Default implementation - check current context first, fallback to global
-			if (hasPermission(permission, currentMode)) {
+			const mode = currentModeRef.current
+			if (hasPermission(permission, mode)) {
 				return true
 			}
-			return currentMode === 'tenant' ? hasPermission(permission, 'global') : false
+			return mode === 'tenant' ? hasPermission(permission, 'global') : false
 		},
 
-		resolveRole: (role: string, options?: ContextSwitchOptions) => {
+		resolveRole: (role: string) => {
 			// Default implementation - check current context first, fallback to global
-			if (hasRole(role, currentMode)) {
+			const mode = currentModeRef.current
+			if (hasRole(role, mode)) {
 				return true
 			}
-			return currentMode === 'tenant' ? hasRole(role, 'global') : false
+			return mode === 'tenant' ? hasRole(role, 'global') : false
 		},
 
 		// Context synchronization
 		syncPermissions: async () => {
-			await refreshPermissions(currentMode)
+			await refreshPermissions(currentModeRef.current)
 		},
 
 		invalidateContext: (context: ContextMode) => {
