@@ -343,3 +343,85 @@ export interface ValidateSchemaOutput {
     version: string;
   };
 }
+
+// ============ Bulk Credential Operations ============
+
+export interface BulkCredentialRecipient {
+  recipientDid?: string;
+  recipientEmail?: string;
+  credentialSubject: Record<string, unknown>;
+  customClaims?: Record<string, unknown>;
+}
+
+export interface BulkIssueCredentialRequest {
+  templateId: string;
+  issuerDid: string;
+  recipients: BulkCredentialRecipient[];
+  template?: Record<string, unknown>;
+  issuanceDate?: string;
+  expirationDate?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface BulkCredentialResult {
+  credentialId: string;
+  recipientDid?: string;
+  recipientEmail?: string;
+  status: 'success' | 'failed';
+  error?: string;
+  issuedAt?: string;
+  jwt?: string;
+}
+
+export interface BulkCredentialFailure {
+  recipientDid?: string;
+  recipientEmail?: string;
+  error: string;
+  index: number;
+}
+
+export interface BulkIssueCredentialResponse {
+  batchId: string;
+  totalRequested: number;
+  successCount: number;
+  failureCount: number;
+  credentials: BulkCredentialResult[];
+  failures: BulkCredentialFailure[];
+  processedAt: string;
+  message: string;
+  status: 'processing' | 'completed' | 'partial' | 'failed';
+}
+
+export interface BulkIssueStatusRequest {
+  batchId: string;
+}
+
+// CSV Upload types
+export interface BulkIssueCSVUploadRequest {
+  templateId: string;
+  issuerDid: string;
+  file: File;
+}
+
+export interface CSVRecipientData {
+  recipient_did?: string;
+  recipient_email?: string;
+  name?: string;
+  additional_field_1?: string;
+  additional_field_2?: string;
+  additional_field_3?: string;
+  custom_claims?: string; // JSON string
+}
+
+// Bulk operation progress tracking
+export interface BulkOperationProgress {
+  batchId: string;
+  total: number;
+  processed: number;
+  successful: number;
+  failed: number;
+  status: 'processing' | 'completed' | 'failed';
+  startedAt: string;
+  completedAt?: string;
+  errors?: BulkCredentialFailure[];
+}

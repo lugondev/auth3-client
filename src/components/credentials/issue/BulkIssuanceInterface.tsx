@@ -14,12 +14,14 @@ import {Upload, FileText, Download, AlertCircle, CheckCircle, Play, Pause, Histo
 import {toast} from 'sonner'
 
 import {CredentialTemplate} from '@/types/template'
-import {credentialService, BulkIssueRequest, BulkIssueResponse} from '@/services/credentialService'
+import type {BulkIssueCredentialResponse} from '@/types/credentials'
+import * as tenantCredentialService from '@/services/tenantCredentialService'
 
 interface BulkIssuanceInterfaceProps {
+	tenantId: string
 	selectedTemplate?: CredentialTemplate
 	onTemplateSelect?: (template: CredentialTemplate) => void
-	onComplete?: (result: BulkIssueResponse) => void
+	onComplete?: (result: BulkIssueCredentialResponse) => void
 	className?: string
 }
 
@@ -44,7 +46,7 @@ interface BulkJob {
 	}>
 }
 
-export function BulkIssuanceInterface({selectedTemplate, onTemplateSelect, onComplete, className}: BulkIssuanceInterfaceProps) {
+export function BulkIssuanceInterface({tenantId, selectedTemplate, onTemplateSelect, onComplete, className}: BulkIssuanceInterfaceProps) {
 	const [csvFile, setCsvFile] = useState<File | null>(null)
 	const [csvData, setCsvData] = useState<CSVRecord[]>([])
 	const [csvHeaders, setCsvHeaders] = useState<string[]>([])
@@ -163,36 +165,36 @@ export function BulkIssuanceInterface({selectedTemplate, onTemplateSelect, onCom
 				})
 
 				return {
-					credentialSubject,
+					recipientDid: record.did || record.DID || record.recipientDid,
 					recipientEmail: record.email || record.Email || `recipient${index}@example.com`,
+					credentialSubject,
+					customClaims: {},
 				}
 			})
 
-			const bulkRequest: BulkIssueRequest = {
+			const response = await tenantCredentialService.bulkIssueCredentials(tenantId, {
 				templateId: selectedTemplate.id,
+				issuerDid: selectedTemplate.issuerDID || 'did:example:issuer',
 				recipients: recipients,
 				issuanceDate: new Date().toISOString(),
-			}
-
-			const response = await credentialService.bulkIssueCredentials(bulkRequest)
+			})
 
 			const newJob: BulkJob = {
 				id: response.batchId,
 				templateId: selectedTemplate.id,
 				templateName: selectedTemplate.name,
 				totalRecords: csvData.length,
-				processedRecords: response.totalRequests,
+				processedRecords: response.totalRequested,
 				successCount: response.successCount,
 				errorCount: response.failureCount,
-				status: 'completed', // Bulk API returns results immediately
+				status: 'completed',
 				createdAt: new Date().toISOString(),
-				errors: response.results
-					.filter((result) => !result.success)
-					.map((result) => ({
-						row: result.index + 1,
-						error: result.error || 'Unknown error',
-						data: csvData[result.index] || {},
-					})),
+				errors:
+					response.failures?.map((failure, index) => ({
+						row: index + 1,
+						error: failure.error || 'Unknown error',
+						data: {},
+					})) || [],
 			}
 
 			setCurrentJob(newJob)
@@ -210,7 +212,7 @@ export function BulkIssuanceInterface({selectedTemplate, onTemplateSelect, onCom
 		} finally {
 			setIsProcessing(false)
 		}
-	}, [selectedTemplate, csvData, fieldMapping, onComplete])
+	}, [selectedTemplate, csvData, fieldMapping, onComplete, tenantId])
 
 	// Remove polling function since bulk API returns results immediately
 

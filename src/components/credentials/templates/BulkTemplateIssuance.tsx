@@ -10,55 +10,21 @@ import {Separator} from '@/components/ui/separator'
 import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Progress} from '@/components/ui/progress'
 import {Badge} from '@/components/ui/badge'
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from '@/components/ui/table'
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select'
-import {
-	Upload,
-	Download,
-	FileText,
-	Users,
-	Play,
-	Pause,
-	CheckCircle,
-	AlertCircle,
-	X,
-	Plus,
-	Trash2,
-	Eye,
-} from 'lucide-react'
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {Upload, Download, FileText, Users, Play, Pause, CheckCircle, AlertCircle, X, Plus, Trash2, Eye} from 'lucide-react'
 import {toast} from 'sonner'
 
 import {CredentialTemplate} from '@/types/template'
 import {IssuedCredential} from '@/types/credentials'
 import {credentialService, BulkIssueResponse} from '@/services/credentialService'
-import {TemplateSelector} from '../templates/TemplateSelector'
 
 interface BulkRecipient {
 	id: string
 	did?: string
 	email?: string
-	credentialData: Record<string, any>
+	credentialData: Record<string, string | number | boolean>
 	status: 'pending' | 'processing' | 'success' | 'error'
 	error?: string
 	credentialId?: string
@@ -73,7 +39,7 @@ interface BulkTemplateIssuanceProps {
 
 /**
  * Bulk Template-based Credential Issuance Component
- * 
+ *
  * Features:
  * - Template-based bulk credential issuance
  * - CSV/Excel import for recipient data
@@ -82,16 +48,9 @@ interface BulkTemplateIssuanceProps {
  * - Batch processing with concurrent limits
  * - Result export and reporting
  */
-export function BulkTemplateIssuance({
-	selectedTemplates = [],
-	onComplete,
-	onCancel,
-	className = '',
-}: BulkTemplateIssuanceProps) {
+export function BulkTemplateIssuance({selectedTemplates = [], onComplete, onCancel, className = ''}: BulkTemplateIssuanceProps) {
 	const [currentStep, setCurrentStep] = useState<'template' | 'recipients' | 'processing' | 'results'>('template')
-	const [selectedTemplate, setSelectedTemplate] = useState<CredentialTemplate | undefined>(
-		selectedTemplates.length === 1 ? selectedTemplates[0] : undefined
-	)
+	const [selectedTemplate, setSelectedTemplate] = useState<CredentialTemplate | undefined>(selectedTemplates.length === 1 ? selectedTemplates[0] : undefined)
 	const [recipients, setRecipients] = useState<BulkRecipient[]>([])
 	const [processing, setProcessing] = useState(false)
 	const [progress, setProgress] = useState(0)
@@ -121,15 +80,15 @@ export function BulkTemplateIssuance({
 		if (!selectedTemplate) return
 
 		const schema = selectedTemplate.schema
-		const properties = schema.properties as Record<string, any> || {}
-		const requiredFields = (schema.required as string[]) || []
+		const properties = (schema.properties as Record<string, {title?: string}>) || {}
 
 		// Base columns
 		const headers = ['did', 'email']
-		
+
 		// Add schema fields
-		Object.keys(properties).forEach(field => {
-			if (field !== 'id') { // Skip id field as it's auto-generated
+		Object.keys(properties).forEach((field) => {
+			if (field !== 'id') {
+				// Skip id field as it's auto-generated
 				headers.push(field)
 			}
 		})
@@ -138,28 +97,30 @@ export function BulkTemplateIssuance({
 		const csvContent = [
 			headers.join(','),
 			// Add a sample row with example data
-			headers.map(header => {
-				switch (header) {
-					case 'did':
-						return 'did:key:example123'
-					case 'email':
-						return 'example@email.com'
-					case 'name':
-						return 'John Doe'
-					case 'degree':
-						return 'Bachelor of Science'
-					case 'university':
-						return 'Example University'
-					case 'graduationDate':
-						return '2023-12-15'
-					default:
-						return `example_${header}`
-				}
-			}).join(',')
+			headers
+				.map((header) => {
+					switch (header) {
+						case 'did':
+							return 'did:key:example123'
+						case 'email':
+							return 'example@email.com'
+						case 'name':
+							return 'John Doe'
+						case 'degree':
+							return 'Bachelor of Science'
+						case 'university':
+							return 'Example University'
+						case 'graduationDate':
+							return '2023-12-15'
+						default:
+							return `example_${header}`
+					}
+				})
+				.join(','),
 		].join('\n')
 
 		// Download the CSV
-		const blob = new Blob([csvContent], { type: 'text/csv' })
+		const blob = new Blob([csvContent], {type: 'text/csv'})
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement('a')
 		a.href = url
@@ -179,19 +140,19 @@ export function BulkTemplateIssuance({
 		reader.onload = (e) => {
 			try {
 				const text = e.target?.result as string
-				const lines = text.split('\n').filter(line => line.trim())
-				
+				const lines = text.split('\n').filter((line) => line.trim())
+
 				if (lines.length < 2) {
 					toast.error('CSV file must have at least a header row and one data row')
 					return
 				}
 
-				const headers = lines[0].split(',').map(h => h.trim())
+				const headers = lines[0].split(',').map((h) => h.trim())
 				const dataLines = lines.slice(1)
 
 				const newRecipients: BulkRecipient[] = dataLines.map((line, index) => {
-					const values = line.split(',').map(v => v.trim())
-					const recipientData: Record<string, any> = {}
+					const values = line.split(',').map((v) => v.trim())
+					const recipientData: Record<string, string> = {}
 
 					headers.forEach((header, i) => {
 						if (values[i]) {
@@ -203,11 +164,7 @@ export function BulkTemplateIssuance({
 						id: `recipient-${Date.now()}-${index}`,
 						did: recipientData.did,
 						email: recipientData.email,
-						credentialData: Object.fromEntries(
-							Object.entries(recipientData).filter(([key]) => 
-								key !== 'did' && key !== 'email'
-							)
-						),
+						credentialData: Object.fromEntries(Object.entries(recipientData).filter(([key]) => key !== 'did' && key !== 'email')),
 						status: 'pending',
 					}
 				})
@@ -237,14 +194,12 @@ export function BulkTemplateIssuance({
 
 	// Remove a recipient
 	const removeRecipient = (id: string) => {
-		setRecipients(recipients.filter(r => r.id !== id))
+		setRecipients(recipients.filter((r) => r.id !== id))
 	}
 
 	// Update recipient data
 	const updateRecipient = (id: string, updates: Partial<BulkRecipient>) => {
-		setRecipients(recipients.map(r => 
-			r.id === id ? { ...r, ...updates } : r
-		))
+		setRecipients(recipients.map((r) => (r.id === id ? {...r, ...updates} : r)))
 	}
 
 	// Validate recipients before processing
@@ -263,7 +218,7 @@ export function BulkTemplateIssuance({
 			// Validate required fields from template schema
 			if (selectedTemplate?.schema.required) {
 				const requiredFields = selectedTemplate.schema.required as string[]
-				requiredFields.forEach(field => {
+				requiredFields.forEach((field) => {
 					if (!recipient.credentialData[field]) {
 						errors.push(`Recipient ${index + 1}: ${field} is required`)
 					}
@@ -299,13 +254,11 @@ export function BulkTemplateIssuance({
 			const batchSize = 5
 			for (let i = 0; i < recipients.length; i += batchSize) {
 				const batch = recipients.slice(i, i + batchSize)
-				
+
 				// Process batch concurrently
 				const batchPromises = batch.map(async (recipient) => {
 					try {
-						setRecipients(prev => prev.map(r => 
-							r.id === recipient.id ? { ...r, status: 'processing' } : r
-						))
+						setRecipients((prev) => prev.map((r) => (r.id === recipient.id ? {...r, status: 'processing'} : r)))
 
 						const response = await credentialService.issueCredential({
 							templateId: selectedTemplate.id,
@@ -315,13 +268,17 @@ export function BulkTemplateIssuance({
 							recipientEmail: recipient.email,
 						})
 
-						setRecipients(prev => prev.map(r => 
-							r.id === recipient.id ? { 
-								...r, 
-								status: 'success',
-								credentialId: response.id 
-							} : r
-						))
+						setRecipients((prev) =>
+							prev.map((r) =>
+								r.id === recipient.id
+									? {
+											...r,
+											status: 'success',
+											credentialId: response.id,
+									  }
+									: r,
+							),
+						)
 
 						issuedCredentials.push({
 							id: response.id,
@@ -337,14 +294,18 @@ export function BulkTemplateIssuance({
 						successful++
 					} catch (error) {
 						const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-						
-						setRecipients(prev => prev.map(r => 
-							r.id === recipient.id ? { 
-								...r, 
-								status: 'error',
-								error: errorMessage 
-							} : r
-						))
+
+						setRecipients((prev) =>
+							prev.map((r) =>
+								r.id === recipient.id
+									? {
+											...r,
+											status: 'error',
+											error: errorMessage,
+									  }
+									: r,
+							),
+						)
 
 						errors.push(`Recipient ${recipient.did || recipient.email}: ${errorMessage}`)
 						failed++
@@ -352,14 +313,14 @@ export function BulkTemplateIssuance({
 				})
 
 				await Promise.all(batchPromises)
-				
+
 				// Update progress
 				const processed = Math.min(i + batchSize, total)
 				setProgress((processed / total) * 100)
 
 				// Small delay between batches
 				if (i + batchSize < recipients.length) {
-					await new Promise(resolve => setTimeout(resolve, 1000))
+					await new Promise((resolve) => setTimeout(resolve, 1000))
 				}
 			}
 
@@ -404,19 +365,11 @@ export function BulkTemplateIssuance({
 	// Export results as CSV
 	const exportResults = () => {
 		const headers = ['Recipient', 'Status', 'Credential ID', 'Error']
-		const rows = recipients.map(recipient => [
-			recipient.did || recipient.email || 'Unknown',
-			recipient.status,
-			recipient.credentialId || '',
-			recipient.error || ''
-		])
+		const rows = recipients.map((recipient) => [recipient.did || recipient.email || 'Unknown', recipient.status, recipient.credentialId || '', recipient.error || ''])
 
-		const csvContent = [
-			headers.join(','),
-			...rows.map(row => row.join(','))
-		].join('\n')
+		const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
 
-		const blob = new Blob([csvContent], { type: 'text/csv' })
+		const blob = new Blob([csvContent], {type: 'text/csv'})
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement('a')
 		a.href = url
@@ -431,25 +384,33 @@ export function BulkTemplateIssuance({
 		switch (currentStep) {
 			case 'template':
 				return (
-					<div className="space-y-6">
+					<div className='space-y-6'>
 						<div>
-							<h3 className="text-lg font-semibold mb-2">Select Template</h3>
-							<p className="text-sm text-muted-foreground">
-								Choose a template for bulk credential issuance
-							</p>
+							<h3 className='text-lg font-semibold mb-2'>Template Selected</h3>
+							<p className='text-sm text-muted-foreground'>Ready to proceed with bulk credential issuance</p>
 						</div>
 
-						<TemplateSelector
-							selectedTemplate={selectedTemplate}
-							onTemplateSelect={(template) => setSelectedTemplate(template || undefined)}
-							showAnalytics={true}
-						/>
+						{selectedTemplate && (
+							<Alert>
+								<FileText className='h-4 w-4' />
+								<AlertDescription>
+									<div className='space-y-2'>
+										<div>
+											<strong>Selected Template:</strong> {selectedTemplate.name}
+										</div>
+										<div className='text-sm text-muted-foreground'>{selectedTemplate.description}</div>
+										<div className='text-xs text-muted-foreground'>
+											Version: {selectedTemplate.version} | Type: {selectedTemplate.type.join(', ')}
+											{selectedTemplate.tags && selectedTemplate.tags.length > 0 && <span> | Tags: {selectedTemplate.tags.join(', ')}</span>}
+										</div>
+									</div>
+								</AlertDescription>
+							</Alert>
+						)}
 
 						{selectedTemplate && (
-							<div className="flex gap-2">
-								<Button onClick={() => setCurrentStep('recipients')}>
-									Next: Add Recipients
-								</Button>
+							<div className='flex gap-2'>
+								<Button onClick={() => setCurrentStep('recipients')}>Next: Add Recipients</Button>
 							</div>
 						)}
 					</div>
@@ -457,55 +418,40 @@ export function BulkTemplateIssuance({
 
 			case 'recipients':
 				return (
-					<div className="space-y-6">
-						<div className="flex items-center justify-between">
+					<div className='space-y-6'>
+						<div className='flex items-center justify-between'>
 							<div>
-								<h3 className="text-lg font-semibold">Recipients</h3>
-								<p className="text-sm text-muted-foreground">
-									Add recipients for bulk credential issuance
-								</p>
+								<h3 className='text-lg font-semibold'>Recipients</h3>
+								<p className='text-sm text-muted-foreground'>Add recipients for bulk credential issuance</p>
 							</div>
-							<Badge variant="outline">
-								{recipients.length} recipients
-							</Badge>
+							<Badge variant='outline'>{recipients.length} recipients</Badge>
 						</div>
 
 						{/* Upload Options */}
 						<Card>
 							<CardHeader>
-								<CardTitle className="text-base">Import Recipients</CardTitle>
-								<CardDescription>
-									Upload a CSV file or add recipients manually
-								</CardDescription>
+								<CardTitle className='text-base'>Import Recipients</CardTitle>
+								<CardDescription>Upload a CSV file or add recipients manually</CardDescription>
 							</CardHeader>
-							<CardContent className="space-y-4">
-								<div className="flex gap-2 flex-wrap">
-									<Button
-										variant="outline"
-										onClick={generateCSVTemplate}
-										disabled={!selectedTemplate}
-									>
-										<Download className="h-4 w-4 mr-2" />
+							<CardContent className='space-y-4'>
+								<div className='flex gap-2 flex-wrap'>
+									<Button variant='outline' onClick={generateCSVTemplate} disabled={!selectedTemplate}>
+										<Download className='h-4 w-4 mr-2' />
 										Download CSV Template
 									</Button>
 
-									<div className="relative">
-										<Button variant="outline" asChild>
+									<div className='relative'>
+										<Button variant='outline' asChild>
 											<label>
-												<Upload className="h-4 w-4 mr-2" />
+												<Upload className='h-4 w-4 mr-2' />
 												Upload CSV
-												<input
-													type="file"
-													accept=".csv"
-													onChange={handleCSVUpload}
-													className="absolute inset-0 opacity-0 cursor-pointer"
-												/>
+												<input type='file' accept='.csv' onChange={handleCSVUpload} className='absolute inset-0 opacity-0 cursor-pointer' />
 											</label>
 										</Button>
 									</div>
 
-									<Button variant="outline" onClick={addRecipient}>
-										<Plus className="h-4 w-4 mr-2" />
+									<Button variant='outline' onClick={addRecipient}>
+										<Plus className='h-4 w-4 mr-2' />
 										Add Manually
 									</Button>
 								</div>
@@ -516,7 +462,7 @@ export function BulkTemplateIssuance({
 						{recipients.length > 0 && (
 							<Card>
 								<CardHeader>
-									<CardTitle className="text-base">Recipients List</CardTitle>
+									<CardTitle className='text-base'>Recipients List</CardTitle>
 								</CardHeader>
 								<CardContent>
 									<Table>
@@ -528,53 +474,40 @@ export function BulkTemplateIssuance({
 											</TableRow>
 										</TableHeader>
 										<TableBody>
-											{recipients.map((recipient, index) => (
+											{recipients.map((recipient) => (
 												<TableRow key={recipient.id}>
 													<TableCell>
-														<div className="space-y-1">
-															<Input
-																placeholder="DID"
-																value={recipient.did || ''}
-																onChange={(e) => updateRecipient(recipient.id, { did: e.target.value })}
-																className="text-xs"
-															/>
-															<Input
-																placeholder="Email"
-																value={recipient.email || ''}
-																onChange={(e) => updateRecipient(recipient.id, { email: e.target.value })}
-																className="text-xs"
-															/>
+														<div className='space-y-1'>
+															<Input placeholder='DID' value={recipient.did || ''} onChange={(e) => updateRecipient(recipient.id, {did: e.target.value})} className='text-xs' />
+															<Input placeholder='Email' value={recipient.email || ''} onChange={(e) => updateRecipient(recipient.id, {email: e.target.value})} className='text-xs' />
 														</div>
 													</TableCell>
 													<TableCell>
-														<div className="space-y-1">
-															{selectedTemplate?.schema.properties && 
-																Object.entries(selectedTemplate.schema.properties as Record<string, any>)
+														<div className='space-y-1'>
+															{selectedTemplate?.schema.properties &&
+																Object.entries(selectedTemplate.schema.properties as Record<string, {title?: string}>)
 																	.filter(([key]) => key !== 'id')
 																	.map(([key, prop]) => (
 																		<Input
 																			key={key}
 																			placeholder={prop.title || key}
-																			value={recipient.credentialData[key] || ''}
-																			onChange={(e) => updateRecipient(recipient.id, {
-																				credentialData: {
-																					...recipient.credentialData,
-																					[key]: e.target.value
-																				}
-																			})}
-																			className="text-xs"
+																			value={String(recipient.credentialData[key] || '')}
+																			onChange={(e) =>
+																				updateRecipient(recipient.id, {
+																					credentialData: {
+																						...recipient.credentialData,
+																						[key]: e.target.value,
+																					},
+																				})
+																			}
+																			className='text-xs'
 																		/>
-																	))
-															}
+																	))}
 														</div>
 													</TableCell>
 													<TableCell>
-														<Button
-															variant="outline"
-															size="sm"
-															onClick={() => removeRecipient(recipient.id)}
-														>
-															<Trash2 className="h-4 w-4" />
+														<Button variant='outline' size='sm' onClick={() => removeRecipient(recipient.id)}>
+															<Trash2 className='h-4 w-4' />
 														</Button>
 													</TableCell>
 												</TableRow>
@@ -586,15 +519,12 @@ export function BulkTemplateIssuance({
 						)}
 
 						{/* Navigation */}
-						<div className="flex gap-2">
-							<Button variant="outline" onClick={() => setCurrentStep('template')}>
+						<div className='flex gap-2'>
+							<Button variant='outline' onClick={() => setCurrentStep('template')}>
 								Back
 							</Button>
-							<Button 
-								onClick={processBulkIssuance}
-								disabled={recipients.length === 0}
-							>
-								<Play className="h-4 w-4 mr-2" />
+							<Button onClick={processBulkIssuance} disabled={recipients.length === 0}>
+								<Play className='h-4 w-4 mr-2' />
 								Start Bulk Issuance
 							</Button>
 						</div>
@@ -603,23 +533,19 @@ export function BulkTemplateIssuance({
 
 			case 'processing':
 				return (
-					<div className="space-y-6 text-center">
+					<div className='space-y-6 text-center'>
 						<div>
-							<h3 className="text-lg font-semibold mb-2">Processing Credentials</h3>
-							<p className="text-sm text-muted-foreground">
-								Issuing credentials to {recipients.length} recipients...
-							</p>
+							<h3 className='text-lg font-semibold mb-2'>Processing Credentials</h3>
+							<p className='text-sm text-muted-foreground'>Issuing credentials to {recipients.length} recipients...</p>
 						</div>
 
-						<div className="space-y-4">
-							<Progress value={progress} className="w-full" />
-							<p className="text-sm text-muted-foreground">
-								{Math.round(progress)}% complete
-							</p>
+						<div className='space-y-4'>
+							<Progress value={progress} className='w-full' />
+							<p className='text-sm text-muted-foreground'>{Math.round(progress)}% complete</p>
 						</div>
 
 						{/* Real-time status */}
-						<div className="max-h-60 overflow-y-auto">
+						<div className='max-h-60 overflow-y-auto'>
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -630,21 +556,13 @@ export function BulkTemplateIssuance({
 								<TableBody>
 									{recipients.map((recipient) => (
 										<TableRow key={recipient.id}>
-											<TableCell className="text-sm">
-												{recipient.did || recipient.email}
-											</TableCell>
+											<TableCell className='text-sm'>{recipient.did || recipient.email}</TableCell>
 											<TableCell>
-												<div className="flex items-center gap-2">
-													{recipient.status === 'processing' && (
-														<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary" />
-													)}
-													{recipient.status === 'success' && (
-														<CheckCircle className="h-4 w-4 text-green-500" />
-													)}
-													{recipient.status === 'error' && (
-														<AlertCircle className="h-4 w-4 text-red-500" />
-													)}
-													<span className="text-sm capitalize">{recipient.status}</span>
+												<div className='flex items-center gap-2'>
+													{recipient.status === 'processing' && <div className='animate-spin rounded-full h-4 w-4 border-b-2 border-primary' />}
+													{recipient.status === 'success' && <CheckCircle className='h-4 w-4 text-green-500' />}
+													{recipient.status === 'error' && <AlertCircle className='h-4 w-4 text-red-500' />}
+													<span className='text-sm capitalize'>{recipient.status}</span>
 												</div>
 											</TableCell>
 										</TableRow>
@@ -657,65 +575,64 @@ export function BulkTemplateIssuance({
 
 			case 'results':
 				return (
-					<div className="space-y-6">
-						<div className="text-center">
-							<h3 className="text-lg font-semibold mb-2">Bulk Issuance Complete</h3>
-							<p className="text-sm text-muted-foreground">
-								Results for {results.total} recipients
-							</p>
+					<div className='space-y-6'>
+						<div className='text-center'>
+							<h3 className='text-lg font-semibold mb-2'>Bulk Issuance Complete</h3>
+							<p className='text-sm text-muted-foreground'>Results for {results.total} recipients</p>
 						</div>
 
 						{/* Summary Stats */}
-						<div className="grid grid-cols-3 gap-4">
+						<div className='grid grid-cols-3 gap-4'>
 							<Card>
-								<CardContent className="p-4 text-center">
-									<div className="text-2xl font-bold text-green-600">{results.successful}</div>
-									<div className="text-sm text-muted-foreground">Successful</div>
+								<CardContent className='p-4 text-center'>
+									<div className='text-2xl font-bold text-green-600'>{results.successful}</div>
+									<div className='text-sm text-muted-foreground'>Successful</div>
 								</CardContent>
 							</Card>
 							<Card>
-								<CardContent className="p-4 text-center">
-									<div className="text-2xl font-bold text-red-600">{results.failed}</div>
-									<div className="text-sm text-muted-foreground">Failed</div>
+								<CardContent className='p-4 text-center'>
+									<div className='text-2xl font-bold text-red-600'>{results.failed}</div>
+									<div className='text-sm text-muted-foreground'>Failed</div>
 								</CardContent>
 							</Card>
 							<Card>
-								<CardContent className="p-4 text-center">
-									<div className="text-2xl font-bold">{results.total}</div>
-									<div className="text-sm text-muted-foreground">Total</div>
+								<CardContent className='p-4 text-center'>
+									<div className='text-2xl font-bold'>{results.total}</div>
+									<div className='text-sm text-muted-foreground'>Total</div>
 								</CardContent>
 							</Card>
 						</div>
 
 						{/* Errors */}
 						{results.errors.length > 0 && (
-							<Alert variant="destructive">
-								<AlertCircle className="h-4 w-4" />
+							<Alert variant='destructive'>
+								<AlertCircle className='h-4 w-4' />
 								<AlertDescription>
-									<div className="space-y-1">
-										<p className="font-semibold">Errors occurred:</p>
+									<div className='space-y-1'>
+										<p className='font-semibold'>Errors occurred:</p>
 										{results.errors.slice(0, 3).map((error, i) => (
-											<p key={i} className="text-sm">{error}</p>
+											<p key={i} className='text-sm'>
+												{error}
+											</p>
 										))}
-										{results.errors.length > 3 && (
-											<p className="text-sm">...and {results.errors.length - 3} more errors</p>
-										)}
+										{results.errors.length > 3 && <p className='text-sm'>...and {results.errors.length - 3} more errors</p>}
 									</div>
 								</AlertDescription>
 							</Alert>
 						)}
 
 						{/* Actions */}
-						<div className="flex gap-2 justify-center">
-							<Button variant="outline" onClick={exportResults}>
-								<Download className="h-4 w-4 mr-2" />
+						<div className='flex gap-2 justify-center'>
+							<Button variant='outline' onClick={exportResults}>
+								<Download className='h-4 w-4 mr-2' />
 								Export Results
 							</Button>
-							<Button onClick={() => {
-								setCurrentStep('template')
-								setRecipients([])
-								setResults({ total: 0, successful: 0, failed: 0, credentials: [], errors: [] })
-							}}>
+							<Button
+								onClick={() => {
+									setCurrentStep('template')
+									setRecipients([])
+									setResults({total: 0, successful: 0, failed: 0, credentials: [], errors: []})
+								}}>
 								Issue More Credentials
 							</Button>
 						</div>
@@ -728,13 +645,9 @@ export function BulkTemplateIssuance({
 		<Card className={className}>
 			<CardHeader>
 				<CardTitle>Bulk Template-based Issuance</CardTitle>
-				<CardDescription>
-					Issue credentials to multiple recipients using templates
-				</CardDescription>
+				<CardDescription>Issue credentials to multiple recipients using templates</CardDescription>
 			</CardHeader>
-			<CardContent>
-				{renderStepContent()}
-			</CardContent>
+			<CardContent>{renderStepContent()}</CardContent>
 		</Card>
 	)
 }

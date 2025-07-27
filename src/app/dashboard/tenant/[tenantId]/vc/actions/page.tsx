@@ -4,7 +4,7 @@ import React, {useCallback, useState} from 'react'
 import {useParams, useRouter, useSearchParams} from 'next/navigation'
 import dynamicImport from 'next/dynamic'
 import {IssuedCredential} from '@/types/credentials'
-import {BulkIssueResponse} from '@/services/credentialService'
+import {BulkIssueCredentialResponse} from '@/types/credentials'
 import {useToast} from '@/hooks/use-toast'
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
@@ -26,14 +26,14 @@ const SimpleCredentialWizard = dynamicImport(
 	},
 )
 
-const BulkIssuanceInterface = dynamicImport(
+const BulkCredentialIssuance = dynamicImport(
 	() =>
-		import('@/components/credentials/issue/BulkIssuanceInterface').then((mod) => ({
-			default: mod.BulkIssuanceInterface,
+		import('@/components/credentials/BulkCredentialIssuance').then((mod) => ({
+			default: mod.BulkCredentialIssuance,
 		})),
 	{
 		ssr: false,
-		loading: () => <div className='p-8 text-center'>Loading bulk issuance interface...</div>,
+		loading: () => <div className='p-8 text-center'>Loading bulk credential issuance...</div>,
 	},
 )
 
@@ -97,10 +97,10 @@ export default function TenantCredentialActionsPage() {
 	}, [router, tenantId])
 
 	const handleBulkComplete = useCallback(
-		(results: BulkIssueResponse) => {
+		(result: BulkIssueCredentialResponse) => {
 			toast({
 				title: 'Bulk Issuance Complete',
-				description: `${results.successCount} credentials issued successfully for tenant`,
+				description: `${result.successCount} credentials issued successfully for tenant`,
 			})
 			// Redirect to tenant credentials list
 			router.push(`/dashboard/tenant/${tenantId}/credentials`)
@@ -169,7 +169,7 @@ export default function TenantCredentialActionsPage() {
 								<CardDescription>Upload a CSV file to issue multiple credentials at once for tenant {tenantId}</CardDescription>
 							</CardHeader>
 							<CardContent>
-								<BulkIssuanceInterface onComplete={handleBulkComplete} className='w-full' />
+								<BulkCredentialIssuance tenantId={tenantId} onComplete={handleBulkComplete} onCancel={handleCancel} className='w-full' />
 							</CardContent>
 						</Card>
 					</TabsContent>

@@ -20,15 +20,12 @@ import {
 	Search, // For Verification
 	Activity, // For Analytics
 	FileCheck, // For Templates
-	Shield, // For OAuth2
 	Plus, // For Create actions
 	Eye, // For View/Verify actions
 	Send, // For Sharing
 	CheckCircle, // For Verification success
 	FileUp, // For Issue/Upload
-	Workflow, // For Templates Enhanced
 	Mail, // For Messages
-	Globe, // For Advanced OAuth2
 } from 'lucide-react'
 import {Tooltip, TooltipContent, TooltipTrigger} from '@/components/ui/tooltip'
 import {cn} from '@/lib/utils'
@@ -79,7 +76,6 @@ const userLinks: NavLink[] = [
 			{href: '/dashboard/credentials/issue', label: 'Issue', icon: FileUp},
 			{href: '/dashboard/credentials/verify', label: 'Verify', icon: CheckCircle},
 			{href: '/dashboard/credentials/templates', label: 'Templates', icon: FileCheck},
-			{href: '/dashboard/credentials/templates-enhanced', label: 'Enhanced Templates', icon: Workflow},
 		],
 	},
 	{
