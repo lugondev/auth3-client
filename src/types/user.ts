@@ -100,7 +100,7 @@ export interface VerifyPhoneInput {
 // --- 2FA DTOs ---
 export interface Generate2FAResponse {
 	secret: string;
-	qr_code_uri: string; // Data URI for QR code image (Corrected to snake_case)
+	qr_code_uri: string; // otpauth:// URI that needs to be converted to QR code image on frontend
 }
 
 // Removed the empty interface definition above

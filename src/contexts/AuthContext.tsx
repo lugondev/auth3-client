@@ -1068,8 +1068,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'google', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccess(response.auth)
-			toast.success('Successfully signed in with Google!')
+
+			// Handle 2FA case
+			if (response.two_factor_required) {
+				setIsTwoFactorPending(true)
+				setTwoFactorSessionToken(response.two_factor_session_token || null)
+				toast.info('Please enter your 2FA code to complete sign-in')
+			} else if (response.auth) {
+				await handleAuthSuccess(response.auth)
+				toast.success('Successfully signed in with Google!')
+			} else {
+				throw new Error('Invalid response from server')
+			}
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Google sign-in failed.'
 			toast.error(`Google sign-in failed: ${msg}`)
@@ -1087,8 +1097,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'facebook', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccess(response.auth)
-			toast.success('Successfully signed in with Facebook!')
+
+			// Handle 2FA case
+			if (response.two_factor_required) {
+				setIsTwoFactorPending(true)
+				setTwoFactorSessionToken(response.two_factor_session_token || null)
+				toast.info('Please enter your 2FA code to complete sign-in')
+			} else if (response.auth) {
+				await handleAuthSuccess(response.auth)
+				toast.success('Successfully signed in with Facebook!')
+			} else {
+				throw new Error('Invalid response from server')
+			}
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Facebook sign-in failed.'
 			toast.error(`Facebook sign-in failed: ${msg}`)
@@ -1106,8 +1126,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'apple', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccess(response.auth)
-			toast.success('Successfully signed in with Apple!')
+
+			// Handle 2FA case
+			if (response.two_factor_required) {
+				setIsTwoFactorPending(true)
+				setTwoFactorSessionToken(response.two_factor_session_token || null)
+				toast.info('Please enter your 2FA code to complete sign-in')
+			} else if (response.auth) {
+				await handleAuthSuccess(response.auth)
+				toast.success('Successfully signed in with Apple!')
+			} else {
+				throw new Error('Invalid response from server')
+			}
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Apple sign-in failed.'
 			toast.error(`Apple sign-in failed: ${msg}`)
@@ -1125,8 +1155,18 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 			const idToken = await result.user.getIdToken()
 			const exchangeData: SocialTokenExchangeInput = {provider: 'twitter', id_token: idToken}
 			const response = await exchangeFirebaseToken(exchangeData)
-			await handleAuthSuccess(response.auth)
-			toast.success('Successfully signed in with Twitter!')
+
+			// Handle 2FA case
+			if (response.two_factor_required) {
+				setIsTwoFactorPending(true)
+				setTwoFactorSessionToken(response.two_factor_session_token || null)
+				toast.info('Please enter your 2FA code to complete sign-in')
+			} else if (response.auth) {
+				await handleAuthSuccess(response.auth)
+				toast.success('Successfully signed in with Twitter!')
+			} else {
+				throw new Error('Invalid response from server')
+			}
 		} catch (error: unknown) {
 			const msg = error instanceof Error ? error.message : 'Twitter sign-in failed.'
 			toast.error(`Twitter sign-in failed: ${msg}`)

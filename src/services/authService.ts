@@ -39,7 +39,7 @@ import { signOut } from 'firebase/auth';
  * @param context The context mode for token exchange ('global' | 'tenant' | 'auto').
  * @returns An AuthResponse containing tokens and potentially user/profile data.
  */
-export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput, context: ContextMode = 'auto'): Promise<AuthResponse> => {
+export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput, context: ContextMode = 'auto'): Promise<LoginOutput> => {
 	try {
 		// Add context information to the request
 		const requestData = {
@@ -48,8 +48,8 @@ export const exchangeFirebaseToken = async (data: SocialTokenExchangeInput, cont
 			preserve_global_context: context === 'tenant'
 		};
 
-		// Expect AuthResponse from the backend endpoint
-		const response = await apiClient.post<AuthResponse>('/api/v1/auth/social-token-exchange', requestData);
+		// Expect LoginOutput from the backend endpoint (same as regular login)
+		const response = await apiClient.post<LoginOutput>('/api/v1/auth/social-token-exchange', requestData);
 		return response.data;
 	} catch (error) {
 		console.error('Error exchanging Firebase token:', error);
@@ -316,7 +316,7 @@ export const verifyPhone = withErrorHandling(
 
 /**
  * Generates a new 2FA secret and QR code URI for the authenticated user.
- * @returns Generate2FAResponse containing the secret and QR code data URI.
+ * @returns Generate2FAResponse containing the secret and otpauth:// URI for QR code generation.
  */
 export const generate2FASecret = async (): Promise<Generate2FAResponse> => {
 	try {

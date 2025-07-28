@@ -27,7 +27,7 @@ export interface VerifiableCredential {
   id: string;
   type: string[];
   issuer: string | Issuer;
-  issuanceDate: string;
+  issuedAt: string;
   expirationDate?: string;
   credentialSubject: CredentialSubject;
   credentialStatus?: CredentialStatus;

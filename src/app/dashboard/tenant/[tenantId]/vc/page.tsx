@@ -151,7 +151,15 @@ export default function TenantVCPage() {
 	 */
 	const handleRevokeVC = async (vcId: string) => {
 		try {
-			await revokeCredential(vcId)
+			// Get the credential to get issuer DID
+			const credential = credentials.find((c) => c.id === vcId)
+			if (!credential) {
+				throw new Error('Credential not found')
+			}
+
+			const issuerDID = typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id
+
+			await revokeCredential(tenantId, vcId, issuerDID)
 
 			toast({
 				title: 'Success',
@@ -220,7 +228,7 @@ export default function TenantVCPage() {
 				<div className='flex items-center justify-between'>
 					<div>
 						<h1 className='text-3xl font-bold tracking-tight'>Verifiable Credentials</h1>
-						<p className='text-muted-foreground'>Manage Verifiable Credentials for tenant: {tenantId}</p>
+						<p className='text-muted-foreground'>Manage Verifiable Credentials</p>
 					</div>
 
 					<div className='flex gap-2'>

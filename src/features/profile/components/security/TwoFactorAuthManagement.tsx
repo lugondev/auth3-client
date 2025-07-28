@@ -1,7 +1,8 @@
 'use client'
 
-import React, {useState} from 'react'
+import React, {useState, useEffect} from 'react'
 import Image from 'next/image'
+import QRCode from 'qrcode'
 import {UserOutput, Verify2FARequest, Disable2FARequest} from '@/types/user'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
@@ -27,6 +28,7 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 	const isEnabled = userData?.is_two_factor_enabled ?? false
 	const [stage, setStage] = useState<SetupStage>('idle')
 	const [qrCodeUri, setQrCodeUri] = useState<string | null>(null)
+	const [qrCodeDataUri, setQrCodeDataUri] = useState<string | null>(null) // Added for generated QR image
 	const [secret, setSecret] = useState<string | null>(null)
 	const [otp, setOtp] = useState('')
 	const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
@@ -36,12 +38,36 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 	const [isDisablingDialogOpen, setIsDisablingDialogOpen] = useState(false)
 	const [hasConfirmedSave, setHasConfirmedSave] = useState(false) // Added state for confirmation
 
+	// Generate QR code image when qrCodeUri changes
+	useEffect(() => {
+		if (qrCodeUri) {
+			QRCode.toDataURL(qrCodeUri, {
+				width: 200,
+				margin: 2,
+				color: {
+					dark: '#000000',
+					light: '#FFFFFF',
+				},
+			})
+				.then((dataUrl) => {
+					setQrCodeDataUri(dataUrl)
+				})
+				.catch((error) => {
+					console.error('Error generating QR code:', error)
+					setErrorMessage('Failed to generate QR code image')
+				})
+		} else {
+			setQrCodeDataUri(null)
+		}
+	}, [qrCodeUri])
+
 	const handleGenerateSecret = async () => {
 		// console.log('handleGenerateSecret called') // Removed previous log
 		setStage('generating')
 		setErrorMessage(null)
 		setOtp('')
 		setQrCodeUri(null) // Clear previous QR if regenerating
+		setQrCodeDataUri(null) // Clear generated QR image
 		setSecret(null)
 		try {
 			const response = await generate2FASecret()
@@ -177,6 +203,7 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 	const resetSetup = () => {
 		setStage('idle')
 		setQrCodeUri(null)
+		setQrCodeDataUri(null) // Reset generated QR image
 		setSecret(null)
 		setOtp('')
 		setRecoveryCodes([])
@@ -223,9 +250,7 @@ const TwoFactorAuthManagement: React.FC<TwoFactorAuthManagementProps> = ({userDa
 			{stage === 'verifying' && qrCodeUri && (
 				<div className='space-y-4 pt-4'>
 					<p className='text-sm font-medium'>1. Scan this QR code with your authenticator app (like Google Authenticator, Authy, etc.):</p>
-					<div className='flex justify-center'>
-						<Image src={qrCodeUri} alt='2FA QR Code' width={200} height={200} className='border rounded-md' />
-					</div>
+					<div className='flex justify-center'>{qrCodeDataUri ? <Image src={qrCodeDataUri} alt='2FA QR Code' width={200} height={200} className='border rounded-md' /> : <Skeleton className='h-[200px] w-[200px] rounded-md' />}</div>
 					<p className='text-sm text-muted-foreground text-center'>
 						Or manually enter this setup key:
 						<Button variant='link' size='sm' onClick={handleCopySecret} className='ml-1 px-1' title='Copy secret key'>

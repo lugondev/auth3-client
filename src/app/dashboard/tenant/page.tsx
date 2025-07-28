@@ -9,10 +9,27 @@ import {LayoutDashboard, Users, ShieldCheck, Settings, Globe, Building2, CreditC
 import Link from 'next/link'
 import {cn} from '@/lib/utils'
 import {useState} from 'react'
+import { useTenantCredentials, useTenantPresentations, useTenantCredentialAnalytics } from '@/hooks/useTenantHooks'
 
 export default function TenantDashboard() {
 	const {currentMode, currentTenantId, user} = useAuth()
 	const [sidebarOpen, setSidebarOpen] = useState(false)
+
+	// Use tenant-specific hooks to get real data
+	const { 
+		data: credentialsData, 
+		isLoading: credentialsLoading 
+	} = useTenantCredentials(currentTenantId || undefined, { page: 1, limit: 5 }, { enabled: !!currentTenantId })
+
+	const { 
+		data: presentationsData, 
+		isLoading: presentationsLoading 
+	} = useTenantPresentations(currentTenantId || undefined, { page: 1, limit: 5 }, { enabled: !!currentTenantId })
+
+	const { 
+		data: analyticsData, 
+		isLoading: analyticsLoading 
+	} = useTenantCredentialAnalytics(currentTenantId || undefined, {}, { enabled: !!currentTenantId })
 
 	// Redirect to global if not in tenant context
 	if (currentMode !== 'tenant') {
@@ -133,6 +150,34 @@ export default function TenantDashboard() {
 									</CardContent>
 								</Card>
 
+								{/* Credentials Analytics */}
+								<Card>
+									<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+										<CardTitle className='text-sm font-medium'>Total Credentials</CardTitle>
+										<CreditCard className='h-4 w-4 text-blue-600' />
+									</CardHeader>
+									<CardContent>
+										<div className='text-2xl font-bold'>
+											{analyticsLoading ? '...' : (analyticsData?.overview_metrics?.total_credentials || 0)}
+										</div>
+										<p className='text-xs text-muted-foreground'>Issued & received</p>
+									</CardContent>
+								</Card>
+
+								{/* Presentations Count */}
+								<Card>
+									<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+										<CardTitle className='text-sm font-medium'>Presentations</CardTitle>
+										<Presentation className='h-4 w-4 text-purple-600' />
+									</CardHeader>
+									<CardContent>
+										<div className='text-2xl font-bold'>
+											{presentationsLoading ? '...' : (presentationsData?.pagination?.total || 0)}
+										</div>
+										<p className='text-xs text-muted-foreground'>Total presentations</p>
+									</CardContent>
+								</Card>
+
 								<Card>
 									<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
 										<CardTitle className='text-sm font-medium'>Your Role</CardTitle>
@@ -148,28 +193,6 @@ export default function TenantDashboard() {
 										</div>
 									</CardContent>
 								</Card>
-
-								<Card>
-									<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-										<CardTitle className='text-sm font-medium'>Context Mode</CardTitle>
-										<Building2 className='h-4 w-4 text-green-600' />
-									</CardHeader>
-									<CardContent>
-										<div className='text-2xl font-bold capitalize'>{currentMode}</div>
-										<p className='text-xs text-muted-foreground'>Organization context</p>
-									</CardContent>
-								</Card>
-
-								<Card>
-									<CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-										<CardTitle className='text-sm font-medium'>User Email</CardTitle>
-										<Users className='h-4 w-4 text-muted-foreground' />
-									</CardHeader>
-									<CardContent>
-										<div className='text-sm font-medium'>{user?.email || 'N/A'}</div>
-										<p className='text-xs text-muted-foreground'>Organization member</p>
-									</CardContent>
-								</Card>
 							</div>
 
 							{/* Quick Actions - Focus on Credentials and Presentations */}
@@ -183,6 +206,48 @@ export default function TenantDashboard() {
 									</CardHeader>
 									<CardContent>
 										<p className='text-sm text-muted-foreground mb-4'>Create, manage, and verify credentials for your organization. Control the lifecycle of verifiable credentials.</p>
+										
+										{/* Credentials Stats */}
+										{!analyticsLoading && analyticsData?.overview_metrics && (
+											<div className='grid grid-cols-3 gap-2 mb-4 p-3 bg-muted/20 rounded-lg'>
+												<div className='text-center'>
+													<div className='text-lg font-semibold text-green-600'>
+														{analyticsData.overview_metrics.active_credentials}
+													</div>
+													<div className='text-xs text-muted-foreground'>Active</div>
+												</div>
+												<div className='text-center'>
+													<div className='text-lg font-semibold text-red-600'>
+														{analyticsData.overview_metrics.revoked_credentials}
+													</div>
+													<div className='text-xs text-muted-foreground'>Revoked</div>
+												</div>
+												<div className='text-center'>
+													<div className='text-lg font-semibold text-blue-600'>
+														{analyticsData.overview_metrics.total_credentials}
+													</div>
+													<div className='text-xs text-muted-foreground'>Total</div>
+												</div>
+											</div>
+										)}
+
+										{/* Recent Credentials */}
+										{!credentialsLoading && credentialsData?.credentials && credentialsData.credentials.length > 0 && (
+											<div className='mb-4'>
+												<h4 className='text-sm font-medium mb-2'>Recent Credentials</h4>
+												<div className='space-y-2 max-h-32 overflow-y-auto'>
+													{credentialsData.credentials.slice(0, 3).map((credential) => (
+														<div key={credential.id} className='flex items-center justify-between text-xs p-2 bg-muted/10 rounded'>
+															<span className='truncate'>{credential.type?.[1] || 'Verifiable Credential'}</span>
+															<Badge variant='outline' className='text-xs'>
+																{credential.credentialStatus?.status || 'active'}
+															</Badge>
+														</div>
+													))}
+												</div>
+											</div>
+										)}
+
 										<div className='space-y-2'>
 											<Button asChild className='w-full'>
 												<Link href='/dashboard/tenant/credentials'>
@@ -206,6 +271,36 @@ export default function TenantDashboard() {
 									</CardHeader>
 									<CardContent>
 										<p className='text-sm text-muted-foreground mb-4'>Create verifiable presentations from your credentials. Share proof of credentials securely.</p>
+										
+										{/* Presentations Stats */}
+										{!presentationsLoading && presentationsData?.pagination && (
+											<div className='mb-4 p-3 bg-muted/20 rounded-lg'>
+												<div className='text-center'>
+													<div className='text-xl font-semibold text-purple-600'>
+														{presentationsData.pagination.total}
+													</div>
+													<div className='text-sm text-muted-foreground'>Total Presentations</div>
+												</div>
+											</div>
+										)}
+
+										{/* Recent Presentations */}
+										{!presentationsLoading && presentationsData?.presentations && presentationsData.presentations.length > 0 && (
+											<div className='mb-4'>
+												<h4 className='text-sm font-medium mb-2'>Recent Presentations</h4>
+												<div className='space-y-2 max-h-32 overflow-y-auto'>
+													{presentationsData.presentations.slice(0, 3).map((presentation) => (
+														<div key={presentation.id} className='flex items-center justify-between text-xs p-2 bg-muted/10 rounded'>
+															<span className='truncate'>{presentation.type?.[1] || 'Verifiable Presentation'}</span>
+															<Badge variant='outline' className='text-xs'>
+																{presentation.status}
+															</Badge>
+														</div>
+													))}
+												</div>
+											</div>
+										)}
+
 										<div className='space-y-2'>
 											<Button asChild className='w-full'>
 												<Link href='/dashboard/tenant/presentations'>

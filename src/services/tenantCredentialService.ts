@@ -41,7 +41,9 @@ export interface VerifiableCredential {
 	id: string;
 	type: string[];
 	issuer: string;
+	subjectDID: string;
 	issuanceDate: string;
+	issuedAt?: string;
 	expirationDate?: string;
 	credentialSubject: Record<string, JSONValue>;
 	credentialStatus?: {
@@ -81,10 +83,103 @@ export const issueCredential = async (request: IssueCredentialRequest): Promise<
 	return response.data;
 };
 
+/**
+ * Lists credentials for a specific tenant with optional filtering and pagination.
+ * @param {string} tenantId - The tenant ID
+ * @param {object} query - Query parameters for filtering and pagination
+ * @returns {Promise<object>} The paginated list of credentials
+ */
+export const listCredentials = async (tenantId: string, query?: {
+	page?: number;
+	limit?: number;
+	status?: string;
+	type?: string;
+	search?: string;
+	issuer?: string;
+	subject?: string;
+}): Promise<{
+	credentials: VerifiableCredential[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}> => {
+	if (!tenantId) {
+		throw new Error('Tenant ID is required to list credentials.');
+	}
+
+	const params = new URLSearchParams();
+	if (query) {
+		if (query.page) params.append('page', query.page.toString());
+		if (query.limit) params.append('limit', query.limit.toString());
+		if (query.status) params.append('status', query.status);
+		if (query.type) params.append('type', query.type);
+		if (query.search) params.append('search', query.search);
+		if (query.issuer) params.append('issuer', query.issuer);
+		if (query.subject) params.append('subject', query.subject);
+	}
+
+	const queryString = params.toString();
+	const url = queryString ? `/api/v1/tenants/${tenantId}/credentials?${queryString}` : `/api/v1/tenants/${tenantId}/credentials`;
+
+	const response = await apiClient.get<{
+		credentials: VerifiableCredential[];
+		pagination: {
+			page: number;
+			limit: number;
+			total: number;
+			totalPages: number;
+		};
+	}>(url);
+	return response.data;
+};
+
+/**
+ * Gets a specific credential by its ID for a tenant.
+ * @param {string} tenantId - The tenant ID
+ * @param {string} credentialId - The credential ID
+ * @returns {Promise<VerifiableCredential>} The credential
+ */
+export const getCredential = async (tenantId: string, credentialId: string): Promise<VerifiableCredential> => {
+	if (!tenantId) {
+		throw new Error('Tenant ID is required to get a credential.');
+	}
+	if (!credentialId) {
+		throw new Error('Credential ID is required to get a credential.');
+	}
+
+	const response = await apiClient.get<VerifiableCredential>(`/api/v1/tenants/${tenantId}/credentials/${credentialId}`);
+	return response.data;
+};
+
+/**
+ * Revokes a credential by its ID for a tenant.
+ * @param {string} tenantId - The tenant ID
+ * @param {string} credentialId - The credential ID
+ * @param {object} input - Revocation details
+ * @returns {Promise<void>} 
+ */
+export const revokeCredential = async (tenantId: string, credentialId: string, input: {
+	issuerDID: string;
+	reason?: string;
+}): Promise<void> => {
+	if (!tenantId) {
+		throw new Error('Tenant ID is required to revoke a credential.');
+	}
+	if (!credentialId) {
+		throw new Error('Credential ID is required to revoke a credential.');
+	}
+
+	await apiClient.post(`/api/v1/tenants/${tenantId}/credentials/${credentialId}/revoke`, {
+		issuerDID: input.issuerDID,
+		reason: input.reason || 'Revoked by issuer'
+	});
+};
+
 // Other tenant-specific credential functions can be added here, e.g.,
-// - listTenantCredentials
-// - getTenantCredentialById
-// - revokeTenantCredential
+// - verifyTenantCredential
 
 // ============ Bulk Credential Operations ============
 
