@@ -20,8 +20,8 @@ import {
   verifyTenantPresentation,
 } from '@/services/tenantPresentationService';
 import { getUserCredentialAnalytics } from '@/services/vcService';
-import { 
-  CredentialAnalyticsQuery, 
+import {
+  CredentialAnalyticsQuery,
   UserCredentialAnalyticsResponse,
   OverviewMetrics,
   IssuanceMetrics,
@@ -95,9 +95,9 @@ export const useTenantCredential = (
  */
 export const useIssueTenantCredential = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ tenantId, ...input }: IssueCredentialRequest) => 
+    mutationFn: ({ tenantId, ...input }: IssueCredentialRequest) =>
       issueCredential({ tenantId, ...input }),
     onSuccess: (data, { tenantId }) => {
       // Invalidate and refetch tenant credentials
@@ -112,11 +112,11 @@ export const useIssueTenantCredential = () => {
  */
 export const useRevokeTenantCredential = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ tenantId, credentialId, input }: { 
-      tenantId: string; 
-      credentialId: string; 
+    mutationFn: ({ tenantId, credentialId, input }: {
+      tenantId: string;
+      credentialId: string;
       input: { issuerDID: string; reason?: string };
     }) => revokeCredential(tenantId, credentialId, input),
     onSuccess: (data, { tenantId, credentialId }) => {
@@ -133,14 +133,14 @@ export const useRevokeTenantCredential = () => {
  */
 export const useBulkIssueTenantCredentials = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ tenantId, templateId, issuerDid, recipients }: { 
-      tenantId: string; 
+    mutationFn: ({ tenantId, templateId, issuerDid, recipients }: {
+      tenantId: string;
       templateId: string;
       issuerDid: string;
       recipients: BulkCredentialRecipient[];
-    }) => 
+    }) =>
       bulkIssueCredentials(tenantId, { templateId, issuerDid, recipients }),
     onSuccess: (data, { tenantId }) => {
       queryClient.invalidateQueries({ queryKey: ['tenant-credentials', tenantId] });
@@ -194,7 +194,7 @@ export const useTenantPresentation = (
  */
 export const useCreateTenantPresentation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ tenantId, input }: { tenantId: string; input: CreatePresentationInput }) =>
       createTenantPresentation(tenantId, input),
@@ -209,9 +209,9 @@ export const useCreateTenantPresentation = () => {
  */
 export const useDeleteTenantPresentation = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ tenantId, presentationId }: { tenantId: string; presentationId: string }) => 
+    mutationFn: ({ tenantId, presentationId }: { tenantId: string; presentationId: string }) =>
       deleteTenantPresentation(tenantId, presentationId),
     onSuccess: (data, { tenantId, presentationId }) => {
       queryClient.invalidateQueries({ queryKey: ['tenant-presentations', tenantId] });

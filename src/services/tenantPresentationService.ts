@@ -97,8 +97,8 @@ export const listTenantPresentations = withErrorHandling(
     }
 
     const queryString = params.toString();
-    const url = queryString 
-      ? `/api/v1/tenants/${tenantId}/presentations?${queryString}` 
+    const url = queryString
+      ? `/api/v1/tenants/${tenantId}/presentations?${queryString}`
       : `/api/v1/tenants/${tenantId}/presentations`;
 
     const response = await apiClient.get<TenantPresentationListResponse>(url);

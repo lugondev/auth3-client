@@ -9,27 +9,18 @@ import {LayoutDashboard, Users, ShieldCheck, Settings, Globe, Building2, CreditC
 import Link from 'next/link'
 import {cn} from '@/lib/utils'
 import {useState} from 'react'
-import { useTenantCredentials, useTenantPresentations, useTenantCredentialAnalytics } from '@/hooks/useTenantHooks'
+import {useTenantCredentials, useTenantPresentations, useTenantCredentialAnalytics} from '@/hooks/useTenantHooks'
 
 export default function TenantDashboard() {
 	const {currentMode, currentTenantId, user} = useAuth()
 	const [sidebarOpen, setSidebarOpen] = useState(false)
 
 	// Use tenant-specific hooks to get real data
-	const { 
-		data: credentialsData, 
-		isLoading: credentialsLoading 
-	} = useTenantCredentials(currentTenantId || undefined, { page: 1, limit: 5 }, { enabled: !!currentTenantId })
+	const {data: credentialsData, isLoading: credentialsLoading} = useTenantCredentials(currentTenantId || undefined, {page: 1, limit: 5}, {enabled: !!currentTenantId})
 
-	const { 
-		data: presentationsData, 
-		isLoading: presentationsLoading 
-	} = useTenantPresentations(currentTenantId || undefined, { page: 1, limit: 5 }, { enabled: !!currentTenantId })
+	const {data: presentationsData, isLoading: presentationsLoading} = useTenantPresentations(currentTenantId || undefined, {page: 1, limit: 5}, {enabled: !!currentTenantId})
 
-	const { 
-		data: analyticsData, 
-		isLoading: analyticsLoading 
-	} = useTenantCredentialAnalytics(currentTenantId || undefined, {}, { enabled: !!currentTenantId })
+	const {data: analyticsData, isLoading: analyticsLoading} = useTenantCredentialAnalytics(currentTenantId || undefined, {}, {enabled: !!currentTenantId})
 
 	// Redirect to global if not in tenant context
 	if (currentMode !== 'tenant') {
@@ -157,9 +148,7 @@ export default function TenantDashboard() {
 										<CreditCard className='h-4 w-4 text-blue-600' />
 									</CardHeader>
 									<CardContent>
-										<div className='text-2xl font-bold'>
-											{analyticsLoading ? '...' : (analyticsData?.overview_metrics?.total_credentials || 0)}
-										</div>
+										<div className='text-2xl font-bold'>{analyticsLoading ? '...' : analyticsData?.overview_metrics?.total_credentials || 0}</div>
 										<p className='text-xs text-muted-foreground'>Issued & received</p>
 									</CardContent>
 								</Card>
@@ -171,9 +160,7 @@ export default function TenantDashboard() {
 										<Presentation className='h-4 w-4 text-purple-600' />
 									</CardHeader>
 									<CardContent>
-										<div className='text-2xl font-bold'>
-											{presentationsLoading ? '...' : (presentationsData?.pagination?.total || 0)}
-										</div>
+										<div className='text-2xl font-bold'>{presentationsLoading ? '...' : presentationsData?.pagination?.total || 0}</div>
 										<p className='text-xs text-muted-foreground'>Total presentations</p>
 									</CardContent>
 								</Card>
@@ -206,26 +193,20 @@ export default function TenantDashboard() {
 									</CardHeader>
 									<CardContent>
 										<p className='text-sm text-muted-foreground mb-4'>Create, manage, and verify credentials for your organization. Control the lifecycle of verifiable credentials.</p>
-										
+
 										{/* Credentials Stats */}
 										{!analyticsLoading && analyticsData?.overview_metrics && (
 											<div className='grid grid-cols-3 gap-2 mb-4 p-3 bg-muted/20 rounded-lg'>
 												<div className='text-center'>
-													<div className='text-lg font-semibold text-green-600'>
-														{analyticsData.overview_metrics.active_credentials}
-													</div>
+													<div className='text-lg font-semibold text-green-600'>{analyticsData.overview_metrics.active_credentials}</div>
 													<div className='text-xs text-muted-foreground'>Active</div>
 												</div>
 												<div className='text-center'>
-													<div className='text-lg font-semibold text-red-600'>
-														{analyticsData.overview_metrics.revoked_credentials}
-													</div>
+													<div className='text-lg font-semibold text-red-600'>{analyticsData.overview_metrics.revoked_credentials}</div>
 													<div className='text-xs text-muted-foreground'>Revoked</div>
 												</div>
 												<div className='text-center'>
-													<div className='text-lg font-semibold text-blue-600'>
-														{analyticsData.overview_metrics.total_credentials}
-													</div>
+													<div className='text-lg font-semibold text-blue-600'>{analyticsData.overview_metrics.total_credentials}</div>
 													<div className='text-xs text-muted-foreground'>Total</div>
 												</div>
 											</div>
@@ -271,14 +252,12 @@ export default function TenantDashboard() {
 									</CardHeader>
 									<CardContent>
 										<p className='text-sm text-muted-foreground mb-4'>Create verifiable presentations from your credentials. Share proof of credentials securely.</p>
-										
+
 										{/* Presentations Stats */}
 										{!presentationsLoading && presentationsData?.pagination && (
 											<div className='mb-4 p-3 bg-muted/20 rounded-lg'>
 												<div className='text-center'>
-													<div className='text-xl font-semibold text-purple-600'>
-														{presentationsData.pagination.total}
-													</div>
+													<div className='text-xl font-semibold text-purple-600'>{presentationsData.pagination.total}</div>
 													<div className='text-sm text-muted-foreground'>Total Presentations</div>
 												</div>
 											</div>
