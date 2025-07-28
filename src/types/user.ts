@@ -61,7 +61,7 @@ export interface RegisterInput {
 export interface LoginInput {
 	email: string;
 	password: string;
-	tenant_slug?: string; // Added tenant_slug as optional
+	tenant?: string; // Optional tenant slug or ID - matches backend field
 }
 
 export interface SocialTokenExchangeInput {
