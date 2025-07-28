@@ -47,13 +47,13 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 			try {
 				setInitialLoading(true)
 				const response = await getDID(didId)
-				
+
 				setForm({
 					id: response.id, // UUID of the DID record
 					name: response.name || '',
 					metadata: response.metadata || {},
 				})
-				
+
 				// Format metadata as JSON string for editing
 				setMetadataJson(JSON.stringify(response.metadata || {}, null, 2))
 			} catch (error) {
@@ -74,10 +74,10 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 	 */
 	const handleMetadataChange = (value: string) => {
 		setMetadataJson(value)
-		
+
 		try {
 			const parsed = JSON.parse(value)
-			setForm(prev => ({...prev, metadata: parsed}))
+			setForm((prev) => ({...prev, metadata: parsed}))
 		} catch {
 			// Invalid JSON, keep form metadata as is
 		}
@@ -100,7 +100,7 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 	 */
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault()
-		
+
 		if (!isValidMetadataJson()) {
 			toast.error('Invalid JSON format in metadata')
 			return
@@ -117,7 +117,7 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 			}
 
 			const response = await updateDID(updateInput)
-			
+
 			toast.success('DID updated successfully!')
 			onSave?.(response)
 		} catch (error) {
@@ -145,9 +145,7 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 			<div className='flex items-center gap-2 text-sm text-muted-foreground mb-4'>
 				<span>DIDs</span>
 				<span>/</span>
-				<span className='text-foreground font-medium'>
-					{form.name || form.id.substring(0, 8) + '...'}
-				</span>
+				<span className='text-foreground font-medium'>{form.name || form.id.substring(0, 8) + '...'}</span>
 				<span>/</span>
 				<span className='text-foreground'>Edit</span>
 			</div>
@@ -157,7 +155,7 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 					<h2 className='text-2xl font-bold'>Edit DID</h2>
 					<p className='text-muted-foreground'>Update your DID information</p>
 				</div>
-				
+
 				<div className='flex items-center gap-2'>
 					<Button variant='outline' onClick={onCancel} disabled={loading}>
 						<X className='h-4 w-4 mr-2' />
@@ -176,16 +174,8 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 					<CardContent className='space-y-4'>
 						<div>
 							<Label htmlFor='name'>Name (Optional)</Label>
-							<Input
-								id='name'
-								value={form.name}
-								onChange={(e) => setForm(prev => ({...prev, name: e.target.value}))}
-								placeholder='Enter a friendly name for your DID'
-								className='text-sm'
-							/>
-							<div className='text-sm text-muted-foreground mt-1'>
-								A human-readable name to help identify this DID
-							</div>
+							<Input id='name' value={form.name} onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} placeholder='Enter a friendly name for your DID' className='text-sm' />
+							<div className='text-sm text-muted-foreground mt-1'>A human-readable name to help identify this DID</div>
 						</div>
 					</CardContent>
 				</Card>
@@ -199,23 +189,12 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 					<CardContent className='space-y-4'>
 						<div>
 							<Label htmlFor='metadata'>Metadata (JSON)</Label>
-							<Textarea
-								id='metadata'
-								value={metadataJson}
-								onChange={(e) => handleMetadataChange(e.target.value)}
-								placeholder='{"key": "value"}'
-								className='font-mono text-sm min-h-32'
-								rows={8}
-							/>
-							<div className='text-sm text-muted-foreground mt-1'>
-								Additional metadata in JSON format. Must be valid JSON.
-							</div>
+							<Textarea id='metadata' value={metadataJson} onChange={(e) => handleMetadataChange(e.target.value)} placeholder='{"key": "value"}' className='font-mono text-sm min-h-32' rows={8} />
+							<div className='text-sm text-muted-foreground mt-1'>Additional metadata in JSON format. Must be valid JSON.</div>
 							{!isValidMetadataJson() && metadataJson.trim() && (
 								<Alert className='mt-2'>
 									<Info className='h-4 w-4' />
-									<AlertDescription>
-										Invalid JSON format. Please check your syntax.
-									</AlertDescription>
+									<AlertDescription>Invalid JSON format. Please check your syntax.</AlertDescription>
 								</Alert>
 							)}
 						</div>
@@ -226,8 +205,7 @@ export function DIDEdit({didId, onSave, onCancel, className}: DIDEditProps) {
 				<Alert>
 					<Info className='h-4 w-4' />
 					<AlertDescription>
-						<strong>Note:</strong> Only the name and metadata can be updated. The DID identifier, method, 
-						and cryptographic properties cannot be changed after creation.
+						<strong>Note:</strong> Only the name and metadata can be updated. The DID identifier, method, and cryptographic properties cannot be changed after creation.
 					</AlertDescription>
 				</Alert>
 

@@ -290,12 +290,7 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 							{/* DID Name */}
 							<div className='space-y-2'>
 								<Label htmlFor='name'>DID Name (Optional)</Label>
-								<Input 
-									id='name' 
-									placeholder='My Personal DID'
-									value={form.name || ''} 
-									onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} 
-								/>
+								<Input id='name' placeholder='My Personal DID' value={form.name || ''} onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} />
 								<p className='text-sm text-muted-foreground'>A human-readable name to help you identify this DID</p>
 							</div>
 

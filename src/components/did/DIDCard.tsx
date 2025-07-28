@@ -58,14 +58,8 @@ export function DIDCard({did, onView, onDeactivate, onRevoke, onDelete}: DIDCard
 			<CardHeader className='pb-3'>
 				<div className='flex items-start justify-between'>
 					<div className='space-y-1'>
-						<CardTitle className='text-lg font-semibold'>
-							{did.name || `${getMethodFromDID(did.did).toUpperCase()} (${did.id.substring(0, 8)}...)`}
-						</CardTitle>
-						{did.name && (
-							<div className='text-xs text-muted-foreground font-medium'>
-								{getMethodFromDID(did.did).toUpperCase()} Method
-							</div>
-						)}
+						<CardTitle className='text-lg font-semibold'>{did.name || `${getMethodFromDID(did.did).toUpperCase()} (${did.id.substring(0, 8)}...)`}</CardTitle>
+						{did.name && <div className='text-xs text-muted-foreground font-medium'>{getMethodFromDID(did.did).toUpperCase()} Method</div>}
 						<CardDescription className='font-mono text-sm'>{truncateDID(did.did)}</CardDescription>
 					</div>
 					<div className='flex items-center gap-2'>

@@ -22,38 +22,38 @@ const SERVICE_ENDPOINT_TYPES = {
 	'MessagingService': {
 		label: 'Messaging',
 		description: 'Secure messaging service',
-		placeholder: 'https://messaging.example.com/api'
+		placeholder: 'https://messaging.example.com/api',
 	},
 	'CredentialRepositoryService': {
-		label: 'Credential Exchange', 
+		label: 'Credential Exchange',
 		description: 'Digital credential exchange',
-		placeholder: 'https://credentials.example.com/exchange'
+		placeholder: 'https://credentials.example.com/exchange',
 	},
 	'IdentityHub': {
 		label: 'Identity Hub',
 		description: 'Personal data storage',
-		placeholder: 'https://hub.example.com/identity'
+		placeholder: 'https://hub.example.com/identity',
 	},
 	'PaymentService': {
 		label: 'Payment Services',
 		description: 'Payment service provider',
-		placeholder: 'https://payment.example.com/api'
+		placeholder: 'https://payment.example.com/api',
 	},
 	'DIDCommMessaging': {
 		label: 'DIDComm Messaging',
 		description: 'DIDComm communication',
-		placeholder: 'https://didcomm.example.com/messages'
+		placeholder: 'https://didcomm.example.com/messages',
 	},
 	'LinkedDomains': {
 		label: 'Linked Domains',
 		description: 'Domain verification',
-		placeholder: 'https://example.com/.well-known/did-configuration.json'
+		placeholder: 'https://example.com/.well-known/did-configuration.json',
 	},
 	'Custom': {
 		label: 'Custom',
 		description: 'Custom service type',
-		placeholder: 'https://example.com/custom-service'
-	}
+		placeholder: 'https://example.com/custom-service',
+	},
 } as const
 
 // Types for DID creation
@@ -181,7 +181,7 @@ export default function CreateDIDPage() {
 			service:
 				form.serviceEndpoints?.map((endpoint) => ({
 					id: `${didId}#${endpoint.id}`,
-					type: endpoint.type === 'Custom' ? (endpoint.customType || 'CustomService') : endpoint.type,
+					type: endpoint.type === 'Custom' ? endpoint.customType || 'CustomService' : endpoint.type,
 					serviceEndpoint: endpoint.serviceEndpoint,
 				})) || [],
 		}
@@ -244,7 +244,7 @@ export default function CreateDIDPage() {
 				service_endpoints:
 					form.serviceEndpoints?.map((endpoint) => ({
 						id: endpoint.id,
-						type: endpoint.type === 'Custom' ? (endpoint.customType || 'CustomService') : endpoint.type,
+						type: endpoint.type === 'Custom' ? endpoint.customType || 'CustomService' : endpoint.type,
 						service_endpoint: endpoint.serviceEndpoint, // Backend expects snake_case
 						description: endpoint.description,
 					})) || [],
@@ -304,11 +304,14 @@ export default function CreateDIDPage() {
 		const randomId = Math.random().toString(36).substring(2, 8)
 		setForm((prev) => ({
 			...prev,
-			serviceEndpoints: [...(prev.serviceEndpoints || []), {
-				id: randomId, 
-				type: 'MessagingService', 
-				serviceEndpoint: ''
-			}],
+			serviceEndpoints: [
+				...(prev.serviceEndpoints || []),
+				{
+					id: randomId,
+					type: 'MessagingService',
+					serviceEndpoint: '',
+				},
+			],
 		}))
 	}
 
@@ -330,7 +333,7 @@ export default function CreateDIDPage() {
 			const newEndpoints = [...(prev.serviceEndpoints || [])]
 			newEndpoints[index] = {
 				...newEndpoints[index],
-				[field]: value
+				[field]: value,
 			}
 			return {...prev, serviceEndpoints: newEndpoints}
 		})
@@ -441,14 +444,7 @@ export default function CreateDIDPage() {
 								return (
 									<div key={method} className='flex items-center space-x-2'>
 										<RadioGroupItem value={method} id={method} disabled={isDisabled} />
-										<Label 
-											htmlFor={method} 
-											className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 flex-1 ${
-												isDisabled 
-													? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700' 
-													: 'hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
-											}`}
-										>
+										<Label htmlFor={method} className={`flex items-center gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 flex-1 ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'}`}>
 											{info.icon}
 											<div>
 												<div className='font-medium'>
@@ -475,16 +471,8 @@ export default function CreateDIDPage() {
 						{/* Name Field - Available for all methods */}
 						<div>
 							<Label htmlFor='name'>Name (Optional)</Label>
-							<Input 
-								id='name' 
-								value={form.name || ''} 
-								onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} 
-								placeholder='Enter a friendly name for your DID'
-								className='text-sm'
-							/>
-							<div className='text-sm text-gray-500 mt-1'>
-								A human-readable name to help identify this DID
-							</div>
+							<Input id='name' value={form.name || ''} onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} placeholder='Enter a friendly name for your DID' className='text-sm' />
+							<div className='text-sm text-gray-500 mt-1'>A human-readable name to help identify this DID</div>
 						</div>
 
 						{/* Key Type Selection - Available for all methods */}
@@ -587,12 +575,9 @@ export default function CreateDIDPage() {
 								<div className='grid grid-cols-1 gap-3'>
 									<div>
 										<Label>Service Type</Label>
-										<Select 
-											value={endpoint.type} 
-											onValueChange={(value) => updateServiceEndpoint(index, 'type', value)}
-										>
+										<Select value={endpoint.type} onValueChange={(value) => updateServiceEndpoint(index, 'type', value)}>
 											<SelectTrigger>
-												<SelectValue placeholder="Select service type" />
+												<SelectValue placeholder='Select service type' />
 											</SelectTrigger>
 											<SelectContent>
 												{Object.entries(SERVICE_ENDPOINT_TYPES).map(([value, config]) => (
@@ -607,63 +592,34 @@ export default function CreateDIDPage() {
 										</Select>
 										{endpoint.type === 'Custom' && (
 											<div className='mt-2'>
-												<Input
-													value={endpoint.customType || ''}
-													onChange={(e) => updateServiceEndpoint(index, 'customType', e.target.value)}
-													placeholder='Enter custom service type (e.g., FileStorageService)'
-													className='text-sm'
-												/>
-												<div className='text-xs text-gray-500 mt-1'>
-													Enter your custom service type name
-												</div>
+												<Input value={endpoint.customType || ''} onChange={(e) => updateServiceEndpoint(index, 'customType', e.target.value)} placeholder='Enter custom service type (e.g., FileStorageService)' className='text-sm' />
+												<div className='text-xs text-gray-500 mt-1'>Enter your custom service type name</div>
 											</div>
 										)}
-										{endpoint.type && endpoint.type !== 'Custom' && (
-											<div className='text-xs text-gray-500 mt-1'>
-												{SERVICE_ENDPOINT_TYPES[endpoint.type as keyof typeof SERVICE_ENDPOINT_TYPES]?.description}
-											</div>
-										)}
+										{endpoint.type && endpoint.type !== 'Custom' && <div className='text-xs text-gray-500 mt-1'>{SERVICE_ENDPOINT_TYPES[endpoint.type as keyof typeof SERVICE_ENDPOINT_TYPES]?.description}</div>}
 									</div>
 								</div>
 								<div>
 									<Label>Service Endpoint URL</Label>
-									<Input
-										value={endpoint.serviceEndpoint}
-										onChange={(e) => updateServiceEndpoint(index, 'serviceEndpoint', e.target.value)}
-										placeholder={getServiceEndpointPlaceholder(endpoint.type)}
-										className='text-sm'
-									/>
-									<div className='text-xs text-gray-500 mt-1'>
-										Service endpoint URL (must be HTTPS)
-									</div>
+									<Input value={endpoint.serviceEndpoint} onChange={(e) => updateServiceEndpoint(index, 'serviceEndpoint', e.target.value)} placeholder={getServiceEndpointPlaceholder(endpoint.type)} className='text-sm' />
+									<div className='text-xs text-gray-500 mt-1'>Service endpoint URL (must be HTTPS)</div>
 								</div>
 								<div className='flex justify-end'>
-									<Button 
-										type='button' 
-										variant='outline' 
-										size='sm'
-										onClick={() => removeServiceEndpoint(index)} 
-										className='hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800 transition-colors'
-									>
+									<Button type='button' variant='outline' size='sm' onClick={() => removeServiceEndpoint(index)} className='hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-800 transition-colors'>
 										Remove Service
 									</Button>
 								</div>
 							</div>
 						))}
-						
+
 						{form.serviceEndpoints && form.serviceEndpoints.length === 0 && (
 							<div className='text-sm text-gray-500 text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg'>
 								<div className='mb-2'>No service endpoints added yet</div>
 								<div className='text-xs'>Service endpoints allow your DID to provide services like messaging, credential exchange, identity hub, and payment services</div>
 							</div>
 						)}
-						
-						<Button 
-							type='button' 
-							variant='outline' 
-							onClick={addServiceEndpoint} 
-							className='w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'
-						>
+
+						<Button type='button' variant='outline' onClick={addServiceEndpoint} className='w-full hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors'>
 							+ Add Service Endpoint
 						</Button>
 					</CardContent>

@@ -223,9 +223,7 @@ export function DIDDetails({didId, onEdit, onDeactivate, onDelete, className}: D
 			<div className='flex items-center gap-2 text-sm text-muted-foreground mb-4'>
 				<span>DIDs</span>
 				<span>/</span>
-				<span className='text-foreground font-medium'>
-					{didInfo.name || didInfo.id.substring(0, 8) + '...'}
-				</span>
+				<span className='text-foreground font-medium'>{didInfo.name || didInfo.id.substring(0, 8) + '...'}</span>
 			</div>
 
 			{/* Header */}
@@ -233,16 +231,10 @@ export function DIDDetails({didId, onEdit, onDeactivate, onDelete, className}: D
 				<div className='space-y-2'>
 					<div className='flex items-center gap-3'>
 						{getMethodIcon(didInfo.method)}
-						<h1 className='text-2xl font-bold'>
-							{didInfo.name || 'DID Details'}
-						</h1>
+						<h1 className='text-2xl font-bold'>{didInfo.name || 'DID Details'}</h1>
 						<DIDStatusBadge status={didInfo.status} />
 					</div>
-					{didInfo.name && (
-						<div className='text-sm text-muted-foreground'>
-							DID: {didInfo.id}
-						</div>
-					)}
+					{didInfo.name && <div className='text-sm text-muted-foreground'>DID: {didInfo.id}</div>}
 					<div className='flex items-center gap-2 text-sm text-muted-foreground'>
 						<span>Method: {didInfo.method.toUpperCase()}</span>
 						<Separator orientation='vertical' className='h-4' />

@@ -68,7 +68,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 	})
 	const [loading, setLoading] = useState(true)
 	const [initialLoad, setInitialLoad] = useState(true)
-	
+
 	// Modal state
 	const [showModal, setShowModal] = useState(false)
 	const [modalMode, setModalMode] = useState<'deactivate' | 'revoke'>('deactivate')
@@ -77,7 +77,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 	const [actionLoading, setActionLoading] = useState<{[key: string]: boolean}>({})
 
 	// Modal state for confirmation dialogs
-	
+
 	// Use ref to prevent infinite loops
 	const hasLoadedRef = useRef(false)
 
@@ -652,9 +652,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 			<Dialog open={showModal} onOpenChange={setShowModal}>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>
-							{modalMode === 'deactivate' ? 'Deactivate DID' : 'Revoke DID'}
-						</DialogTitle>
+						<DialogTitle>{modalMode === 'deactivate' ? 'Deactivate DID' : 'Revoke DID'}</DialogTitle>
 						<DialogDescription>
 							{modalMode === 'deactivate' ? (
 								<>
@@ -680,7 +678,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter>
-						<Button variant="outline" onClick={() => setShowModal(false)}>
+						<Button variant='outline' onClick={() => setShowModal(false)}>
 							Cancel
 						</Button>
 						<Button
@@ -694,8 +692,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 									}
 									setShowModal(false)
 								}
-							}}
-						>
+							}}>
 							{modalMode === 'deactivate' ? 'Deactivate' : 'Revoke'}
 						</Button>
 					</DialogFooter>

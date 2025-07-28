@@ -32,21 +32,17 @@ export default function DIDEditPage() {
 	}
 
 	return (
-<div className='space-y-6'>
-			<PageHeader 
-				title='Edit DID' 
+		<div className='space-y-6'>
+			<PageHeader
+				title='Edit DID'
 				description='Update your DID information'
 				backButton={{
 					href: `/dashboard/dids/${encodeURIComponent(didId)}`,
-					text: 'Back to DID Details'
+					text: 'Back to DID Details',
 				}}
 			/>
 
-			<DIDEdit
-				didId={didId}
-				onSave={handleSave}
-				onCancel={handleCancel}
-			/>
+			<DIDEdit didId={didId} onSave={handleSave} onCancel={handleCancel} />
 		</div>
 	)
 }

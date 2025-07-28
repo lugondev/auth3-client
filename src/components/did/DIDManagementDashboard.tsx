@@ -375,46 +375,46 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 			) : viewMode === 'grid' ? (
 				<div className='grid gap-4 md:grid-cols-2 lg:grid-cols-3'>
 					{filteredDids.map((did) => {
-					// Convert DID to DIDData format for DIDCard
-					const didData = {
-						id: did.id,
-						user_id: '', // Not available in current DID interface
-						did: did.did,
-						method: did.method,
-						identifier: did.did.split(':').slice(2).join(':'), // Extract identifier from DID
-						name: did.name,
-						document: {
-							// Minimal document structure
-							'@context': ['https://www.w3.org/ns/did/v1'],
-							id: did.did,
-							verificationMethod: [],
-							authentication: [],
-							assertionMethod: [],
-							keyAgreement: [],
-							capabilityInvocation: [],
-							capabilityDelegation: [],
-							service: [],
-						},
-						status: did.status,
-						created_at: did.created_at,
-						updated_at: did.updated_at,
-						metadata: did.metadata,
-					}
+						// Convert DID to DIDData format for DIDCard
+						const didData = {
+							id: did.id,
+							user_id: '', // Not available in current DID interface
+							did: did.did,
+							method: did.method,
+							identifier: did.did.split(':').slice(2).join(':'), // Extract identifier from DID
+							name: did.name,
+							document: {
+								// Minimal document structure
+								'@context': ['https://www.w3.org/ns/did/v1'],
+								id: did.did,
+								verificationMethod: [],
+								authentication: [],
+								assertionMethod: [],
+								keyAgreement: [],
+								capabilityInvocation: [],
+								capabilityDelegation: [],
+								service: [],
+							},
+							status: did.status,
+							created_at: did.created_at,
+							updated_at: did.updated_at,
+							metadata: did.metadata,
+						}
 
-					return (
-						<DIDCard
-							key={did.did}
-							did={didData}
-							onView={() => {
-								// Navigate to DID details
-								window.location.href = `/dashboard/dids/${did.did}`
-							}}
-							onDeactivate={() => handleDeleteDID(did.did)}
-							onRevoke={() => handleDeleteDID(did.did)}
-							onDelete={() => handleDeleteDID(did.did)}
-						/>
-					)
-				})}
+						return (
+							<DIDCard
+								key={did.did}
+								did={didData}
+								onView={() => {
+									// Navigate to DID details
+									window.location.href = `/dashboard/dids/${did.did}`
+								}}
+								onDeactivate={() => handleDeleteDID(did.did)}
+								onRevoke={() => handleDeleteDID(did.did)}
+								onDelete={() => handleDeleteDID(did.did)}
+							/>
+						)
+					})}
 				</div>
 			) : (
 				<Card>

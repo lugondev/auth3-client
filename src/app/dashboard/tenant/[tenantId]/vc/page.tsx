@@ -35,7 +35,7 @@ export default function TenantVCPage() {
 	const [loading, setLoading] = useState(true)
 	const [showProof, setShowProof] = useState<string | null>(null)
 	const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set())
-	
+
 	// Modal state for revocation confirmation
 	const [showRevokeModal, setShowRevokeModal] = useState(false)
 	const [credentialToRevoke, setCredentialToRevoke] = useState<CredentialWithStatusInfo | null>(null)
@@ -313,20 +313,7 @@ export default function TenantVCPage() {
 				{/* Credentials List */}
 				<div className='space-y-4'>
 					{credentials.map((vc) => (
-						<CollapsibleCredentialCard
-							key={vc.id}
-							credential={vc}
-							isCollapsed={isCardCollapsed(vc.id)}
-							showProof={showProof === vc.id}
-							onToggleCollapse={() => toggleCardCollapse(vc.id)}
-							onViewCredential={() => handleViewCredential(vc.id)}
-							onCopyId={() => copyToClipboard(vc.id)}
-							onDownload={() => downloadVC(vc)}
-							onRevoke={() => handleRevokeModalOpen(vc)}
-							onToggleProof={() => setShowProof(showProof === vc.id ? null : vc.id)}
-							getCredentialStatus={getCredentialStatus}
-							formatIssuer={formatIssuer}
-						/>
+						<CollapsibleCredentialCard key={vc.id} credential={vc} isCollapsed={isCardCollapsed(vc.id)} showProof={showProof === vc.id} onToggleCollapse={() => toggleCardCollapse(vc.id)} onViewCredential={() => handleViewCredential(vc.id)} onCopyId={() => copyToClipboard(vc.id)} onDownload={() => downloadVC(vc)} onRevoke={() => handleRevokeModalOpen(vc)} onToggleProof={() => setShowProof(showProof === vc.id ? null : vc.id)} getCredentialStatus={getCredentialStatus} formatIssuer={formatIssuer} />
 					))}
 
 					{credentials.length === 0 && (
@@ -364,10 +351,10 @@ export default function TenantVCPage() {
 							</DialogDescription>
 						</DialogHeader>
 						<DialogFooter>
-							<Button variant="outline" onClick={() => setShowRevokeModal(false)}>
+							<Button variant='outline' onClick={() => setShowRevokeModal(false)}>
 								Cancel
 							</Button>
-							<Button variant="destructive" onClick={handleRevokeConfirm}>
+							<Button variant='destructive' onClick={handleRevokeConfirm}>
 								Revoke Credential
 							</Button>
 						</DialogFooter>
