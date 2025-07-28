@@ -34,6 +34,7 @@ interface DID {
 	id: string
 	did: string
 	method: DIDMethod
+	name?: string
 	status: DIDStatus
 	created_at: string
 	updated_at: string
@@ -120,6 +121,7 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 				id: apiDID.id,
 				did: apiDID.did,
 				method: apiDID.method as DIDMethod,
+				name: apiDID.name,
 				status: apiDID.status as DIDStatus,
 				created_at: apiDID.created_at,
 				updated_at: apiDID.updated_at,
@@ -380,6 +382,7 @@ export function DIDManagementDashboard({className = ''}: DIDManagementDashboardP
 						did: did.did,
 						method: did.method,
 						identifier: did.did.split(':').slice(2).join(':'), // Extract identifier from DID
+						name: did.name,
 						document: {
 							// Minimal document structure
 							'@context': ['https://www.w3.org/ns/did/v1'],

@@ -28,6 +28,7 @@ interface DIDDetailsProps {
 
 interface DIDInfo {
 	id: string
+	name?: string
 	document: DIDDocument
 	status: DIDStatus
 	method: string
@@ -73,6 +74,7 @@ export function DIDDetails({didId, onEdit, onDeactivate, onDelete, className}: D
 			// Transform DIDResponse to DIDInfo format
 			const didInfo: DIDInfo = {
 				id: response.did,
+				name: response.name,
 				document: response.document,
 				status: response.status as DIDStatus,
 				method: response.method,
@@ -217,14 +219,30 @@ export function DIDDetails({didId, onEdit, onDeactivate, onDelete, className}: D
 
 	return (
 		<div className={`space-y-6 ${className}`}>
+			{/* Breadcrumb */}
+			<div className='flex items-center gap-2 text-sm text-muted-foreground mb-4'>
+				<span>DIDs</span>
+				<span>/</span>
+				<span className='text-foreground font-medium'>
+					{didInfo.name || didInfo.id.substring(0, 8) + '...'}
+				</span>
+			</div>
+
 			{/* Header */}
 			<div className='flex items-start justify-between'>
 				<div className='space-y-2'>
 					<div className='flex items-center gap-3'>
 						{getMethodIcon(didInfo.method)}
-						<h1 className='text-2xl font-bold'>DID Details</h1>
+						<h1 className='text-2xl font-bold'>
+							{didInfo.name || 'DID Details'}
+						</h1>
 						<DIDStatusBadge status={didInfo.status} />
 					</div>
+					{didInfo.name && (
+						<div className='text-sm text-muted-foreground'>
+							DID: {didInfo.id}
+						</div>
+					)}
 					<div className='flex items-center gap-2 text-sm text-muted-foreground'>
 						<span>Method: {didInfo.method.toUpperCase()}</span>
 						<Separator orientation='vertical' className='h-4' />
@@ -324,6 +342,12 @@ export function DIDDetails({didId, onEdit, onDeactivate, onDelete, className}: D
 								</CardTitle>
 							</CardHeader>
 							<CardContent className='space-y-3'>
+								{didInfo.name && (
+									<div className='flex justify-between'>
+										<span className='text-sm text-muted-foreground'>Name:</span>
+										<span className='text-sm font-medium'>{didInfo.name}</span>
+									</div>
+								)}
 								<div className='flex justify-between'>
 									<span className='text-sm text-muted-foreground'>Status:</span>
 									<DIDStatusBadge status={didInfo.status} />

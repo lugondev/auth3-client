@@ -27,12 +27,13 @@ export interface VerifiableCredential {
   id: string;
   type: string[];
   issuer: string | Issuer;
+  subjectDID: string;
   issuedAt: string;
+  issuanceDate?: string; // Deprecated, use issuedAt
   expirationDate?: string;
   credentialSubject: CredentialSubject;
   credentialStatus?: CredentialStatus;
   credentialSchema?: CredentialSchema;
-  subjectDID: string;
   refreshService?: RefreshService;
   termsOfUse?: TermsOfUse[];
   evidence?: Evidence[];

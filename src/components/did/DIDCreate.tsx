@@ -23,6 +23,7 @@ interface DIDCreateProps {
 
 interface DIDCreationForm {
 	method: DIDMethod | null
+	name?: string
 	keyType?: 'Ed25519' | 'secp256k1' | 'P-256'
 	domain?: string
 	path?: string
@@ -154,6 +155,7 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 			// Create DID using actual API call
 			const response = await createDID({
 				method: form.method!,
+				name: form.name,
 				options: {
 					keyType: form.keyType,
 					domain: form.domain,
@@ -285,6 +287,18 @@ export function DIDCreate({onSuccess, onCancel, className}: DIDCreateProps) {
 							<CardDescription>Set up the specific parameters for your DID method</CardDescription>
 						</CardHeader>
 						<CardContent className='space-y-4'>
+							{/* DID Name */}
+							<div className='space-y-2'>
+								<Label htmlFor='name'>DID Name (Optional)</Label>
+								<Input 
+									id='name' 
+									placeholder='My Personal DID'
+									value={form.name || ''} 
+									onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} 
+								/>
+								<p className='text-sm text-muted-foreground'>A human-readable name to help you identify this DID</p>
+							</div>
+
 							{/* Key Type Selection */}
 							<div className='space-y-2'>
 								<Label htmlFor='keyType'>Key Type</Label>

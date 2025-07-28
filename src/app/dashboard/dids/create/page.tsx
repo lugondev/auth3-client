@@ -59,6 +59,7 @@ const SERVICE_ENDPOINT_TYPES = {
 // Types for DID creation
 interface DIDCreationForm {
 	method: 'key' | 'web' | 'ethr' | 'VBSN' | 'peer'
+	name?: string
 	keyType?: 'Ed25519' | 'secp256k1' | 'P-256'
 	domain?: string
 	path?: string
@@ -225,6 +226,7 @@ export default function CreateDIDPage() {
 			// Prepare API input to match backend DTO structure
 			const createInput: CreateDIDInput = {
 				method: form.method as DIDMethod,
+				name: form.name,
 				key_type: form.keyType,
 				// Send method-specific fields directly (not in options)
 				...(form.method === 'web' && {
@@ -470,6 +472,21 @@ export default function CreateDIDPage() {
 						<CardDescription>Configure your {getMethodInfo(form.method).title}</CardDescription>
 					</CardHeader>
 					<CardContent className='space-y-4'>
+						{/* Name Field - Available for all methods */}
+						<div>
+							<Label htmlFor='name'>Name (Optional)</Label>
+							<Input 
+								id='name' 
+								value={form.name || ''} 
+								onChange={(e) => setForm((prev) => ({...prev, name: e.target.value}))} 
+								placeholder='Enter a friendly name for your DID'
+								className='text-sm'
+							/>
+							<div className='text-sm text-gray-500 mt-1'>
+								A human-readable name to help identify this DID
+							</div>
+						</div>
+
 						{/* Key Type Selection - Available for all methods */}
 						<div>
 							<Label htmlFor='keyType'>Key Type</Label>

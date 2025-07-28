@@ -286,13 +286,7 @@ export default function CredentialDetailsPage() {
 						<Share2 className='h-4 w-4 mr-2' />
 						Share
 					</Button>
-					{credential && credentialStatus === CredentialStatus.ACTIVE && (
-						<RevocationButton
-							credential={credential as import('@/services/credentialService').VerifiableCredential}
-							variant="button"
-							onRevoked={handleRevoke}
-						/>
-					)}
+					{credential && credentialStatus === CredentialStatus.ACTIVE && <RevocationButton credential={credential} variant='button' onRevoked={handleRevoke} />}
 				</div>
 			</div>
 
@@ -316,7 +310,7 @@ export default function CredentialDetailsPage() {
 							<Clock className='h-4 w-4 text-gray-500' />
 							<div>
 								<p className='text-sm font-medium'>Issued</p>
-								<p className='text-sm text-gray-600'>{formatDate(credential.issuanceDate)}</p>
+								<p className='text-sm text-gray-600'>{formatDate(credential.issuedAt)}</p>
 							</div>
 						</div>
 

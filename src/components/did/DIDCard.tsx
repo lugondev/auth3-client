@@ -5,7 +5,7 @@ import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
 import {MoreHorizontal, Copy, Eye, Trash2, Power} from 'lucide-react'
-import {DIDData, DIDResponse, DIDStatus} from '@/types/did'
+import {DIDData, DIDStatus} from '@/types/did'
 import {toast} from 'sonner'
 import {DIDStatusBadge} from './DIDStatusBadge'
 
@@ -58,7 +58,14 @@ export function DIDCard({did, onView, onDeactivate, onRevoke, onDelete}: DIDCard
 			<CardHeader className='pb-3'>
 				<div className='flex items-start justify-between'>
 					<div className='space-y-1'>
-						<CardTitle className='text-lg font-semibold'>DID {getMethodFromDID(did.did).toUpperCase()}</CardTitle>
+						<CardTitle className='text-lg font-semibold'>
+							{did.name || `${getMethodFromDID(did.did).toUpperCase()} (${did.id.substring(0, 8)}...)`}
+						</CardTitle>
+						{did.name && (
+							<div className='text-xs text-muted-foreground font-medium'>
+								{getMethodFromDID(did.did).toUpperCase()} Method
+							</div>
+						)}
 						<CardDescription className='font-mono text-sm'>{truncateDID(did.did)}</CardDescription>
 					</div>
 					<div className='flex items-center gap-2'>

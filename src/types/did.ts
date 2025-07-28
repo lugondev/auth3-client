@@ -67,6 +67,7 @@ export interface DIDAuthProof {
 export interface CreateDIDInput {
   method: DIDMethod;
   key_type?: 'Ed25519' | 'secp256k1' | 'P-256';
+  name?: string; // Optional human-readable name for the DID
 
   // Web method specific fields (did:web)
   domain?: string;           // Domain for did:web method (required for web)
@@ -97,6 +98,7 @@ export interface DIDOutput {
   id: string;
   did: string;
   method: string;
+  name?: string;
   document: DIDDocument;
   status: string;
   created_at: string;
@@ -112,6 +114,7 @@ export interface CreateDIDOutput {
 export interface UpdateDIDInput {
   id: string;
   did: string;
+  name?: string;
   document?: DIDDocument;
   status?: DIDStatus;
   metadata?: Record<string, unknown>;
@@ -123,6 +126,7 @@ export interface UpdateDIDOutput {
   did: string;
   method: string;
   identifier: string;
+  name?: string;
   document: DIDDocument;
   status: string;
   created_at: string;
@@ -137,6 +141,7 @@ export interface DIDData {
   did: string;
   method: string;
   identifier: string;
+  name?: string;
   document: DIDDocument;
   status: string;
   created_at: string;
@@ -149,6 +154,7 @@ export interface DIDResponse extends DIDData {
   user_id: string;
   method: string;
   identifier: string;
+  name?: string;
   document: DIDDocument;
   status: string;
   created_at: string;

@@ -1,6 +1,7 @@
 'use client'
 
 import React, {useState, useEffect} from 'react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import {useParams, useRouter} from 'next/navigation'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
@@ -13,6 +14,7 @@ import {toast} from 'sonner'
 import {Label} from '@/components/ui/label'
 
 import {getTenantCredentialById, revokeCredential, CredentialWithStatusInfo} from '../helpers/credential-helpers'
+import {formatDate} from '@/lib/utils'
 
 /**
  * Tenant Credential Details Page Component
@@ -112,28 +114,31 @@ export default function TenantCredentialDetailsPage() {
 		}
 	}
 
-	/**
-	 * Revoke credential
-	 */
-	const handleRevokeVC = async () => {
-		if (!credential) return
+// Modal state for revoke confirmation
+const [showRevokeModal, setShowRevokeModal] = useState(false)
+const [revokeLoading, setRevokeLoading] = useState(false)
 
-		if (!window.confirm('Are you sure you want to revoke this credential? This action cannot be undone.')) {
-			return
-		}
+const handleRevokeVC = () => {
+	   setShowRevokeModal(true)
+}
 
-		try {
-			await revokeCredential(credential.id)
-			toast.success('Verifiable Credential revoked successfully!')
-
-			// Refresh credential data
-			const updatedCredential = await getTenantCredentialById(tenantId, credentialId)
-			setCredential(updatedCredential)
-		} catch (error) {
-			console.error('Error revoking VC:', error)
-			toast.error('Failed to revoke credential. Please try again.')
-		}
-	}
+const confirmRevokeVC = async () => {
+	   if (!credential) return
+	   setRevokeLoading(true)
+	   try {
+			   await revokeCredential(tenantId, credential.id, typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id, 'Revoked from tenant dashboard')
+			   toast.success('Verifiable Credential revoked successfully!')
+			   // Refresh credential data
+			   const updatedCredential = await getTenantCredentialById(tenantId, credentialId)
+			   setCredential(updatedCredential)
+			   setShowRevokeModal(false)
+	   } catch (error) {
+			   console.error('Error revoking VC:', error)
+			   toast.error('Failed to revoke credential. Please try again.')
+	   } finally {
+			   setRevokeLoading(false)
+	   }
+}
 
 	/**
 	 * Get credential status
@@ -255,16 +260,36 @@ export default function TenantCredentialDetailsPage() {
 							<Download className='h-4 w-4 mr-2' />
 							Download
 						</Button>
-						{status === 'active' && (
-							<Button variant='destructive' onClick={handleRevokeVC}>
-								<XCircle className='h-4 w-4 mr-2' />
-								Revoke
-							</Button>
-						)}
+					   {status === 'active' && (
+							   <Button variant='destructive' onClick={handleRevokeVC}>
+									   <XCircle className='h-4 w-4 mr-2' />
+									   Revoke
+							   </Button>
+					   )}
 					</div>
 				</div>
 
-				{/* Tabs */}
+			   {/* Revoke Confirmation Modal */}
+			   <Dialog open={showRevokeModal} onOpenChange={setShowRevokeModal}>
+					   <DialogContent>
+							   <DialogHeader>
+									   <DialogTitle>Revoke Credential</DialogTitle>
+									   <DialogDescription>
+											   Are you sure you want to revoke this credential? This action cannot be undone.
+									   </DialogDescription>
+							   </DialogHeader>
+							   <DialogFooter>
+									   <Button variant="outline" onClick={() => setShowRevokeModal(false)} disabled={revokeLoading}>
+											   Cancel
+									   </Button>
+									   <Button variant="destructive" onClick={confirmRevokeVC} disabled={revokeLoading}>
+											   {revokeLoading ? 'Revoking...' : 'Confirm Revoke'}
+									   </Button>
+							   </DialogFooter>
+					   </DialogContent>
+			   </Dialog>
+
+			   {/* Tabs */}
 				<Tabs value={activeTab} onValueChange={setActiveTab} className='w-full'>
 					<TabsList className='grid w-full grid-cols-3'>
 						<TabsTrigger value='overview'>Overview</TabsTrigger>
@@ -336,12 +361,12 @@ export default function TenantCredentialDetailsPage() {
 
 									<div>
 										<Label className='text-sm font-medium'>Issued Date</Label>
-										<p className='text-sm text-muted-foreground mt-1'>{new Date(credential.issuanceDate).toLocaleString()}</p>
+										<p className='text-sm text-muted-foreground mt-1'>{formatDate(credential.issuanceDate || credential.issuedAt)}</p>
 									</div>
 
 									<div>
 										<Label className='text-sm font-medium'>Expiration Date</Label>
-										<p className='text-sm text-muted-foreground mt-1'>{credential.expirationDate ? new Date(credential.expirationDate).toLocaleString() : 'Never expires'}</p>
+										<p className='text-sm text-muted-foreground mt-1'>{credential.expirationDate ? formatDate(credential.expirationDate) : 'Never expires'}</p>
 									</div>
 
 									{credential.credentialStatus && (

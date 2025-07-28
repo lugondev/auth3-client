@@ -9,6 +9,7 @@ import {Alert, AlertDescription} from '@/components/ui/alert'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious} from '@/components/ui/pagination'
 import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger} from '@/components/ui/dropdown-menu'
+import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '@/components/ui/dialog'
 import {FileText, Settings, Search, Plus, Globe, AlertTriangle, Users, Key, Eye, Trash2, Power, MoreHorizontal, Coins, Network} from 'lucide-react'
 import Link from 'next/link'
 import {useRouter} from 'next/navigation'
@@ -67,9 +68,16 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 	})
 	const [loading, setLoading] = useState(true)
 	const [initialLoad, setInitialLoad] = useState(true)
+	
+	// Modal state
+	const [showModal, setShowModal] = useState(false)
+	const [modalMode, setModalMode] = useState<'deactivate' | 'revoke'>('deactivate')
+	const [selectedDIDForAction, setSelectedDIDForAction] = useState<DIDItem | null>(null)
 	const [error, setError] = useState<string | null>(null)
 	const [actionLoading, setActionLoading] = useState<{[key: string]: boolean}>({})
 
+	// Modal state for confirmation dialogs
+	
 	// Use ref to prevent infinite loops
 	const hasLoadedRef = useRef(false)
 
@@ -277,10 +285,12 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 
 	// Action handlers
 	const handleDeactivate = async (did: DIDItem) => {
-		if (!confirm(`Are you sure you want to deactivate this DID?\n\n${did.did}\n\nThis action can be reversed later.`)) {
-			return
-		}
+		setSelectedDIDForAction(did)
+		setModalMode('deactivate')
+		setShowModal(true)
+	}
 
+	const performDeactivate = async (did: DIDItem) => {
 		const actionKey = `deactivate-${did.id}`
 		setActionLoading((prev) => ({...prev, [actionKey]: true}))
 
@@ -319,10 +329,12 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 	}
 
 	const handleRevoke = async (did: DIDItem) => {
-		if (!confirm(`Are you sure you want to revoke this DID?\n\n${did.did}\n\n⚠️ WARNING: This action is PERMANENT and cannot be undone!`)) {
-			return
-		}
+		setSelectedDIDForAction(did)
+		setModalMode('revoke')
+		setShowModal(true)
+	}
 
+	const executeRevoke = async (did: DIDItem) => {
 		const actionKey = `revoke-${did.id}`
 		setActionLoading((prev) => ({...prev, [actionKey]: true}))
 
@@ -635,6 +647,60 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 					</Tabs>
 				</CardContent>
 			</Card>
+
+			{/* Confirmation Modal */}
+			<Dialog open={showModal} onOpenChange={setShowModal}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>
+							{modalMode === 'deactivate' ? 'Deactivate DID' : 'Revoke DID'}
+						</DialogTitle>
+						<DialogDescription>
+							{modalMode === 'deactivate' ? (
+								<>
+									Are you sure you want to deactivate this DID?
+									<br />
+									<br />
+									<strong>{selectedDIDForAction?.name || selectedDIDForAction?.id?.substring(0, 8) + '...'}</strong>
+									<br />
+									<br />
+									This action can be reversed later.
+								</>
+							) : (
+								<>
+									Are you sure you want to revoke this DID?
+									<br />
+									<br />
+									<strong>{selectedDIDForAction?.did}</strong>
+									<br />
+									<br />
+									⚠️ <strong>WARNING:</strong> This action is PERMANENT and cannot be undone!
+								</>
+							)}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button variant="outline" onClick={() => setShowModal(false)}>
+							Cancel
+						</Button>
+						<Button
+							variant={modalMode === 'revoke' ? 'destructive' : 'default'}
+							onClick={() => {
+								if (selectedDIDForAction) {
+									if (modalMode === 'deactivate') {
+										performDeactivate(selectedDIDForAction)
+									} else {
+										executeRevoke(selectedDIDForAction)
+									}
+									setShowModal(false)
+								}
+							}}
+						>
+							{modalMode === 'deactivate' ? 'Deactivate' : 'Revoke'}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

@@ -7,7 +7,7 @@ import {useToast} from '@/hooks/use-toast'
 // UI Components
 import {Card, CardContent, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
-import {Dialog, DialogTrigger} from '@/components/ui/dialog'
+import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog'
 
 // Icons
 import {FileText, Plus, RefreshCw, Shield, Settings} from 'lucide-react'
@@ -35,6 +35,10 @@ export default function TenantVCPage() {
 	const [loading, setLoading] = useState(true)
 	const [showProof, setShowProof] = useState<string | null>(null)
 	const [collapsedCards, setCollapsedCards] = useState<Set<string>>(new Set())
+	
+	// Modal state for revocation confirmation
+	const [showRevokeModal, setShowRevokeModal] = useState(false)
+	const [credentialToRevoke, setCredentialToRevoke] = useState<CredentialWithStatusInfo | null>(null)
 
 	/**
 	 * Fetch tenant credentials
@@ -179,6 +183,25 @@ export default function TenantVCPage() {
 	}
 
 	/**
+	 * Handle revoke modal trigger
+	 */
+	const handleRevokeModalOpen = (vc: CredentialWithStatusInfo) => {
+		setCredentialToRevoke(vc)
+		setShowRevokeModal(true)
+	}
+
+	/**
+	 * Handle revoke confirmation from modal
+	 */
+	const handleRevokeConfirm = async () => {
+		if (credentialToRevoke) {
+			setShowRevokeModal(false)
+			await handleRevokeVC(credentialToRevoke.id)
+			setCredentialToRevoke(null)
+		}
+	}
+
+	/**
 	 * Get credential status from credentialStatus property
 	 */
 	const getCredentialStatus = (vc: CredentialWithStatusInfo): string => {
@@ -299,11 +322,7 @@ export default function TenantVCPage() {
 							onViewCredential={() => handleViewCredential(vc.id)}
 							onCopyId={() => copyToClipboard(vc.id)}
 							onDownload={() => downloadVC(vc)}
-							onRevoke={() => {
-								if (window.confirm('Are you sure you want to revoke this credential? This action cannot be undone.')) {
-									handleRevokeVC(vc.id)
-								}
-							}}
+							onRevoke={() => handleRevokeModalOpen(vc)}
 							onToggleProof={() => setShowProof(showProof === vc.id ? null : vc.id)}
 							getCredentialStatus={getCredentialStatus}
 							formatIssuer={formatIssuer}
@@ -328,6 +347,32 @@ export default function TenantVCPage() {
 						</Card>
 					)}
 				</div>
+
+				{/* Revocation Confirmation Modal */}
+				<Dialog open={showRevokeModal} onOpenChange={setShowRevokeModal}>
+					<DialogContent>
+						<DialogHeader>
+							<DialogTitle>Revoke Credential</DialogTitle>
+							<DialogDescription>
+								Are you sure you want to revoke this verifiable credential?
+								<br />
+								<br />
+								<strong>Credential ID:</strong> {credentialToRevoke?.id}
+								<br />
+								<br />
+								⚠️ <strong>WARNING:</strong> This action cannot be undone!
+							</DialogDescription>
+						</DialogHeader>
+						<DialogFooter>
+							<Button variant="outline" onClick={() => setShowRevokeModal(false)}>
+								Cancel
+							</Button>
+							<Button variant="destructive" onClick={handleRevokeConfirm}>
+								Revoke Credential
+							</Button>
+						</DialogFooter>
+					</DialogContent>
+				</Dialog>
 			</div>
 		</div>
 	)

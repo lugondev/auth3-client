@@ -252,19 +252,10 @@ export function CredentialCard({credential, status = CredentialStatus.ACTIVE, on
 								<DropdownMenuSeparator />
 
 								{/* Quick Verify Button */}
-								<QuickVerifyButton 
-									credential={credential as ServiceVerifiableCredential} 
-									variant="dropdown" 
-								/>
+								<QuickVerifyButton credential={credential as ServiceVerifiableCredential} variant='dropdown' />
 
 								{/* Revoke option - only show for active credentials */}
-								{onRevoke && status === 'active' && (
-									<RevocationButton
-										credential={credential as ServiceVerifiableCredential}
-										variant="dropdown"
-										onRevoked={onRevoke}
-									/>
-								)}
+								{onRevoke && status === 'active' && <RevocationButton credential={credential} variant='dropdown' onRevoked={onRevoke} />}
 
 								{onDelete && (
 									<div>

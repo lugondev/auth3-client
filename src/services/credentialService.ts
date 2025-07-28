@@ -5,6 +5,7 @@
 import { JSONValue } from '@/types/template';
 import apiClient from '@/lib/apiClient';
 import { dateStringToRFC3339 } from '@/utils/dateUtils';
+import { Issuer } from '@/types';
 
 const API_BASE_URL = '/api/v1/credentials';
 
@@ -51,11 +52,12 @@ export interface CredentialListResponse {
 
 // Simplified VerifiableCredential type for this service
 export interface VerifiableCredential {
-	'@context': string[];
+	'@context': string[] | Record<string, unknown>;
 	id: string;
 	type: string[];
-	issuer: string;
+	issuer: string | Issuer;
 	issuanceDate: string;
+	issuedAt?: string;
 	expirationDate?: string;
 	credentialSubject: Record<string, JSONValue>;
 	credentialStatus?: {

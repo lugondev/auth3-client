@@ -14,6 +14,7 @@ import {Separator} from '@/components/ui/separator'
 
 import {revokeCredential} from '@/services/vcService'
 import type {VerifiableCredential} from '@/types/credentials'
+import {formatDate} from '@/lib/utils'
 
 interface RevokeCredentialModalProps {
 	isOpen: boolean
@@ -33,7 +34,7 @@ const REVOCATION_REASONS = [
 	{value: 'affiliation_changed', label: 'Affiliation changed'},
 	{value: 'ca_compromise', label: 'CA compromise'},
 	{value: 'key_compromise', label: 'Key compromise'},
-	{value: 'other', label: 'Other (specify in notes)'}
+	{value: 'other', label: 'Other (specify in notes)'},
 ] as const
 
 /**
@@ -45,12 +46,7 @@ const REVOCATION_REASONS = [
  * - Warning about irreversibility
  * - Confirmation process
  */
-export function RevokeCredentialModal({
-	isOpen,
-	credential,
-	onClose,
-	onRevoked
-}: RevokeCredentialModalProps) {
+export function RevokeCredentialModal({isOpen, credential, onClose, onRevoked}: RevokeCredentialModalProps) {
 	const [reason, setReason] = useState<string>('')
 	const [notes, setNotes] = useState('')
 	const [loading, setLoading] = useState(false)
@@ -104,7 +100,7 @@ export function RevokeCredentialModal({
 			await revokeCredential({
 				credentialId: credential.id,
 				issuerDID: typeof credential.issuer === 'string' ? credential.issuer : credential.issuer.id,
-				reason: reason || 'Revoked by user'
+				reason: reason || 'Revoked by user',
 			})
 			toast.success('Credential revoked successfully')
 			onRevoked?.(credential.id)
@@ -124,48 +120,53 @@ export function RevokeCredentialModal({
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleClose}>
-			<DialogContent className="max-w-md">
+			<DialogContent className='max-w-md'>
 				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2 text-red-600">
-						<XCircle className="h-5 w-5" />
+					<DialogTitle className='flex items-center gap-2 text-red-600'>
+						<XCircle className='h-5 w-5' />
 						Revoke Credential
 					</DialogTitle>
-					<DialogDescription>
-						This action will permanently revoke the credential and cannot be undone.
-					</DialogDescription>
+					<DialogDescription>This action will permanently revoke the credential and cannot be undone.</DialogDescription>
 				</DialogHeader>
 
-				<div className="space-y-4">
+				<div className='space-y-4'>
 					{/* Warning Alert */}
-					<Alert variant="destructive">
-						<AlertTriangle className="h-4 w-4" />
+					<Alert variant='destructive'>
+						<AlertTriangle className='h-4 w-4' />
 						<AlertDescription>
-							<strong>Warning:</strong> Revoking this credential will immediately invalidate it. 
-							This action is permanent and cannot be reversed.
+							<strong>Warning:</strong> Revoking this credential will immediately invalidate it. This action is permanent and cannot be reversed.
 						</AlertDescription>
 					</Alert>
 
 					{/* Credential Info */}
-					<div className="bg-muted p-3 rounded-md space-y-2">
-						<div className="text-sm font-medium">Credential Details</div>
-						<div className="text-sm space-y-1">
-							<div><strong>Type:</strong> {credentialTypes.length > 0 ? credentialTypes.join(', ') : 'Verifiable Credential'}</div>
-							<div><strong>ID:</strong> <span className="font-mono text-xs">{credential.id}</span></div>
-							<div><strong>Issuer:</strong> {issuerName}</div>
-							<div><strong>Issued:</strong> {new Date(credential.issuanceDate).toLocaleDateString()}</div>
+					<div className='bg-muted p-3 rounded-md space-y-2'>
+						<div className='text-sm font-medium'>Credential Details</div>
+						<div className='text-sm space-y-1'>
+							<div>
+								<strong>Type:</strong> {credentialTypes.length > 0 ? credentialTypes.join(', ') : 'Verifiable Credential'}
+							</div>
+							<div>
+								<strong>ID:</strong> <span className='font-mono text-xs'>{credential.id}</span>
+							</div>
+							<div>
+								<strong>Issuer:</strong> {issuerName}
+							</div>
+							<div>
+								<strong>Issued:</strong> {formatDate(credential.issuanceDate || credential.issuedAt)}
+							</div>
 						</div>
 					</div>
 
 					<Separator />
 
 					{/* Revocation Reason */}
-					<div className="space-y-2">
-						<Label htmlFor="revocation-reason" className="text-sm font-medium">
+					<div className='space-y-2'>
+						<Label htmlFor='revocation-reason' className='text-sm font-medium'>
 							Revocation Reason *
 						</Label>
 						<Select value={reason} onValueChange={setReason}>
 							<SelectTrigger>
-								<SelectValue placeholder="Select a reason for revocation" />
+								<SelectValue placeholder='Select a reason for revocation' />
 							</SelectTrigger>
 							<SelectContent>
 								{REVOCATION_REASONS.map((reasonOption) => (
@@ -178,57 +179,37 @@ export function RevokeCredentialModal({
 					</div>
 
 					{/* Additional Notes */}
-					<div className="space-y-2">
-						<Label htmlFor="revocation-notes" className="text-sm font-medium">
+					<div className='space-y-2'>
+						<Label htmlFor='revocation-notes' className='text-sm font-medium'>
 							Additional Notes (Optional)
 						</Label>
-						<Textarea
-							id="revocation-notes"
-							placeholder="Provide additional context for the revocation..."
-							value={notes}
-							onChange={(e) => setNotes(e.target.value)}
-							rows={3}
-						/>
+						<Textarea id='revocation-notes' placeholder='Provide additional context for the revocation...' value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
 					</div>
 
 					{/* Confirmation */}
-					<div className="flex items-start space-x-2">
-						<input
-							type="checkbox"
-							id="revocation-confirm"
-							checked={confirmed}
-							onChange={(e) => setConfirmed(e.target.checked)}
-							className="mt-1"
-						/>
-						<Label htmlFor="revocation-confirm" className="text-sm leading-relaxed">
-							I understand that revoking this credential will permanently invalidate it and 
-							this action cannot be undone.
+					<div className='flex items-start space-x-2'>
+						<input type='checkbox' id='revocation-confirm' checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className='mt-1' />
+						<Label htmlFor='revocation-confirm' className='text-sm leading-relaxed'>
+							I understand that revoking this credential will permanently invalidate it and this action cannot be undone.
 						</Label>
 					</div>
 
 					<Separator />
 
 					{/* Actions */}
-					<div className="flex justify-end gap-2">
-						<Button variant="outline" onClick={handleClose} disabled={loading}>
+					<div className='flex justify-end gap-2'>
+						<Button variant='outline' onClick={handleClose} disabled={loading}>
 							Cancel
 						</Button>
-						<Button 
-							variant="destructive" 
-							onClick={handleRevoke}
-							disabled={!reason || !confirmed || loading}
-						>
+						<Button variant='destructive' onClick={handleRevoke} disabled={!reason || !confirmed || loading}>
 							{loading ? 'Revoking...' : 'Revoke Credential'}
 						</Button>
 					</div>
 
 					{/* Information Alert */}
 					<Alert>
-						<Info className="h-4 w-4" />
-						<AlertDescription className="text-xs">
-							Once revoked, this credential will appear as invalid to all verifiers. 
-							The credential holder will be notified of the revocation status.
-						</AlertDescription>
+						<Info className='h-4 w-4' />
+						<AlertDescription className='text-xs'>Once revoked, this credential will appear as invalid to all verifiers. The credential holder will be notified of the revocation status.</AlertDescription>
 					</Alert>
 				</div>
 			</DialogContent>

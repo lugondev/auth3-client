@@ -230,7 +230,7 @@ export default function DIDDetailsPage() {
 		<div className='space-y-6'>
 			<PageHeader
 				title='DID Details'
-				description={didId}
+				description={didData.name || didId}
 				backButton={{href: '/dashboard/dids', text: 'Back to DIDs'}}
 				actions={
 					<div className='flex gap-2'>
