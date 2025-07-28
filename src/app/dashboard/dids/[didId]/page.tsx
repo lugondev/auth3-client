@@ -9,7 +9,7 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Textarea} from '@/components/ui/textarea'
 import {Label} from '@/components/ui/label'
-import {Key, Globe, Coins, Network, Users, Copy, Check, Power, Trash2, Shield, Link as LinkIcon, History, Download} from 'lucide-react'
+import {Key, Globe, Coins, Network, Users, Copy, Check, Power, Trash2, Shield, Link as LinkIcon, History, Download, Settings} from 'lucide-react'
 import {useParams, useRouter} from 'next/navigation'
 import {toast} from 'sonner'
 import {getDID, resolveDID, deactivateDID, revokeDID} from '@/services/didService'
@@ -234,6 +234,13 @@ export default function DIDDetailsPage() {
 				backButton={{href: '/dashboard/dids', text: 'Back to DIDs'}}
 				actions={
 					<div className='flex gap-2'>
+						<Button 
+							variant='outline' 
+							onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(didId)}/edit`)}
+						>
+							<Settings className='h-4 w-4 mr-2' />
+							Edit
+						</Button>
 						<Button variant='outline' onClick={downloadDocument}>
 							<Download className='h-4 w-4 mr-2' />
 							Download
