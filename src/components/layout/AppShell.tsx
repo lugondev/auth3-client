@@ -3,16 +3,15 @@
 import React from 'react'
 import Header from './Header'
 import Sidebar from './Sidebar'
+import DashboardFooter from '@/components/dashboard/DashboardFooter'
 import {useAuth} from '@/contexts/AuthContext' // Import useAuth
 
 interface AppShellProps {
 	children: React.ReactNode
 	sidebarType?: 'system' | 'user' | 'tenant' // Added 'tenant'
-	tenantId?: string
-	tenantName?: string
 }
 
-const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarType, tenantId, tenantName}) => {
+const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarType}) => {
 	const [isSidebarOpen, setIsSidebarOpen] = React.useState(true)
 	const [sidebarWidth, setSidebarWidth] = React.useState(256) // Default sidebar width (w-64 = 256px)
 	const {isAuthenticated, isSystemAdmin, currentMode, currentTenantId, loading: authLoading} = useAuth()
@@ -58,11 +57,12 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 			{/* Flex container to ensure sidebar and content are adjacent */}
 			<div className='flex w-full h-full overflow-hidden'>
 				{showSidebar && (
-					<div>					{/* Sidebar: Hidden on mobile by default, visible on md and larger */}
-					<div className={`fixed inset-y-0 left-0 z-30 transform bg-gray-800 text-white transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{width: `${sidebarWidth}px`, flexShrink: 0, maxWidth: '100vw'}}>
-						<Sidebar type={actualSidebarType} initialWidth={256} minWidth={80} maxWidth={320} onWidthChange={handleSidebarWidthChange} />
-					</div>
-
+					<div>
+						{' '}
+						{/* Sidebar: Hidden on mobile by default, visible on md and larger */}
+						<div className={`fixed inset-y-0 left-0 z-30 transform bg-gray-800 text-white transition-all duration-300 ease-in-out md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{width: `${sidebarWidth}px`, flexShrink: 0, maxWidth: '100vw'}}>
+							<Sidebar type={actualSidebarType} initialWidth={256} minWidth={80} maxWidth={320} onWidthChange={handleSidebarWidthChange} />
+						</div>
 						{/* Overlay for mobile when sidebar is open */}
 						{isSidebarOpen && <div className='fixed inset-0 z-20 bg-black opacity-50 md:hidden' onClick={toggleSidebar}></div>}
 					</div>
@@ -70,7 +70,12 @@ const AppShell: React.FC<AppShellProps> = ({children, sidebarType: propSidebarTy
 
 				<div className='flex flex-1 flex-col overflow-hidden min-w-0'>
 					<Header onMenuButtonClick={toggleSidebar} />
-					<main className='flex-1 overflow-y-auto overflow-x-hidden bg-gray-100 p-4 dark:bg-gray-900'>{children}</main>
+					<main className='flex-1 overflow-y-auto overflow-x-hidden bg-gray-100 dark:bg-gray-900'>
+						<div className='min-h-full flex flex-col'>
+							<div className='flex-1 p-4'>{children}</div>
+							<DashboardFooter variant={actualSidebarType === 'system' ? 'admin' : 'user'} />
+						</div>
+					</main>
 				</div>
 			</div>
 		</div>

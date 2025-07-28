@@ -234,10 +234,7 @@ export default function DIDDetailsPage() {
 				backButton={{href: '/dashboard/dids', text: 'Back to DIDs'}}
 				actions={
 					<div className='flex gap-2'>
-						<Button 
-							variant='outline' 
-							onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(didId)}/edit`)}
-						>
+						<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(didId)}/edit`)}>
 							<Settings className='h-4 w-4 mr-2' />
 							Edit
 						</Button>

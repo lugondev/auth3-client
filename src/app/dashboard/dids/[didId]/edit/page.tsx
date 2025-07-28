@@ -60,7 +60,7 @@ export default function DIDEditPage() {
 	const handleSave = async (savedDocument: DIDDocument) => {
 		try {
 			setIsSaving(true)
-			
+
 			// Update local state
 			if (didData) {
 				setDidData({
@@ -93,9 +93,7 @@ export default function DIDEditPage() {
 	// Handle cancel operation
 	const handleCancel = () => {
 		if (hasUnsavedChanges) {
-			const confirmLeave = confirm(
-				'You have unsaved changes. Are you sure you want to leave? All changes will be lost.'
-			)
+			const confirmLeave = confirm('You have unsaved changes. Are you sure you want to leave? All changes will be lost.')
 			if (!confirmLeave) {
 				return
 			}
@@ -106,9 +104,7 @@ export default function DIDEditPage() {
 	// Handle back navigation
 	const handleBack = () => {
 		if (hasUnsavedChanges) {
-			const confirmLeave = confirm(
-				'You have unsaved changes. Are you sure you want to go back? All changes will be lost.'
-			)
+			const confirmLeave = confirm('You have unsaved changes. Are you sure you want to go back? All changes will be lost.')
 			if (!confirmLeave) {
 				return
 			}
@@ -146,7 +142,7 @@ export default function DIDEditPage() {
 						<div className='h-10 w-16 bg-gray-800 rounded animate-pulse' />
 					</div>
 				</div>
-				
+
 				{/* Editor Skeleton */}
 				<DIDSkeleton variant='details' />
 			</div>
@@ -168,9 +164,7 @@ export default function DIDEditPage() {
 							<ArrowLeft className='h-4 w-4 mr-2' />
 							Go Back
 						</Button>
-						<Button onClick={() => window.location.reload()}>
-							Try Again
-						</Button>
+						<Button onClick={() => window.location.reload()}>Try Again</Button>
 					</div>
 				</div>
 			</div>
@@ -198,18 +192,11 @@ export default function DIDEditPage() {
 		<div className='container mx-auto py-6 space-y-6'>
 			{/* Breadcrumb Navigation */}
 			<nav className='flex items-center space-x-2 text-sm text-muted-foreground mb-4'>
-				<button 
-					onClick={() => router.push('/dashboard/dids')}
-					className='hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted'
-				>
+				<button onClick={() => router.push('/dashboard/dids')} className='hover:text-foreground transition-colors px-2 py-1 rounded hover:bg-muted'>
 					DIDs Dashboard
 				</button>
 				<ChevronRight className='h-4 w-4' />
-				<button 
-					onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(didId)}`)}
-					className='hover:text-foreground transition-colors truncate max-w-48 px-2 py-1 rounded hover:bg-muted'
-					title={`View details for ${didId}`}
-				>
+				<button onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(didId)}`)} className='hover:text-foreground transition-colors truncate max-w-48 px-2 py-1 rounded hover:bg-muted' title={`View details for ${didId}`}>
 					{didId.length > 30 ? `${didId.substring(0, 30)}...` : didId}
 				</button>
 				<ChevronRight className='h-4 w-4' />
@@ -220,31 +207,18 @@ export default function DIDEditPage() {
 			<div className='flex items-center justify-between'>
 				<div>
 					<div className='flex items-center gap-3 mb-2'>
-						<Button
-							variant='ghost'
-							size='sm'
-							onClick={handleBack}
-							className='hover:bg-muted'
-						>
+						<Button variant='ghost' size='sm' onClick={handleBack} className='hover:bg-muted'>
 							<ArrowLeft className='h-4 w-4' />
 						</Button>
 						<h1 className='text-3xl font-bold'>Edit DID Document</h1>
-						{hasUnsavedChanges && (
-							<span className='inline-flex items-center px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full'>
-								Unsaved Changes
-							</span>
-						)}
+						{hasUnsavedChanges && <span className='inline-flex items-center px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full'>Unsaved Changes</span>}
 					</div>
 					<p className='text-muted-foreground'>
 						Editing document for: <span className='font-mono text-sm'>{didId}</span>
 					</p>
 				</div>
 				<div className='flex gap-2'>
-					<Button
-						variant='outline'
-						onClick={handleCancel}
-						disabled={isSaving}
-					>
+					<Button variant='outline' onClick={handleCancel} disabled={isSaving}>
 						<X className='h-4 w-4 mr-2' />
 						Cancel
 					</Button>
@@ -259,18 +233,10 @@ export default function DIDEditPage() {
 						<FileText className='h-5 w-5' />
 						DID Document Editor
 					</CardTitle>
-					<CardDescription>
-						Edit the DID document structure, verification methods, and service endpoints.
-						Changes will be validated before saving.
-					</CardDescription>
+					<CardDescription>Edit the DID document structure, verification methods, and service endpoints. Changes will be validated before saving.</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<DIDDocumentEditor
-						did={didId}
-						initialDocument={didData.document}
-						onSave={handleSave}
-						onCancel={handleCancel}
-					/>
+					<DIDDocumentEditor did={didId} initialDocument={didData.document} onSave={handleSave} onCancel={handleCancel} />
 				</CardContent>
 			</Card>
 

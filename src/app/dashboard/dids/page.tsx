@@ -484,11 +484,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 								<FileText className='h-4 w-4' />
 								View Document
 							</Button>
-							<Button 
-								variant='outline' 
-								onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(String(selectedDID.id))}/edit`)}
-								className='flex items-center gap-2'
-							>
+							<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(String(selectedDID.id))}/edit`)} className='flex items-center gap-2'>
 								<Settings className='h-4 w-4' />
 								Edit Document
 							</Button>
@@ -587,38 +583,12 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 						<div className='p-6'>
 							{/* Overview Tab - Card-based view */}
 							<TabsContent value='overview' className='mt-0 space-y-6'>
-								<OverviewContent 
-									userDIDs={userDIDs} 
-									recentResolutions={recentResolutions} 
-									onDIDSelected={handleDIDSelected} 
-									didsHasMore={didsHasMore} 
-									didsLoading={didsLoading} 
-									onLoadMoreDIDs={loadMoreDIDs} 
-									onLoadAllDIDs={loadAllDIDs} 
-									showAllDIDs={showAllDIDs} 
-									onDeactivate={handleDeactivate} 
-									onRevoke={handleRevoke} 
-									getStatusBadge={getStatusBadge} 
-									getMethodIcon={getMethodIcon} 
-									actionLoading={actionLoading}
-									router={router}
-								/>
+								<OverviewContent userDIDs={userDIDs} recentResolutions={recentResolutions} onDIDSelected={handleDIDSelected} didsHasMore={didsHasMore} didsLoading={didsLoading} onLoadMoreDIDs={loadMoreDIDs} onLoadAllDIDs={loadAllDIDs} showAllDIDs={showAllDIDs} onDeactivate={handleDeactivate} onRevoke={handleRevoke} getStatusBadge={getStatusBadge} getMethodIcon={getMethodIcon} actionLoading={actionLoading} router={router} />
 							</TabsContent>
 
 							{/* Table View Tab - Full table with pagination */}
 							<TabsContent value='table' className='mt-0'>
-								<TableView 
-									userDIDs={userDIDs} 
-									pagination={pagination} 
-									onPageChange={handlePageChange} 
-									onDIDSelected={handleDIDSelected} 
-									onDeactivate={handleDeactivate} 
-									onRevoke={handleRevoke} 
-									getStatusBadge={getStatusBadge} 
-									getMethodIcon={getMethodIcon} 
-									actionLoading={actionLoading}
-									router={router}
-								/>
+								<TableView userDIDs={userDIDs} pagination={pagination} onPageChange={handlePageChange} onDIDSelected={handleDIDSelected} onDeactivate={handleDeactivate} onRevoke={handleRevoke} getStatusBadge={getStatusBadge} getMethodIcon={getMethodIcon} actionLoading={actionLoading} router={router} />
 							</TabsContent>
 
 							{/* Document View Tab - DID Document Viewer */}
@@ -635,10 +605,7 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 													<Settings className='h-4 w-4 mr-2' />
 													Edit Document
 												</Button>
-												<Button 
-													variant='outline' 
-													onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(String(selectedDID.id))}`)}
-												>
+												<Button variant='outline' onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(String(selectedDID.id))}`)}>
 													<Eye className='h-4 w-4 mr-2' />
 													View Details Page
 												</Button>
