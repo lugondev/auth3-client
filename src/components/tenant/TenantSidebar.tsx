@@ -64,12 +64,6 @@ export const TenantSidebar: React.FC<TenantSidebarProps> = ({tenantId}) => {
 			description: 'Activity logs',
 		},
 		{
-			icon: Key,
-			label: 'Security',
-			href: `/dashboard/tenant/${tenantId}/security`,
-			description: 'Security settings',
-		},
-		{
 			icon: Settings,
 			label: 'Settings',
 			href: `/dashboard/tenant/${tenantId}/settings`,
