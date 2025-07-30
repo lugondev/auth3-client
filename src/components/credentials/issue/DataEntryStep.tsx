@@ -437,7 +437,42 @@ export function DataEntryStep({template, credentialData, recipientInfo, issuance
 											<CheckCircle className='h-4 w-4 text-green-600' />
 											<span className='text-sm font-medium text-green-800'>Selected Issuer DID:</span>
 										</div>
-										<p className='mt-1 text-sm text-green-700 font-mono break-all'>{issuerOptions.useCustomDID ? issuerOptions.customDID : issuerOptions.selectedDID}</p>
+										<p className='mt-1 text-sm text-green-700 font-mono break-all'>
+											{(() => {
+												let displayDID = '';
+												if (issuerOptions.useCustomDID) {
+													displayDID = issuerOptions.customDID || '';
+												} else {
+													// Check if selectedDID is actually a DID (starts with 'did:') or an ID
+													if (issuerOptions.selectedDID?.startsWith('did:')) {
+														displayDID = issuerOptions.selectedDID;
+													} else {
+														// If it's an ID, find the corresponding DID from availableDIDs
+														const selectedDIDObj = availableDIDs.find(did => 
+															String(did.id) === String(issuerOptions.selectedDID)
+														);
+														
+														if (selectedDIDObj) {
+															if (selectedDIDObj.did && typeof selectedDIDObj.did === 'string') {
+																displayDID = selectedDIDObj.did;
+															} else if (selectedDIDObj.identifier) {
+																displayDID = selectedDIDObj.identifier;
+															} else {
+																displayDID = issuerOptions.selectedDID || '';
+															}
+														} else {
+															displayDID = issuerOptions.selectedDID || '';
+														}
+													}
+												}
+												
+												// Shorten display: show first 20 and last 10 characters if longer than 35 chars
+												if (displayDID.length > 35) {
+													return `${displayDID.substring(0, 20)}...${displayDID.substring(displayDID.length - 10)}`;
+												}
+												return displayDID;
+											})()}
+										</p>
 									</div>
 								)}
 
@@ -472,7 +507,36 @@ export function DataEntryStep({template, credentialData, recipientInfo, issuance
 													onIssuerChange(newOptions)
 												}}>
 												<SelectTrigger>
-													<SelectValue placeholder='Choose a DID'>{selectedDIDKey && <span className='font-mono text-sm truncate block'>{selectedDIDKey}</span>}</SelectValue>
+													<SelectValue placeholder='Choose a DID'>
+														{selectedDIDKey && (
+															<span className='font-mono text-sm truncate block'>
+																{(() => {
+																	let displayDID = selectedDIDKey;
+																	
+																	// If selectedDIDKey is an ID (not starting with 'did:'), find the actual DID
+																	if (!selectedDIDKey.startsWith('did:')) {
+																		const selectedDIDObj = availableDIDs.find(did => 
+																			String(did.id) === String(selectedDIDKey)
+																		);
+																		
+																		if (selectedDIDObj) {
+																			if (selectedDIDObj.did && typeof selectedDIDObj.did === 'string') {
+																				displayDID = selectedDIDObj.did;
+																			} else if (selectedDIDObj.identifier) {
+																				displayDID = selectedDIDObj.identifier;
+																			}
+																		}
+																	}
+																	
+																	// Shorten DID display in select
+																	if (displayDID.length > 30) {
+																		return `${displayDID.substring(0, 15)}...${displayDID.substring(displayDID.length - 8)}`;
+																	}
+																	return displayDID;
+																})()}
+															</span>
+														)}
+													</SelectValue>
 												</SelectTrigger>
 												<SelectContent>
 													{availableDIDs.map((did, index) => {
