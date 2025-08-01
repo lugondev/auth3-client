@@ -1,11 +1,15 @@
 'use client';
 
-import { PresentationRequestView } from '@/components/presentation-request/PresentationRequestView';
+import { UnifiedPresentationManager } from '@/components/presentation-request/UnifiedPresentationManager';
 import { useParams } from 'next/navigation';
 
 export default function PresentationRequestPage() {
     const params = useParams()
     const requestId = params.id as string
 
-    return <PresentationRequestView requestId={requestId} />;
+    if (requestId === 'new') {
+        return <UnifiedPresentationManager initialMode="create" />;
+    }
+
+    return <UnifiedPresentationManager initialMode="view" requestId={requestId} />;
 }

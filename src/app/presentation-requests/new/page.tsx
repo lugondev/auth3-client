@@ -2,6 +2,6 @@
 
 import { UnifiedPresentationManager } from '@/components/presentation-request/UnifiedPresentationManager';
 
-export default function PresentationRequestsPage() {
-  return <UnifiedPresentationManager initialMode="list" />;
+export default function CreatePresentationRequestPage() {
+    return <UnifiedPresentationManager initialMode="create" />;
 }

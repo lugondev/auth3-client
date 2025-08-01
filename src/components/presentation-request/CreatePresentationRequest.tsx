@@ -18,6 +18,9 @@ import { toast } from 'sonner';
 import { presentationRequestService } from '@/services/presentation-request-service';
 import didService from '@/services/didService';
 import { useAuth } from '@/contexts/AuthContext';
+import { ConstraintsBuilder } from './ConstraintsBuilder';
+import { DIDCredentialSelector } from './DIDCredentialSelector';
+import { useDIDCredentialSelection } from '@/hooks/useDIDCredentialSelection';
 import type { CreatePresentationRequestDTO, CredentialRequirement } from '@/types/presentation-request';
 import type { DIDResponse } from '@/types/did';
 
@@ -70,6 +73,17 @@ export function CreatePresentationRequest({ onSuccess, onCancel }: CreatePresent
   const [loadingDIDs, setLoadingDIDs] = useState(false);
   const [createdRequest, setCreatedRequest] = useState<any>(null);
   const [showResult, setShowResult] = useState(false);
+  const [showDIDCredentialSelector, setShowDIDCredentialSelector] = useState(false);
+
+  // DID credential selection hook
+  const {
+    selectedDID: holderDID,
+    selectedCredentials,
+    handleDIDChange: setHolderDID,
+    handleCredentialsChange: setSelectedCredentials,
+  } = useDIDCredentialSelection({
+    autoSelectFirstDID: false, // Don't auto-select for holder DID
+  });
 
   const {
     register,
@@ -651,6 +665,63 @@ export function CreatePresentationRequest({ onSuccess, onCancel }: CreatePresent
             </p>
           </div>
 
+          {/* DID Credential Selector */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-medium">Credential Selection Assistant</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDIDCredentialSelector(!showDIDCredentialSelector)}
+                className="flex items-center gap-2"
+              >
+                {showDIDCredentialSelector ? 'Hide' : 'Show'} Credential Helper
+              </Button>
+            </div>
+            
+            {showDIDCredentialSelector && (
+              <Card className="p-4 bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                    <Info className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      Select a DID to view available credentials and auto-populate requirements
+                    </span>
+                  </div>
+                  
+                  <DIDCredentialSelector
+                    selectedDID={holderDID}
+                    selectedCredentials={selectedCredentials.map(cred => cred.id || '')}
+                    onDIDSelected={setHolderDID}
+                    onCredentialsSelected={(credentials) => {
+                      setSelectedCredentials(credentials);
+                      
+                      // Auto-populate credential requirements based on selected credentials
+                      if (credentials.length > 0) {
+                        const newRequirements = credentials.map(cred => ({
+                          type: cred.type?.filter(t => t !== 'VerifiableCredential').join(', ') || '',
+                          format: 'ldp_vc',
+                          essential: false,
+                          schema: '',
+                          issuer: typeof cred.issuer === 'string' ? cred.issuer : cred.issuer?.id || '',
+                          purpose: `Credential from ${typeof cred.issuer === 'string' ? cred.issuer : cred.issuer?.id || 'issuer'}`,
+                          constraints: undefined,
+                        }));
+                        
+                        // Replace existing requirements with auto-populated ones
+                        setValue('requiredCredentials', newRequirements);
+                        trigger('requiredCredentials');
+                        
+                        toast.success(`Auto-populated ${credentials.length} credential requirement${credentials.length !== 1 ? 's' : ''}`);
+                      }
+                    }}
+                  />
+                </div>
+              </Card>
+            )}
+          </div>
+
           {/* Required Credentials */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -778,25 +849,14 @@ export function CreatePresentationRequest({ onSuccess, onCancel }: CreatePresent
 
                   {/* Constraints */}
                   <div className="space-y-2">
-                    <Label className="flex items-center gap-2">
-                      <Info className="h-4 w-4" />
-                      Constraints (JSON) - Optional
-                    </Label>
-                    <Textarea
-                      {...register(`requiredCredentials.${index}.constraints`)}
-                      placeholder='Example: {"fields": [{"path": ["$.credentialSubject.age"], "filter": {"type": "number", "minimum": 18}}]}'
-                      rows={3}
-                      className="font-mono text-sm"
+                    <ConstraintsBuilder
+                      value={watch(`requiredCredentials.${index}.constraints`)}
+                      onChange={(value) => {
+                        setValue(`requiredCredentials.${index}.constraints`, value);
+                        trigger(`requiredCredentials.${index}.constraints`);
+                      }}
+                      error={errors.requiredCredentials?.[index]?.constraints?.message}
                     />
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <p><strong>Constraints định nghĩa điều kiện cụ thể cho credential:</strong></p>
-                      <ul className="ml-4 list-disc space-y-1">
-                        <li><strong>Age verification:</strong> {`{"fields": [{"path": ["$.credentialSubject.age"], "filter": {"type": "number", "minimum": 18}}]}`}</li>
-                        <li><strong>Location requirement:</strong> {`{"fields": [{"path": ["$.credentialSubject.country"], "filter": {"type": "string", "const": "VN"}}]}`}</li>
-                        <li><strong>Degree level:</strong> {`{"fields": [{"path": ["$.credentialSubject.degree"], "filter": {"type": "string", "enum": ["Bachelor", "Master", "PhD"]}}]}`}</li>
-                      </ul>
-                      <p className="mt-2"><strong>Có thể bỏ trống</strong> nếu chỉ cần kiểm tra loại credential mà không có điều kiện cụ thể.</p>
-                    </div>
                   </div>
                 </div>
               </Card>

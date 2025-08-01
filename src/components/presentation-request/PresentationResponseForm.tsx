@@ -63,6 +63,7 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
   const [credentialMatches, setCredentialMatches] = useState<CredentialMatch[]>([]);
   const [selectedCredentials, setSelectedCredentials] = useState<Set<string>>(new Set());
   const [selectedPresentationId, setSelectedPresentationId] = useState<string>('');
+  const [selectedDID, setSelectedDID] = useState<string>('');
   const [submissionMode, setSubmissionMode] = useState<'create' | 'select'>('create');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -90,12 +91,12 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
   }, [request, isAuthenticated]);
 
   useEffect(() => {
-    // This effect handles matching when both request and credentials are available
-    if (request && userCredentials.length > 0) {
-      console.log('🔄 Running matching because both request and credentials are available');
-      matchCredentialsToRequirements(request, userCredentials);
+    // This effect handles matching when both request, credentials, and DID are available
+    if (request && userCredentials.length > 0 && selectedDID) {
+      console.log('🔄 Running matching because request, credentials, and DID are available');
+      matchCredentialsToRequirements(request, userCredentials, selectedDID);
     }
-  }, [request, userCredentials]);
+  }, [request, userCredentials, selectedDID]);
 
   const loadUserCredentials = async () => {
     try {
@@ -124,12 +125,17 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
       setUserDIDs(dids);
       setUserPresentations(presentations);
 
-      // Match credentials to requirements if request is available
-      if (request) {
-        console.log('🔗 Request available, running matching immediately...');
-        matchCredentialsToRequirements(request, credentials);
+      // Auto-select first DID if available
+      if (dids.length > 0 && !selectedDID) {
+        setSelectedDID(dids[0].did);
+      }
+
+      // Match credentials to requirements if request and DID are available
+      if (request && selectedDID) {
+        console.log('🔗 Request and DID available, running matching immediately...');
+        matchCredentialsToRequirements(request, credentials, selectedDID);
       } else {
-        console.log('⏳ Request not available yet, matching will run later...');
+        console.log('⏳ Request or DID not available yet, matching will run later...');
       }
     } catch (error: any) {
       console.error('❌ Failed to load user data:', error);
@@ -154,8 +160,15 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
       setUserDIDs(didsResult.dids || []);
       setUserPresentations(presentationsResult.presentations || []);
 
+      // Auto-select first DID if available
+      if ((didsResult.dids || []).length > 0) {
+        setSelectedDID((didsResult.dids || [])[0].did);
+      }
+
       // Match credentials to requirements
-      matchCredentialsToRequirements(requestResult, credentialsResult.credentials || []);
+      if ((didsResult.dids || []).length > 0) {
+        matchCredentialsToRequirements(requestResult, credentialsResult.credentials || [], (didsResult.dids || [])[0].did);
+      }
     } catch (error: any) {
       console.error('Failed to load data:', error);
       toast.error('Failed to load presentation request or user data');
@@ -167,18 +180,44 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
 
   const matchCredentialsToRequirements = (
     presentationRequest: PresentationRequest, 
-    credentials: VerifiableCredential[]
+    credentials: VerifiableCredential[],
+    holderDID: string
   ) => {
     console.log('🔍 Matching Process Started');
     console.log('📋 Request Requirements:', presentationRequest.required_credentials);
     console.log('💳 User Credentials:', credentials);
+    console.log('🆔 Selected Holder DID:', holderDID);
     
+    // Filter credentials by the selected DID
+    const filteredCredentials = credentials.filter(credential => {
+      const subjectDID = (credential as any).subjectDID;
+      const matches = subjectDID === holderDID;
+      if (!matches) {
+        console.log(`  ❌ Credential ${credential.id} excluded - SubjectDID: ${subjectDID}, Required DID: ${holderDID}`);
+      } else {
+        console.log(`  ✅ Credential ${credential.id} included - SubjectDID: ${subjectDID}`);
+      }
+      return matches;
+    });
+
+    console.log('✅ Filtered credentials for DID:', filteredCredentials.length);
+
+    // Show alert for credentials that don't match the selected DID
+    const excludedCredentials = credentials.filter(credential => 
+      (credential as any).subjectDID !== holderDID
+    );
+    if (excludedCredentials.length > 0) {
+      toast.info(`${excludedCredentials.length} credential(s) excluded as they don't belong to the selected DID`);
+    }
+
     const matches: CredentialMatch[] = [];
 
     presentationRequest.required_credentials?.forEach((requirement, reqIndex) => {
       console.log(`\n📝 Checking Requirement ${reqIndex}:`, requirement);
       
-      credentials.forEach((credential, credIndex) => {
+      let foundValidMatch = false;
+      
+      filteredCredentials.forEach((credential, credIndex) => {
         console.log(`\n  🔍 Testing Credential ${credIndex}:`, {
           id: credential.id,
           type: credential.type,
@@ -189,6 +228,8 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
         
         const isMatch = checkCredentialMatch(credential, requirement);
         const issues = getMatchingIssues(credential, requirement);
+        
+        if (isMatch) foundValidMatch = true;
         
         console.log(`  ✅ Match Result:`, {
           isMatch,
@@ -205,6 +246,11 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
           issues
         });
       });
+
+      // Show alert if no valid credentials found for this requirement
+      if (!foundValidMatch && filteredCredentials.length > 0) {
+        toast.warning(`No valid credentials found for requirement: ${requirement.type}`);
+      }
     });
 
     console.log('🏁 Final Matches:', matches);
@@ -376,16 +422,17 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
       return;
     }
 
+    if (!selectedDID) {
+      toast.error('Please select a DID first');
+      return;
+    }
+
     // Get the holder DID based on submission mode
     let holderDID: string;
     
     if (submissionMode === 'create') {
-      // For create mode, use user's DIDs
-      if (userDIDs.length === 0) {
-        toast.error('No DIDs available. Please create a DID first.');
-        return;
-      }
-      holderDID = userDIDs[0].did;
+      // For create mode, use selected DID
+      holderDID = selectedDID;
     } else {
       // For select mode, use the holder DID from the selected presentation
       if (!selectedPresentationId) {
@@ -635,133 +682,6 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Debug Panel - Always show in development */}
-            {process.env.NODE_ENV === 'development' && (
-              <Card className="border-border bg-muted/50">
-                <CardHeader>
-                  <CardTitle className="text-sm flex items-center gap-2 text-foreground">
-                    🔍 Debug Information
-                    <div className="ml-auto flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          console.log('🔄 Manual credential and DID reload triggered');
-                          loadUserCredentials();
-                        }}
-                        className="text-xs h-6"
-                      >
-                        Reload Data
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (request && userCredentials.length > 0) {
-                            console.log('🔄 Manual matching triggered');
-                            matchCredentialsToRequirements(request, userCredentials);
-                          } else {
-                            console.log('❌ Cannot run matching: request or credentials missing');
-                          }
-                        }}
-                        className="text-xs h-6"
-                      >
-                        Re-run Matching
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-xs space-y-2 text-muted-foreground">
-                  <div><strong className="text-foreground">User Authenticated:</strong> {isAuthenticated ? '✅ Yes' : '❌ No'}</div>
-                  <div><strong className="text-foreground">Request Loaded:</strong> {request ? '✅ Yes' : '❌ No'}</div>
-                  <div><strong className="text-foreground">User Credentials Count:</strong> {userCredentials.length}</div>
-                  <div><strong className="text-foreground">User DIDs Count:</strong> {userDIDs.length}</div>
-                  <div><strong className="text-foreground">User Presentations Count:</strong> {userPresentations.length}</div>
-                  <div><strong className="text-foreground">Submission Mode:</strong> {submissionMode}</div>
-                  <div><strong className="text-foreground">Selected Holder DID:</strong> {
-                    submissionMode === 'create' 
-                      ? (userDIDs.length > 0 ? userDIDs[0].did : 'None available')
-                      : (selectedPresentationId 
-                          ? userPresentations.find(p => p.id === selectedPresentationId)?.holder || 'Unknown'
-                          : 'Select presentation first')
-                  }</div>
-                  <div><strong className="text-foreground">Requirements Count:</strong> {request?.required_credentials?.length || 0}</div>
-                  <div><strong className="text-foreground">Total Matches:</strong> {credentialMatches.length}</div>
-                  {submissionMode === 'create' && <div><strong className="text-foreground">Selected Credentials:</strong> {selectedCredentials.size}</div>}
-                  {submissionMode === 'select' && <div><strong className="text-foreground">Selected Presentation ID:</strong> {selectedPresentationId || 'None'}</div>}
-                  
-                  {userDIDs.length > 0 && (
-                    <div>
-                      <strong className="text-foreground">Available DIDs:</strong>
-                      <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
-                        {userDIDs.map((didData, idx) => (
-                          <div key={idx} className="p-2 bg-card border border-border rounded text-xs">
-                            <div><strong className="text-foreground">DID:</strong> {didData.did}</div>
-                            <div><strong className="text-foreground">Method:</strong> {didData.method}</div>
-                            <div><strong className="text-foreground">Status:</strong> {didData.status}</div>
-                            <div><strong className="text-foreground">Created:</strong> {didData.created_at}</div>
-                            {idx === 0 && <div className="text-primary text-xs mt-1">👆 This DID will be used as holder</div>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {userCredentials.length > 0 && (
-                    <div>
-                      <strong className="text-foreground">Your Credentials:</strong>
-                      <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
-                        {userCredentials.map((cred, idx) => (
-                          <div key={idx} className="p-2 bg-card border border-border rounded text-xs">
-                            <div><strong className="text-foreground">ID:</strong> {cred.id}</div>
-                            <div><strong className="text-foreground">Types:</strong> [{cred.type?.join(', ')}]</div>
-                            <div><strong className="text-foreground">Issuer:</strong> {typeof cred.issuer === 'string' ? cred.issuer : JSON.stringify(cred.issuer)}</div>
-                            <div><strong className="text-foreground">Status:</strong> {cred.credentialStatus?.status || 'no status'}</div>
-                            <div><strong className="text-foreground">Issued:</strong> {cred.issuanceDate}</div>
-                            {cred.expirationDate && <div><strong className="text-foreground">Expires:</strong> {cred.expirationDate}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {userPresentations.length > 0 && (
-                    <div>
-                      <strong className="text-foreground">Your Presentations:</strong>
-                      <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
-                        {userPresentations.map((pres, idx) => (
-                          <div key={idx} className="p-2 bg-card border border-border rounded text-xs">
-                            <div><strong className="text-foreground">ID:</strong> {pres.id}</div>
-                            <div><strong className="text-foreground">Status:</strong> {pres.status}</div>
-                            <div><strong className="text-foreground">Holder:</strong> {pres.holder}</div>
-                            <div><strong className="text-foreground">Credentials:</strong> {pres.verifiableCredential?.length || 0}</div>
-                            <div><strong className="text-foreground">Created:</strong> {pres.createdAt}</div>
-                            {pres.expiresAt && <div><strong className="text-foreground">Expires:</strong> {pres.expiresAt}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {request?.required_credentials && request.required_credentials.length > 0 && (
-                    <div>
-                      <strong className="text-foreground">Required Credentials:</strong>
-                      <div className="mt-1 space-y-1">
-                        {request.required_credentials.map((req, idx) => (
-                          <div key={idx} className="p-2 bg-card border border-border rounded text-xs">
-                            <div><strong className="text-foreground">Type:</strong> {req.type}</div>
-                            <div><strong className="text-foreground">Essential:</strong> {req.essential ? 'Yes' : 'No'}</div>
-                            {req.issuer && <div><strong className="text-foreground">Required Issuer:</strong> {req.issuer}</div>}
-                            {req.format && <div><strong className="text-foreground">Format:</strong> {req.format}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
             {/* Request Info */}
             <Card>
               <CardHeader>
@@ -775,6 +695,56 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
                   <p className="text-sm text-muted-foreground">{request.description}</p>
                 </CardContent>
               )}
+            </Card>
+
+            {/* DID Selection */}
+            <Card className="border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Select Your Identity (DID)
+                </CardTitle>
+                <CardDescription>
+                  Choose which decentralized identity to use for this presentation
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {userDIDs.length === 0 ? (
+                  <div className="text-center py-8">
+                    <User className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      No DIDs found
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      You need to create a DID before responding to presentation requests
+                    </p>
+                  </div>
+                ) : (
+                  <Select value={selectedDID} onValueChange={(value) => {
+                    setSelectedDID(value);
+                    // Reset selections when changing DID
+                    setSelectedCredentials(new Set());
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose your DID..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {userDIDs.map((didData) => (
+                        <SelectItem key={didData.did} value={didData.did}>
+                          <div className="flex flex-col">
+                            <span className="font-medium font-mono text-xs">
+                              {didData.did}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              Method: {didData.method} • Status: {didData.status}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </CardContent>
             </Card>
 
             {/* Submission Mode Selector */}
@@ -907,7 +877,31 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
             )}
 
             {/* Credential Selection (when create mode) */}
-            {submissionMode === 'create' && credentialsByRequirement.map(({ requirement, index, matches }) => (
+            {submissionMode === 'create' && !selectedDID && (
+              <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+                <CardContent className="text-center py-8">
+                  <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-amber-400 mx-auto mb-2" />
+                  <h3 className="text-lg font-semibold mb-2">DID Selection Required</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Please select a DID first to view available credentials for this presentation.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {submissionMode === 'create' && selectedDID && credentialsByRequirement.length === 0 && (
+              <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950">
+                <CardContent className="text-center py-8">
+                  <AlertTriangle className="h-8 w-8 text-amber-600 dark:text-amber-400 mx-auto mb-2" />
+                  <h3 className="text-lg font-semibold mb-2">No Credentials for Selected DID</h3>
+                  <p className="text-sm text-muted-foreground">
+                    No credentials found for the selected DID that match the requirements.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {submissionMode === 'create' && selectedDID && credentialsByRequirement.map(({ requirement, index, matches }) => (
               <Card key={index}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -924,41 +918,16 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
                   )}
                 </CardHeader>
                 <CardContent>
-                  {/* Debug Info */}
-                  {process.env.NODE_ENV === 'development' && (
-                    <div className="mb-4 p-3 bg-muted/50 border border-border rounded-lg text-xs text-muted-foreground">
-                      <strong className="text-foreground">🔍 Debug Info:</strong>
-                      <div>Required Type: <code className="bg-muted px-1 rounded">{requirement.type}</code></div>
-                      <div>Required Issuer: <code className="bg-muted px-1 rounded">{requirement.issuer || 'Any'}</code></div>
-                      <div>Essential: <code className="bg-muted px-1 rounded">{requirement.essential}</code></div>
-                      <div>User Credentials Count: <code className="bg-muted px-1 rounded">{userCredentials.length}</code></div>
-                      <div>Matches Found: <code className="bg-muted px-1 rounded">{matches.length}</code></div>
-                      <div>Valid Matches: <code className="bg-muted px-1 rounded">{matches.filter(m => m.isMatch).length}</code></div>
-                    </div>
-                  )}
-                  
                   {matches.length === 0 ? (
                     <div className="text-center py-8">
                       <XCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
                       <p className="text-sm text-muted-foreground">
-                        No matching credentials found
+                        No matching credentials found for the selected DID
                       </p>
                       {requirement.essential && (
                         <p className="text-sm text-destructive mt-1">
                           This is a required credential type
                         </p>
-                      )}
-                      {process.env.NODE_ENV === 'development' && (
-                        <div className="mt-4 p-3 bg-card border border-border rounded text-xs text-left">
-                            <strong className="text-primary">💡 Troubleshooting:</strong>
-                            <ul className="mt-2 space-y-1 text-muted-foreground">
-                                <li>• Check if you have any credentials issued</li>
-                                <li>• Check if you have at least one DID created</li>
-                                <li>• Check credential types in your wallet</li>
-                                <li>• Verify credential status is 'active'</li>
-                                <li>• Check browser console for detailed logs</li>
-                            </ul>
-                        </div>
                       )}
                     </div>
                   ) : (
@@ -1065,7 +1034,7 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
                     <span>Holder DID:</span>
                     <span className="font-mono text-xs text-muted-foreground break-all">
                       {submissionMode === 'create' 
-                        ? (userDIDs.length > 0 ? userDIDs[0].did : 'No DID available')
+                        ? (selectedDID || 'No DID selected')
                         : (selectedPresentationId 
                             ? userPresentations.find(p => p.id === selectedPresentationId)?.holder || 'Unknown'
                             : 'Select presentation first')
@@ -1112,7 +1081,7 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
                   onClick={handleSubmit}
                   disabled={
                     submitting || 
-                    (submissionMode === 'create' && (selectedCredentials.size === 0 || userDIDs.length === 0)) || 
+                    (submissionMode === 'create' && (!selectedDID || selectedCredentials.size === 0)) || 
                     (submissionMode === 'select' && !selectedPresentationId)
                   }
                   className="w-full"
@@ -1122,10 +1091,10 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                       {submissionMode === 'create' ? 'Creating & Submitting...' : 'Submitting...'}
                     </>
-                  ) : submissionMode === 'create' && userDIDs.length === 0 ? (
+                  ) : submissionMode === 'create' && !selectedDID ? (
                     <>
                       <XCircle className="h-4 w-4 mr-2" />
-                      No DID Available
+                      Select DID First
                     </>
                   ) : submissionMode === 'create' && selectedCredentials.size === 0 ? (
                     <>
@@ -1145,9 +1114,9 @@ export function PresentationResponseForm({ request: propRequest, onCancel, onSuc
                   )}
                 </Button>
                 
-                {submissionMode === 'create' && userDIDs.length === 0 && (
+                {submissionMode === 'create' && !selectedDID && (
                   <p className="text-xs text-destructive text-center">
-                    You need to create a DID before creating new presentations.
+                    You need to select a DID before creating new presentations.
                   </p>
                 )}
               </CardContent>
