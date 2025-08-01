@@ -12,5 +12,3 @@ export type { default as PresentationAnalytics } from './presentations/Presentat
 export { DIDDocumentEditor } from './did/DIDDocumentEditor'
 export { DIDServiceEndpointsManager } from './did/DIDServiceEndpointsManager'
 export { DIDVerificationMethodsManager } from './did/DIDVerificationMethodsManager'
-export { DIDDocumentPreview } from './did/DIDDocumentPreview'
-export { AdvancedDIDResolver } from './did/AdvancedDIDResolver'

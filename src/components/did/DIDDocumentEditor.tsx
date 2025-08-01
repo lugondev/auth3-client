@@ -14,7 +14,7 @@ import type {DIDDocument, UpdateDIDDocumentRequest, DIDDocumentEditContext, DIDE
 import didService from '@/services/didService'
 import {DIDServiceEndpointsManager} from './DIDServiceEndpointsManager'
 import {DIDVerificationMethodsManager} from './DIDVerificationMethodsManager'
-import {DIDDocumentPreview} from './DIDDocumentPreview'
+import {DIDDocumentViewer} from './DIDDocumentViewer'
 import {DIDDocumentValidator} from '@/utils/didDocumentValidator'
 
 interface DIDDocumentEditorProps {
@@ -198,7 +198,7 @@ export const DIDDocumentEditor: React.FC<DIDDocumentEditorProps> = ({did, initia
 			id: 'preview',
 			label: 'Preview',
 			icon: 'Eye',
-			component: () => <DIDDocumentPreview document={editContext.workingDocument} />,
+			component: () => <DIDDocumentViewer document={editContext.workingDocument} showRawJson={false} />,
 		},
 	]
 

@@ -17,7 +17,6 @@ import type {AppRouterInstance} from 'next/dist/shared/lib/app-router-context.sh
 import {useAuth} from '@/contexts/AuthContext'
 import {toast} from '@/hooks/use-toast'
 
-import {AdvancedDIDResolver} from '@/components'
 import {DIDSkeleton} from '@/components/did'
 import {DIDDocumentViewer} from '@/components/did/DIDDocumentViewer'
 
@@ -667,7 +666,10 @@ const DIDManagementDashboard: React.FC<DIDManagementDashboardProps> = ({userId: 
 
 							{/* Resolver Tab */}
 							<TabsContent value='resolver' className='mt-0'>
-								<AdvancedDIDResolver initialDid={selectedDID?.id || ''} onResolved={handleResolutionCompleted} />
+								{/* AdvancedDIDResolver has been removed in the simplified version */}
+								<div className="text-center py-12">
+									<p className="text-muted-foreground">Advanced DID Resolver has been removed in the simplified version</p>
+								</div>
 							</TabsContent>
 						</div>
 					</Tabs>
