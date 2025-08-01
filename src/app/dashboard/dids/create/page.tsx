@@ -10,11 +10,17 @@ import {Textarea} from '@/components/ui/textarea'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {RadioGroup, RadioGroupItem} from '@/components/ui/radio-group'
 import {Alert, AlertDescription} from '@/components/ui/alert'
-import {Key, Globe, Coins, Network, Users, Eye, EyeOff, Copy, Check} from 'lucide-react'
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs'
+import {Badge} from '@/components/ui/badge'
+import {Key, Globe, Coins, Network, Users, Eye, EyeOff, Copy, Check, Shield, ArrowRight, ArrowLeft, RefreshCw, CheckCircle, Clock, Loader2} from 'lucide-react'
 import {useRouter} from 'next/navigation'
 import {toast} from 'sonner'
 import {createDID} from '@/services/didService'
-import type {CreateDIDInput, CreateDIDOutput, DIDMethod, DIDDocument} from '@/types/did'
+import {ClientDIDGenerator} from '@/components/did/ClientDIDGenerator'
+import ChallengeDisplay from '@/components/did/ChallengeDisplay'
+import SigningHelper from '@/components/did/SigningHelper'
+import * as didService from '@/services/didService'
+import type {CreateDIDInput, CreateDIDOutput, DIDMethod, DIDDocument, GenerateControlChallengeInput, GenerateControlChallengeOutput, VerifyDIDControlInput, RegisterUserManagedDIDInput, DIDControlProof} from '@/types/did'
 import {ETHEREUM_NETWORKS, ETHEREUM_NETWORK_LABELS, DID_METHOD_INFO, RECOMMENDED_KEY_TYPES, VALIDATION_PATTERNS} from '@/constants/did'
 
 // Service endpoint types with descriptions
@@ -70,6 +76,20 @@ interface DIDCreationForm {
 	verificationMethods?: VerificationMethod[]
 }
 
+// Client-side registration workflow steps
+type ClientRegistrationStep = 'generate' | 'challenge' | 'sign' | 'verify' | 'complete'
+
+interface ChallengeData extends GenerateControlChallengeOutput {
+  verification_method?: string
+}
+
+interface SigningData {
+  message: string
+  signature: string
+  verification_method: string
+  timestamp: string
+}
+
 interface ServiceEndpoint {
 	id: string
 	type: string
@@ -103,6 +123,23 @@ export default function CreateDIDPage() {
 	const [didResponse, setDidResponse] = useState<CreateDIDOutput | null>(null)
 	const [showPrivateKey, setShowPrivateKey] = useState(false)
 	const [copiedField, setCopiedField] = useState<string | null>(null)
+	const [activeTab, setActiveTab] = useState('server')
+	const [clientGeneratedResult, setClientGeneratedResult] = useState<any>(null)
+	
+	// Client-side registration workflow state
+	const [clientStep, setClientStep] = useState<ClientRegistrationStep>('generate')
+	const [challengeData, setChallengeData] = useState<ChallengeData | null>(null)
+	const [signingData, setSigningData] = useState<SigningData | null>(null)
+	const [proof, setProof] = useState<DIDControlProof | null>(null)
+	const [registrationResult, setRegistrationResult] = useState<any>(null)
+	const [registrationLoading, setRegistrationLoading] = useState(false)
+	
+	// Challenge workflow states
+	const [challengeLoading, setChallengeLoading] = useState(false)
+	const [challengeResult, setChallengeResult] = useState<any>(null)
+	const [signingLoading, setSigningLoading] = useState(false)
+	const [signatureResult, setSignatureResult] = useState<any>(null)
+	const [verificationLoading, setVerificationLoading] = useState(false)
 
 	/**
 	 * Get method icon and description
@@ -297,6 +334,124 @@ export default function CreateDIDPage() {
 		}
 	}
 
+	// Client-side registration workflow functions
+	const handleClientDIDGenerated = (result: any) => {
+		setClientGeneratedResult(result)
+		setClientStep('challenge')
+		toast.success('DID generated successfully! Now generating challenge...')
+		// Auto-generate challenge
+		setTimeout(() => handleGenerateChallenge(result), 500)
+	}
+
+	const handleGenerateChallenge = async (generatedResult: any) => {
+		if (!generatedResult) return
+
+		setChallengeLoading(true)
+		try {
+			const input: GenerateControlChallengeInput = {
+				did: generatedResult.did,
+				verification_method: generatedResult.verificationMethod,
+				purpose: 'registration'
+			}
+
+			const result = await didService.generateControlChallenge(input)
+			
+			setChallengeResult({
+				...result,
+				verification_method: generatedResult.verificationMethod
+			})
+			
+			setClientStep('sign')
+			toast.success('Challenge generated successfully!')
+		} catch (err) {
+			console.error('Error generating challenge:', err)
+			toast.error(err instanceof Error ? err.message : 'Failed to generate challenge')
+		} finally {
+			setChallengeLoading(false)
+		}
+	}
+
+	const handleSignatureCreated = (signature: string) => {
+		if (!challengeResult || !clientGeneratedResult) return
+
+		const signingDataResult: SigningData = {
+			message: challengeResult.challenge,
+			signature: signature,
+			verification_method: challengeResult.verification_method || clientGeneratedResult.verificationMethod,
+			timestamp: new Date().toISOString()
+		}
+
+		setSigningData(signingDataResult)
+		setClientStep('verify')
+		toast.success('Signature created successfully!')
+	}
+
+	const handleVerifyAndRegister = async () => {
+		if (!challengeResult || !signingData || !clientGeneratedResult) return
+
+		setVerificationLoading(true)
+		try {
+			// Create proof
+			const proofData: DIDControlProof = {
+				type: 'signature',
+				challenge: challengeResult.challenge,
+				signature: signingData.signature,
+				verification_method: signingData.verification_method,
+				signed_message: challengeResult.challenge,
+				timestamp: signingData.timestamp,
+				nonce: challengeResult.nonce
+			}
+
+			// Use the RegisterUserManagedDID API (backend will be updated to handle non-existing DIDs)
+			const registerInput: RegisterUserManagedDIDInput = {
+				did: clientGeneratedResult.did,
+				challenge_id: challengeResult.challenge_id,
+				document: clientGeneratedResult.didDocument, // Include DID document for verification
+				proof_of_control: proofData,
+				metadata: {
+					clientGenerated: true,
+					name: form.name || `Client Generated ${clientGeneratedResult.did.split(':')[1]} DID`,
+					keyType: clientGeneratedResult.keyPair ? 
+						(clientGeneratedResult.keyPair.privateKey.length === 32 ? 'Ed25519' : 'secp256k1') : 
+						'Ed25519',
+					originalDID: clientGeneratedResult.did,
+					verificationMethod: clientGeneratedResult.verificationMethod,
+					didDocument: clientGeneratedResult.didDocument,
+					generatedAt: new Date().toISOString()
+				}
+			}
+
+			const registerResult = await didService.registerUserManagedDID(registerInput)
+			
+			setRegistrationResult(registerResult)
+			setClientStep('complete')
+			toast.success('Client-generated DID registered successfully!')
+			
+		} catch (err) {
+			console.error('Error in verification/registration:', err)
+			toast.error(err instanceof Error ? err.message : 'Failed to verify/register DID')
+		} finally {
+			setVerificationLoading(false)
+		}
+	}
+
+	const resetClientWorkflow = () => {
+		setClientGeneratedResult(null)
+		setClientStep('generate')
+		setRegistrationResult(null)
+		setRegistrationLoading(false)
+		
+		// Reset challenge workflow states
+		setChallengeLoading(false)
+		setChallengeResult(null)
+		setSigningLoading(false)
+		setSignatureResult(null)
+		setVerificationLoading(false)
+		setChallengeData(null)
+		setSigningData(null)
+		setProof(null)
+	}
+
 	/**
 	 * Add service endpoint
 	 */
@@ -417,7 +572,20 @@ export default function CreateDIDPage() {
 		<div className='space-y-6'>
 			<PageHeader title='Create DID' description='Create a new Decentralized Identifier' backButton={{href: '/dashboard/dids', text: 'Back to DIDs'}} />
 
-			<form onSubmit={handleSubmit} className='space-y-6'>
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+				<TabsList className="grid w-full grid-cols-2">
+					<TabsTrigger value="server" className="flex items-center gap-2">
+						<Globe className="h-4 w-4" />
+						Server Creation
+					</TabsTrigger>
+					<TabsTrigger value="client" className="flex items-center gap-2">
+						<Shield className="h-4 w-4" />
+						Client-side Generation
+					</TabsTrigger>
+				</TabsList>
+
+				<TabsContent value="server" className="space-y-6">
+					<form onSubmit={handleSubmit} className='space-y-6'>
 				{/* Method Selection */}
 				<Card>
 					<CardHeader>
@@ -657,6 +825,357 @@ export default function CreateDIDPage() {
 					</CardContent>
 				</Card>
 			)}
-		</div>
+		</TabsContent>
+
+		<TabsContent value="client" className="space-y-6">
+			{/* Progress indicator */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<Shield className="h-5 w-5" />
+						Client-side DID Registration
+					</CardTitle>
+					<CardDescription>
+						Complete DID generation and registration workflow with cryptographic proof of control
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="flex items-center justify-between mb-6">
+						{['generate', 'challenge', 'sign', 'verify', 'complete'].map((step, index) => (
+							<div key={step} className="flex items-center">
+								<div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+									clientStep === step ? 'bg-blue-600 text-white' :
+									['generate', 'challenge', 'sign', 'verify'].indexOf(clientStep) > index ? 'bg-green-600 text-white' :
+									'bg-gray-200 text-gray-600'
+								}`}>
+									{['generate', 'challenge', 'sign', 'verify'].indexOf(clientStep) > index ? (
+										<CheckCircle className="h-4 w-4" />
+									) : (
+										index + 1
+									)}
+								</div>
+								{index < 4 && (
+									<div className={`w-16 h-0.5 mx-2 ${
+										['generate', 'challenge', 'sign', 'verify'].indexOf(clientStep) > index ? 'bg-green-600' : 'bg-gray-200'
+									}`} />
+								)}
+							</div>
+						))}
+					</div>
+					
+					<div className="text-center">
+						<p className="text-sm text-muted-foreground">
+							{clientStep === 'generate' && 'Generate your DID and cryptographic keys'}
+							{clientStep === 'challenge' && 'Generating cryptographic challenge...'}
+							{clientStep === 'sign' && 'Sign the challenge to prove control'}
+							{clientStep === 'verify' && 'Verify signature and register DID'}
+							{clientStep === 'complete' && 'Registration completed successfully!'}
+						</p>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* Step 1: Generate DID */}
+			{clientStep === 'generate' && (
+				<ClientDIDGenerator 
+					onGenerated={handleClientDIDGenerated}
+				/>
+			)}
+
+			{/* Step 2: Registration */}
+			{/* Step 2: Challenge Generation */}
+			{clientStep === 'challenge' && clientGeneratedResult && (
+				<div className="space-y-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>Generate Challenge</CardTitle>
+							<CardDescription>Request a challenge for your DID registration</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+								{clientGeneratedResult.did}
+							</div>
+							<div className="grid grid-cols-2 gap-4 text-sm">
+								<div>
+									<strong>Method:</strong> {clientGeneratedResult.did.split(':')[1]}
+								</div>
+								<div>
+									<strong>Key Type:</strong> {clientGeneratedResult.keyPair.privateKey.length === 32 ? 'Ed25519' : 'secp256k1'}
+								</div>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="client-did-name">DID Name (Optional)</Label>
+								<Input
+									id="client-did-name"
+									placeholder="My Client-Generated DID"
+									value={form.name || ''}
+									onChange={(e) => setForm(prev => ({ ...prev, name: e.target.value }))}
+								/>
+							</div>
+
+							<div className="flex justify-between">
+								<Button
+									variant="outline"
+									onClick={() => setClientStep('generate')}
+								>
+									<ArrowLeft className="h-4 w-4 mr-2" />
+									Back to Generation
+								</Button>
+								<Button 
+									onClick={() => handleGenerateChallenge(clientGeneratedResult)}
+									disabled={challengeLoading}
+								>
+									{challengeLoading ? (
+										<>
+											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+											Generating...
+										</>
+									) : (
+										<>
+											Generate Challenge
+											<ArrowRight className="h-4 w-4 ml-2" />
+										</>
+									)}
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Step 3: Signature Creation */}
+			{clientStep === 'sign' && challengeResult && clientGeneratedResult && (
+				<div className="space-y-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>Sign Challenge</CardTitle>
+							<CardDescription>Creating signature with your private key</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div>
+								<Label>Challenge Token</Label>
+								<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+									{challengeResult.challenge}
+								</div>
+							</div>
+
+							{signatureResult && (
+								<div>
+									<Label>Generated Signature</Label>
+									<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+										{signatureResult.signature}
+									</div>
+								</div>
+							)}
+
+							<div className="flex justify-between">
+								<Button
+									variant="outline"
+									onClick={() => setClientStep('challenge')}
+								>
+									<ArrowLeft className="h-4 w-4 mr-2" />
+									Back to Challenge
+								</Button>
+								<Button 
+									onClick={async () => {
+										if (!challengeResult || !clientGeneratedResult) return
+										
+										setSigningLoading(true)
+										try {
+											// Import crypto functions
+											const { signMessage } = await import('@/lib/did-generation')
+											
+											// Determine key type from private key length
+											const keyType = clientGeneratedResult.keyPair.privateKey.length === 32 ? 'Ed25519' : 'secp256k1'
+											
+											// Create signature
+											const signature = await signMessage(
+												challengeResult.challenge,
+												clientGeneratedResult.keyPair.privateKey,
+												keyType
+											)
+											
+											setSignatureResult({ signature, challenge: challengeResult.challenge })
+											handleSignatureCreated(signature)
+										} catch (error) {
+											console.error('Signing error:', error)
+											toast.error('Failed to create signature')
+										} finally {
+											setSigningLoading(false)
+										}
+									}}
+									disabled={signingLoading || !!signatureResult}
+								>
+									{signingLoading ? (
+										<>
+											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+											Signing...
+										</>
+									) : signatureResult ? (
+										<>
+											<CheckCircle className="h-4 w-4 mr-2" />
+											Signature Created
+										</>
+									) : (
+										<>
+											Create Signature
+											<ArrowRight className="h-4 w-4 ml-2" />
+										</>
+									)}
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Step 4: Verification */}
+			{clientStep === 'verify' && challengeResult && signatureResult && clientGeneratedResult && (
+				<div className="space-y-6">
+					<Card>
+						<CardHeader>
+							<CardTitle>Verify & Register</CardTitle>
+							<CardDescription>Submit signature for verification and DID registration</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div>
+								<Label>DID to Register</Label>
+								<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+									{clientGeneratedResult.did}
+								</div>
+							</div>
+							<div>
+								<Label>Challenge</Label>
+								<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+									{challengeResult.challenge}
+								</div>
+							</div>
+							<div>
+								<Label>Signature</Label>
+								<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+									{signatureResult.signature}
+								</div>
+							</div>
+
+							<div className="flex justify-between">
+								<Button
+									variant="outline"
+									onClick={() => setClientStep('sign')}
+								>
+									<ArrowLeft className="h-4 w-4 mr-2" />
+									Back to Signing
+								</Button>
+								<Button 
+									onClick={handleVerifyAndRegister}
+									disabled={verificationLoading}
+								>
+									{verificationLoading ? (
+										<>
+											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+											Verifying...
+										</>
+									) : (
+										<>
+											Verify & Register
+											<CheckCircle className="h-4 w-4 ml-2" />
+										</>
+									)}
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Step 3: Complete */}
+			{clientStep === 'complete' && registrationResult && (
+				<div className="space-y-6">
+					<Card>
+						<CardHeader>
+							<CardTitle className="flex items-center gap-2">
+								<CheckCircle className="h-5 w-5 text-green-600" />
+								Registration Completed!
+							</CardTitle>
+							<CardDescription>
+								Your DID has been successfully registered with proof of control
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							<div>
+								<Label>Registered DID</Label>
+								<div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+									{registrationResult.did || registrationResult.identifier}
+								</div>
+							</div>
+							<div>
+								<Label>Registration Status</Label>
+								<div className="flex items-center gap-2">
+									<Badge variant="default">{registrationResult.status || 'active'}</Badge>
+									<span className="text-sm text-muted-foreground">
+										{registrationResult.registered_at ? 
+											new Date(registrationResult.registered_at).toLocaleString() :
+											new Date().toLocaleString()
+										}
+									</span>
+								</div>
+							</div>
+							{registrationResult.name && (
+								<div>
+									<Label>DID Name</Label>
+									<div className="text-sm">{registrationResult.name}</div>
+								</div>
+							)}
+						</CardContent>
+					</Card>
+
+					<Card>
+						<CardContent className="pt-6">
+							<div className="flex gap-4">
+								<Button 
+									onClick={() => router.push('/dashboard/dids')}
+									className="flex-1"
+								>
+									Go to DID Dashboard
+								</Button>
+								<Button 
+									variant="outline" 
+									onClick={() => router.push(`/dashboard/dids/${encodeURIComponent(registrationResult.did || registrationResult.identifier || clientGeneratedResult?.did || '')}`)}
+									className="flex-1"
+								>
+									View DID Details
+								</Button>
+								<Button
+									variant="outline"
+									onClick={resetClientWorkflow}
+								>
+									Register Another DID
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Loading states for challenge workflow */}
+			{(challengeLoading || signingLoading || verificationLoading) && clientGeneratedResult && (
+				<Card>
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-center py-8">
+							<div className="text-center">
+								<RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4" />
+								<p className="text-sm text-muted-foreground">
+									{challengeLoading && 'Generating challenge...'}
+									{signingLoading && 'Creating signature...'}
+									{verificationLoading && 'Verifying and registering DID...'}
+								</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+		</TabsContent>
+	</Tabs>
+</div>
 	)
 }

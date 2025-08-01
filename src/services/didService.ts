@@ -44,6 +44,13 @@ import type {
   VerificationMethodsListResponse,
   ResolutionOptions,
   UniversalResolutionResponse,
+  // Challenge-Response DID Registration Types
+  GenerateControlChallengeInput,
+  GenerateControlChallengeOutput,
+  VerifyDIDControlInput,
+  VerifyDIDControlOutput,
+  RegisterUserManagedDIDInput,
+  RegisterUserManagedDIDOutput,
 } from '@/types';
 
 /**
@@ -485,6 +492,44 @@ export const adminRevokeDID = withErrorHandling(
   }
 );
 
+// Challenge-Response DID Registration Services
+
+/**
+ * Generates a cryptographic challenge for DID control verification
+ * @param input Challenge generation parameters
+ * @returns Promise<GenerateControlChallengeOutput> Generated challenge information
+ */
+export const generateControlChallenge = withErrorHandling(
+  async (input: GenerateControlChallengeInput): Promise<GenerateControlChallengeOutput> => {
+    const response = await apiClient.post<GenerateControlChallengeOutput>('/api/v1/dids/challenge/generate', input);
+    return response.data;
+  }
+);
+
+/**
+ * Verifies DID control using signed challenge
+ * @param input Challenge verification parameters
+ * @returns Promise<VerifyDIDControlOutput> Verification result
+ */
+export const verifyDIDControl = withErrorHandling(
+  async (input: VerifyDIDControlInput): Promise<VerifyDIDControlOutput> => {
+    const response = await apiClient.post<VerifyDIDControlOutput>('/api/v1/dids/challenge/verify', input);
+    return response.data;
+  }
+);
+
+/**
+ * Registers a user-managed DID with challenge verification
+ * @param input Registration parameters including challenge proof
+ * @returns Promise<RegisterUserManagedDIDOutput> Registration result
+ */
+export const registerUserManagedDID = withErrorHandling(
+  async (input: RegisterUserManagedDIDInput): Promise<RegisterUserManagedDIDOutput> => {
+    const response = await apiClient.post<RegisterUserManagedDIDOutput>('/api/v1/dids/register', input);
+    return response.data;
+  }
+);
+
 const didService = {
   createDID,
   updateDID,
@@ -509,6 +554,10 @@ const didService = {
   removeVerificationMethod,
   getVerificationMethods,
   resolveUniversalDID,
+  // Challenge-Response DID Registration
+  generateControlChallenge,
+  verifyDIDControl,
+  registerUserManagedDID,
   // Admin functions
   adminListDIDs,
   adminDeactivateDID,

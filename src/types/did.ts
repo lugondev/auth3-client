@@ -349,10 +349,12 @@ export interface DIDStatisticsOutput {
   active_dids: number;
   deactivated_dids: number;
   revoked_dids: number;
+  user_managed_dids: number;
+  system_managed_dids: number;
   dids_by_method: Record<string, number>;
-  dids_created_today: number;
-  dids_created_week: number;
-  dids_created_month: number;
+  dids_created_today?: number;
+  dids_created_week?: number;
+  dids_created_month?: number;
 }
 
 export interface DIDActivity {
@@ -820,4 +822,58 @@ export interface VerificationMethodFormData {
   blockchainAccountId?: string;
   ethereumAddress?: string;
   properties: Record<string, string>;
+}
+
+// Challenge-Response DID Registration Types
+export interface GenerateControlChallengeInput {
+  did: string;
+  verification_method?: string;
+  purpose?: string;
+}
+
+export interface GenerateControlChallengeOutput {
+  challenge_id: string;
+  challenge: string;
+  message: string;
+  expires_at: string;
+  purpose: string;
+  nonce: string;
+}
+
+export interface VerifyDIDControlInput {
+  challenge_id: string;
+  did: string;
+  proof_of_control: DIDControlProof;
+}
+
+export interface VerifyDIDControlOutput {
+  valid: boolean;
+  reason?: string;
+  challenge_verified_at?: string;
+}
+
+export interface DIDControlProof {
+  type: string;
+  challenge: string;
+  signature: string;
+  verification_method: string;
+  signed_message: string;
+  timestamp: string;
+  nonce: string;
+}
+
+export interface RegisterUserManagedDIDInput {
+  did: string;
+  challenge_id: string;
+  document?: DIDDocument; // DID document for verification when DID doesn't exist yet
+  proof_of_control: DIDControlProof;
+  metadata?: Record<string, any>;
+}
+
+export interface RegisterUserManagedDIDOutput {
+  success: boolean;
+  did_id: string;
+  did: string;
+  status: string;
+  registered_at: string;
 }

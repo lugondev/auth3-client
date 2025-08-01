@@ -137,14 +137,7 @@ export function SimpleCredentialWizard({onComplete, onCancel, initialTemplate, c
 
 				if (dids.length > 0) {
 					setAvailableDIDs(dids)
-					// Auto-select first active DID if available
-					setWizardData((prev) => ({
-						...prev,
-						issuerOptions: {
-							...prev.issuerOptions,
-							selectedDID: dids[0].id,
-						},
-					}))
+					// Don't auto-select DID - let user choose
 				} else {
 					console.warn(`No active DIDs found for ${tenantId ? `tenant ${tenantId}` : 'current user'}`)
 					toast.warning('No active DIDs found. You may need to create a DID first.')
