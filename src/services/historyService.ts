@@ -30,14 +30,13 @@ interface ApiLatestResponse {
 
 interface ApiPresentationRequest {
   id: string;
-  request_id: string;
   verifier_did: string;
   verifier_name: string;
   title: string;
   description: string;
   purpose: string;
   required_credentials: ApiCredentialRequirement[];
-  status: 'active' | 'expired' | 'completed' | 'cancelled';
+  status: 'active' | 'expired' | 'completed' | 'closed';
   response_count: number;
   max_responses: number;
   expires_at: string | null;
@@ -73,7 +72,7 @@ interface MockHistoryResponse {
 
 export interface HistoryFilters {
   search?: string;
-  status?: 'active' | 'expired' | 'completed' | 'cancelled' | 'all';
+  status?: 'active' | 'expired' | 'completed' | 'closed' | 'all';
   verifier_did?: string;
   page?: number;
   limit?: number;
@@ -95,7 +94,7 @@ export interface PresentationRequestHistoryItem {
     schema?: string;
     constraints?: Record<string, unknown>;
   }>;
-  status: 'active' | 'expired' | 'completed' | 'cancelled';
+  status: 'active' | 'expired' | 'completed' | 'closed';
   response_count: number;
   max_responses: number;
   expires_at: string | null;
@@ -228,7 +227,7 @@ class HistoryService {
           holder: request.latest_response?.holder_did,
           details: {
             credentialTypes: request.required_credentials.map((cred: ApiCredentialRequirement) => cred.type),
-            requestId: request.request_id,
+            requestId: request.id,
             responseTime: request.latest_response?.verified_at && request.latest_response?.submitted_at
               ? this.calculateResponseTime(request.latest_response.submitted_at, request.latest_response.verified_at)
               : undefined,
@@ -311,14 +310,14 @@ class HistoryService {
 
   // Helper methods
   private mapRequestStatusToLegacyStatus(
-    status: 'active' | 'expired' | 'completed' | 'cancelled',
+    status: 'active' | 'expired' | 'completed' | 'closed',
     responseCount: number
   ): 'completed' | 'pending' | 'failed' {
     // Check actual backend status first
     if (status === 'completed') return 'completed';
     if (status === 'active') return 'pending';
     if (status === 'expired') return 'failed';
-    if (status === 'cancelled') return 'failed';
+    if (status === 'closed') return 'failed';
 
     // Fallback to response count logic for backward compatibility
     if (responseCount > 0) return 'completed';
@@ -326,7 +325,7 @@ class HistoryService {
   }
 
   private mapRequestStatusToHistoryStatus(
-    status: 'active' | 'expired' | 'completed' | 'cancelled',
+    status: 'active' | 'expired' | 'completed' | 'closed',
     responseCount: number
   ): 'completed' | 'pending' | 'failed' {
     return this.mapRequestStatusToLegacyStatus(status, responseCount);

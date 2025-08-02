@@ -33,7 +33,7 @@ export interface PresentationRequest {
   expires_at?: string;
   valid_from?: string;
   valid_until?: string;
-  status: 'active' | 'expired' | 'revoked';
+  status: 'active' | 'expired' | 'completed' | 'closed';
   share_url?: string;
   qr_code_data?: string;
   response_count: number;

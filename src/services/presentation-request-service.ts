@@ -128,5 +128,11 @@ export const presentationRequestService = {
       reason
     });
     return response.data;
+  },
+
+  // Analytics
+  async getRequestAnalytics(requestId: string): Promise<any> {
+    const response = await apiClient.get(`/api/v1/presentation-requests/${requestId}/analytics`);
+    return response.data;
   }
 };

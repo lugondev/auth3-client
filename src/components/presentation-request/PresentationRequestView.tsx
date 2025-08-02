@@ -17,20 +17,26 @@ import {
   FileText,
   QrCode,
   ArrowLeft,
-  Send
+  Send,
+  Lock,
+  Pause,
+  BarChart3
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { presentationRequestService } from '@/services/presentation-request-service';
 import { useAuth } from '@/contexts/AuthContext';
 import { PresentationResponseForm } from './PresentationResponseForm';
+import { ResponseLimitInfo } from './ResponseLimitInfo';
+import { PresentationRequestAnalytics } from './PresentationRequestAnalytics';
 import type { PresentationRequest } from '@/types/presentation-request';
 
 interface PresentationRequestViewProps {
   requestId?: string;
   onRespondSuccess?: () => void;
+  showAnalytics?: boolean;
 }
 
-export function PresentationRequestView({ requestId, onRespondSuccess }: PresentationRequestViewProps) {
+export function PresentationRequestView({ requestId, onRespondSuccess, showAnalytics = false }: PresentationRequestViewProps) {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -77,10 +83,14 @@ export function PresentationRequestView({ requestId, onRespondSuccess }: Present
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: 'default' | 'secondary' | 'destructive' | 'outline', icon: React.ReactNode }> = {
-      active: { variant: 'default', icon: <CheckCircle className="h-4 w-4" /> },
-      expired: { variant: 'secondary', icon: <Clock className="h-4 w-4" /> },
-      revoked: { variant: 'destructive', icon: <XCircle className="h-4 w-4" /> },
+    const variants: Record<string, { variant: any, icon: React.ReactElement }> = {
+      active: { variant: 'default' as const, icon: <CheckCircle className="h-4 w-4" /> },
+      expired: { variant: 'destructive' as const, icon: <Clock className="h-4 w-4" /> },
+      completed: { variant: 'default' as const, icon: <CheckCircle className="h-4 w-4" /> },
+      cancelled: { variant: 'destructive' as const, icon: <XCircle className="h-4 w-4" /> },
+      closed: { variant: 'secondary' as const, icon: <Lock className="h-4 w-4" /> },
+      paused: { variant: 'outline' as const, icon: <Pause className="h-4 w-4" /> },
+      revoked: { variant: 'destructive' as const, icon: <XCircle className="h-4 w-4" /> },
     };
 
     const config = variants[status] || { variant: 'outline' as const, icon: <AlertTriangle className="h-4 w-4" /> };
@@ -124,10 +134,10 @@ export function PresentationRequestView({ requestId, onRespondSuccess }: Present
     );
   }
 
-  // Check if request is expired or revoked
+  // Check if request is expired or inactive
   const isExpired = request.expires_at && new Date(request.expires_at) < new Date();
-  const isRevoked = request.status === 'revoked';
-  const canRespond = request.status === 'active' && !isExpired && !isRevoked;
+  const isInactive = request.status !== 'active';
+  const canRespond = request.status === 'active' && !isExpired;
 
   // If responding, show the response form
   if (responding && request) {
@@ -169,22 +179,32 @@ export function PresentationRequestView({ requestId, onRespondSuccess }: Present
                 You have been requested to share verifiable credentials
               </p>
             </div>
-            {getStatusBadge(request.status)}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/dashboard/presentation-requests/${request.request_id}/analytics`)}
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Analytics
+              </Button>
+              {getStatusBadge(request.status)}
+            </div>
           </div>
         </div>
 
         {/* Warning if expired or revoked */}
-        {(isExpired || isRevoked) && (
+        {(isExpired || isInactive) && (
           <Card className="mb-6 border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950">
             <CardContent className="py-4">
               <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
                 <AlertTriangle className="h-5 w-5" />
                 <span className="font-medium">
-                  {isRevoked ? 'This request has been revoked' : 'This request has expired'}
+                  {isInactive ? 'This request is not active' : 'This request has expired'}
                 </span>
               </div>
               <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                {isRevoked 
+                {isInactive 
                   ? 'The verifier has cancelled this presentation request.'
                   : 'This presentation request is no longer accepting responses.'
                 }
@@ -380,8 +400,8 @@ export function PresentationRequestView({ requestId, onRespondSuccess }: Present
                 ) : (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      {isRevoked 
-                        ? 'This request has been revoked by the verifier.'
+                      {isInactive 
+                        ? 'This request has been cancelled by the verifier.'
                         : 'This request has expired and can no longer accept responses.'
                       }
                     </p>
@@ -408,8 +428,18 @@ export function PresentationRequestView({ requestId, onRespondSuccess }: Present
                 </div>
               </CardContent>
             </Card>
+
+            {/* Response Limit Info */}
+            <ResponseLimitInfo request={request} />
           </div>
         </div>
+
+        {/* Analytics Section - only show if enabled */}
+        {showAnalytics && (
+          <div className="mt-8">
+            <PresentationRequestAnalytics requestId={request.request_id} />
+          </div>
+        )}
       </div>
     </div>
   );
