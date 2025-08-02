@@ -37,7 +37,7 @@ export const HistoryView: React.FC = () => {
 
 			const filters: HistoryFilters = {
 				search: searchTerm || undefined,
-				status: statusFilter !== 'all' ? (statusFilter as 'active' | 'expired' | 'completed' | 'cancelled' | undefined) : undefined,
+				status: statusFilter !== 'all' ? (statusFilter as 'active' | 'expired' | 'completed' | 'closed' | undefined) : undefined,
 				page,
 				limit: itemsPerPage,
 			}

@@ -139,8 +139,8 @@ export function SubmitPresentation({ requestId: propRequestId }: SubmitPresentat
   };
 
   const isExpired = request?.expires_at && new Date(request.expires_at) < new Date();
-  const isRevoked = request?.status === 'revoked';
-  const canSubmit = request && !isExpired && !isRevoked && !submitted;
+  const isClosedOrCompleted = request?.status === 'closed' || request?.status === 'completed';
+  const canSubmit = request && !isExpired && !isClosedOrCompleted && !submitted;
 
   if (!requestId) {
     return (
@@ -261,11 +261,11 @@ export function SubmitPresentation({ requestId: propRequestId }: SubmitPresentat
         </Alert>
       )}
 
-      {isRevoked && (
+      {isClosedOrCompleted && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            This presentation request has been revoked by the verifier.
+            This presentation request has been {request?.status === 'closed' ? 'closed' : 'completed'} by the verifier.
           </AlertDescription>
         </Alert>
       )}
