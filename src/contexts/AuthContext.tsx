@@ -41,6 +41,8 @@ const decodeToken = (token: string): AppUser | null => {
 		}
 
 		console.log(`✅ Token valid until ${expiresAt.toISOString()} (${Math.round(timeUntilExpiry / 1000 / 60)} minutes remaining)`)
+		console.log(`🔍 Decoded token roles:`, decoded.roles)
+		console.log(`🔍 Decoded token tenant_id:`, decoded.tenant_id)
 
 		return {
 			id: decoded.sub,
@@ -628,9 +630,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 				// Import loginGlobalContext service
 				const {loginGlobalContext} = await import('@/services/authService')
 
+				// If preserveGlobalContext is true, backup current global tokens before switching
+				if (options.preserveGlobalContext && currentMode === 'global') {
+					console.log('💾 Preserving current global context')
+					tokenManager.backupTokens('global')
+				}
+
 				// Call login-global API to get global access token
 				const result = await loginGlobalContext(
-					options.preserveGlobalContext,
+					false, // preserveTenantContext = false when switching to global
 					true, // validateContext
 				)
 
@@ -641,6 +649,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 						// Decode new global token to get user without tenant_id
 						const globalUser = decodeToken(globalTokens.accessToken)
 						if (globalUser) {
+							console.log(`🔄 Switching to global user:`, globalUser)
+							console.log(`🔄 Global user roles:`, globalUser.roles)
+							
 							// 🔧 FIX: Update API client immediately BEFORE updating context state
 							apiClient.defaults.headers.Authorization = `Bearer ${globalTokens.accessToken}`
 							console.log(`🔧 API client updated with global token`)
@@ -650,6 +661,20 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 							setUser(globalUser)
 							setIsAuthenticated(true)
 							setCurrentTenantId(null) // Global context has no tenant
+
+							// 🔧 FIX: Update globalContext state immediately
+							setGlobalContext({
+								user: globalUser,
+								isAuthenticated: true,
+								tenantId: null,
+							})
+
+							console.log(`🔄 Updated AuthContext user state:`, globalUser)
+							console.log(`🔄 Updated globalContext state:`, {
+								user: globalUser,
+								isAuthenticated: true,
+								tenantId: null,
+							})
 
 							// Update context state
 							contextManager.setContextState('global', {

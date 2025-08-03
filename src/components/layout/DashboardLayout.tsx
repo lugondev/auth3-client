@@ -34,14 +34,45 @@ export function DashboardLayout({
 	allowedRoles,
 	allowedContexts,
 }: DashboardLayoutProps) {
-	const {user, isAuthenticated, currentMode, currentTenantId, globalContext, tenantContext} = useAuth()
+	const {user, isAuthenticated, currentMode, currentTenantId, globalContext, tenantContext, isTransitioning} = useAuth()
+
+	// Debug log to check user roles
+	React.useEffect(() => {
+		console.log('🔍 DashboardLayout - User updated:', {
+			user,
+			roles: user?.roles,
+			currentMode,
+			currentTenantId,
+			globalContext: globalContext?.user,
+			tenantContext: tenantContext?.user,
+		})
+	}, [user, currentMode, currentTenantId, globalContext, tenantContext])
 
 	// Check if user has required roles
 	const hasRequiredRole = () => {
+		// Use user from appropriate context
+		const contextUser = currentMode === 'global' ? globalContext?.user : tenantContext?.user
+		const checkUser = contextUser || user
+		
+		console.log('Checking roles:', {
+			allowedRoles,
+			userRoles: checkUser?.roles,
+			currentMode,
+			contextUser,
+			mainUser: user,
+			globalContextUser: globalContext?.user,
+			tenantContextUser: tenantContext?.user,
+		})
+		
 		if (!allowedRoles || allowedRoles.length === 0) return true
-		if (!user?.roles) return false
-		return allowedRoles.some((role) => user.roles?.includes(role))
+		if (!checkUser?.roles) return false
+		return allowedRoles.some((role) => checkUser.roles?.includes(role))
 	}
+
+	// Memoize the role check result to prevent unnecessary re-calculations
+	const hasRole = React.useMemo(() => {
+		return hasRequiredRole()
+	}, [allowedRoles, user, currentMode, globalContext, tenantContext])
 
 	// Check if current context is allowed
 	const hasValidContext = () => {
@@ -68,8 +99,25 @@ export function DashboardLayout({
 		)
 	}
 
+	// Show loading during context transitions
+	if (isTransitioning) {
+		return (
+			<div className="min-h-screen flex items-center justify-center p-4">
+				<Card className="w-full max-w-md">
+					<CardHeader>
+						<CardTitle className="flex items-center gap-2">
+							<Loader2 className="h-5 w-5 animate-spin" />
+							Switching Context
+						</CardTitle>
+						<CardDescription>Please wait while we switch your context...</CardDescription>
+					</CardHeader>
+				</Card>
+			</div>
+		)
+	}
+
 	// Show role error
-	if (!hasRequiredRole()) {
+	if (!hasRole) {
 		return (
 			<div className="min-h-screen">
 				<AppHeader />

@@ -25,29 +25,27 @@ export const TenantSpaceHeader: React.FC<TenantSpaceHeaderProps> = ({
 
   const handleExitTenantSpace = async () => {
     try {
-      // Switch back to global context with error handling
-      const result = await switchToGlobal({ preserveGlobalContext: false })
+      // Check if user is global admin - if yes, preserve global context to maintain admin access
+      const isGlobalAdmin = user?.roles?.includes('admin') || user?.roles?.includes('SystemAdmin')
+      const preserveGlobal = isGlobalAdmin
+      
+      // Switch back to global context
+      const result = await switchToGlobal({ preserveGlobalContext: preserveGlobal })
       
       if (result.success) {
-        toast.success('Exited tenant space successfully')
-        router.push('/dashboard/tenant-management')
+        toast.success('Switched to global access token')
+        // If user is global admin, redirect to admin area, otherwise tenant management
+        if (isGlobalAdmin) {
+          router.push('/dashboard/admin')
+        } else {
+          router.push('/dashboard/tenant-management')
+        }
       } else {
-        // Even if context switch fails, still navigate away from tenant space
-        console.warn('Context switch failed but continuing with navigation:', result.error)
-        toast.warning('Exited tenant space (some features may require re-authentication)')
-        router.push('/dashboard/tenant-management')
+        toast.error(result.error || 'Failed to switch to global context')
       }
     } catch (error) {
       console.error('Failed to exit tenant space:', error)
-      
-      // Check if it's a validation error and handle gracefully
-      if (error instanceof Error && error.message.includes('No state found')) {
-        console.warn('Context validation failed, proceeding with navigation anyway')
-        toast.warning('Exited tenant space (some features may require re-authentication)')
-        router.push('/dashboard/tenant-management')
-      } else {
-        toast.error('Failed to exit tenant space')
-      }
+      toast.error('Failed to switch to global context')
     }
   }
 
@@ -81,7 +79,10 @@ export const TenantSpaceHeader: React.FC<TenantSpaceHeaderProps> = ({
             className="flex items-center gap-2 hover:bg-red-50 hover:border-red-300 hover:text-red-700"
           >
             <LogOut className="h-4 w-4" />
-            Exit Tenant Space
+            {user?.roles?.includes('admin') || user?.roles?.includes('SystemAdmin') 
+              ? 'Back to Admin' 
+              : 'Switch to Global Token'
+            }
           </Button>
         </div>
       </div>
