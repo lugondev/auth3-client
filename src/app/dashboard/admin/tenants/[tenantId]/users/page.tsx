@@ -136,6 +136,9 @@ export default function TenantUsersPage() {
 													<Link href={`/dashboard/admin/tenants/${tenantId}/users/${user.user_id}/edit`} passHref>
 														<DropdownMenuItem>Edit User Roles/Status</DropdownMenuItem>
 													</Link>
+													<Link href={`/dashboard/admin/tenants/${tenantId}/users/${user.user_id}/dids`} passHref>
+														<DropdownMenuItem>View DIDs</DropdownMenuItem>
+													</Link>
 													<DropdownMenuSeparator />
 													<DropdownMenuItem onClick={() => handleDeleteClick(user)} className='text-red-600'>
 														Remove from Tenant

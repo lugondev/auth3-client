@@ -68,6 +68,20 @@ export default function TenantDashboardPage() {
       color: 'border-blue-200 hover:border-blue-300',
     },
     {
+      title: 'User DIDs',
+      description: 'View DIDs organized by users',
+      href: `/dashboard/tenant/${tenantId}/users/dids`,
+      icon: Users,
+      color: 'border-indigo-200 hover:border-indigo-300',
+    },
+    {
+      title: 'All DIDs',
+      description: 'View all DIDs in tenant',
+      href: `/dashboard/tenant/${tenantId}/dids`,
+      icon: Database,
+      color: 'border-green-200 hover:border-green-300',
+    },
+    {
       title: 'Settings',
       description: 'Configure tenant settings',
       href: `/dashboard/tenant/${tenantId}/settings`,
@@ -79,13 +93,6 @@ export default function TenantDashboardPage() {
       description: 'View tenant analytics and reports',
       href: `/dashboard/tenant/${tenantId}/analytics`,
       icon: BarChart3,
-      color: 'border-green-200 hover:border-green-300',
-    },
-    {
-      title: 'Data Management',
-      description: 'Manage tenant data and storage',
-      href: `/dashboard/tenant/${tenantId}/data`,
-      icon: Database,
       color: 'border-purple-200 hover:border-purple-300',
     },
   ]

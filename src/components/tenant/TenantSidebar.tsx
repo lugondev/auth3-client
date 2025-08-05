@@ -40,6 +40,12 @@ export const TenantSidebar: React.FC<TenantSidebarProps> = ({tenantId}) => {
 			description: 'DID management',
 		},
 		{
+			icon: Fingerprint,
+			label: 'Member DIDs',
+			href: `/dashboard/tenant/${tenantId}/dids`,
+			description: 'Member DIDs',
+		},
+		{
 			icon: CreditCard,
 			label: 'Credentials',
 			href: `/dashboard/tenant/${tenantId}/vc`,

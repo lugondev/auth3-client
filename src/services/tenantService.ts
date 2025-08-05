@@ -4,6 +4,9 @@ import { AddUserToTenantRequest, PaginatedTenantsResponse, PaginatedTenantUsersR
 import { OwnedTenantsResponse, JoinedTenantsResponse } from '@/types/tenantManagement';
 import { TenantPermission } from '@/types/tenantRbac';
 import { TenantRoleListOutput } from '@/types';
+import { ListUserDIDsInTenantResponse } from '@/types/tenantUserDID';
+import { ListTenantDIDsResponse } from '@/types/tenantDID';
+import { ListTenantMemberDIDsResponse } from '@/types/tenantMemberDID';
 
 // Tenant CRUD Operations
 export const createTenant = withErrorHandling(async (data: CreateTenantRequest): Promise<TenantResponse> => {
@@ -154,3 +157,51 @@ export const transferTenantOwnership = withErrorHandling(async (tenantId: string
 		new_owner_email: newOwnerEmail,
 	});
 });
+
+// Get user DIDs in tenant
+export const getUserDIDsInTenant = withErrorHandling(async (
+	tenantId: string, 
+	userId: string, 
+	limit: number = 20, 
+	offset: number = 0
+): Promise<ListUserDIDsInTenantResponse> => {
+	const response = await apiClient.get<ListUserDIDsInTenantResponse>(`/api/v1/tenants/${tenantId}/users/${userId}/dids`, {
+		params: { limit, offset },
+	});
+	return response.data;
+});
+
+// Get all DIDs in tenant (tenant-owned DIDs)
+export const getTenantOwnedDIDs = withErrorHandling(async (
+	tenantId: string,
+	filters?: {
+		method?: string;
+		status?: string;
+		ownership_type?: string;
+		limit?: number;
+		offset?: number;
+	}
+): Promise<ListTenantDIDsResponse> => {
+	const response = await apiClient.get<ListTenantDIDsResponse>(`/api/v1/tenants/${tenantId}/dids`, {
+		params: filters,
+	});
+	return response.data;
+});
+
+// Get all DIDs of tenant members
+export const getTenantMemberDIDs = withErrorHandling(async (
+	tenantId: string,
+	filters?: {
+		search?: string;
+		limit?: number;
+		offset?: number;
+	}
+): Promise<ListTenantMemberDIDsResponse> => {
+	const response = await apiClient.get<ListTenantMemberDIDsResponse>(`/api/v1/tenants/${tenantId}/members/dids`, {
+		params: filters,
+	});
+	return response.data;
+});
+
+// Backwards compatibility - deprecated, use getTenantOwnedDIDs for tenant-owned DIDs
+export const getTenantDIDs = getTenantOwnedDIDs;

@@ -7,7 +7,7 @@ import {Tenant} from '@/types/tenantManagement'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Badge} from '@/components/ui/badge'
 import {Button} from '@/components/ui/button'
-import {Edit, Users} from 'lucide-react'
+import {Edit, Fingerprint, Users} from 'lucide-react'
 import {loginTenantContext} from '@/services/authService'
 import {Loader2} from 'lucide-react'
 import {toast} from 'sonner'
@@ -147,6 +147,14 @@ export const TenantTable: React.FC<TenantTableProps> = ({tenants, isAdmin}) => {
 											<Link href={`/dashboard/admin/tenants/${tenant.id}/users`}>
 												<Users className='h-4 w-4 mr-2' />
 												Manage Users
+											</Link>
+										</PermissionButton>
+									</PermissionTooltip>
+									<PermissionTooltip permission='admin:tenants:dids:read'>
+										<PermissionButton variant='outline' size='sm' permission='admin:tenants:dids:read' asChild>
+											<Link href={`/dashboard/admin/tenants/${tenant.id}/dids`}>
+												<Fingerprint className='h-4 w-4 mr-2' />
+												Users DIDs
 											</Link>
 										</PermissionButton>
 									</PermissionTooltip>

@@ -1,5 +1,6 @@
 import apiClient from '../lib/apiClient';
 import { withErrorHandling } from './errorHandlingService';
+import { ListTenantMemberDIDsResponse } from '@/types/tenantMemberDID';
 
 // Tenant DID Types
 export interface TenantDIDDocument {
@@ -108,6 +109,22 @@ export const getTenantDIDs = withErrorHandling(
 			params,
 		});
 		return response.data as ListTenantDIDsResponse;
+	}
+);
+
+/**
+ * Get all DIDs of tenant members
+ */
+export const getTenantMemberDIDs = withErrorHandling(
+	async (tenantId: string, filters?: {
+		search?: string;
+		limit?: number;
+		offset?: number;
+	}): Promise<ListTenantMemberDIDsResponse> => {
+		const response = await apiClient.get(`/api/v1/tenants/${tenantId}/members/dids`, {
+			params: filters,
+		});
+		return response.data as ListTenantMemberDIDsResponse;
 	}
 );
 
