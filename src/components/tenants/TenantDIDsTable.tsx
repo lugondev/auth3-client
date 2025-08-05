@@ -254,7 +254,7 @@ export default function TenantDIDsTable({ tenantId, defaultFilters = {} }: Tenan
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <button
+                    {/* <button
                       onClick={() => {
                         // Navigate to DID details or open modal
                         console.log('View DID details:', did.did_id)
@@ -263,7 +263,7 @@ export default function TenantDIDsTable({ tenantId, defaultFilters = {} }: Tenan
                     >
                       <Eye className="mr-1 h-3 w-3" />
                       View
-                    </button>
+                    </button> */}
                   </div>
                 </div>
               </li>

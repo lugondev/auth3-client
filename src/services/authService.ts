@@ -146,7 +146,7 @@ export const register = withErrorHandling(
  */
 export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> => {
 	try {
-		await apiClient.post('/api/v1/auth/forgot-password', data);
+		await apiClient.post('/api/v1/auth/password/forgot', data);
 		console.log('Forgot password request sent.');
 	} catch (error) {
 		console.error('Error sending forgot password request:', error);
@@ -160,7 +160,7 @@ export const forgotPassword = async (data: ForgotPasswordInput): Promise<void> =
  */
 export const resetPassword = async (data: ResetPasswordInput): Promise<void> => {
 	try {
-		await apiClient.post('/api/v1/auth/reset-password', data);
+		await apiClient.post('/api/v1/auth/password/reset', data);
 		console.log('Password reset successful.');
 	} catch (error) {
 		console.error('Error resetting password:', error);
